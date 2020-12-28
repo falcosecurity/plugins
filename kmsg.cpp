@@ -112,7 +112,6 @@ void kmsgclose(src_plugin_t* s, src_instance_t* h)
 
 int32_t kmsgnext(src_plugin_t* s, src_instance_t* h, uint8_t** data, uint32_t* datalen)
 {
-//	(*pevent)->type = PPME_SYSCALL_OPEN_E;
 	kmsg_plugin_state* ts = (kmsg_plugin_state*)s;
 	int rres;
 
@@ -123,20 +122,36 @@ int32_t kmsgnext(src_plugin_t* s, src_instance_t* h, uint8_t** data, uint32_t* d
 	}
 	else
 	{
+#ifdef _WIN32		
 		Sleep(1000);
+#else
+		sleep(1);
+#endif
 		return SCAP_TIMEOUT;
 	}
 #else
 	int rres = read((int)(int64_t)h, ts->databuf, DATABUF_SIZE);
 	if(rres <= 0)
 	{
-		Sleep(1000);
+		sleep(1);
 		return SCAP_TIMEOUT;
 	}
 #endif
 	*data = (uint8_t*)ts->databuf;
 	*datalen = rres;
-printf("%s\n", *data);
+
+	string sline((char*)*data);
+	std::vector<std::string> parts = sinsp_split(sline, ':');
+	if(parts.size() < 2)
+	{
+		// We don't understand this line. Just skip it.
+		ASSERT(false);
+		return SCAP_TIMEOUT;
+	}
+
+	string machine_part = parts[0];
+	std::vector<std::string> machine_components = sinsp_split(machine_part, ',');
+
 	return SCAP_SUCCESS;
 }
 
@@ -154,15 +169,15 @@ source_plugin_info create_kmsg_source()
 {
 	source_plugin_info si =
 	{
-		.open = kmsgopen,
-		.close = kmsgclose,
-		.next = kmsgnext,
 		.init = kmsginit,
 		.destroy = kmsgdestroy,
 		.get_id = kmsgget_id,
 		.get_name = kmsgget_name,
 		.get_description = kmsgget_description,
 		.get_fields = kmsgget_fields,
+		.open = kmsgopen,
+		.close = kmsgclose,
+		.next = kmsgnext,
 		.event_to_string = kmsgevent_to_string,
 		.extract_as_string = kmsgextract_as_string
 	};
