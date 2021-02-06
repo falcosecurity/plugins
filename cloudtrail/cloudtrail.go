@@ -39,8 +39,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
-	"github.com/valyala/fastjson"
 	"github.com/leogr/libsinsp-plugin-sdk-go/pkg/sinsp"
+	"github.com/valyala/fastjson"
 )
 
 const PLUGIN_ID uint32 = 2
@@ -899,6 +899,7 @@ func plugin_register_async_extractor(info *C.async_extractor_info) int32 {
 	go func() {
 		for sinsp.Wait(unsafe.Pointer(info)) {
 			(*info).res = plugin_extract_str(uint64(info.evtnum), uint32(info.id), info.arg, info.data, uint32(info.datalen))
+			//(*info).res = nil
 		}
 	}()
 	return SCAP_SUCCESS
