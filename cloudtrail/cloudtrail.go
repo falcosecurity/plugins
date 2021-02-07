@@ -43,31 +43,17 @@ import (
 	"github.com/valyala/fastjson"
 )
 
-const PLUGIN_ID uint32 = 2
-const PLUGIN_NAME string = "cloudtrail"
-const PLUGIN_DESCRIPTION = "reads cloudtrail JSON data saved to file in the directory specified in the settings"
+// Plugin consts
+const (
+	PluginID          uint32 = 2
+	PluginName               = "cloudtrail"
+	PluginDescription        = "reads cloudtrail JSON data saved to file in the directory specified in the settings"
+)
 
-const S3_DOWNLOAD_CONCURRENCY = 64
-const VERBOSE bool = false
-const NEXT_BUF_LEN uint32 = 65535
-const OUT_BUF_LEN uint32 = 4096
-
-///////////////////////////////////////////////////////////////////////////////
-// framework constants
-
-const SCAP_SUCCESS int32 = 0
-const SCAP_FAILURE int32 = 1
-const SCAP_TIMEOUT int32 = -1
-const SCAP_EOF int32 = 6
-
-const TYPE_SOURCE_PLUGIN uint32 = 1
-const TYPE_EXTRACTOR_PLUGIN uint32 = 2
-
-type getFieldsEntry struct {
-	Type string `json:"type"`
-	Name string `json:"name"`
-	Desc string `json:"desc"`
-}
+const s3DownloadConcurrency = 64
+const verbose bool = false
+const nextBufSize uint32 = 65535
+const outBufSize uint32 = 4096
 
 func min(a, b int) int {
 	if a < b {
@@ -114,104 +100,78 @@ type pluginContext struct {
 	s3                 s3State
 }
 
-var gCtx pluginContext
 var gLastError string = ""
 
 //export plugin_get_type
 func plugin_get_type() uint32 {
-	return TYPE_SOURCE_PLUGIN
+	return sinsp.TypeSourcePlugin
 }
 
 //export plugin_init
-func plugin_init(config *C.char, rc *int32) *C.char {
-	if !VERBOSE {
+func plugin_init(config *C.char, rc *int32) unsafe.Pointer {
+	if !verbose {
 		log.SetOutput(ioutil.Discard)
 	}
 
-	log.Printf("[%s] plugin_init\n", PLUGIN_NAME)
+	log.Printf("[%s] plugin_init\n", PluginName)
 	log.Printf("config string:\n%s\n", C.GoString(config))
 
-	//
-	// Allocate the state struct
-	//
-	gCtx = pluginContext{
-		evtBufLen:      int(NEXT_BUF_LEN),
-		outBufLen:      int(OUT_BUF_LEN),
-		curFileNum:     0,
-		evtJsonListPos: 0,
-		jdataEvtnum:    math.MaxUint64,
-	}
+	// Allocate the container for buffers and context
+	pluginState := sinsp.NewStateContainer()
 
-	gCtx.s3.lastDownloadedFileNum = 0
-	gCtx.s3.nFilledBufs = 0
-	gCtx.s3.curBuf = 0
-
-	//
 	// We need two different pieces of memory to share data with the C code:
 	// - a buffer that contains the events that we create and send to the engine
 	//   through next()
 	// - storage for functions like plugin_event_to_string and plugin_extract_str,
 	//   so that their results can be shared without allocations or data copies.
-	// We allocate these buffers with malloc so we can easily share them with the C code.
-	// At the same time, we map them as byte[] arrays to make it easy to deal with them
-	// on the go side.
-	//
-	gCtx.evtBufRaw = C.malloc(C.size_t(NEXT_BUF_LEN))
-	gCtx.evtBuf = (*[1 << 30]byte)(unsafe.Pointer(gCtx.evtBufRaw))[:int(gCtx.evtBufLen):int(gCtx.evtBufLen)]
+	sinsp.MakeBuffer(pluginState, outBufSize)
 
-	gCtx.outBufRaw = C.malloc(C.size_t(OUT_BUF_LEN))
-	gCtx.outBuf = (*[1 << 30]byte)(unsafe.Pointer(gCtx.outBufRaw))[:int(gCtx.outBufLen):int(gCtx.outBufLen)]
+	// Allocate the context struct and set it to the state
+	pCtx := &pluginContext{
+		evtBufLen:      int(nextBufSize),
+		outBufLen:      int(outBufSize),
+		jdataEvtnum:    math.MaxUint64,
+	}
+	sinsp.SetContext(pluginState, unsafe.Pointer(pCtx))
 
-	//
 	// We create an array of download buffers that will be used to concurrently
 	// download files from s3
-	//
-	gCtx.s3.DownloadBufs = make([][]byte, S3_DOWNLOAD_CONCURRENCY)
+	pCtx.s3.DownloadBufs = make([][]byte, s3DownloadConcurrency)
+	
 
-	*rc = SCAP_SUCCESS
+	*rc = sinsp.ScapSuccess
 
-	//
-	// XXX plugin peristent state is currently global, so we don't return it to the engine.
-	// The reason is that cgo doesn't let us pass go structs to C code, even if they will
-	// be treated as fully opaque.
-	// We will need to fix this
-	//
-	return nil
+	return pluginState
 }
 
 //export plugin_get_last_error
 func plugin_get_last_error() *C.char {
-	log.Printf("[%s] plugin_get_last_error\n", PLUGIN_NAME)
+	log.Printf("[%s] plugin_get_last_error\n", PluginName)
 	return C.CString(gLastError)
 }
 
 //export plugin_destroy
-func plugin_destroy(context *byte) {
-	log.Printf("[%s] plugin_destroy\n", PLUGIN_NAME)
-
-	//
-	// Release the memory buffers
-	//
-	C.free(gCtx.evtBufRaw)
-	C.free(gCtx.outBufRaw)
+func plugin_destroy(plgState unsafe.Pointer) {
+	log.Printf("[%s] plugin_destroy\n", PluginName)
+	sinsp.Free(plgState)
 }
 
 //export plugin_get_id
 func plugin_get_id() uint32 {
-	log.Printf("[%s] plugin_get_id\n", PLUGIN_NAME)
-	return PLUGIN_ID
+	log.Printf("[%s] plugin_get_id\n", PluginName)
+	return PluginID
 }
 
 //export plugin_get_name
 func plugin_get_name() *C.char {
-	//	log.Printf("[%s] plugin_get_name\n", PLUGIN_NAME)
-	return C.CString(PLUGIN_NAME)
+	//	log.Printf("[%s] plugin_get_name\n", PluginName)
+	return C.CString(PluginName)
 }
 
 //export plugin_get_description
 func plugin_get_description() *C.char {
-	log.Printf("[%s] plugin_get_description\n", PLUGIN_NAME)
-	return C.CString(PLUGIN_DESCRIPTION)
+	log.Printf("[%s] plugin_get_description\n", PluginName)
+	return C.CString(PluginDescription)
 }
 
 const FIELD_ID_CLOUDTRAIL_ID uint32 = 0
@@ -237,8 +197,8 @@ const FIELD_ID_EC2_NAME uint32 = 19
 
 //export plugin_get_fields
 func plugin_get_fields() *C.char {
-	log.Printf("[%s] plugin_get_fields\n", PLUGIN_NAME)
-	flds := []getFieldsEntry{
+	log.Printf("[%s] plugin_get_fields\n", PluginName)
+	flds := []sinsp.FieldEntry{
 		{Type: "string", Name: "ct.id", Desc: "the unique ID of the cloudtrail event (eventID in the json)."},
 		{Type: "string", Name: "ct.time", Desc: "the timestamp of the cloudtrail event (eventTime in the json)."},
 		{Type: "string", Name: "ct.src", Desc: "the source of the cloudtrail event (eventSource in the json, without the '.amazonaws.com' trailer)."},
@@ -270,20 +230,22 @@ func plugin_get_fields() *C.char {
 	return C.CString(string(b))
 }
 
-func openLocal(plgState *C.char, params *C.char, rc *int32) *C.char {
-	*rc = SCAP_SUCCESS
+func openLocal(pCtx *pluginContext, params *C.char, rc *int32) {
+	*rc = sinsp.ScapSuccess
 
-	gCtx.cloudTrailFilesDir = C.GoString(params)
+	pCtx.isS3 = false
 
-	if len(gCtx.cloudTrailFilesDir) == 0 {
-		gLastError = PLUGIN_NAME + " plugin error: missing input directory argument"
-		*rc = SCAP_FAILURE
-		return nil
+	pCtx.cloudTrailFilesDir = C.GoString(params)
+
+	if len(pCtx.cloudTrailFilesDir) == 0 {
+		gLastError = PluginName + " plugin error: missing input directory argument"
+		*rc = sinsp.ScapFailure
+		return
 	}
 
-	log.Printf("[%s] scanning directory %s\n", PLUGIN_NAME, gCtx.cloudTrailFilesDir)
+	log.Printf("[%s] scanning directory %s\n", PluginName, pCtx.cloudTrailFilesDir)
 
-	err := filepath.Walk(gCtx.cloudTrailFilesDir, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(pCtx.cloudTrailFilesDir, func(path string, info os.FileInfo, err error) error {
 		if info != nil && info.IsDir() {
 			return nil
 		}
@@ -294,32 +256,26 @@ func openLocal(plgState *C.char, params *C.char, rc *int32) *C.char {
 		}
 
 		var fi fileInfo = fileInfo{name: path, isCompressed: isCompressed}
-		gCtx.files = append(gCtx.files, fi)
+		pCtx.files = append(pCtx.files, fi)
 		return nil
 	})
 	if err != nil {
 		gLastError = err.Error()
-		*rc = SCAP_FAILURE
+		*rc = sinsp.ScapFailure
 	}
-	if len(gCtx.files) == 0 {
-		gLastError = PLUGIN_NAME + " plugin error: no json files found in " + gCtx.cloudTrailFilesDir
-		*rc = SCAP_FAILURE
+	if len(pCtx.files) == 0 {
+		gLastError = PluginName + " plugin error: no json files found in " + pCtx.cloudTrailFilesDir
+		*rc = sinsp.ScapFailure
 	}
 
-	log.Printf("[%s] found %d json files\n", PLUGIN_NAME, len(gCtx.files))
-
-	//
-	// XXX open state is currently global, so we don't return it to the engine.
-	// The reason is that cgo doesn't let us pass go structs to C code, even if they will
-	// be treated as fully opaque.
-	// We will need to fix this
-	//
-	return nil
+	log.Printf("[%s] found %d json files\n", PluginName, len(pCtx.files))
 }
 
-func openS3(plgState *C.char, params *C.char, rc *int32) *C.char {
-	*rc = SCAP_SUCCESS
+func openS3(pCtx *pluginContext, params *C.char, rc *int32) {
+	*rc = sinsp.ScapSuccess
 	input := C.GoString(params)
+
+	pCtx.isS3 = true
 
 	//
 	// remove the initial "s3://"
@@ -332,24 +288,24 @@ func openS3(plgState *C.char, params *C.char, rc *int32) *C.char {
 	//
 	var prefix string
 	if slashindex == -1 {
-		gCtx.s3.bucket = input
+		pCtx.s3.bucket = input
 		prefix = ""
 	} else {
-		gCtx.s3.bucket = input[:slashindex]
+		pCtx.s3.bucket = input[:slashindex]
 		prefix = input[slashindex+1:]
 	}
 
 	//
 	// Fetch the list of keys
 	//
-	gCtx.s3.awsSess = session.Must(session.NewSessionWithOptions(session.Options{
+	pCtx.s3.awsSess = session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	}))
 
-	gCtx.s3.awsSvc = s3.New(gCtx.s3.awsSess)
+	pCtx.s3.awsSvc = s3.New(pCtx.s3.awsSess)
 
-	err := gCtx.s3.awsSvc.ListObjectsPages(&s3.ListObjectsInput{
-		Bucket: &gCtx.s3.bucket,
+	err := pCtx.s3.awsSvc.ListObjectsPages(&s3.ListObjectsInput{
+		Bucket: &pCtx.s3.bucket,
 		Prefix: &prefix,
 	}, func(p *s3.ListObjectsOutput, last bool) (shouldContinue bool) {
 		for _, obj := range p.Contents {
@@ -361,48 +317,52 @@ func openS3(plgState *C.char, params *C.char, rc *int32) *C.char {
 			}
 
 			var fi fileInfo = fileInfo{name: *path, isCompressed: true}
-			gCtx.files = append(gCtx.files, fi)
+			pCtx.files = append(pCtx.files, fi)
 		}
 		return true
 	})
 	if err != nil {
-		gLastError = PLUGIN_NAME + " plugin error: failed to list objects: " + err.Error()
-		*rc = SCAP_FAILURE
+		gLastError = PluginName + " plugin error: failed to list objects: " + err.Error()
+		*rc = sinsp.ScapFailure
 	}
 
-	gCtx.s3.downloader = s3manager.NewDownloader(gCtx.s3.awsSess)
-
-	return nil
+	pCtx.s3.downloader = s3manager.NewDownloader(pCtx.s3.awsSess)
 }
 
 //export plugin_open
-func plugin_open(plgState *C.char, params *C.char, rc *int32) *C.char {
-	log.Printf("[%s] plugin_open\n", PLUGIN_NAME)
+func plugin_open(plgState unsafe.Pointer, params *C.char, rc *int32) unsafe.Pointer {
+	log.Printf("[%s] plugin_open\n", PluginName)
+
+	pCtx := (*pluginContext)(sinsp.Context(plgState))
 
 	input := C.GoString(params)
 	if len(input) >= 5 && input[:5] == "s3://" {
-		gCtx.isS3 = true
-		return openS3(plgState, params, rc)
+		openS3(pCtx, params, rc)
 	} else {
-		gCtx.isS3 = false
-		return openLocal(plgState, params, rc)
+		openLocal(pCtx, params, rc)
 	}
+
+	// Allocate buffer for next()
+	openState := sinsp.NewStateContainer()
+	sinsp.MakeBuffer(openState, nextBufSize)
+	return openState
 }
 
 //export plugin_close
-func plugin_close(plgState *C.char, openState *C.char) {
-	log.Printf("[%s] plugin_close\n", PLUGIN_NAME)
+func plugin_close(plgState unsafe.Pointer, openState unsafe.Pointer) {
+	log.Printf("[%s] plugin_close\n", PluginName)
+	sinsp.Free(openState)
 }
 
 var dlErrChan chan error
 
-func s3Download(downloader *s3manager.Downloader, name string, dloadSlotNum int) {
-	defer gCtx.s3.DownloadWg.Done()
+func s3Download(ctx *pluginContext, downloader *s3manager.Downloader, name string, dloadSlotNum int) {
+	defer ctx.s3.DownloadWg.Done()
 
 	buff := &aws.WriteAtBuffer{}
 	_, err := downloader.Download(buff,
 		&s3.GetObjectInput{
-			Bucket: &gCtx.s3.bucket,
+			Bucket: &ctx.s3.bucket,
 			Key:    &name,
 		})
 	if err != nil {
@@ -410,24 +370,24 @@ func s3Download(downloader *s3manager.Downloader, name string, dloadSlotNum int)
 		return
 	}
 
-	gCtx.s3.DownloadBufs[dloadSlotNum] = buff.Bytes()
+	ctx.s3.DownloadBufs[dloadSlotNum] = buff.Bytes()
 }
 
-func readNextFileS3() ([]byte, error) {
-	if gCtx.s3.curBuf < gCtx.s3.nFilledBufs {
-		curBuf := gCtx.s3.curBuf
-		gCtx.s3.curBuf++
-		return gCtx.s3.DownloadBufs[curBuf], nil
+func readNextFileS3(ctx *pluginContext) ([]byte, error) {
+	if ctx.s3.curBuf < ctx.s3.nFilledBufs {
+		curBuf := ctx.s3.curBuf
+		ctx.s3.curBuf++
+		return ctx.s3.DownloadBufs[curBuf], nil
 	}
 
-	dlErrChan = make(chan error, S3_DOWNLOAD_CONCURRENCY)
-	k := gCtx.s3.lastDownloadedFileNum
-	gCtx.s3.nFilledBufs = min(S3_DOWNLOAD_CONCURRENCY, len(gCtx.files)-k)
-	for j, f := range gCtx.files[k : k+gCtx.s3.nFilledBufs] {
-		gCtx.s3.DownloadWg.Add(1)
-		go s3Download(gCtx.s3.downloader, f.name, j)
+	dlErrChan = make(chan error, s3DownloadConcurrency)
+	k := ctx.s3.lastDownloadedFileNum
+	ctx.s3.nFilledBufs = min(s3DownloadConcurrency, len(ctx.files)-k)
+	for j, f := range ctx.files[k : k+ctx.s3.nFilledBufs] {
+		ctx.s3.DownloadWg.Add(1)
+		go s3Download(ctx, ctx.s3.downloader, f.name, j)
 	}
-	gCtx.s3.DownloadWg.Wait()
+	ctx.s3.DownloadWg.Wait()
 
 	select {
 	case e := <-dlErrChan:
@@ -435,10 +395,10 @@ func readNextFileS3() ([]byte, error) {
 	default:
 	}
 
-	gCtx.s3.lastDownloadedFileNum += S3_DOWNLOAD_CONCURRENCY
+	ctx.s3.lastDownloadedFileNum += s3DownloadConcurrency
 
-	gCtx.s3.curBuf = 1
-	return gCtx.s3.DownloadBufs[0], nil
+	ctx.s3.curBuf = 1
+	return ctx.s3.DownloadBufs[0], nil
 }
 
 func readFileLocal(fileName string) ([]byte, error) {
@@ -446,34 +406,36 @@ func readFileLocal(fileName string) ([]byte, error) {
 }
 
 //export plugin_next
-func plugin_next(plgState *C.char, openState *C.char, data **C.char, datalen *uint32, ts *uint64) int32 {
-	//	log.Printf("[%s] plugin_next\n", PLUGIN_NAME)
+func plugin_next(plgState unsafe.Pointer, openState unsafe.Pointer, data **byte, datalen *uint32, ts *uint64) int32 {
+	// log.Printf("[%s] plugin_next\n", PluginName)
 	var str []byte
 	var err error
 	var jdata map[string]interface{}
 
+	pCtx := (*pluginContext)(sinsp.Context(plgState))
+
 	//
 	// Only open the next file once we're sure that the content of the previous one has been full consumed
 	//
-	if gCtx.evtJsonListPos == len(gCtx.evtJsonList) {
+	if pCtx.evtJsonListPos == len(pCtx.evtJsonList) {
 		//
 		// Open the next file and bring its content into memeory
 		//
-		if gCtx.curFileNum >= uint32(len(gCtx.files)) {
-			return SCAP_EOF
+		if pCtx.curFileNum >= uint32(len(pCtx.files)) {
+			return sinsp.ScapEOF
 		}
 
-		file := gCtx.files[gCtx.curFileNum]
-		gCtx.curFileNum++
+		file := pCtx.files[pCtx.curFileNum]
+		pCtx.curFileNum++
 
-		if gCtx.isS3 {
-			str, err = readNextFileS3()
+		if pCtx.isS3 {
+			str, err = readNextFileS3(pCtx)
 		} else {
 			str, err = readFileLocal(file.name)
 		}
 		if err != nil {
 			gLastError = err.Error()
-			return SCAP_FAILURE
+			return sinsp.ScapFailure
 		}
 
 		//
@@ -484,7 +446,7 @@ func plugin_next(plgState *C.char, openState *C.char, data **C.char, datalen *ui
 			defer gr.Close()
 			zdata, err := ioutil.ReadAll(gr)
 			if err != nil {
-				return SCAP_TIMEOUT
+				return sinsp.ScapTimeout
 			}
 			str = zdata
 		}
@@ -495,12 +457,12 @@ func plugin_next(plgState *C.char, openState *C.char, data **C.char, datalen *ui
 		//
 		err = json.Unmarshal(str, &jdata)
 		if err != nil {
-			return SCAP_TIMEOUT
+			return sinsp.ScapTimeout
 		}
 
 		if len(jdata) == 1 && jdata["Records"] != nil {
-			gCtx.evtJsonList = jdata["Records"].([]interface{})
-			gCtx.evtJsonListPos = 0
+			pCtx.evtJsonList = jdata["Records"].([]interface{})
+			pCtx.evtJsonListPos = 0
 		}
 	}
 
@@ -508,9 +470,9 @@ func plugin_next(plgState *C.char, openState *C.char, data **C.char, datalen *ui
 	// Extract the next record
 	//
 	var cr map[string]interface{}
-	if len(gCtx.evtJsonList) != 0 {
-		cr = gCtx.evtJsonList[gCtx.evtJsonListPos].(map[string]interface{})
-		gCtx.evtJsonListPos++
+	if len(pCtx.evtJsonList) != 0 {
+		cr = pCtx.evtJsonList[pCtx.evtJsonListPos].(map[string]interface{})
+		pCtx.evtJsonListPos++
 	} else {
 		cr = jdata
 	}
@@ -524,18 +486,18 @@ func plugin_next(plgState *C.char, openState *C.char, data **C.char, datalen *ui
 	if err != nil {
 		// gLastError = fmt.Sprintf("time in unknown format: %s, %v(%v)",
 		// 	cr["eventTime"],
-		// 	gCtx.evtJsonListPos,
-		// 	len(gCtx.evtJsonList))
+		// 	pCtx.evtJsonListPos,
+		// 	len(pCtx.evtJsonList))
 		//
 		// We assume this is just some spurious data and we continue
 		//
-		return SCAP_TIMEOUT
+		return sinsp.ScapTimeout
 	}
 	*ts = uint64(t1.Unix()) * 1000000000
 
 	ets := fmt.Sprintf("%s", cr["eventType"])
 	if ets == "AwsCloudTrailInsight" {
-		return SCAP_TIMEOUT
+		return sinsp.ScapTimeout
 	}
 
 	//
@@ -548,12 +510,12 @@ func plugin_next(plgState *C.char, openState *C.char, data **C.char, datalen *ui
 	//
 	str, err = json.Marshal(&cr)
 	if err != nil {
-		return SCAP_TIMEOUT
+		return sinsp.ScapTimeout
 	}
 
-	if len(str) > len(gCtx.evtBuf) {
+	if len(str) > len(pCtx.evtBuf) {
 		gLastError = fmt.Sprintf("cloudwatch message too long: %d, max 65535 supported", len(str))
-		return SCAP_FAILURE
+		return sinsp.ScapFailure
 	}
 
 	//
@@ -561,17 +523,11 @@ func plugin_next(plgState *C.char, openState *C.char, data **C.char, datalen *ui
 	//
 	str = append(str, 0)
 
-	//
-	// Copy the json string into the event buffer
-	//
-	copy(gCtx.evtBuf[:], str)
+	// Copy to and return the event buffer
+	*datalen = sinsp.CopyToBuffer(openState, str)
+	*data = sinsp.Buffer(openState)
 
-	//
-	// Ready to return the event
-	//
-	*data = (*C.char)(gCtx.evtBufRaw)
-	*datalen = uint32(len(str))
-	return SCAP_SUCCESS
+	return sinsp.ScapSuccess
 }
 
 func getUser(jdata *fastjson.Value) string {
@@ -734,19 +690,21 @@ func getfieldStr(jdata *fastjson.Value, id uint32) (bool, string) {
 }
 
 //export plugin_event_to_string
-func plugin_event_to_string(data *C.char, datalen uint32) *C.char {
-	//	log.Printf("[%s] plugin_event_to_string\n", PLUGIN_NAME)
+func plugin_event_to_string(plgState unsafe.Pointer, data *C.char, datalen uint32) *byte {
+	// log.Printf("[%s] plugin_event_to_string\n", PluginName)
 	var line string
 	var src string
 	var user string
 	var err error
 
-	gCtx.jdata, err = gCtx.jparser.Parse(C.GoString(data))
+	pCtx := (*pluginContext)(sinsp.Context(plgState))
+
+	pCtx.jdata, err = pCtx.jparser.Parse(C.GoString(data))
 	if err != nil {
 		gLastError = err.Error()
 		line = "<invalid JSON: " + err.Error() + ">"
 	} else {
-		src = string(gCtx.jdata.GetStringBytes("eventSource"))
+		src = string(pCtx.jdata.GetStringBytes("eventSource"))
 
 		if len(src) > len(".amazonaws.com") {
 			srctrailer := src[len(src)-len(".amazonaws.com"):]
@@ -755,18 +713,18 @@ func plugin_event_to_string(data *C.char, datalen uint32) *C.char {
 			}
 		}
 
-		user = getUser(gCtx.jdata)
+		user = getUser(pCtx.jdata)
 		if user != "" {
 			user = " " + user
 		}
 
-		info := getEvtInfo(gCtx.jdata)
+		info := getEvtInfo(pCtx.jdata)
 
 		line = fmt.Sprintf("%s%s %s %s %s",
-			gCtx.jdata.GetStringBytes("awsRegion"),
+			pCtx.jdata.GetStringBytes("awsRegion"),
 			user,
 			src,
-			gCtx.jdata.GetStringBytes("eventName"),
+			pCtx.jdata.GetStringBytes("eventName"),
 			info,
 		)
 	}
@@ -776,24 +734,21 @@ func plugin_event_to_string(data *C.char, datalen uint32) *C.char {
 	//
 	line += "\x00"
 
-	//
-	// Copy the the line into the event buffer
-	//
-	copy(gCtx.outBuf[:], line)
-
-	return (*C.char)(gCtx.outBufRaw)
+	sinsp.CopyToBuffer(plgState, []byte(line))
+	return sinsp.Buffer(plgState)
 }
 
 //export plugin_extract_str
-func plugin_extract_str(evtnum uint64, id uint32, arg *C.char, data *C.char, datalen uint32) *C.char {
+func plugin_extract_str(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *C.char, data *C.char, datalen uint32) *C.char {
 	var res string
 	var err error
+	pCtx := (*pluginContext)(sinsp.Context(plgState))
 
 	//
 	// Decode the json, but only if we haven't done it yet for this event
 	//
-	if evtnum != gCtx.jdataEvtnum {
-		gCtx.jdata, err = gCtx.jparser.Parse(C.GoString(data))
+	if evtnum != pCtx.jdataEvtnum {
+		pCtx.jdata, err = pCtx.jparser.Parse(C.GoString(data))
 		if err != nil {
 			//
 			// Not a json file. We return nil to indicate that the field is not
@@ -801,10 +756,10 @@ func plugin_extract_str(evtnum uint64, id uint32, arg *C.char, data *C.char, dat
 			//
 			return nil
 		}
-		gCtx.jdataEvtnum = evtnum
+		pCtx.jdataEvtnum = evtnum
 	}
 
-	present, val := getfieldStr(gCtx.jdata, id)
+	present, val := getfieldStr(pCtx.jdata, id)
 	if !present {
 		return nil
 	} else {
@@ -813,24 +768,22 @@ func plugin_extract_str(evtnum uint64, id uint32, arg *C.char, data *C.char, dat
 
 	res += "\x00"
 
-	//
-	// Copy the the result into the event buffer
-	//
-	copy(gCtx.outBuf[:], res)
-
-	return (*C.char)(gCtx.outBufRaw)
+	sinsp.CopyToBuffer(plgState, []byte(res))
+	// todo(leogr): try a way to avoid casting here
+	return (*C.char)(unsafe.Pointer(sinsp.Buffer(plgState)))
 }
 
 //export plugin_extract_u64
-func plugin_extract_u64(evtnum uint64, id uint32, arg *C.char, data *C.char, datalen uint32, field_present *uint32) uint64 {
+func plugin_extract_u64(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *C.char, data *C.char, datalen uint32, field_present *uint32) uint64 {
 	var err error
 	*field_present = 0
+	pCtx := (*pluginContext)(sinsp.Context(plgState))
 
 	//
 	// Decode the json, but only if we haven't done it yet for this event
 	//
-	if evtnum != gCtx.jdataEvtnum {
-		gCtx.jdata, err = gCtx.jparser.Parse(C.GoString(data))
+	if evtnum != pCtx.jdataEvtnum {
+		pCtx.jdata, err = pCtx.jparser.Parse(C.GoString(data))
 		if err != nil {
 			//
 			// Not a json file. We return nil to indicate that the field is not
@@ -838,17 +791,17 @@ func plugin_extract_u64(evtnum uint64, id uint32, arg *C.char, data *C.char, dat
 			//
 			return 0
 		}
-		gCtx.jdataEvtnum = evtnum
+		pCtx.jdataEvtnum = evtnum
 	}
 
 	switch id {
 	case FIELD_ID_S3_BYTES:
 		var tot uint64 = 0
-		in := gCtx.jdata.Get("additionalEventData", "bytesTransferredIn")
+		in := pCtx.jdata.Get("additionalEventData", "bytesTransferredIn")
 		if in != nil {
 			tot = tot + in.GetUint64()
 		}
-		out := gCtx.jdata.Get("additionalEventData", "bytesTransferredOut")
+		out := pCtx.jdata.Get("additionalEventData", "bytesTransferredOut")
 		if out != nil {
 			tot = tot + out.GetUint64()
 		}
@@ -856,7 +809,7 @@ func plugin_extract_u64(evtnum uint64, id uint32, arg *C.char, data *C.char, dat
 		return tot
 	case FIELD_ID_S3_BYTES_IN:
 		var tot uint64 = 0
-		in := gCtx.jdata.Get("additionalEventData", "bytesTransferredIn")
+		in := pCtx.jdata.Get("additionalEventData", "bytesTransferredIn")
 		if in != nil {
 			tot = tot + in.GetUint64()
 		}
@@ -864,26 +817,26 @@ func plugin_extract_u64(evtnum uint64, id uint32, arg *C.char, data *C.char, dat
 		return tot
 	case FIELD_ID_S3_BYTES_OUT:
 		var tot uint64 = 0
-		out := gCtx.jdata.Get("additionalEventData", "bytesTransferredOut")
+		out := pCtx.jdata.Get("additionalEventData", "bytesTransferredOut")
 		if out != nil {
 			tot = tot + out.GetUint64()
 		}
 		*field_present = 1
 		return tot
 	case FIELD_ID_S3_CNT_GET:
-		if string(gCtx.jdata.GetStringBytes("eventName")) == "GetObject" {
+		if string(pCtx.jdata.GetStringBytes("eventName")) == "GetObject" {
 			*field_present = 1
 			return 1
 		}
 		return 0
 	case FIELD_ID_S3_CNT_PUT:
-		if string(gCtx.jdata.GetStringBytes("eventName")) == "PutObject" {
+		if string(pCtx.jdata.GetStringBytes("eventName")) == "PutObject" {
 			*field_present = 1
 			return 1
 		}
 		return 0
 	case FIELD_ID_S3_CNT_OTHER:
-		ename := string(gCtx.jdata.GetStringBytes("eventName"))
+		ename := string(pCtx.jdata.GetStringBytes("eventName"))
 		if ename == "GetObject" || ename == "PutObject" {
 			*field_present = 1
 			return 0
@@ -895,14 +848,14 @@ func plugin_extract_u64(evtnum uint64, id uint32, arg *C.char, data *C.char, dat
 }
 
 //export plugin_register_async_extractor
-func plugin_register_async_extractor(info *C.async_extractor_info) int32 {
+func plugin_register_async_extractor(plgState unsafe.Pointer, info *C.async_extractor_info) int32 {
 	go func() {
 		for sinsp.Wait(unsafe.Pointer(info)) {
-			(*info).res = plugin_extract_str(uint64(info.evtnum), uint32(info.id), info.arg, info.data, uint32(info.datalen))
+			(*info).res = plugin_extract_str(plgState, uint64(info.evtnum), uint32(info.id), info.arg, info.data, uint32(info.datalen))
 			//(*info).res = nil
 		}
 	}()
-	return SCAP_SUCCESS
+	return sinsp.ScapSuccess
 }
 
 func main() {
