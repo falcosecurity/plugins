@@ -98,9 +98,8 @@ type pluginContext struct {
 	jdata              *fastjson.Value
 	jdataEvtnum        uint64 // The event number jdata refers to. Used to know when we can skip the unmarshaling.
 	s3                 s3State
+	lastError          error
 }
-
-var gLastError string = ""
 
 //export plugin_get_type
 func plugin_get_type() uint32 {
@@ -145,9 +144,10 @@ func plugin_init(config *C.char, rc *int32) unsafe.Pointer {
 }
 
 //export plugin_get_last_error
-func plugin_get_last_error() *C.char {
+func plugin_get_last_error(plgState unsafe.Pointer) *C.char {
 	log.Printf("[%s] plugin_get_last_error\n", PluginName)
-	return C.CString(gLastError)
+	pCtx := (*pluginContext)(sinsp.Context(plgState))
+	return C.CString(pCtx.lastError.Error())
 }
 
 //export plugin_destroy
@@ -223,7 +223,9 @@ func plugin_get_fields() *C.char {
 
 	b, err := json.Marshal(&flds)
 	if err != nil {
-		gLastError = err.Error()
+		// fixme(leogr): do we want to store the error and then retrive it later by get_last_error?
+		// if so, we need the state
+		panic(err)
 		return nil
 	}
 
@@ -238,7 +240,7 @@ func openLocal(pCtx *pluginContext, params *C.char, rc *int32) {
 	pCtx.cloudTrailFilesDir = C.GoString(params)
 
 	if len(pCtx.cloudTrailFilesDir) == 0 {
-		gLastError = PluginName + " plugin error: missing input directory argument"
+		pCtx.lastError = fmt.Errorf(PluginName + " plugin error: missing input directory argument")
 		*rc = sinsp.ScapFailure
 		return
 	}
@@ -260,11 +262,11 @@ func openLocal(pCtx *pluginContext, params *C.char, rc *int32) {
 		return nil
 	})
 	if err != nil {
-		gLastError = err.Error()
+		pCtx.lastError = err
 		*rc = sinsp.ScapFailure
 	}
 	if len(pCtx.files) == 0 {
-		gLastError = PluginName + " plugin error: no json files found in " + pCtx.cloudTrailFilesDir
+		pCtx.lastError = fmt.Errorf(PluginName + " plugin error: no json files found in " + pCtx.cloudTrailFilesDir)
 		*rc = sinsp.ScapFailure
 	}
 
@@ -322,7 +324,7 @@ func openS3(pCtx *pluginContext, params *C.char, rc *int32) {
 		return true
 	})
 	if err != nil {
-		gLastError = PluginName + " plugin error: failed to list objects: " + err.Error()
+		pCtx.lastError = fmt.Errorf(PluginName + " plugin error: failed to list objects: " + err.Error())
 		*rc = sinsp.ScapFailure
 	}
 
@@ -434,7 +436,7 @@ func plugin_next(plgState unsafe.Pointer, openState unsafe.Pointer, data **byte,
 			str, err = readFileLocal(file.name)
 		}
 		if err != nil {
-			gLastError = err.Error()
+			pCtx.lastError = err
 			return sinsp.ScapFailure
 		}
 
@@ -514,7 +516,7 @@ func plugin_next(plgState unsafe.Pointer, openState unsafe.Pointer, data **byte,
 	}
 
 	if len(str) > len(pCtx.evtBuf) {
-		gLastError = fmt.Sprintf("cloudwatch message too long: %d, max 65535 supported", len(str))
+		pCtx.lastError = fmt.Errorf("cloudwatch message too long: %d, max 65535 supported", len(str))
 		return sinsp.ScapFailure
 	}
 
@@ -701,7 +703,7 @@ func plugin_event_to_string(plgState unsafe.Pointer, data *C.char, datalen uint3
 
 	pCtx.jdata, err = pCtx.jparser.Parse(C.GoString(data))
 	if err != nil {
-		gLastError = err.Error()
+		pCtx.lastError = err
 		line = "<invalid JSON: " + err.Error() + ">"
 	} else {
 		src = string(pCtx.jdata.GetStringBytes("eventSource"))
