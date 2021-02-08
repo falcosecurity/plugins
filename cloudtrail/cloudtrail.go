@@ -83,11 +83,7 @@ type s3State struct {
 
 type pluginContext struct {
 	isS3               bool
-	evtBufRaw          unsafe.Pointer
-	evtBuf             []byte
 	evtBufLen          int
-	outBufRaw          unsafe.Pointer
-	outBuf             []byte
 	outBufLen          int
 	cloudTrailFilesDir string
 	files              []fileInfo
@@ -127,16 +123,15 @@ func plugin_init(config *C.char, rc *int32) unsafe.Pointer {
 
 	// Allocate the context struct and set it to the state
 	pCtx := &pluginContext{
-		evtBufLen:      int(nextBufSize),
-		outBufLen:      int(outBufSize),
-		jdataEvtnum:    math.MaxUint64,
+		evtBufLen:   int(nextBufSize),
+		outBufLen:   int(outBufSize),
+		jdataEvtnum: math.MaxUint64,
 	}
 	sinsp.SetContext(pluginState, unsafe.Pointer(pCtx))
 
 	// We create an array of download buffers that will be used to concurrently
 	// download files from s3
 	pCtx.s3.DownloadBufs = make([][]byte, s3DownloadConcurrency)
-	
 
 	*rc = sinsp.ScapSuccess
 
@@ -515,8 +510,8 @@ func plugin_next(plgState unsafe.Pointer, openState unsafe.Pointer, data **byte,
 		return sinsp.ScapTimeout
 	}
 
-	if len(str) > len(pCtx.evtBuf) {
-		pCtx.lastError = fmt.Errorf("cloudwatch message too long: %d, max 65535 supported", len(str))
+	if len(str) > int(nextBufSize) {
+		pCtx.lastError = fmt.Errorf("cloudwatch message too long: %d, max %d supported", len(str), nextBufSize)
 		return sinsp.ScapFailure
 	}
 
