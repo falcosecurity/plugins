@@ -4,6 +4,8 @@ github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSs
 github.com/jmespath/go-jmespath v0.4.0 h1:BEgLn5cpjn8UN1mAw4NjwDrS35OdebyEtFe+9YPoQUg=
 github.com/jmespath/go-jmespath v0.4.0/go.mod h1:T8mJZnbsbmF+m6zOOFylbeCJqk5+pHWvzYPziyZiYoo=
 github.com/jmespath/go-jmespath/internal/testify v1.5.1/go.mod h1:L3OGu8Wl2/fWfCI6z80xFu9LTZmf1ZRjMHUOPmWr69U=
+github.com/ldegio/libsinsp-plugin-sdk-go v0.0.0-20210209014159-7796583d5581 h1:EeEQcXF/QNmk6HqFCiAEEtwLxfEBCBi9+GVPQxciI/A=
+github.com/ldegio/libsinsp-plugin-sdk-go v0.0.0-20210209014159-7796583d5581/go.mod h1:HEi9ByorbTK3ArMRpmwna7H77ls1gPLwa1TecXD5BpE=
 github.com/leogr/libsinsp-plugin-sdk-go v0.0.0-20210204120805-65c68bb4bdfa h1:sYa8uuDmUUOf6Ki2o8ZzvqCWwMjeUVyBmrutsG+BTuI=
 github.com/leogr/libsinsp-plugin-sdk-go v0.0.0-20210204120805-65c68bb4bdfa/go.mod h1:EShOuMlRgWekJ4ny+5KUgPjAMbSHbiU1PgS1bVCWBo8=
 github.com/leogr/libsinsp-plugin-sdk-go v0.0.0-20210205115244-df67a7c7b1d9 h1:YSbXshrW2NGFWn1ZplUq66rnXCxrX9dNrwGWX+G375I=
