@@ -62,13 +62,18 @@ func min(a, b int) int {
 	return b
 }
 
-///////////////////////////////////////////////////////////////////////////////
-
 type fileInfo struct {
 	name         string
 	isCompressed bool
 }
 
+///////////////////////////////////////////////////////////////////////////////
+// PLUGIN STATE
+///////////////////////////////////////////////////////////////////////////////
+
+//
+// This is the state that we use when reading events from an S3 bucket
+//
 type s3State struct {
 	bucket                string
 	awsSvc                *s3.S3
@@ -81,21 +86,35 @@ type s3State struct {
 	curBuf                int
 }
 
+//
+// This is the global plugin state, identifying an instance of this plugin
+//
 type pluginContext struct {
-	isS3               bool
-	evtBufLen          int
-	outBufLen          int
+	evtBufLen   int
+	outBufLen   int
+	jparser     fastjson.Parser
+	jdata       *fastjson.Value
+	jdataEvtnum uint64 // The event number jdata refers to. Used to know when we can skip the unmarshaling.
+	lastError   error
+}
+
+//
+// This is open state, identifying an open instance reading cloudtrail files from
+// a local directory or from a remote S3 bucket
+//
+type openContext struct {
+	isDataFromS3       bool
 	cloudTrailFilesDir string
 	files              []fileInfo
 	curFileNum         uint32
 	evtJsonList        []interface{}
 	evtJsonListPos     int
-	jparser            fastjson.Parser
-	jdata              *fastjson.Value
-	jdataEvtnum        uint64 // The event number jdata refers to. Used to know when we can skip the unmarshaling.
 	s3                 s3State
-	lastError          error
 }
+
+///////////////////////////////////////////////////////////////////////////////
+// PLUGIN INTERFACE IMPLEMENTATION
+///////////////////////////////////////////////////////////////////////////////
 
 //export plugin_get_type
 func plugin_get_type() uint32 {
@@ -129,12 +148,7 @@ func plugin_init(config *C.char, rc *int32) unsafe.Pointer {
 	}
 	sinsp.SetContext(pluginState, unsafe.Pointer(pCtx))
 
-	// We create an array of download buffers that will be used to concurrently
-	// download files from s3
-	pCtx.s3.DownloadBufs = make([][]byte, s3DownloadConcurrency)
-
 	*rc = sinsp.ScapSuccess
-
 	return pluginState
 }
 
@@ -227,22 +241,21 @@ func plugin_get_fields() *C.char {
 	return C.CString(string(b))
 }
 
-func openLocal(pCtx *pluginContext, params *C.char, rc *int32) {
-	*rc = sinsp.ScapSuccess
+func openLocal(pCtx *pluginContext, oCtx *openContext, params *C.char, rc *int32) {
+	*rc = sinsp.ScapFailure
 
-	pCtx.isS3 = false
+	oCtx.isDataFromS3 = false
 
-	pCtx.cloudTrailFilesDir = C.GoString(params)
+	oCtx.cloudTrailFilesDir = C.GoString(params)
 
-	if len(pCtx.cloudTrailFilesDir) == 0 {
+	if len(oCtx.cloudTrailFilesDir) == 0 {
 		pCtx.lastError = fmt.Errorf(PluginName + " plugin error: missing input directory argument")
-		*rc = sinsp.ScapFailure
 		return
 	}
 
-	log.Printf("[%s] scanning directory %s\n", PluginName, pCtx.cloudTrailFilesDir)
+	log.Printf("[%s] scanning directory %s\n", PluginName, oCtx.cloudTrailFilesDir)
 
-	err := filepath.Walk(pCtx.cloudTrailFilesDir, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(oCtx.cloudTrailFilesDir, func(path string, info os.FileInfo, err error) error {
 		if info != nil && info.IsDir() {
 			return nil
 		}
@@ -253,26 +266,25 @@ func openLocal(pCtx *pluginContext, params *C.char, rc *int32) {
 		}
 
 		var fi fileInfo = fileInfo{name: path, isCompressed: isCompressed}
-		pCtx.files = append(pCtx.files, fi)
+		oCtx.files = append(oCtx.files, fi)
 		return nil
 	})
 	if err != nil {
 		pCtx.lastError = err
-		*rc = sinsp.ScapFailure
 	}
-	if len(pCtx.files) == 0 {
-		pCtx.lastError = fmt.Errorf(PluginName + " plugin error: no json files found in " + pCtx.cloudTrailFilesDir)
-		*rc = sinsp.ScapFailure
+	if len(oCtx.files) == 0 {
+		pCtx.lastError = fmt.Errorf(PluginName + " plugin error: no json files found in " + oCtx.cloudTrailFilesDir)
 	}
 
-	log.Printf("[%s] found %d json files\n", PluginName, len(pCtx.files))
+	log.Printf("[%s] found %d json files\n", PluginName, len(oCtx.files))
+	*rc = sinsp.ScapSuccess
 }
 
-func openS3(pCtx *pluginContext, params *C.char, rc *int32) {
-	*rc = sinsp.ScapSuccess
+func openS3(pCtx *pluginContext, oCtx *openContext, params *C.char, rc *int32) {
+	*rc = sinsp.ScapFailure
 	input := C.GoString(params)
 
-	pCtx.isS3 = true
+	oCtx.isDataFromS3 = true
 
 	//
 	// remove the initial "s3://"
@@ -285,24 +297,24 @@ func openS3(pCtx *pluginContext, params *C.char, rc *int32) {
 	//
 	var prefix string
 	if slashindex == -1 {
-		pCtx.s3.bucket = input
+		oCtx.s3.bucket = input
 		prefix = ""
 	} else {
-		pCtx.s3.bucket = input[:slashindex]
+		oCtx.s3.bucket = input[:slashindex]
 		prefix = input[slashindex+1:]
 	}
 
 	//
 	// Fetch the list of keys
 	//
-	pCtx.s3.awsSess = session.Must(session.NewSessionWithOptions(session.Options{
+	oCtx.s3.awsSess = session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	}))
 
-	pCtx.s3.awsSvc = s3.New(pCtx.s3.awsSess)
+	oCtx.s3.awsSvc = s3.New(oCtx.s3.awsSess)
 
-	err := pCtx.s3.awsSvc.ListObjectsPages(&s3.ListObjectsInput{
-		Bucket: &pCtx.s3.bucket,
+	err := oCtx.s3.awsSvc.ListObjectsPages(&s3.ListObjectsInput{
+		Bucket: &oCtx.s3.bucket,
 		Prefix: &prefix,
 	}, func(p *s3.ListObjectsOutput, last bool) (shouldContinue bool) {
 		for _, obj := range p.Contents {
@@ -314,34 +326,56 @@ func openS3(pCtx *pluginContext, params *C.char, rc *int32) {
 			}
 
 			var fi fileInfo = fileInfo{name: *path, isCompressed: true}
-			pCtx.files = append(pCtx.files, fi)
+			oCtx.files = append(oCtx.files, fi)
 		}
 		return true
 	})
 	if err != nil {
 		pCtx.lastError = fmt.Errorf(PluginName + " plugin error: failed to list objects: " + err.Error())
 		*rc = sinsp.ScapFailure
+		return
 	}
 
-	pCtx.s3.downloader = s3manager.NewDownloader(pCtx.s3.awsSess)
+	oCtx.s3.downloader = s3manager.NewDownloader(oCtx.s3.awsSess)
+	*rc = sinsp.ScapSuccess
 }
 
 //export plugin_open
 func plugin_open(plgState unsafe.Pointer, params *C.char, rc *int32) unsafe.Pointer {
 	log.Printf("[%s] plugin_open\n", PluginName)
-
 	pCtx := (*pluginContext)(sinsp.Context(plgState))
 
+	// Allocate the context struct for this open instance
+	oCtx := &openContext{}
+
+	// Perform the open
 	input := C.GoString(params)
 	if len(input) >= 5 && input[:5] == "s3://" {
-		openS3(pCtx, params, rc)
+		openS3(pCtx, oCtx, params, rc)
 	} else {
-		openLocal(pCtx, params, rc)
+		openLocal(pCtx, oCtx, params, rc)
 	}
 
-	// Allocate buffer for next()
+	if *rc != sinsp.ScapSuccess {
+		return nil
+	}
+
+	// Allocate the library-compatible container for the open context
 	openState := sinsp.NewStateContainer()
+
+	// We a piece of memory to share data with the C code: a buffer that
+	// contains the events that we create and send to the engine through next()
 	sinsp.MakeBuffer(openState, nextBufSize)
+
+	// We create an array of download buffers that will be used to concurrently
+	// download files from s3
+	oCtx.s3.DownloadBufs = make([][]byte, s3DownloadConcurrency)
+
+	// Tie the just created state to the open context
+	//
+	sinsp.SetContext(openState, unsafe.Pointer(oCtx))
+
+	// Allocate buffer for next()
 	return openState
 }
 
@@ -353,13 +387,13 @@ func plugin_close(plgState unsafe.Pointer, openState unsafe.Pointer) {
 
 var dlErrChan chan error
 
-func s3Download(ctx *pluginContext, downloader *s3manager.Downloader, name string, dloadSlotNum int) {
-	defer ctx.s3.DownloadWg.Done()
+func s3Download(oCtx *openContext, downloader *s3manager.Downloader, name string, dloadSlotNum int) {
+	defer oCtx.s3.DownloadWg.Done()
 
 	buff := &aws.WriteAtBuffer{}
 	_, err := downloader.Download(buff,
 		&s3.GetObjectInput{
-			Bucket: &ctx.s3.bucket,
+			Bucket: &oCtx.s3.bucket,
 			Key:    &name,
 		})
 	if err != nil {
@@ -367,24 +401,24 @@ func s3Download(ctx *pluginContext, downloader *s3manager.Downloader, name strin
 		return
 	}
 
-	ctx.s3.DownloadBufs[dloadSlotNum] = buff.Bytes()
+	oCtx.s3.DownloadBufs[dloadSlotNum] = buff.Bytes()
 }
 
-func readNextFileS3(ctx *pluginContext) ([]byte, error) {
-	if ctx.s3.curBuf < ctx.s3.nFilledBufs {
-		curBuf := ctx.s3.curBuf
-		ctx.s3.curBuf++
-		return ctx.s3.DownloadBufs[curBuf], nil
+func readNextFileS3(oCtx *openContext) ([]byte, error) {
+	if oCtx.s3.curBuf < oCtx.s3.nFilledBufs {
+		curBuf := oCtx.s3.curBuf
+		oCtx.s3.curBuf++
+		return oCtx.s3.DownloadBufs[curBuf], nil
 	}
 
 	dlErrChan = make(chan error, s3DownloadConcurrency)
-	k := ctx.s3.lastDownloadedFileNum
-	ctx.s3.nFilledBufs = min(s3DownloadConcurrency, len(ctx.files)-k)
-	for j, f := range ctx.files[k : k+ctx.s3.nFilledBufs] {
-		ctx.s3.DownloadWg.Add(1)
-		go s3Download(ctx, ctx.s3.downloader, f.name, j)
+	k := oCtx.s3.lastDownloadedFileNum
+	oCtx.s3.nFilledBufs = min(s3DownloadConcurrency, len(oCtx.files)-k)
+	for j, f := range oCtx.files[k : k+oCtx.s3.nFilledBufs] {
+		oCtx.s3.DownloadWg.Add(1)
+		go s3Download(oCtx, oCtx.s3.downloader, f.name, j)
 	}
-	ctx.s3.DownloadWg.Wait()
+	oCtx.s3.DownloadWg.Wait()
 
 	select {
 	case e := <-dlErrChan:
@@ -392,10 +426,10 @@ func readNextFileS3(ctx *pluginContext) ([]byte, error) {
 	default:
 	}
 
-	ctx.s3.lastDownloadedFileNum += s3DownloadConcurrency
+	oCtx.s3.lastDownloadedFileNum += s3DownloadConcurrency
 
-	ctx.s3.curBuf = 1
-	return ctx.s3.DownloadBufs[0], nil
+	oCtx.s3.curBuf = 1
+	return oCtx.s3.DownloadBufs[0], nil
 }
 
 func readFileLocal(fileName string) ([]byte, error) {
@@ -410,23 +444,24 @@ func plugin_next(plgState unsafe.Pointer, openState unsafe.Pointer, data **byte,
 	var jdata map[string]interface{}
 
 	pCtx := (*pluginContext)(sinsp.Context(plgState))
+	oCtx := (*openContext)(sinsp.Context(openState))
 
 	//
 	// Only open the next file once we're sure that the content of the previous one has been full consumed
 	//
-	if pCtx.evtJsonListPos == len(pCtx.evtJsonList) {
+	if oCtx.evtJsonListPos == len(oCtx.evtJsonList) {
 		//
 		// Open the next file and bring its content into memeory
 		//
-		if pCtx.curFileNum >= uint32(len(pCtx.files)) {
+		if oCtx.curFileNum >= uint32(len(oCtx.files)) {
 			return sinsp.ScapEOF
 		}
 
-		file := pCtx.files[pCtx.curFileNum]
-		pCtx.curFileNum++
+		file := oCtx.files[oCtx.curFileNum]
+		oCtx.curFileNum++
 
-		if pCtx.isS3 {
-			str, err = readNextFileS3(pCtx)
+		if oCtx.isDataFromS3 {
+			str, err = readNextFileS3(oCtx)
 		} else {
 			str, err = readFileLocal(file.name)
 		}
@@ -458,8 +493,8 @@ func plugin_next(plgState unsafe.Pointer, openState unsafe.Pointer, data **byte,
 		}
 
 		if len(jdata) == 1 && jdata["Records"] != nil {
-			pCtx.evtJsonList = jdata["Records"].([]interface{})
-			pCtx.evtJsonListPos = 0
+			oCtx.evtJsonList = jdata["Records"].([]interface{})
+			oCtx.evtJsonListPos = 0
 		}
 	}
 
@@ -467,9 +502,9 @@ func plugin_next(plgState unsafe.Pointer, openState unsafe.Pointer, data **byte,
 	// Extract the next record
 	//
 	var cr map[string]interface{}
-	if len(pCtx.evtJsonList) != 0 {
-		cr = pCtx.evtJsonList[pCtx.evtJsonListPos].(map[string]interface{})
-		pCtx.evtJsonListPos++
+	if len(oCtx.evtJsonList) != 0 {
+		cr = oCtx.evtJsonList[oCtx.evtJsonListPos].(map[string]interface{})
+		oCtx.evtJsonListPos++
 	} else {
 		cr = jdata
 	}
@@ -483,8 +518,8 @@ func plugin_next(plgState unsafe.Pointer, openState unsafe.Pointer, data **byte,
 	if err != nil {
 		// gLastError = fmt.Sprintf("time in unknown format: %s, %v(%v)",
 		// 	cr["eventTime"],
-		// 	pCtx.evtJsonListPos,
-		// 	len(pCtx.evtJsonList))
+		// 	oCtx.evtJsonListPos,
+		// 	len(oCtx.evtJsonList))
 		//
 		// We assume this is just some spurious data and we continue
 		//
