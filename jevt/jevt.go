@@ -13,8 +13,12 @@ import (
 	"unsafe"
 )
 
-const PLUGIN_NAME string = "jevt"
-const PLUGIN_DESCRIPTION = "implements extracting arbitrary fields from inputs formatted as JSON"
+// Plugin consts
+const (
+	PluginID          uint32 = 3
+	PluginName               = "jevt"
+	PluginDescription        = "implements extracting arbitrary fields from inputs formatted as JSON"
+)
 
 const VERBOSE bool = false
 const NEXT_BUF_LEN uint32 = 65535
@@ -58,7 +62,7 @@ func plugin_init(config *C.char, rc *int32) *C.char {
 		log.SetOutput(ioutil.Discard)
 	}
 
-	log.Printf("[%s] plugin_init\n", PLUGIN_NAME)
+	log.Printf("[%s] plugin_init\n", PluginName)
 	log.Printf("config string:\n%s\n", C.GoString(config))
 
 	//
@@ -91,13 +95,13 @@ func plugin_init(config *C.char, rc *int32) *C.char {
 
 //export plugin_get_last_error
 func plugin_get_last_error() *C.char {
-	log.Printf("[%s] plugin_get_last_error\n", PLUGIN_NAME)
+	log.Printf("[%s] plugin_get_last_error\n", PluginName)
 	return C.CString(gLastError)
 }
 
 //export plugin_destroy
 func plugin_destroy(context *byte) {
-	log.Printf("[%s] plugin_destroy\n", PLUGIN_NAME)
+	log.Printf("[%s] plugin_destroy\n", PluginName)
 
 	//
 	// Release the memory buffers
@@ -105,16 +109,22 @@ func plugin_destroy(context *byte) {
 	C.free(gCtx.outBufRaw)
 }
 
+//export plugin_get_id
+func plugin_get_id() uint32 {
+	log.Printf("[%s] plugin_get_id\n", PluginName)
+	return PluginID
+}
+
 //export plugin_get_name
 func plugin_get_name() *C.char {
-	log.Printf("[%s] plugin_get_name\n", PLUGIN_NAME)
-	return C.CString(PLUGIN_NAME)
+	log.Printf("[%s] plugin_get_name\n", PluginName)
+	return C.CString(PluginName)
 }
 
 //export plugin_get_description
 func plugin_get_description() *C.char {
-	log.Printf("[%s] plugin_get_description\n", PLUGIN_NAME)
-	return C.CString(PLUGIN_DESCRIPTION)
+	log.Printf("[%s] plugin_get_description\n", PluginName)
+	return C.CString(PluginDescription)
 }
 
 const FIELD_ID_VALUE uint32 = 0
@@ -122,7 +132,7 @@ const FIELD_ID_MSG uint32 = 1
 
 //export plugin_get_fields
 func plugin_get_fields() *C.char {
-	log.Printf("[%s] plugin_get_fields\n", PLUGIN_NAME)
+	log.Printf("[%s] plugin_get_fields\n", PluginName)
 	flds := []getFieldsEntry{
 		{Type: "string", Name: "jevt.value", Desc: "allows to extract a value from a JSON-encoded input. Syntax is jevt.value[/x/y/z], where x,y and z are levels in the JSON hierarchy."},
 		{Type: "string", Name: "jevt.json", Desc: "the full json message as a text string."},
