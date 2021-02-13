@@ -880,16 +880,16 @@ func plugin_extract_u64(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *
 }
 
 //export plugin_register_async_extractor
-func plugin_register_async_extractor(plgState unsafe.Pointer, info *C.async_extractor_info) int32 {
-	go func() {
-		fmt.Printf("G!\n")
-		for sinsp.Wait(unsafe.Pointer(info)) {
-			(*info).res = plugin_extract_str(plgState, uint64(info.evtnum), uint32(info.id), info.arg, info.data, uint32(info.datalen))
-			//(*info).res = nil
-		}
-	}()
-	return sinsp.ScapSuccess
-}
+// func plugin_register_async_extractor(plgState unsafe.Pointer, info *C.async_extractor_info) int32 {
+// 	go func() {
+// 		fmt.Printf("G!\n")
+// 		for sinsp.Wait(unsafe.Pointer(info)) {
+// 			(*info).res = plugin_extract_str(plgState, uint64(info.evtnum), uint32(info.id), info.arg, info.data, uint32(info.datalen))
+// 			//(*info).res = nil
+// 		}
+// 	}()
+// 	return sinsp.ScapSuccess
+// }
 
 func main() {
 }
