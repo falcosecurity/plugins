@@ -31,10 +31,8 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 	"unsafe"
 
@@ -885,35 +883,39 @@ func plugin_extract_u64(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *
 //export plugin_register_async_extractor
 func plugin_register_async_extractor(plgState unsafe.Pointer, info *C.async_extractor_info) int32 {
 	go func() {
-		//fmt.Printf("G! %p %v\n", plgState, syscall.Gettid())
-		// for sinsp.Wait(unsafe.Pointer(info)) {
-		// 	//(*info).res = plugin_extract_str(plgState, uint64(info.evtnum), uint32(info.id), info.arg, info.data, uint32(info.datalen))
-		// 	(*info).res = nil
-		// }
-
-		runtime.LockOSThread()
 		fmt.Printf("G! %p\n", plgState)
-		var glock *int32 = (*int32)(&(info.lock))
-
-		for true {
-			if atomic.CompareAndSwapInt32(glock,
-				1,   // old				1,   // old
-				2) { // new				2) { // new
-				//fmt.Printf("O %p\n", plgState)
-				//(*info).res = nil
-				(*info).res = plugin_extract_str(plgState, uint64(info.evtnum), uint32(info.id), info.arg, info.data, uint32(info.datalen))
-
-				for true {
-					if atomic.CompareAndSwapInt32(glock,
-						2,   // old
-						3) { // new
-						break
-					}
-				}
-			}
-
-			// runtime.Gosched()
+		for sinsp.Wait(unsafe.Pointer(info)) {
+			(*info).res = plugin_extract_str(plgState, uint64(info.evtnum), uint32(info.id), info.arg, info.data, uint32(info.datalen))
+			//(*info).res = nil
 		}
+
+		// fmt.Printf("G! %p\n", plgState)
+		// var glock *int32 = (*int32)(&(info.lock))
+
+		// j := 0
+		// for true {
+		// 	if atomic.CompareAndSwapInt32(glock,
+		// 		1,   // old				1,   // old
+		// 		2) { // new				2) { // new
+		// 		//fmt.Printf("O %p\n", plgState)
+		// 		(*info).res = nil
+		// 		//(*info).res = plugin_extract_str(plgState, uint64(info.evtnum), uint32(info.id), info.arg, info.data, uint32(info.datalen))
+
+		// 		for true {
+		// 			if atomic.CompareAndSwapInt32(glock,
+		// 				2,   // old
+		// 				3) { // new
+		// 				break
+		// 			}
+		// 		}
+		// 	}
+
+		// 	j++
+
+		// 	if j%50000 == 0 {
+		// 		runtime.Gosched()
+		// 	}
+		// }
 	}()
 	return sinsp.ScapSuccess
 }
