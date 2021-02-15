@@ -31,6 +31,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -890,14 +891,17 @@ func plugin_register_async_extractor(plgState unsafe.Pointer, info *C.async_extr
 		// 	(*info).res = nil
 		// }
 
+		runtime.LockOSThread()
 		fmt.Printf("G! %p\n", plgState)
 		var glock *int32 = (*int32)(&(info.lock))
+
 		for true {
 			if atomic.CompareAndSwapInt32(glock,
 				1,   // old				1,   // old
 				2) { // new				2) { // new
-				(*info).res = nil
-				fmt.Printf("OK!\n")
+				//fmt.Printf("O %p\n", plgState)
+				//(*info).res = nil
+				(*info).res = plugin_extract_str(plgState, uint64(info.evtnum), uint32(info.id), info.arg, info.data, uint32(info.datalen))
 
 				for true {
 					if atomic.CompareAndSwapInt32(glock,
@@ -907,6 +911,8 @@ func plugin_register_async_extractor(plgState unsafe.Pointer, info *C.async_extr
 					}
 				}
 			}
+
+			// runtime.Gosched()
 		}
 	}()
 	return sinsp.ScapSuccess
