@@ -4,11 +4,11 @@ package main
 #include <stdlib.h>
 #include <stdint.h>
 
-typedef void (*pfnWait)(void *waitCtx);
+typedef void (*cb_wait_t)(void* wait_ctx);
+typedef void (*cb_next_t)(char* data, uint32_t datalen);
 
 typedef struct async_extractor_info
 {
-//	volatile int32_t lock;
 	uint64_t evtnum;
 	uint32_t id;
 	char* arg;
@@ -16,9 +16,11 @@ typedef struct async_extractor_info
 	uint32_t datalen;
 	uint32_t field_present;
 	char* res;
-	pfnWait wait;
-	void *waitCtx;
+	cb_wait_t cb_wait;
+	cb_next_t cb_next;
+	void* wait_ctx;
 } async_extractor_info;
+
 */
 import "C"
 import (

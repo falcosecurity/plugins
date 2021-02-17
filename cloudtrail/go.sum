@@ -14,6 +14,8 @@ github.com/leogr/libsinsp-plugin-sdk-go v0.0.0-20210207134723-233e1ea29731 h1:7q
 github.com/leogr/libsinsp-plugin-sdk-go v0.0.0-20210207134723-233e1ea29731/go.mod h1:EShOuMlRgWekJ4ny+5KUgPjAMbSHbiU1PgS1bVCWBo8=
 github.com/leogr/libsinsp-plugin-sdk-go v0.0.0-20210207142820-5ea4f9aaff06 h1:48KKb8ZZyVOIqwTL1uOQVUxztLENbotkyXhu1JQ6z64=
 github.com/leogr/libsinsp-plugin-sdk-go v0.0.0-20210207142820-5ea4f9aaff06/go.mod h1:EShOuMlRgWekJ4ny+5KUgPjAMbSHbiU1PgS1bVCWBo8=
+github.com/leogr/libsinsp-plugin-sdk-go v0.0.0-20210209083625-522cebfc3acb h1:P9TQKdJqLs9MIpqEQJG59Q7UV+uyaojk9zFgoySdGCo=
+github.com/leogr/libsinsp-plugin-sdk-go v0.0.0-20210209083625-522cebfc3acb/go.mod h1:EShOuMlRgWekJ4ny+5KUgPjAMbSHbiU1PgS1bVCWBo8=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
