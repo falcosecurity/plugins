@@ -895,7 +895,13 @@ func plugin_register_async_extractor(plgState unsafe.Pointer, info *C.async_extr
 //export plugin_next_batch
 func plugin_next_batch(plgState unsafe.Pointer, openState unsafe.Pointer, data **byte, datalen *uint32) int32 {
 	var ts uint64
-	res := plugin_next(plgState, openState, data, datalen, &ts)
+	res := sinsp.ScapSuccess
+	for true {
+		res := plugin_next(plgState, openState, data, datalen, &ts)
+		if res != sinsp.ScapSuccess {
+			break
+		}
+	}
 
 	return res
 }
