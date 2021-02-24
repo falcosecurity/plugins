@@ -110,9 +110,10 @@ type openContext struct {
 	cloudTrailFilesDir string
 	files              []fileInfo
 	curFileNum         uint32
-	evtJsonList        []interface{}
+	evtJsonStrings     [][]byte
 	evtJsonListPos     int
 	s3                 s3State
+	nextJParser        fastjson.Parser
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -439,12 +440,31 @@ func readFileLocal(fileName string) ([]byte, error) {
 	return ioutil.ReadFile(fileName)
 }
 
+func extractRecordStrings(jsonStr []byte, res *[][]byte) {
+	indentation := 0
+	var entryStart int
+
+	for pos, char := range jsonStr {
+		if char == '{' {
+			if indentation == 1 {
+				entryStart = pos
+			}
+			indentation++
+		} else if char == '}' {
+			indentation--
+			if indentation == 1 {
+				entry := jsonStr[entryStart : pos+1]
+				*res = append(*res, entry)
+			}
+		}
+	}
+}
+
 //export plugin_next
 func plugin_next(plgState unsafe.Pointer, openState unsafe.Pointer, data **byte, datalen *uint32, ts *uint64) int32 {
 	// log.Printf("[%s] plugin_next\n", PluginName)
 	var str []byte
 	var err error
-	var jdata map[string]interface{}
 
 	pCtx := (*pluginContext)(sinsp.Context(plgState))
 	oCtx := (*openContext)(sinsp.Context(openState))
@@ -452,7 +472,7 @@ func plugin_next(plgState unsafe.Pointer, openState unsafe.Pointer, data **byte,
 	//
 	// Only open the next file once we're sure that the content of the previous one has been full consumed
 	//
-	if oCtx.evtJsonListPos == len(oCtx.evtJsonList) {
+	if oCtx.evtJsonListPos == len(oCtx.evtJsonStrings) {
 		//
 		// Open the next file and bring its content into memeory
 		//
@@ -487,29 +507,45 @@ func plugin_next(plgState unsafe.Pointer, openState unsafe.Pointer, data **byte,
 		}
 
 		//
-		// Interpret the json to undestand the file format (single vs multiple
-		// events) and extract the individual records.
+		// Cloudtrail files have the following format:
+		// {"Records":[
+		//	{<evt1>},
+		//	{<evt2>},
+		//	...
+		// ]}
+		// Here, we split the file content into substrings, one per event.
+		// We do this instead of unmarshaling the whole file because this allows
+		// us to pass the original json of each event to the engine without an
+		// additional marshaling, making things much faster.
 		//
-		err = json.Unmarshal(str, &jdata)
-		if err != nil {
-			return sinsp.ScapTimeout
-		}
+		oCtx.evtJsonStrings = nil
+		extractRecordStrings(str, &(oCtx.evtJsonStrings))
 
-		if len(jdata) == 1 && jdata["Records"] != nil {
-			oCtx.evtJsonList = jdata["Records"].([]interface{})
-			oCtx.evtJsonListPos = 0
-		}
+		oCtx.evtJsonListPos = 0
 	}
 
 	//
 	// Extract the next record
 	//
-	var cr map[string]interface{}
-	if len(oCtx.evtJsonList) != 0 {
-		cr = oCtx.evtJsonList[oCtx.evtJsonListPos].(map[string]interface{})
+	var cr *fastjson.Value
+	if len(oCtx.evtJsonStrings) != 0 {
+		cr, err = oCtx.nextJParser.Parse(string(oCtx.evtJsonStrings[oCtx.evtJsonListPos]))
+		if err != nil {
+			//
+			// Not json? Just skip this event.
+			//
+			oCtx.evtJsonListPos++
+			return sinsp.ScapTimeout
+		}
+
+		str = oCtx.evtJsonStrings[oCtx.evtJsonListPos]
 		oCtx.evtJsonListPos++
 	} else {
-		cr = jdata
+		//
+		// Json not int the expected format. Just skip this event.
+		//
+		oCtx.evtJsonListPos++
+		return sinsp.ScapTimeout
 	}
 
 	//
@@ -517,12 +553,8 @@ func plugin_next(plgState unsafe.Pointer, openState unsafe.Pointer, data **byte,
 	//
 	t1, err := time.Parse(
 		time.RFC3339,
-		fmt.Sprintf("%s", cr["eventTime"]))
+		string(cr.GetStringBytes("eventTime")))
 	if err != nil {
-		// gLastError = fmt.Sprintf("time in unknown format: %s, %v(%v)",
-		// 	cr["eventTime"],
-		// 	oCtx.evtJsonListPos,
-		// 	len(oCtx.evtJsonList))
 		//
 		// We assume this is just some spurious data and we continue
 		//
@@ -530,21 +562,8 @@ func plugin_next(plgState unsafe.Pointer, openState unsafe.Pointer, data **byte,
 	}
 	*ts = uint64(t1.Unix()) * 1000000000
 
-	ets := fmt.Sprintf("%s", cr["eventType"])
+	ets := string(cr.GetStringBytes("eventType"))
 	if ets == "AwsCloudTrailInsight" {
-		return sinsp.ScapTimeout
-	}
-
-	//
-	// Re-convert the event into a cunsumable string.
-	// Note: this is done so that the engine in the libraries can treat things
-	// as portable strings, which helps supporting features like transparent
-	// capture file support. It's a bit unfortunate that we have to do a sequence
-	// of multiple marshalings/unmarshalings and it's definitely not the best in
-	// terms of efficiency. We'll work on optimizing it if it becomes a problem.
-	//
-	str, err = json.Marshal(&cr)
-	if err != nil {
 		return sinsp.ScapTimeout
 	}
 
@@ -894,6 +913,7 @@ func plugin_register_async_extractor(plgState unsafe.Pointer, info *C.async_extr
 
 //export plugin_next_batch
 func plugin_next_batch(plgState unsafe.Pointer, openState unsafe.Pointer, data **byte, datalen *uint32) int32 {
+	x := 0
 	var ts uint64
 	res := sinsp.ScapSuccess
 	for true {
@@ -901,6 +921,7 @@ func plugin_next_batch(plgState unsafe.Pointer, openState unsafe.Pointer, data *
 		if res != sinsp.ScapSuccess {
 			break
 		}
+		x++
 	}
 
 	return res
