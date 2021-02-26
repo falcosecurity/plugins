@@ -55,8 +55,9 @@ const (
 const s3DownloadConcurrency = 64
 const verbose bool = false
 const nextBufSize uint32 = 65535
+
 const nextBatchBufSize uint32 = 65536 * 64
-const outBufSize uint32 = 4096
+const outBufSize uint32 = 65535
 
 func min(a, b int) int {
 	if a < b {
@@ -964,7 +965,7 @@ func plugin_next_batch(plgState unsafe.Pointer, openState unsafe.Pointer, data *
 			endPos := pos + uint32(len(nextData)) + 12
 			if endPos < nextBatchBufSize {
 				//
-				// Copy to and return the event buffer
+				// Copy the event into the buffer
 				//
 				binary.LittleEndian.PutUint64(tsbuf, ts)
 				binary.LittleEndian.PutUint32(elenbuf, uint32(len(nextData)))
@@ -972,8 +973,19 @@ func plugin_next_batch(plgState unsafe.Pointer, openState unsafe.Pointer, data *
 				pos += sinsp.CopyToBufferAt(oCtx.nextBatchState, elenbuf, pos)
 				pos += sinsp.CopyToBufferAt(oCtx.nextBatchState, nextData, pos)
 			} else {
-				oCtx.nextBatchLastTs = ts
-				oCtx.nextBatchLastData = nextData
+				if pos > 0 {
+					//
+					// Buffer full. Save this event for the next read
+					//
+					oCtx.nextBatchLastTs = ts
+					oCtx.nextBatchLastData = nextData
+				} else {
+					//
+					// This event is too big to fit in the buffer by itself.
+					// Skip it.
+					//
+					res = sinsp.ScapTimeout
+				}
 				break
 			}
 		} else {

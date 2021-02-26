@@ -22,7 +22,7 @@ const (
 
 const VERBOSE bool = false
 const NEXT_BUF_LEN uint32 = 65535
-const OUT_BUF_LEN uint32 = 4096
+const OUT_BUF_LEN uint32 = 65535
 
 ///////////////////////////////////////////////////////////////////////////////
 // framework constants
