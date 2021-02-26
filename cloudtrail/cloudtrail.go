@@ -5,7 +5,6 @@ package main
 #include <stdint.h>
 
 typedef void (*cb_wait_t)(void* wait_ctx);
-typedef void (*cb_next_t)(char* data, uint32_t datalen);
 
 typedef struct async_extractor_info
 {
@@ -17,7 +16,6 @@ typedef struct async_extractor_info
 	uint32_t field_present;
 	char* res;
 	cb_wait_t cb_wait;
-	cb_next_t cb_next;
 	void* wait_ctx;
 } async_extractor_info;
 
@@ -26,6 +24,7 @@ import "C"
 import (
 	"bytes"
 	"compress/gzip"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -56,6 +55,7 @@ const (
 const s3DownloadConcurrency = 64
 const verbose bool = false
 const nextBufSize uint32 = 65535
+const nextBatchBufSize uint32 = 65536 * 64
 const outBufSize uint32 = 4096
 
 func min(a, b int) int {
@@ -71,7 +71,7 @@ type fileInfo struct {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// PLUGIN STATE
+// PLUGIN STATE STRUCTS
 ///////////////////////////////////////////////////////////////////////////////
 
 //
@@ -114,6 +114,9 @@ type openContext struct {
 	evtJsonListPos     int
 	s3                 s3State
 	nextJParser        fastjson.Parser
+	nextBatchState     unsafe.Pointer
+	nextBatchLastTs    uint64
+	nextBatchLastData  []byte
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -137,11 +140,9 @@ func plugin_init(config *C.char, rc *int32) unsafe.Pointer {
 	// Allocate the container for buffers and context
 	pluginState := sinsp.NewStateContainer()
 
-	// We need two different pieces of memory to share data with the C code:
-	// - a buffer that contains the events that we create and send to the engine
-	//   through next()
-	// - storage for functions like plugin_event_to_string and plugin_extract_str,
-	//   so that their results can be shared without allocations or data copies.
+	// We need a pieces of memory to share data with the C code that we can use
+	// as storage for functions like plugin_event_to_string and plugin_extract_str,
+	// so that their results can be shared without allocations or data copies.
 	sinsp.MakeBuffer(pluginState, outBufSize)
 
 	// Allocate the context struct and set it to the state
@@ -367,11 +368,15 @@ func plugin_open(plgState unsafe.Pointer, params *C.char, rc *int32) unsafe.Poin
 	// Allocate the library-compatible container for the open context
 	openState := sinsp.NewStateContainer()
 
-	// We a piece of memory to share data with the C code: a buffer that
+	// We need a piece of memory to share data with the C code: a buffer that
 	// contains the events that we create and send to the engine through next()
 	sinsp.MakeBuffer(openState, nextBufSize)
 
-	// We create an array of download buffers that will be used to concurrently
+	// This buffer will be used as storage by next_batch()
+	oCtx.nextBatchState = sinsp.NewStateContainer()
+	sinsp.MakeBuffer(oCtx.nextBatchState, nextBatchBufSize)
+
+	// Create an array of download buffers that will be used to concurrently
 	// download files from s3
 	oCtx.s3.DownloadBufs = make([][]byte, s3DownloadConcurrency)
 
@@ -386,6 +391,8 @@ func plugin_open(plgState unsafe.Pointer, params *C.char, rc *int32) unsafe.Poin
 //export plugin_close
 func plugin_close(plgState unsafe.Pointer, openState unsafe.Pointer) {
 	log.Printf("[%s] plugin_close\n", PluginName)
+	oCtx := (*openContext)(sinsp.Context(openState))
+	sinsp.Free(oCtx.nextBatchState)
 	sinsp.Free(openState)
 }
 
@@ -453,17 +460,18 @@ func extractRecordStrings(jsonStr []byte, res *[][]byte) {
 		} else if char == '}' {
 			indentation--
 			if indentation == 1 {
-				entry := jsonStr[entryStart : pos+1]
-				*res = append(*res, entry)
+				if pos < len(jsonStr)-1 {
+					entry := jsonStr[entryStart : pos+1]
+					*res = append(*res, entry)
+				}
 			}
 		}
 	}
 }
 
-//export plugin_next
-func plugin_next(plgState unsafe.Pointer, openState unsafe.Pointer, data **byte, datalen *uint32, ts *uint64) int32 {
+func Next(plgState unsafe.Pointer, openState unsafe.Pointer, data *[]byte, ts *uint64) int32 {
 	// log.Printf("[%s] plugin_next\n", PluginName)
-	var str []byte
+	var tmpStr []byte
 	var err error
 
 	pCtx := (*pluginContext)(sinsp.Context(plgState))
@@ -484,9 +492,9 @@ func plugin_next(plgState unsafe.Pointer, openState unsafe.Pointer, data **byte,
 		oCtx.curFileNum++
 
 		if oCtx.isDataFromS3 {
-			str, err = readNextFileS3(oCtx)
+			tmpStr, err = readNextFileS3(oCtx)
 		} else {
-			str, err = readFileLocal(file.name)
+			tmpStr, err = readFileLocal(file.name)
 		}
 		if err != nil {
 			pCtx.lastError = err
@@ -497,13 +505,13 @@ func plugin_next(plgState unsafe.Pointer, openState unsafe.Pointer, data **byte,
 		// The file can be gzipped. If it is, we unzip it.
 		//
 		if file.isCompressed {
-			gr, err := gzip.NewReader(bytes.NewBuffer(str))
+			gr, err := gzip.NewReader(bytes.NewBuffer(tmpStr))
 			defer gr.Close()
 			zdata, err := ioutil.ReadAll(gr)
 			if err != nil {
 				return sinsp.ScapTimeout
 			}
-			str = zdata
+			tmpStr = zdata
 		}
 
 		//
@@ -519,7 +527,7 @@ func plugin_next(plgState unsafe.Pointer, openState unsafe.Pointer, data **byte,
 		// additional marshaling, making things much faster.
 		//
 		oCtx.evtJsonStrings = nil
-		extractRecordStrings(str, &(oCtx.evtJsonStrings))
+		extractRecordStrings(tmpStr, &(oCtx.evtJsonStrings))
 
 		oCtx.evtJsonListPos = 0
 	}
@@ -538,7 +546,7 @@ func plugin_next(plgState unsafe.Pointer, openState unsafe.Pointer, data **byte,
 			return sinsp.ScapTimeout
 		}
 
-		str = oCtx.evtJsonStrings[oCtx.evtJsonListPos]
+		*data = oCtx.evtJsonStrings[oCtx.evtJsonListPos]
 		oCtx.evtJsonListPos++
 	} else {
 		//
@@ -567,21 +575,33 @@ func plugin_next(plgState unsafe.Pointer, openState unsafe.Pointer, data **byte,
 		return sinsp.ScapTimeout
 	}
 
-	if len(str) > int(nextBufSize) {
-		pCtx.lastError = fmt.Errorf("cloudwatch message too long: %d, max %d supported", len(str), nextBufSize)
-		return sinsp.ScapFailure
-	}
-
 	//
 	// NULL-terminate the json data string, so that C will like it
 	//
-	str = append(str, 0)
+	*data = append(*data, 0)
 
-	// Copy to and return the event buffer
-	*datalen = sinsp.CopyToBuffer(openState, str)
-	*data = sinsp.Buffer(openState)
+	if len(*data) > int(nextBufSize) {
+		pCtx.lastError = fmt.Errorf("cloudwatch message too long: %d, max %d supported", len(*data), nextBufSize)
+		return sinsp.ScapFailure
+	}
 
 	return sinsp.ScapSuccess
+}
+
+//export plugin_next
+func plugin_next(plgState unsafe.Pointer, openState unsafe.Pointer, data **byte, datalen *uint32, ts *uint64) int32 {
+	var nextData []byte
+
+	res := Next(plgState, openState, &nextData, ts)
+	if res == sinsp.ScapSuccess {
+		//
+		// Copy to and return the event buffer
+		//
+		*datalen = sinsp.CopyToBuffer(openState, nextData)
+		*data = sinsp.Buffer(openState)
+	}
+
+	return res
 }
 
 func getUser(jdata *fastjson.Value) string {
@@ -913,16 +933,56 @@ func plugin_register_async_extractor(plgState unsafe.Pointer, info *C.async_extr
 
 //export plugin_next_batch
 func plugin_next_batch(plgState unsafe.Pointer, openState unsafe.Pointer, data **byte, datalen *uint32) int32 {
-	x := 0
 	var ts uint64
+	tsbuf := make([]byte, int(unsafe.Sizeof(ts)))
+	var elen uint32
+	elenbuf := make([]byte, int(unsafe.Sizeof(elen)))
 	res := sinsp.ScapSuccess
+	*datalen = 0
+	var pos uint32 = 0
+	var nextData []byte
+
+	oCtx := (*openContext)(sinsp.Context(openState))
+	if oCtx.nextBatchLastData != nil {
+		//
+		// There is leftover data from the previous call, copy it at the start
+		// of the buffer
+		//
+		loData := &oCtx.nextBatchLastData
+		binary.LittleEndian.PutUint64(tsbuf, oCtx.nextBatchLastTs)
+		binary.LittleEndian.PutUint32(elenbuf, uint32(len(*loData)))
+		pos += sinsp.CopyToBufferAt(oCtx.nextBatchState, tsbuf, pos)
+		pos += sinsp.CopyToBufferAt(oCtx.nextBatchState, elenbuf, pos)
+		pos += sinsp.CopyToBufferAt(oCtx.nextBatchState, *loData, pos)
+	}
+
+	oCtx.nextBatchLastData = nil
+
 	for true {
-		res := plugin_next(plgState, openState, data, datalen, &ts)
-		if res != sinsp.ScapSuccess {
+		res = Next(plgState, openState, &nextData, &ts)
+		if res == sinsp.ScapSuccess {
+			endPos := pos + uint32(len(nextData)) + 12
+			if endPos < nextBatchBufSize {
+				//
+				// Copy to and return the event buffer
+				//
+				binary.LittleEndian.PutUint64(tsbuf, ts)
+				binary.LittleEndian.PutUint32(elenbuf, uint32(len(nextData)))
+				pos += sinsp.CopyToBufferAt(oCtx.nextBatchState, tsbuf, pos)
+				pos += sinsp.CopyToBufferAt(oCtx.nextBatchState, elenbuf, pos)
+				pos += sinsp.CopyToBufferAt(oCtx.nextBatchState, nextData, pos)
+			} else {
+				oCtx.nextBatchLastTs = ts
+				oCtx.nextBatchLastData = nextData
+				break
+			}
+		} else {
 			break
 		}
-		x++
 	}
+
+	*data = sinsp.Buffer(oCtx.nextBatchState)
+	*datalen = pos
 
 	return res
 }
