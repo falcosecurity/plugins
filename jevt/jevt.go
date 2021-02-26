@@ -148,7 +148,7 @@ func plugin_get_fields() *C.char {
 }
 
 //export plugin_extract_str
-func plugin_extract_str(evtnum uint64, id uint32, arg *C.char, data *C.char, datalen uint32) *C.char {
+func plugin_extract_str(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *C.char, data *C.char, datalen uint32) *C.char {
 	var line string
 	var jdata map[string]interface{}
 
