@@ -55,7 +55,6 @@ const (
 const s3DownloadConcurrency = 64
 const verbose bool = false
 const nextBufSize uint32 = 65535
-
 const nextBatchBufSize uint32 = 65536 * 64
 const outBufSize uint32 = 65535
 
@@ -70,10 +69,6 @@ type fileInfo struct {
 	name         string
 	isCompressed bool
 }
-
-///////////////////////////////////////////////////////////////////////////////
-// PLUGIN STATE STRUCTS
-///////////////////////////////////////////////////////////////////////////////
 
 //
 // This is the state that we use when reading events from an S3 bucket
@@ -90,6 +85,10 @@ type s3State struct {
 	curBuf                int
 }
 
+///////////////////////////////////////////////////////////////////////////////
+// PLUGIN STATE STRUCTS
+///////////////////////////////////////////////////////////////////////////////
+
 //
 // This is the global plugin state, identifying an instance of this plugin
 //
@@ -103,7 +102,7 @@ type pluginContext struct {
 }
 
 //
-// This is open state, identifying an open instance reading cloudtrail files from
+// This is the open state, identifying an open instance reading cloudtrail files from
 // a local directory or from a remote S3 bucket
 //
 type openContext struct {
@@ -538,7 +537,8 @@ func Next(plgState unsafe.Pointer, openState unsafe.Pointer, data *[]byte, ts *u
 	//
 	var cr *fastjson.Value
 	if len(oCtx.evtJsonStrings) != 0 {
-		cr, err = oCtx.nextJParser.Parse(string(oCtx.evtJsonStrings[oCtx.evtJsonListPos]))
+		*data = oCtx.evtJsonStrings[oCtx.evtJsonListPos]
+		cr, err = oCtx.nextJParser.Parse(string(*data))
 		if err != nil {
 			//
 			// Not json? Just skip this event.
@@ -547,7 +547,6 @@ func Next(plgState unsafe.Pointer, openState unsafe.Pointer, data *[]byte, ts *u
 			return sinsp.ScapTimeout
 		}
 
-		*data = oCtx.evtJsonStrings[oCtx.evtJsonListPos]
 		oCtx.evtJsonListPos++
 	} else {
 		//
@@ -922,11 +921,19 @@ func plugin_extract_u64(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *
 	}
 }
 
+///////////////////////////////////////////////////////////////////////////////
+// XXX To be moved
+///////////////////////////////////////////////////////////////////////////////
+
 //export plugin_register_async_extractor
 func plugin_register_async_extractor(plgState unsafe.Pointer, info *C.async_extractor_info) int32 {
 	go func() {
 		for sinsp.Wait(unsafe.Pointer(info)) {
-			(*info).res = plugin_extract_str(plgState, uint64(info.evtnum), uint32(info.id), info.arg, info.data, uint32(info.datalen))
+			(*info).res = plugin_extract_str(plgState, uint64(info.evtnum),
+				uint32(info.id),
+				info.arg,
+				info.data,
+				uint32(info.datalen))
 		}
 	}()
 	return sinsp.ScapSuccess
@@ -998,6 +1005,9 @@ func plugin_next_batch(plgState unsafe.Pointer, openState unsafe.Pointer, data *
 
 	return res
 }
+
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
 
 func main() {
 }
