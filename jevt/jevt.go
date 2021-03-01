@@ -1,112 +1,100 @@
+///////////////////////////////////////////////////////////////////////////////
+// This plugin is a general json parser. It can be used to extract arbitrary
+// fields from a buffer containing json data.
+///////////////////////////////////////////////////////////////////////////////
 package main
 
 /*
 #include <stdlib.h>
+
+typedef void (*cb_wait_t)(void* wait_ctx);
+
+typedef struct async_extractor_info
+{
+	uint64_t evtnum;
+	uint32_t id;
+	char* arg;
+	char* data;
+	uint32_t datalen;
+	uint32_t field_present;
+	char* res;
+	cb_wait_t cb_wait;
+	void* wait_ctx;
+} async_extractor_info;
 */
 import "C"
 import (
+	"bytes"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"strings"
 	"unsafe"
+
+	"github.com/ldegio/libsinsp-plugin-sdk-go/pkg/sinsp"
+	"github.com/valyala/fastjson"
 )
 
-// Plugin consts
+// Plugin info
 const (
 	PluginID          uint32 = 3
 	PluginName               = "jevt"
 	PluginDescription        = "implements extracting arbitrary fields from inputs formatted as JSON"
 )
 
-const VERBOSE bool = false
-const NEXT_BUF_LEN uint32 = 65535
-const OUT_BUF_LEN uint32 = 65535
-
-///////////////////////////////////////////////////////////////////////////////
-// framework constants
-
-const SCAP_SUCCESS int32 = 0
-const SCAP_FAILURE int32 = 1
-const SCAP_TIMEOUT int32 = -1
-
-const TYPE_SOURCE_PLUGIN uint32 = 1
-const TYPE_EXTRACTOR_PLUGIN uint32 = 2
-
-type getFieldsEntry struct {
-	Type string `json:"type"`
-	Name string `json:"name"`
-	Desc string `json:"desc"`
-}
-
-///////////////////////////////////////////////////////////////////////////////
+const verbose bool = false
+const outBufSize uint32 = 65535
 
 type pluginContext struct {
-	outBufRaw unsafe.Pointer
-	outBuf    []byte
-	outBufLen int
+	jparser     fastjson.Parser
+	jdata       *fastjson.Value
+	jdataEvtnum uint64 // The event number jdata refers to. Used to know when we can skip the unmarshaling.
+	lastError   error
 }
 
-var gCtx pluginContext
 var gLastError string = ""
 
 //export plugin_get_type
 func plugin_get_type() uint32 {
-	return TYPE_EXTRACTOR_PLUGIN
+	return sinsp.TypeExtractorPlugin
 }
 
 //export plugin_init
-func plugin_init(config *C.char, rc *int32) *C.char {
-	if !VERBOSE {
+func plugin_init(config *C.char, rc *int32) unsafe.Pointer {
+	if !verbose {
 		log.SetOutput(ioutil.Discard)
 	}
 
 	log.Printf("[%s] plugin_init\n", PluginName)
 	log.Printf("config string:\n%s\n", C.GoString(config))
 
-	//
-	// Allocate the state struct
-	//
-	gCtx = pluginContext{
-		outBufLen: int(OUT_BUF_LEN),
-	}
+	// Allocate the container for buffers and context
+	pluginState := sinsp.NewStateContainer()
 
-	//
-	// We need a piece of memory to share data with the C code, which we'll use as
-	// storage for plugin_extract_str()
-	// We allocate this buffer with malloc so we can easily share it with the C code.
-	// At the same time, we map it as a byte[] array to make it easy to deal with it
-	// on the go side.
-	//
-	gCtx.outBufRaw = C.malloc(C.size_t(OUT_BUF_LEN))
-	gCtx.outBuf = (*[1 << 30]byte)(unsafe.Pointer(gCtx.outBufRaw))[:int(gCtx.outBufLen):int(gCtx.outBufLen)]
+	// We need a piece of memory to share data with the C code that we can use
+	// as storage for functions like plugin_event_to_string and plugin_extract_str,
+	// so that their results can be shared without allocations or data copies.
+	sinsp.MakeBuffer(pluginState, outBufSize)
 
-	*rc = SCAP_SUCCESS
+	// Allocate the context struct and set it to the state
+	pCtx := &pluginContext{}
+	sinsp.SetContext(pluginState, unsafe.Pointer(pCtx))
 
-	//
-	// XXX plugin peristent state is currently global, so we don't return it to the engine.
-	// The reason is that cgo doesn't let us pass go structs to C code, even if they will
-	// be treated as fully opaque.
-	// We will need to fix this
-	//
-	return nil
+	*rc = sinsp.ScapSuccess
+	return pluginState
 }
 
 //export plugin_get_last_error
-func plugin_get_last_error() *C.char {
+func plugin_get_last_error(plgState unsafe.Pointer) *C.char {
 	log.Printf("[%s] plugin_get_last_error\n", PluginName)
-	return C.CString(gLastError)
+	pCtx := (*pluginContext)(sinsp.Context(plgState))
+	return C.CString(pCtx.lastError.Error())
 }
 
 //export plugin_destroy
-func plugin_destroy(context *byte) {
+func plugin_destroy(plgState unsafe.Pointer) {
 	log.Printf("[%s] plugin_destroy\n", PluginName)
-
-	//
-	// Release the memory buffers
-	//
-	C.free(gCtx.outBufRaw)
+	sinsp.Free(plgState)
 }
 
 //export plugin_get_id
@@ -133,7 +121,7 @@ const FIELD_ID_MSG uint32 = 1
 //export plugin_get_fields
 func plugin_get_fields() *C.char {
 	log.Printf("[%s] plugin_get_fields\n", PluginName)
-	flds := []getFieldsEntry{
+	flds := []sinsp.FieldEntry{
 		{Type: "string", Name: "jevt.value", Desc: "allows to extract a value from a JSON-encoded input. Syntax is jevt.value[/x/y/z], where x,y and z are levels in the JSON hierarchy."},
 		{Type: "string", Name: "jevt.json", Desc: "the full json message as a text string."},
 	}
@@ -149,19 +137,21 @@ func plugin_get_fields() *C.char {
 
 //export plugin_extract_str
 func plugin_extract_str(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *C.char, data *C.char, datalen uint32) *C.char {
-	var line string
-	var jdata map[string]interface{}
+	var res string
+	var err error
+	pCtx := (*pluginContext)(sinsp.Context(plgState))
 
-	//
-	// Decode the json
-	//
-	err := json.Unmarshal([]byte(C.GoString(data)), &jdata)
-	if err != nil {
-		//
-		// Not a json file. We return nil to indicate that the field is not
-		// present.
-		//
-		return nil
+	// Decode the json, but only if we haven't done it yet for this event
+	if evtnum != pCtx.jdataEvtnum {
+		pCtx.jdata, err = pCtx.jparser.Parse(C.GoString(data))
+		if err != nil {
+			//
+			// Not a json file. We return nil to indicate that the field is not
+			// present.
+			//
+			return nil
+		}
+		pCtx.jdataEvtnum = evtnum
 	}
 
 	switch id {
@@ -171,36 +161,52 @@ func plugin_extract_str(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *
 			sarg = sarg[1:]
 		}
 		hc := strings.Split(sarg, "/")
-		for j := 0; j < len(hc)-1; j++ {
-			key := hc[j]
-			if jdata[key] != nil {
-				jdata = jdata[key].(map[string]interface{})
-			} else {
-				return nil
-			}
-		}
-		val := jdata[hc[len(hc)-1]]
+
+		val := pCtx.jdata.GetStringBytes(hc...)
 		if val == nil {
 			return nil
 		}
-		line = fmt.Sprintf("%v", val)
+		res = string(val)
 	case FIELD_ID_MSG:
-		js, _ := json.MarshalIndent(&jdata, "", "  ")
-		line = string(js)
-		line += "\n"
+		var out bytes.Buffer
+		err = json.Indent(&out, []byte(C.GoString(data)), "", "  ")
+		if err != nil {
+			return nil
+		}
+		res = string(out.Bytes())
 	default:
-		line = "<NA>"
+		res = "<NA>"
 	}
 
-	line += "\x00"
+	// NULL terminate the result so C will like it
+	res += "\x00"
 
-	//
 	// Copy the the line into the event buffer
-	//
-	copy(gCtx.outBuf[:], line)
-
-	return (*C.char)(gCtx.outBufRaw)
+	sinsp.CopyToBuffer(plgState, []byte(res))
+	// todo(leogr): try a way to avoid casting here
+	return (*C.char)(unsafe.Pointer(sinsp.Buffer(plgState)))
 }
+
+///////////////////////////////////////////////////////////////////////////////
+// XXX To be moved
+///////////////////////////////////////////////////////////////////////////////
+
+//export plugin_register_async_extractor
+func plugin_register_async_extractor(plgState unsafe.Pointer, info *C.async_extractor_info) int32 {
+	go func() {
+		for sinsp.Wait(unsafe.Pointer(info)) {
+			(*info).res = plugin_extract_str(plgState, uint64(info.evtnum),
+				uint32(info.id),
+				info.arg,
+				info.data,
+				uint32(info.datalen))
+		}
+	}()
+	return sinsp.ScapSuccess
+}
+
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
 
 func main() {
 }
