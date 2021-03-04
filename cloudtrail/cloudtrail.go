@@ -10,6 +10,7 @@ package main
 
 /*
 #include <stdlib.h>
+#include <inttypes.h>
 
 typedef void (*cb_wait_t)(void* wait_ctx);
 
@@ -239,6 +240,14 @@ func plugin_get_fields() *C.char {
 	return C.CString(string(b))
 }
 
+func dirExists(path string) bool {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true
+	}
+	return false
+}
+
 func openLocal(pCtx *pluginContext, oCtx *openContext, params *C.char, rc *int32) {
 	*rc = sinsp.ScapFailure
 
@@ -248,6 +257,11 @@ func openLocal(pCtx *pluginContext, oCtx *openContext, params *C.char, rc *int32
 
 	if len(oCtx.cloudTrailFilesDir) == 0 {
 		pCtx.lastError = fmt.Errorf(PluginName + " plugin error: missing input directory argument")
+		return
+	}
+
+	if !dirExists(oCtx.cloudTrailFilesDir) {
+		pCtx.lastError = fmt.Errorf(PluginName+" plugin error: cannot open %s", oCtx.cloudTrailFilesDir)
 		return
 	}
 
@@ -272,6 +286,7 @@ func openLocal(pCtx *pluginContext, oCtx *openContext, params *C.char, rc *int32
 	}
 	if len(oCtx.files) == 0 {
 		pCtx.lastError = fmt.Errorf(PluginName + " plugin error: no json files found in " + oCtx.cloudTrailFilesDir)
+		return
 	}
 
 	log.Printf("[%s] found %d json files\n", PluginName, len(oCtx.files))
@@ -374,7 +389,9 @@ func plugin_open(plgState unsafe.Pointer, params *C.char, rc *int32) unsafe.Poin
 //export plugin_close
 func plugin_close(plgState unsafe.Pointer, openState unsafe.Pointer) {
 	log.Printf("[%s] plugin_close\n", PluginName)
-	sinsp.Free(openState)
+	if openState != nil {
+		sinsp.Free(openState)
+	}
 }
 
 var dlErrChan chan error
