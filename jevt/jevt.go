@@ -6,6 +6,7 @@ package main
 
 /*
 #include <stdlib.h>
+#include <inttypes.h>
 
 typedef void (*cb_wait_t)(void* wait_ctx);
 
@@ -52,8 +53,6 @@ type pluginContext struct {
 	lastError   error
 }
 
-var gLastError string = ""
-
 //export plugin_get_type
 func plugin_get_type() uint32 {
 	return sinsp.TypeExtractorPlugin
@@ -88,7 +87,11 @@ func plugin_init(config *C.char, rc *int32) unsafe.Pointer {
 func plugin_get_last_error(plgState unsafe.Pointer) *C.char {
 	log.Printf("[%s] plugin_get_last_error\n", PluginName)
 	pCtx := (*pluginContext)(sinsp.Context(plgState))
-	return C.CString(pCtx.lastError.Error())
+	if pCtx.lastError != nil {
+		return C.CString(pCtx.lastError.Error())
+	}
+
+	return C.CString("no error")
 }
 
 //export plugin_destroy
@@ -121,6 +124,7 @@ const FIELD_ID_MSG uint32 = 1
 //export plugin_get_fields
 func plugin_get_fields() *C.char {
 	log.Printf("[%s] plugin_get_fields\n", PluginName)
+
 	flds := []sinsp.FieldEntry{
 		{Type: "string", Name: "jevt.value", Desc: "allows to extract a value from a JSON-encoded input. Syntax is jevt.value[/x/y/z], where x,y and z are levels in the JSON hierarchy."},
 		{Type: "string", Name: "jevt.json", Desc: "the full json message as a text string."},
@@ -128,7 +132,7 @@ func plugin_get_fields() *C.char {
 
 	b, err := json.Marshal(&flds)
 	if err != nil {
-		gLastError = err.Error()
+		panic(err)
 		return nil
 	}
 

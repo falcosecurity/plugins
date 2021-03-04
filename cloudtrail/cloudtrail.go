@@ -155,7 +155,11 @@ func plugin_init(config *C.char, rc *int32) unsafe.Pointer {
 func plugin_get_last_error(plgState unsafe.Pointer) *C.char {
 	log.Printf("[%s] plugin_get_last_error\n", PluginName)
 	pCtx := (*pluginContext)(sinsp.Context(plgState))
-	return C.CString(pCtx.lastError.Error())
+	if pCtx.lastError != nil {
+		return C.CString(pCtx.lastError.Error())
+	}
+
+	return C.CString("no error")
 }
 
 //export plugin_destroy
@@ -231,8 +235,6 @@ func plugin_get_fields() *C.char {
 
 	b, err := json.Marshal(&flds)
 	if err != nil {
-		// fixme(leogr): do we want to store the error and then retrive it later by get_last_error?
-		// if so, we need the state
 		panic(err)
 		return nil
 	}
