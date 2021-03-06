@@ -31,7 +31,6 @@ import "C"
 import (
 	"bytes"
 	"compress/gzip"
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -913,63 +912,7 @@ func plugin_register_async_extractor(plgState unsafe.Pointer, info *C.async_extr
 
 //export plugin_next_batch
 func plugin_next_batch(plgState unsafe.Pointer, openState unsafe.Pointer, data **byte, datalen *uint32) int32 {
-	var ts uint64
-	tsbuf := make([]byte, int(unsafe.Sizeof(ts)))
-	var elen uint32
-	elenbuf := make([]byte, int(unsafe.Sizeof(elen)))
-	res := sinsp.ScapSuccess
-	*datalen = 0
-	var pos uint32 = 0
-	var nextData []byte
-
-	oCtx := (*openContext)(sinsp.Context(openState))
-	if oCtx.nextBatchLastData != nil {
-		//
-		// There is leftover data from the previous call, copy it at the start
-		// of the buffer
-		//
-		loData := &oCtx.nextBatchLastData
-		binary.LittleEndian.PutUint64(tsbuf, oCtx.nextBatchLastTs)
-		binary.LittleEndian.PutUint32(elenbuf, uint32(len(*loData)))
-		pos += sinsp.CopyToBufferAt(openState, tsbuf, pos)
-		pos += sinsp.CopyToBufferAt(openState, elenbuf, pos)
-		pos += sinsp.CopyToBufferAt(openState, *loData, pos)
-	}
-
-	oCtx.nextBatchLastData = nil
-
-	for true {
-		res = Next(plgState, openState, &nextData, &ts)
-		if res == sinsp.ScapSuccess {
-			endPos := pos + uint32(len(nextData)) + 12
-			if endPos < sinsp.MaxNextBufSize {
-				// Copy the event into the buffer
-				binary.LittleEndian.PutUint64(tsbuf, ts)
-				binary.LittleEndian.PutUint32(elenbuf, uint32(len(nextData)))
-				pos += sinsp.CopyToBufferAt(openState, tsbuf, pos)
-				pos += sinsp.CopyToBufferAt(openState, elenbuf, pos)
-				pos += sinsp.CopyToBufferAt(openState, nextData, pos)
-			} else {
-				if pos > 0 {
-					// Buffer full. Save this event for the next read
-					oCtx.nextBatchLastTs = ts
-					oCtx.nextBatchLastData = nextData
-				} else {
-					// This event is too big to fit in the buffer by itself.
-					// Skip it.
-					res = sinsp.ScapTimeout
-				}
-				break
-			}
-		} else {
-			break
-		}
-	}
-
-	*data = sinsp.Buffer(openState)
-	*datalen = pos
-
-	return res
+	return sinsp.NextBatch(plgState, openState, data, datalen, Next)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
