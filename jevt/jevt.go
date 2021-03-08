@@ -142,14 +142,14 @@ func plugin_get_fields() *C.char {
 }
 
 //export plugin_extract_str
-func plugin_extract_str(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *C.char, data *C.char, datalen uint32) *C.char {
+func plugin_extract_str(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *byte, data *byte, datalen uint32) *byte {
 	var res string
 	var err error
 	pCtx := (*pluginContext)(sinsp.Context(plgState))
 
 	// Decode the json, but only if we haven't done it yet for this event
 	if evtnum != pCtx.jdataEvtnum {
-		pCtx.jdata, err = pCtx.jparser.Parse(C.GoString(data))
+		pCtx.jdata, err = pCtx.jparser.Parse(C.GoString((*C.char)(unsafe.Pointer(data))))
 		if err != nil {
 			//
 			// Not a json file. We return nil to indicate that the field is not
@@ -162,7 +162,7 @@ func plugin_extract_str(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *
 
 	switch id {
 	case FIELD_ID_VALUE:
-		sarg := C.GoString(arg)
+		sarg := C.GoString((*C.char)(unsafe.Pointer(arg)))
 		if sarg[0] == '/' {
 			sarg = sarg[1:]
 		}
@@ -175,7 +175,7 @@ func plugin_extract_str(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *
 		res = string(val)
 	case FIELD_ID_MSG:
 		var out bytes.Buffer
-		err = json.Indent(&out, []byte(C.GoString(data)), "", "  ")
+		err = json.Indent(&out, []byte(C.GoString((*C.char)(unsafe.Pointer(data)))), "", "  ")
 		if err != nil {
 			return nil
 		}
@@ -190,29 +190,14 @@ func plugin_extract_str(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *
 	// Copy the the line into the event buffer
 	sinsp.CopyToBuffer(plgState, []byte(res))
 	// todo(leogr): try a way to avoid casting here
-	return (*C.char)(unsafe.Pointer(sinsp.Buffer(plgState)))
+	return sinsp.Buffer(plgState)
 }
-
-///////////////////////////////////////////////////////////////////////////////
-// XXX To be moved
-///////////////////////////////////////////////////////////////////////////////
 
 //export plugin_register_async_extractor
-func plugin_register_async_extractor(plgState unsafe.Pointer, info *C.async_extractor_info) int32 {
-	go func() {
-		for sinsp.Wait(unsafe.Pointer(info)) {
-			(*info).res = plugin_extract_str(plgState, uint64(info.evtnum),
-				uint32(info.id),
-				info.arg,
-				info.data,
-				uint32(info.datalen))
-		}
-	}()
-	return sinsp.ScapSuccess
+func plugin_register_async_extractor(pluginState unsafe.Pointer, asyncExtractorInfo unsafe.Pointer) int32 {
+	log.Printf("[%s] plugin_register_async_extractor\n", PluginName)
+	return sinsp.RegisterAsyncExtractors(pluginState, asyncExtractorInfo, plugin_extract_str)
 }
-
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
 
 func main() {
 }
