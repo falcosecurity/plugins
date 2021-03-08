@@ -18,11 +18,13 @@ typedef struct async_extractor_info
 {
 	uint64_t evtnum;
 	uint32_t id;
+	uint32_t ftype;
 	char* arg;
 	char* data;
 	uint32_t datalen;
 	uint32_t field_present;
 	char* res;
+	int32_t rc;
 	cb_wait_t cb_wait;
 	void* wait_ctx;
 } async_extractor_info;
@@ -832,8 +834,8 @@ func plugin_extract_u64(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *
 	if evtnum != pCtx.jdataEvtnum {
 		pCtx.jdata, err = pCtx.jparser.Parse(C.GoString(data))
 		if err != nil {
-			// Not a json file. We return nil to indicate that the field is not
-			// present.
+			// Not a json file. We return 0 and *field_present=0 to indicate
+			// that the field is not present.
 			return 0
 		}
 		pCtx.jdataEvtnum = evtnum
@@ -899,12 +901,18 @@ func plugin_extract_u64(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *
 //export plugin_register_async_extractor
 func plugin_register_async_extractor(plgState unsafe.Pointer, info *C.async_extractor_info) int32 {
 	go func() {
+		(*info).rc = C.int32_t(sinsp.ScapSuccess)
 		for sinsp.Wait(unsafe.Pointer(info)) {
-			(*info).res = plugin_extract_str(plgState, uint64(info.evtnum),
-				uint32(info.id),
-				info.arg,
-				info.data,
-				uint32(info.datalen))
+			switch uint32(info.ftype) {
+			case sinsp.ParamTypeCharBuf:
+				(*info).res = plugin_extract_str(plgState, uint64(info.evtnum),
+					uint32(info.id),
+					info.arg,
+					info.data,
+					uint32(info.datalen))
+			default:
+				(*info).rc = C.int32_t(sinsp.ScapNotSupported)
+			}
 		}
 	}()
 	return sinsp.ScapSuccess
