@@ -11,23 +11,6 @@ package main
 /*
 #include <stdlib.h>
 #include <inttypes.h>
-
-typedef void (*cb_wait_t)(void* wait_ctx);
-
-typedef struct async_extractor_info
-{
-	uint64_t evtnum;
-	uint32_t id;
-	uint32_t ftype;
-	char* arg;
-	char* data;
-	uint32_t datalen;
-	uint32_t field_present;
-	char* res;
-	int32_t rc;
-	cb_wait_t cb_wait;
-	void* wait_ctx;
-} async_extractor_info;
 */
 import "C"
 import (
@@ -895,6 +878,10 @@ func plugin_extract_u64(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *
 		return 0
 	}
 }
+
+///////////////////////////////////////////////////////////////////////////////
+// The following code is part of the plugin interface. Do not remove it.
+///////////////////////////////////////////////////////////////////////////////
 
 //export plugin_register_async_extractor
 func plugin_register_async_extractor(pluginState unsafe.Pointer, asyncExtractorInfo unsafe.Pointer) int32 {
