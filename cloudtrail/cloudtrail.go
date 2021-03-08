@@ -793,14 +793,16 @@ func plugin_event_to_string(plgState unsafe.Pointer, data *C.char, datalen uint3
 }
 
 //export plugin_extract_str
-func plugin_extract_str(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *C.char, data *C.char, datalen uint32) *C.char {
+func plugin_extract_str(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *byte, data *byte, datalen uint32) *byte {
 	var res string
 	var err error
 	pCtx := (*pluginContext)(sinsp.Context(plgState))
 
 	// Decode the json, but only if we haven't done it yet for this event
 	if evtnum != pCtx.jdataEvtnum {
-		pCtx.jdata, err = pCtx.jparser.Parse(C.GoString(data))
+		pCtx.jdata, err = pCtx.jparser.Parse(C.GoString(
+			(*C.char)(unsafe.Pointer(data)),
+		))
 		if err != nil {
 			// Not a json file. We return nil to indicate that the field is not
 			// present.
@@ -820,8 +822,8 @@ func plugin_extract_str(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *
 	res += "\x00"
 
 	sinsp.CopyToBuffer(plgState, []byte(res))
-	// todo(leogr): try a way to avoid casting here
-	return (*C.char)(unsafe.Pointer(sinsp.Buffer(plgState)))
+
+	return sinsp.Buffer(plgState)
 }
 
 //export plugin_extract_u64
@@ -894,37 +896,16 @@ func plugin_extract_u64(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *
 	}
 }
 
-///////////////////////////////////////////////////////////////////////////////
-// XXX To be moved
-///////////////////////////////////////////////////////////////////////////////
-
 //export plugin_register_async_extractor
-func plugin_register_async_extractor(plgState unsafe.Pointer, info *C.async_extractor_info) int32 {
-	go func() {
-		(*info).rc = C.int32_t(sinsp.ScapSuccess)
-		for sinsp.Wait(unsafe.Pointer(info)) {
-			switch uint32(info.ftype) {
-			case sinsp.ParamTypeCharBuf:
-				(*info).res = plugin_extract_str(plgState, uint64(info.evtnum),
-					uint32(info.id),
-					info.arg,
-					info.data,
-					uint32(info.datalen))
-			default:
-				(*info).rc = C.int32_t(sinsp.ScapNotSupported)
-			}
-		}
-	}()
-	return sinsp.ScapSuccess
+func plugin_register_async_extractor(pluginState unsafe.Pointer, asyncExtractorInfo unsafe.Pointer) int32 {
+	log.Printf("[%s] plugin_register_async_extractor\n", PluginName)
+	return sinsp.RegisterAsyncExtractors(pluginState, asyncExtractorInfo, plugin_extract_str)
 }
 
 //export plugin_next_batch
 func plugin_next_batch(plgState unsafe.Pointer, openState unsafe.Pointer, data **byte, datalen *uint32) int32 {
 	return sinsp.NextBatch(plgState, openState, data, datalen, Next)
 }
-
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
 
 func main() {
 }
