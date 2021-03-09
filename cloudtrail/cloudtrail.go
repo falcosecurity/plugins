@@ -810,14 +810,14 @@ func plugin_extract_str(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *
 }
 
 //export plugin_extract_u64
-func plugin_extract_u64(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *C.char, data *C.char, datalen uint32, field_present *uint32) uint64 {
+func plugin_extract_u64(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *byte, data *byte, datalen uint32, field_present *uint32) uint64 {
 	var err error
 	*field_present = 0
 	pCtx := (*pluginContext)(sinsp.Context(plgState))
 
 	// Decode the json, but only if we haven't done it yet for this event
 	if evtnum != pCtx.jdataEvtnum {
-		pCtx.jdata, err = pCtx.jparser.Parse(C.GoString(data))
+		pCtx.jdata, err = pCtx.jparser.Parse(C.GoString((*C.char)(unsafe.Pointer(data))))
 		if err != nil {
 			// Not a json file. We return 0 and *field_present=0 to indicate
 			// that the field is not present.
@@ -886,7 +886,7 @@ func plugin_extract_u64(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *
 //export plugin_register_async_extractor
 func plugin_register_async_extractor(pluginState unsafe.Pointer, asyncExtractorInfo unsafe.Pointer) int32 {
 	log.Printf("[%s] plugin_register_async_extractor\n", PluginName)
-	return sinsp.RegisterAsyncExtractors(pluginState, asyncExtractorInfo, plugin_extract_str)
+	return sinsp.RegisterAsyncExtractors(pluginState, asyncExtractorInfo, plugin_extract_str, plugin_extract_u64)
 }
 
 //export plugin_next_batch
