@@ -170,26 +170,27 @@ func plugin_get_description() *C.char {
 	return C.CString(PluginDescription)
 }
 
-const FIELD_ID_CLOUDTRAIL_ID uint32 = 0
-const FIELD_ID_CLOUDTRAIL_TIME uint32 = 1
-const FIELD_ID_CLOUDTRAIL_SRC uint32 = 2
-const FIELD_ID_CLOUDTRAIL_NAME uint32 = 3
-const FIELD_ID_CLOUDTRAIL_USER uint32 = 4
-const FIELD_ID_CLOUDTRAIL_REGION uint32 = 5
-const FIELD_ID_CLOUDTRAIL_SRCIP uint32 = 6
-const FIELD_ID_CLOUDTRAIL_USERAGENT uint32 = 7
-const FIELD_ID_CLOUDTRAIL_INFO uint32 = 8
-const FIELD_ID_S3_BUCKET uint32 = 9
-const FIELD_ID_S3_KEY uint32 = 10
-const FIELD_ID_S3_HOST uint32 = 11
-const FIELD_ID_S3_URI uint32 = 12
-const FIELD_ID_S3_BYTES uint32 = 13
-const FIELD_ID_S3_BYTES_IN uint32 = 14
-const FIELD_ID_S3_BYTES_OUT uint32 = 15
-const FIELD_ID_S3_CNT_GET uint32 = 16
-const FIELD_ID_S3_CNT_PUT uint32 = 17
-const FIELD_ID_S3_CNT_OTHER uint32 = 18
-const FIELD_ID_EC2_NAME uint32 = 19
+const FIELD_ID_CT_ID uint32 = 0
+const FIELD_ID_CT_TIME uint32 = 1
+const FIELD_ID_CT_SRC uint32 = 2
+const FIELD_ID_CT_NAME uint32 = 3
+const FIELD_ID_CT_USER uint32 = 4
+const FIELD_ID_CT_REGION uint32 = 5
+const FIELD_ID_CT_SRCIP uint32 = 6
+const FIELD_ID_CT_USERAGENT uint32 = 7
+const FIELD_ID_CT_INFO uint32 = 8
+const FIELD_ID_CT_IS_KEY uint32 = 9
+const FIELD_ID_S3_BUCKET uint32 = 10
+const FIELD_ID_S3_KEY uint32 = 11
+const FIELD_ID_S3_HOST uint32 = 12
+const FIELD_ID_S3_URI uint32 = 13
+const FIELD_ID_S3_BYTES uint32 = 14
+const FIELD_ID_S3_BYTES_IN uint32 = 15
+const FIELD_ID_S3_BYTES_OUT uint32 = 16
+const FIELD_ID_S3_CNT_GET uint32 = 17
+const FIELD_ID_S3_CNT_PUT uint32 = 18
+const FIELD_ID_S3_CNT_OTHER uint32 = 19
+const FIELD_ID_EC2_NAME uint32 = 20
 
 //export plugin_get_fields
 func plugin_get_fields() *C.char {
@@ -204,6 +205,7 @@ func plugin_get_fields() *C.char {
 		{Type: "string", Name: "ct.srcip", Desc: "the IP address generating the event (sourceIPAddress in the json)."},
 		{Type: "string", Name: "ct.useragent", Desc: "the user agent generating the event (userAgent in the json)."},
 		{Type: "string", Name: "ct.info", Desc: "summary information about the event. This varies depending on the event type and, for some events, it contains event-specific details."},
+		{Type: "string", Name: "ct.is_key", Desc: "'true' if the event modifies the state (e.g. RunInstances, CreateLoadBalancer...). 'false' otherwise."},
 		{Type: "string", Name: "s3.bucket", Desc: "the bucket name for s3 events."},
 		{Type: "string", Name: "s3.key", Desc: "the key name for s3 events."},
 		{Type: "string", Name: "s3.host", Desc: "the host name for s3 events."},
@@ -608,7 +610,7 @@ func getEvtInfo(jdata *fastjson.Value) string {
 	var evtname string
 	var info string
 
-	present, evtname = getfieldStr(jdata, FIELD_ID_CLOUDTRAIL_NAME)
+	present, evtname = getfieldStr(jdata, FIELD_ID_CT_NAME)
 	if !present {
 		return "<invalid cloudtrail event: eventName field missing>"
 	}
@@ -644,11 +646,11 @@ func getfieldStr(jdata *fastjson.Value, id uint32) (bool, string) {
 	var res string
 
 	switch id {
-	case FIELD_ID_CLOUDTRAIL_ID:
+	case FIELD_ID_CT_ID:
 		res = string(jdata.GetStringBytes("eventID"))
-	case FIELD_ID_CLOUDTRAIL_TIME:
+	case FIELD_ID_CT_TIME:
 		res = string(jdata.GetStringBytes("eventTime"))
-	case FIELD_ID_CLOUDTRAIL_SRC:
+	case FIELD_ID_CT_SRC:
 		res = string(jdata.GetStringBytes("eventSource"))
 
 		if len(res) > len(".amazonaws.com") {
@@ -657,18 +659,37 @@ func getfieldStr(jdata *fastjson.Value, id uint32) (bool, string) {
 				res = res[0 : len(res)-len(".amazonaws.com")]
 			}
 		}
-	case FIELD_ID_CLOUDTRAIL_NAME:
+	case FIELD_ID_CT_NAME:
 		res = string(jdata.GetStringBytes("eventName"))
-	case FIELD_ID_CLOUDTRAIL_USER:
+	case FIELD_ID_CT_USER:
 		res = getUser(jdata)
-	case FIELD_ID_CLOUDTRAIL_REGION:
+	case FIELD_ID_CT_REGION:
 		res = string(jdata.GetStringBytes("awsRegion"))
-	case FIELD_ID_CLOUDTRAIL_SRCIP:
+	case FIELD_ID_CT_SRCIP:
 		res = string(jdata.GetStringBytes("sourceIPAddress"))
-	case FIELD_ID_CLOUDTRAIL_USERAGENT:
+	case FIELD_ID_CT_USERAGENT:
 		res = string(jdata.GetStringBytes("userAgent"))
-	case FIELD_ID_CLOUDTRAIL_INFO:
+	case FIELD_ID_CT_INFO:
 		res = getEvtInfo(jdata)
+	case FIELD_ID_CT_IS_KEY:
+		ename := string(jdata.GetStringBytes("eventName"))
+		if strings.HasPrefix(ename, "Start") || strings.HasPrefix(ename, "Stop") || strings.HasPrefix(ename, "Create") ||
+			strings.HasPrefix(ename, "Destroy") || strings.HasPrefix(ename, "Delete") || strings.HasPrefix(ename, "Add") ||
+			strings.HasPrefix(ename, "Remove") || strings.HasPrefix(ename, "Terminate") || strings.HasPrefix(ename, "Put") ||
+			strings.HasPrefix(ename, "Associate") || strings.HasPrefix(ename, "Disassociate") || strings.HasPrefix(ename, "Attach") ||
+			strings.HasPrefix(ename, "Detach") || strings.HasPrefix(ename, "Add") || strings.HasPrefix(ename, "Open") ||
+			strings.HasPrefix(ename, "Close") || strings.HasPrefix(ename, "Wipe") || strings.HasPrefix(ename, "Update") ||
+			strings.HasPrefix(ename, "Upgrade") || strings.HasPrefix(ename, "Unlink") || strings.HasPrefix(ename, "Assign") ||
+			strings.HasPrefix(ename, "Unassign") || strings.HasPrefix(ename, "Suspend") || strings.HasPrefix(ename, "Set") ||
+			strings.HasPrefix(ename, "Run") || strings.HasPrefix(ename, "Register") || strings.HasPrefix(ename, "Deregister") ||
+			strings.HasPrefix(ename, "Reboot") || strings.HasPrefix(ename, "Purchase") || strings.HasPrefix(ename, "Modify") ||
+			strings.HasPrefix(ename, "Initialize") || strings.HasPrefix(ename, "Enable") || strings.HasPrefix(ename, "Disable") ||
+			strings.HasPrefix(ename, "Cancel") || strings.HasPrefix(ename, "Assign") || strings.HasPrefix(ename, "Admin") ||
+			strings.HasPrefix(ename, "Activate") {
+			res = "true"
+		} else {
+			res = "false"
+		}
 	case FIELD_ID_S3_BUCKET:
 		val := jdata.GetStringBytes("requestParameters", "bucketName")
 		if val == nil {
