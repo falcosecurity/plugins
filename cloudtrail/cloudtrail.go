@@ -170,53 +170,56 @@ func plugin_get_description() *C.char {
 	return C.CString(PluginDescription)
 }
 
-const FIELD_ID_CT_ID uint32 = 0
-const FIELD_ID_CT_TIME uint32 = 1
-const FIELD_ID_CT_SRC uint32 = 2
-const FIELD_ID_CT_NAME uint32 = 3
-const FIELD_ID_CT_USER uint32 = 4
-const FIELD_ID_CT_REGION uint32 = 5
-const FIELD_ID_CT_SRCIP uint32 = 6
-const FIELD_ID_CT_USERAGENT uint32 = 7
-const FIELD_ID_CT_INFO uint32 = 8
-const FIELD_ID_CT_IS_KEY uint32 = 9
-const FIELD_ID_S3_BUCKET uint32 = 10
-const FIELD_ID_S3_KEY uint32 = 11
-const FIELD_ID_S3_HOST uint32 = 12
-const FIELD_ID_S3_URI uint32 = 13
-const FIELD_ID_S3_BYTES uint32 = 14
-const FIELD_ID_S3_BYTES_IN uint32 = 15
-const FIELD_ID_S3_BYTES_OUT uint32 = 16
-const FIELD_ID_S3_CNT_GET uint32 = 17
-const FIELD_ID_S3_CNT_PUT uint32 = 18
-const FIELD_ID_S3_CNT_OTHER uint32 = 19
-const FIELD_ID_EC2_NAME uint32 = 20
+// Filed identifiers
+const (
+	FieldIDCtID = iota
+	FieldIDCtTime
+	FieldIDCtSrc
+	FieldIDCtName
+	FieldIDCtUser
+	FieldIDCtRegion
+	FieldIDCtSrcIP
+	FieldIDCtUserAgent
+	FieldIDCtInfo
+	FieldIDCtIsKey
+	FieldIDS3Bucket
+	FieldIDS3Key
+	FieldIDS3Host
+	FieldIDS3Uri
+	FieldIDS3Bytes
+	FieldIDS3BytesIn
+	FieldIDS3BytesOut
+	FieldIDS3CntGet
+	FieldIDS3CntPut
+	FieldIDS3CntOther
+	FieldIDEc2Name
+)
 
 //export plugin_get_fields
 func plugin_get_fields() *C.char {
 	log.Printf("[%s] plugin_get_fields\n", PluginName)
 	flds := []sinsp.FieldEntry{
-		{Type: "string", Name: "ct.id", Desc: "the unique ID of the cloudtrail event (eventID in the json)."},
-		{Type: "string", Name: "ct.time", Desc: "the timestamp of the cloudtrail event (eventTime in the json)."},
-		{Type: "string", Name: "ct.src", Desc: "the source of the cloudtrail event (eventSource in the json, without the '.amazonaws.com' trailer)."},
-		{Type: "string", Name: "ct.name", Desc: "the name of the cloudtrail event (eventName in the json)."},
-		{Type: "string", Name: "ct.user", Desc: "the user of the cloudtrail event (userIdentity.userName in the json)."},
-		{Type: "string", Name: "ct.region", Desc: "the region of the cloudtrail event (awsRegion in the json)."},
-		{Type: "string", Name: "ct.srcip", Desc: "the IP address generating the event (sourceIPAddress in the json)."},
-		{Type: "string", Name: "ct.useragent", Desc: "the user agent generating the event (userAgent in the json)."},
-		{Type: "string", Name: "ct.info", Desc: "summary information about the event. This varies depending on the event type and, for some events, it contains event-specific details."},
-		{Type: "string", Name: "ct.is_key", Desc: "'true' if the event modifies the state (e.g. RunInstances, CreateLoadBalancer...). 'false' otherwise."},
-		{Type: "string", Name: "s3.bucket", Desc: "the bucket name for s3 events."},
-		{Type: "string", Name: "s3.key", Desc: "the key name for s3 events."},
-		{Type: "string", Name: "s3.host", Desc: "the host name for s3 events."},
-		{Type: "string", Name: "s3.uri", Desc: "the s3 URI (s3://<bucket>/<key>) for s3 events."},
-		{Type: "uint64", Name: "s3.bytes", Desc: "the size of an s3 download or upload, in bytes."},
-		{Type: "uint64", Name: "s3.bytes.in", Desc: "the size of an s3 upload, in bytes."},
-		{Type: "uint64", Name: "s3.bytes.out", Desc: "the size of an s3 download, in bytes."},
-		{Type: "uint64", Name: "s3.cnt.get", Desc: "the number of get operations. This field is 1 for GetObject events, 0 otherwise."},
-		{Type: "uint64", Name: "s3.cnt.put", Desc: "the number of put operations. This field is 1 for PutObject events, 0 otherwise."},
-		{Type: "uint64", Name: "s3.cnt.other", Desc: "the number of non I/O operations. This field is 0 for GetObject and PutObject events, 1 for all the other events."},
-		{Type: "string", Name: "ec2.name", Desc: "the name of the ec2 instances, typically stored in the instance tags."},
+		{Type: "string", ID: FieldIDCtID, Name: "ct.id", Desc: "the unique ID of the cloudtrail event (eventID in the json)."},
+		{Type: "string", ID: FieldIDCtTime, Name: "ct.time", Desc: "the timestamp of the cloudtrail event (eventTime in the json)."},
+		{Type: "string", ID: FieldIDCtSrc, Name: "ct.src", Desc: "the source of the cloudtrail event (eventSource in the json, without the '.amazonaws.com' trailer)."},
+		{Type: "string", ID: FieldIDCtName, Name: "ct.name", Desc: "the name of the cloudtrail event (eventName in the json)."},
+		{Type: "string", ID: FieldIDCtUser, Name: "ct.user", Desc: "the user of the cloudtrail event (userIdentity.userName in the json)."},
+		{Type: "string", ID: FieldIDCtRegion, Name: "ct.region", Desc: "the region of the cloudtrail event (awsRegion in the json)."},
+		{Type: "string", ID: FieldIDCtSrcIP, Name: "ct.srcip", Desc: "the IP address generating the event (sourceIPAddress in the json)."},
+		{Type: "string", ID: FieldIDCtUserAgent, Name: "ct.useragent", Desc: "the user agent generating the event (userAgent in the json)."},
+		{Type: "string", ID: FieldIDCtInfo, Name: "ct.info", Desc: "summary information about the event. This varies depending on the event type and, for some events, it contains event-specific details."},
+		{Type: "string", ID: FieldIDCtIsKey, Name: "ct.is_key", Desc: "'true' if the event modifies the state (e.g. RunInstances, CreateLoadBalancer...). 'false' otherwise."},
+		{Type: "string", ID: FieldIDS3Bucket, Name: "s3.bucket", Desc: "the bucket name for s3 events."},
+		{Type: "string", ID: FieldIDS3Key, Name: "s3.key", Desc: "the key name for s3 events."},
+		{Type: "string", ID: FieldIDS3Host, Name: "s3.host", Desc: "the host name for s3 events."},
+		{Type: "string", ID: FieldIDS3Uri, Name: "s3.uri", Desc: "the s3 URI (s3://<bucket>/<key>) for s3 events."},
+		{Type: "uint64", ID: FieldIDS3Bytes, Name: "s3.bytes", Desc: "the size of an s3 download or upload, in bytes."},
+		{Type: "uint64", ID: FieldIDS3BytesIn, Name: "s3.bytes.in", Desc: "the size of an s3 upload, in bytes."},
+		{Type: "uint64", ID: FieldIDS3BytesOut, Name: "s3.bytes.out", Desc: "the size of an s3 download, in bytes."},
+		{Type: "uint64", ID: FieldIDS3CntGet, Name: "s3.cnt.get", Desc: "the number of get operations. This field is 1 for GetObject events, 0 otherwise."},
+		{Type: "uint64", ID: FieldIDS3CntPut, Name: "s3.cnt.put", Desc: "the number of put operations. This field is 1 for PutObject events, 0 otherwise."},
+		{Type: "uint64", ID: FieldIDS3CntOther, Name: "s3.cnt.other", Desc: "the number of non I/O operations. This field is 0 for GetObject and PutObject events, 1 for all the other events."},
+		{Type: "string", ID: FieldIDEc2Name, Name: "ec2.name", Desc: "the name of the ec2 instances, typically stored in the instance tags."},
 	}
 
 	b, err := json.Marshal(&flds)
@@ -610,14 +613,14 @@ func getEvtInfo(jdata *fastjson.Value) string {
 	var evtname string
 	var info string
 
-	present, evtname = getfieldStr(jdata, FIELD_ID_CT_NAME)
+	present, evtname = getfieldStr(jdata, FieldIDCtName)
 	if !present {
 		return "<invalid cloudtrail event: eventName field missing>"
 	}
 
 	switch evtname {
 	case "GetObject", "PutObject":
-		present, uri := getfieldStr(jdata, FIELD_ID_S3_URI)
+		present, uri := getfieldStr(jdata, FieldIDS3Uri)
 		if present {
 			info = fmt.Sprintf("%s", uri)
 		} else {
@@ -646,11 +649,11 @@ func getfieldStr(jdata *fastjson.Value, id uint32) (bool, string) {
 	var res string
 
 	switch id {
-	case FIELD_ID_CT_ID:
+	case FieldIDCtID:
 		res = string(jdata.GetStringBytes("eventID"))
-	case FIELD_ID_CT_TIME:
+	case FieldIDCtTime:
 		res = string(jdata.GetStringBytes("eventTime"))
-	case FIELD_ID_CT_SRC:
+	case FieldIDCtSrc:
 		res = string(jdata.GetStringBytes("eventSource"))
 
 		if len(res) > len(".amazonaws.com") {
@@ -659,19 +662,19 @@ func getfieldStr(jdata *fastjson.Value, id uint32) (bool, string) {
 				res = res[0 : len(res)-len(".amazonaws.com")]
 			}
 		}
-	case FIELD_ID_CT_NAME:
+	case FieldIDCtName:
 		res = string(jdata.GetStringBytes("eventName"))
-	case FIELD_ID_CT_USER:
+	case FieldIDCtUser:
 		res = getUser(jdata)
-	case FIELD_ID_CT_REGION:
+	case FieldIDCtRegion:
 		res = string(jdata.GetStringBytes("awsRegion"))
-	case FIELD_ID_CT_SRCIP:
+	case FieldIDCtSrcIP:
 		res = string(jdata.GetStringBytes("sourceIPAddress"))
-	case FIELD_ID_CT_USERAGENT:
+	case FieldIDCtUserAgent:
 		res = string(jdata.GetStringBytes("userAgent"))
-	case FIELD_ID_CT_INFO:
+	case FieldIDCtInfo:
 		res = getEvtInfo(jdata)
-	case FIELD_ID_CT_IS_KEY:
+	case FieldIDCtIsKey:
 		ename := string(jdata.GetStringBytes("eventName"))
 		if strings.HasPrefix(ename, "Start") || strings.HasPrefix(ename, "Stop") || strings.HasPrefix(ename, "Create") ||
 			strings.HasPrefix(ename, "Destroy") || strings.HasPrefix(ename, "Delete") || strings.HasPrefix(ename, "Add") ||
@@ -690,25 +693,25 @@ func getfieldStr(jdata *fastjson.Value, id uint32) (bool, string) {
 		} else {
 			res = "false"
 		}
-	case FIELD_ID_S3_BUCKET:
+	case FieldIDS3Bucket:
 		val := jdata.GetStringBytes("requestParameters", "bucketName")
 		if val == nil {
 			return false, ""
 		}
 		res = string(val)
-	case FIELD_ID_S3_KEY:
+	case FieldIDS3Key:
 		val := jdata.GetStringBytes("requestParameters", "key")
 		if val == nil {
 			return false, ""
 		}
 		res = string(val)
-	case FIELD_ID_S3_HOST:
+	case FieldIDS3Host:
 		val := jdata.GetStringBytes("requestParameters", "Host")
 		if val == nil {
 			return false, ""
 		}
 		res = string(val)
-	case FIELD_ID_S3_URI:
+	case FieldIDS3Uri:
 		sbucket := jdata.GetStringBytes("requestParameters", "bucketName")
 		if sbucket == nil {
 			return false, ""
@@ -718,7 +721,7 @@ func getfieldStr(jdata *fastjson.Value, id uint32) (bool, string) {
 			return false, ""
 		}
 		res = fmt.Sprintf("s3://%s/%s", sbucket, skey)
-	case FIELD_ID_EC2_NAME:
+	case FieldIDEc2Name:
 		var iname string = ""
 		jilist := jdata.GetArray("requestParameters", "tagSpecificationSet", "items")
 		if jilist == nil {
@@ -848,7 +851,7 @@ func plugin_extract_u64(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *
 	}
 
 	switch id {
-	case FIELD_ID_S3_BYTES:
+	case FieldIDS3Bytes:
 		var tot uint64 = 0
 		in := pCtx.jdata.Get("additionalEventData", "bytesTransferredIn")
 		if in != nil {
@@ -860,7 +863,7 @@ func plugin_extract_u64(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *
 		}
 		*field_present = 1
 		return tot
-	case FIELD_ID_S3_BYTES_IN:
+	case FieldIDS3BytesIn:
 		var tot uint64 = 0
 		in := pCtx.jdata.Get("additionalEventData", "bytesTransferredIn")
 		if in != nil {
@@ -868,7 +871,7 @@ func plugin_extract_u64(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *
 		}
 		*field_present = 1
 		return tot
-	case FIELD_ID_S3_BYTES_OUT:
+	case FieldIDS3BytesOut:
 		var tot uint64 = 0
 		out := pCtx.jdata.Get("additionalEventData", "bytesTransferredOut")
 		if out != nil {
@@ -876,19 +879,19 @@ func plugin_extract_u64(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *
 		}
 		*field_present = 1
 		return tot
-	case FIELD_ID_S3_CNT_GET:
+	case FieldIDS3CntGet:
 		if string(pCtx.jdata.GetStringBytes("eventName")) == "GetObject" {
 			*field_present = 1
 			return 1
 		}
 		return 0
-	case FIELD_ID_S3_CNT_PUT:
+	case FieldIDS3CntPut:
 		if string(pCtx.jdata.GetStringBytes("eventName")) == "PutObject" {
 			*field_present = 1
 			return 1
 		}
 		return 0
-	case FIELD_ID_S3_CNT_OTHER:
+	case FieldIDS3CntOther:
 		ename := string(pCtx.jdata.GetStringBytes("eventName"))
 		if ename == "GetObject" || ename == "PutObject" {
 			*field_present = 1

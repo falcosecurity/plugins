@@ -103,16 +103,19 @@ func plugin_get_description() *C.char {
 	return C.CString(PluginDescription)
 }
 
-const FIELD_ID_VALUE uint32 = 0
-const FIELD_ID_MSG uint32 = 1
+// Filed identifiers
+const (
+	FieldIDValue = iota
+	FieldIDMsg
+)
 
 //export plugin_get_fields
 func plugin_get_fields() *C.char {
 	log.Printf("[%s] plugin_get_fields\n", PluginName)
 
 	flds := []sinsp.FieldEntry{
-		{Type: "string", Name: "jevt.value", Desc: "allows to extract a value from a JSON-encoded input. Syntax is jevt.value[/x/y/z], where x,y and z are levels in the JSON hierarchy."},
-		{Type: "string", Name: "jevt.json", Desc: "the full json message as a text string."},
+		{Type: "string", ID: FieldIDValue, Name: "jevt.value", Desc: "allows to extract a value from a JSON-encoded input. Syntax is jevt.value[/x/y/z], where x,y and z are levels in the JSON hierarchy."},
+		{Type: "string", ID: FieldIDMsg, Name: "jevt.json", Desc: "the full json message as a text string."},
 	}
 
 	b, err := json.Marshal(&flds)
@@ -144,7 +147,7 @@ func plugin_extract_str(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *
 	}
 
 	switch id {
-	case FIELD_ID_VALUE:
+	case FieldIDValue:
 		sarg := C.GoString((*C.char)(unsafe.Pointer(arg)))
 		if sarg[0] == '/' {
 			sarg = sarg[1:]
@@ -156,7 +159,7 @@ func plugin_extract_str(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *
 			return nil
 		}
 		res = string(val)
-	case FIELD_ID_MSG:
+	case FieldIDMsg:
 		var out bytes.Buffer
 		err = json.Indent(&out, []byte(C.GoString((*C.char)(unsafe.Pointer(data)))), "", "  ")
 		if err != nil {
