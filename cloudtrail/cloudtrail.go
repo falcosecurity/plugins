@@ -91,8 +91,8 @@ type openContext struct {
 	cloudTrailFilesDir string
 	files              []fileInfo
 	curFileNum         uint32
-	evtJsonStrings     [][]byte
-	evtJsonListPos     int
+	evtJSONStrings     [][]byte
+	evtJSONListPos     int
 	s3                 s3State
 	nextJParser        fastjson.Parser
 	nextBatchLastTs    uint64
@@ -458,6 +458,7 @@ func extractRecordStrings(jsonStr []byte, res *[][]byte) {
 	}
 }
 
+// Next is the core event production function. It is called by both plugin_next() and plugin_next_batch()
 func Next(plgState unsafe.Pointer, openState unsafe.Pointer, data *[]byte, ts *uint64) int32 {
 	// log.Printf("[%s] plugin_next\n", PluginName)
 	var tmpStr []byte
@@ -467,7 +468,7 @@ func Next(plgState unsafe.Pointer, openState unsafe.Pointer, data *[]byte, ts *u
 	oCtx := (*openContext)(sinsp.Context(openState))
 
 	// Only open the next file once we're sure that the content of the previous one has been full consumed
-	if oCtx.evtJsonListPos == len(oCtx.evtJsonStrings) {
+	if oCtx.evtJSONListPos == len(oCtx.evtJSONStrings) {
 		// Open the next file and bring its content into memeory
 		if oCtx.curFileNum >= uint32(len(oCtx.files)) {
 			return sinsp.ScapEOF
@@ -507,27 +508,27 @@ func Next(plgState unsafe.Pointer, openState unsafe.Pointer, data *[]byte, ts *u
 		// We do this instead of unmarshaling the whole file because this allows
 		// us to pass the original json of each event to the engine without an
 		// additional marshaling, making things much faster.
-		oCtx.evtJsonStrings = nil
-		extractRecordStrings(tmpStr, &(oCtx.evtJsonStrings))
+		oCtx.evtJSONStrings = nil
+		extractRecordStrings(tmpStr, &(oCtx.evtJSONStrings))
 
-		oCtx.evtJsonListPos = 0
+		oCtx.evtJSONListPos = 0
 	}
 
 	// Extract the next record
 	var cr *fastjson.Value
-	if len(oCtx.evtJsonStrings) != 0 {
-		*data = oCtx.evtJsonStrings[oCtx.evtJsonListPos]
+	if len(oCtx.evtJSONStrings) != 0 {
+		*data = oCtx.evtJSONStrings[oCtx.evtJSONListPos]
 		cr, err = oCtx.nextJParser.Parse(string(*data))
 		if err != nil {
 			// Not json? Just skip this event.
-			oCtx.evtJsonListPos++
+			oCtx.evtJSONListPos++
 			return sinsp.ScapTimeout
 		}
 
-		oCtx.evtJsonListPos++
+		oCtx.evtJSONListPos++
 	} else {
 		// Json not int the expected format. Just skip this event.
-		oCtx.evtJsonListPos++
+		oCtx.evtJSONListPos++
 		return sinsp.ScapTimeout
 	}
 
@@ -821,9 +822,9 @@ func plugin_extract_str(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *
 	present, val := getfieldStr(pCtx.jdata, id)
 	if !present {
 		return nil
-	} else {
-		res = val
 	}
+
+	res = val
 
 	// NULL terminate the result so C will like it
 	res += "\x00"
@@ -834,16 +835,16 @@ func plugin_extract_str(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *
 }
 
 //export plugin_extract_u64
-func plugin_extract_u64(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *byte, data *byte, datalen uint32, field_present *uint32) uint64 {
+func plugin_extract_u64(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *byte, data *byte, datalen uint32, fieldPresent *uint32) uint64 {
 	var err error
-	*field_present = 0
+	*fieldPresent = 0
 	pCtx := (*pluginContext)(sinsp.Context(plgState))
 
 	// Decode the json, but only if we haven't done it yet for this event
 	if evtnum != pCtx.jdataEvtnum {
 		pCtx.jdata, err = pCtx.jparser.Parse(C.GoString((*C.char)(unsafe.Pointer(data))))
 		if err != nil {
-			// Not a json file. We return 0 and *field_present=0 to indicate
+			// Not a json file. We return 0 and *fieldPresent=0 to indicate
 			// that the field is not present.
 			return 0
 		}
@@ -861,7 +862,7 @@ func plugin_extract_u64(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *
 		if out != nil {
 			tot = tot + out.GetUint64()
 		}
-		*field_present = 1
+		*fieldPresent = 1
 		return tot
 	case FieldIDS3BytesIn:
 		var tot uint64 = 0
@@ -869,7 +870,7 @@ func plugin_extract_u64(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *
 		if in != nil {
 			tot = tot + in.GetUint64()
 		}
-		*field_present = 1
+		*fieldPresent = 1
 		return tot
 	case FieldIDS3BytesOut:
 		var tot uint64 = 0
@@ -877,24 +878,24 @@ func plugin_extract_u64(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *
 		if out != nil {
 			tot = tot + out.GetUint64()
 		}
-		*field_present = 1
+		*fieldPresent = 1
 		return tot
 	case FieldIDS3CntGet:
 		if string(pCtx.jdata.GetStringBytes("eventName")) == "GetObject" {
-			*field_present = 1
+			*fieldPresent = 1
 			return 1
 		}
 		return 0
 	case FieldIDS3CntPut:
 		if string(pCtx.jdata.GetStringBytes("eventName")) == "PutObject" {
-			*field_present = 1
+			*fieldPresent = 1
 			return 1
 		}
 		return 0
 	case FieldIDS3CntOther:
 		ename := string(pCtx.jdata.GetStringBytes("eventName"))
 		if ename == "GetObject" || ename == "PutObject" {
-			*field_present = 1
+			*fieldPresent = 1
 			return 0
 		}
 		return 1
