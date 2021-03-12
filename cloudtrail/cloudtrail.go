@@ -138,7 +138,6 @@ func plugin_init(config *C.char, minAPIVersion *uint32, rc *int32) unsafe.Pointe
 
 //export plugin_get_last_error
 func plugin_get_last_error(plgState unsafe.Pointer) *C.char {
-	log.Printf("[%s] plugin_get_last_error\n", PluginName)
 	pCtx := (*pluginContext)(sinsp.Context(plgState))
 	if pCtx.lastError != nil {
 		return C.CString(pCtx.lastError.Error())
@@ -155,19 +154,16 @@ func plugin_destroy(plgState unsafe.Pointer) {
 
 //export plugin_get_id
 func plugin_get_id() uint32 {
-	log.Printf("[%s] plugin_get_id\n", PluginName)
 	return PluginID
 }
 
 //export plugin_get_name
 func plugin_get_name() *C.char {
-	//	log.Printf("[%s] plugin_get_name\n", PluginName)
 	return C.CString(PluginName)
 }
 
 //export plugin_get_description
 func plugin_get_description() *C.char {
-	log.Printf("[%s] plugin_get_description\n", PluginName)
 	return C.CString(PluginDescription)
 }
 
@@ -198,7 +194,6 @@ const (
 
 //export plugin_get_fields
 func plugin_get_fields() *C.char {
-	log.Printf("[%s] plugin_get_fields\n", PluginName)
 	flds := []sinsp.FieldEntry{
 		{Type: "string", ID: FieldIDCtID, Name: "ct.id", Desc: "the unique ID of the cloudtrail event (eventID in the json)."},
 		{Type: "string", ID: FieldIDCtTime, Name: "ct.time", Desc: "the timestamp of the cloudtrail event (eventTime in the json)."},
@@ -341,7 +336,6 @@ func openS3(pCtx *pluginContext, oCtx *openContext, params *C.char, rc *int32) {
 
 //export plugin_open
 func plugin_open(plgState unsafe.Pointer, params *C.char, rc *int32) unsafe.Pointer {
-	log.Printf("[%s] plugin_open\n", PluginName)
 	pCtx := (*pluginContext)(sinsp.Context(plgState))
 
 	// Allocate the context struct for this open instance
@@ -380,7 +374,6 @@ func plugin_open(plgState unsafe.Pointer, params *C.char, rc *int32) unsafe.Poin
 
 //export plugin_close
 func plugin_close(plgState unsafe.Pointer, openState unsafe.Pointer) {
-	log.Printf("[%s] plugin_close\n", PluginName)
 	if openState != nil {
 		sinsp.Free(openState)
 	}
@@ -461,7 +454,6 @@ func extractRecordStrings(jsonStr []byte, res *[][]byte) {
 
 // Next is the core event production function. It is called by both plugin_next() and plugin_next_batch()
 func Next(plgState unsafe.Pointer, openState unsafe.Pointer, data *[]byte, ts *uint64) int32 {
-	// log.Printf("[%s] plugin_next\n", PluginName)
 	var tmpStr []byte
 	var err error
 
@@ -756,7 +748,6 @@ func getfieldStr(jdata *fastjson.Value, id uint32) (bool, string) {
 
 //export plugin_event_to_string
 func plugin_event_to_string(plgState unsafe.Pointer, data *C.char, datalen uint32) *byte {
-	// log.Printf("[%s] plugin_event_to_string\n", PluginName)
 	var line string
 	var src string
 	var user string
@@ -911,7 +902,6 @@ func plugin_extract_u64(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *
 
 //export plugin_register_async_extractor
 func plugin_register_async_extractor(pluginState unsafe.Pointer, asyncExtractorInfo unsafe.Pointer) int32 {
-	log.Printf("[%s] plugin_register_async_extractor\n", PluginName)
 	return sinsp.RegisterAsyncExtractors(pluginState, asyncExtractorInfo, plugin_extract_str, plugin_extract_u64)
 }
 

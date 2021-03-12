@@ -71,7 +71,6 @@ func plugin_init(config *C.char, minAPIVersion *uint32, rc *int32) unsafe.Pointe
 
 //export plugin_get_last_error
 func plugin_get_last_error(plgState unsafe.Pointer) *C.char {
-	log.Printf("[%s] plugin_get_last_error\n", PluginName)
 	pCtx := (*pluginContext)(sinsp.Context(plgState))
 	if pCtx.lastError != nil {
 		return C.CString(pCtx.lastError.Error())
@@ -88,19 +87,16 @@ func plugin_destroy(plgState unsafe.Pointer) {
 
 //export plugin_get_id
 func plugin_get_id() uint32 {
-	log.Printf("[%s] plugin_get_id\n", PluginName)
 	return PluginID
 }
 
 //export plugin_get_name
 func plugin_get_name() *C.char {
-	log.Printf("[%s] plugin_get_name\n", PluginName)
 	return C.CString(PluginName)
 }
 
 //export plugin_get_description
 func plugin_get_description() *C.char {
-	log.Printf("[%s] plugin_get_description\n", PluginName)
 	return C.CString(PluginDescription)
 }
 
@@ -112,8 +108,6 @@ const (
 
 //export plugin_get_fields
 func plugin_get_fields() *C.char {
-	log.Printf("[%s] plugin_get_fields\n", PluginName)
-
 	flds := []sinsp.FieldEntry{
 		{Type: "string", ID: FieldIDValue, Name: "jevt.value", Desc: "allows to extract a value from a JSON-encoded input. Syntax is jevt.value[/x/y/z], where x,y and z are levels in the JSON hierarchy."},
 		{Type: "string", ID: FieldIDMsg, Name: "jevt.json", Desc: "the full json message as a text string."},
@@ -186,7 +180,6 @@ func plugin_extract_str(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *
 
 //export plugin_register_async_extractor
 func plugin_register_async_extractor(pluginState unsafe.Pointer, asyncExtractorInfo unsafe.Pointer) int32 {
-	log.Printf("[%s] plugin_register_async_extractor\n", PluginName)
 	return sinsp.RegisterAsyncExtractors(pluginState, asyncExtractorInfo, plugin_extract_str, nil)
 }
 
