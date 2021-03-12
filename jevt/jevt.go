@@ -44,7 +44,7 @@ func plugin_get_type() uint32 {
 }
 
 //export plugin_init
-func plugin_init(config *C.char, rc *int32) unsafe.Pointer {
+func plugin_init(config *C.char, minAPIVersion *uint32, rc *int32) unsafe.Pointer {
 	if !verbose {
 		log.SetOutput(ioutil.Discard)
 	}
@@ -64,6 +64,7 @@ func plugin_init(config *C.char, rc *int32) unsafe.Pointer {
 	pCtx := &pluginContext{}
 	sinsp.SetContext(pluginState, unsafe.Pointer(pCtx))
 
+	*minAPIVersion = 1
 	*rc = sinsp.ScapSuccess
 	return pluginState
 }
