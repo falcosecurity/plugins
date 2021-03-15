@@ -109,7 +109,7 @@ func plugin_get_type() uint32 {
 }
 
 //export plugin_init
-func plugin_init(config *C.char, minAPIVersion *uint32, rc *int32) unsafe.Pointer {
+func plugin_init(config *C.char, rc *int32) unsafe.Pointer {
 	if !verbose {
 		log.SetOutput(ioutil.Discard)
 	}
@@ -131,7 +131,6 @@ func plugin_init(config *C.char, minAPIVersion *uint32, rc *int32) unsafe.Pointe
 	}
 	sinsp.SetContext(pluginState, unsafe.Pointer(pCtx))
 
-	*minAPIVersion = 1
 	*rc = sinsp.ScapSuccess
 	return pluginState
 }
@@ -160,6 +159,11 @@ func plugin_get_id() uint32 {
 //export plugin_get_name
 func plugin_get_name() *C.char {
 	return C.CString(PluginName)
+}
+
+//export plugin_get_required_api_version
+func plugin_get_required_api_version() *C.char {
+	return C.CString("1.0.0")
 }
 
 //export plugin_get_description
