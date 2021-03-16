@@ -572,6 +572,16 @@ func plugin_next(plgState unsafe.Pointer, openState unsafe.Pointer, data **byte,
 	return res
 }
 
+//export plugin_get_progress
+func plugin_get_progress(plgState unsafe.Pointer, openState unsafe.Pointer, progress_pct *uint32) *C.char {
+	//pCtx := (*pluginContext)(sinsp.Context(plgState))
+	oCtx := (*openContext)(sinsp.Context(openState))
+
+	var pd float64 = float64(oCtx.curFileNum) * 100 / float64(len(oCtx.files))
+	*progress_pct = oCtx.curFileNum * 10000 / uint32(len(oCtx.files))
+	return C.CString(fmt.Sprintf("%.2f%% - %v/%v files", pd, oCtx.curFileNum, len(oCtx.files)))
+}
+
 func getUser(jdata *fastjson.Value) string {
 	jutype := jdata.GetStringBytes("userIdentity", "type")
 	if jutype != nil {
