@@ -40,6 +40,7 @@ import (
 const (
 	PluginID          uint32 = 2
 	PluginName               = "cloudtrail"
+	PluginFilterName         = "ct"
 	PluginDescription        = "reads cloudtrail JSON data saved to file in the directory specified in the settings"
 )
 
@@ -161,6 +162,11 @@ func plugin_get_name() *C.char {
 	return C.CString(PluginName)
 }
 
+//export plugin_get_filter_name
+func plugin_get_filter_name() *C.char {
+	return C.CString(PluginFilterName)
+}
+
 //export plugin_get_required_api_version
 func plugin_get_required_api_version() *C.char {
 	return C.CString("1.0.0")
@@ -182,11 +188,11 @@ const (
 	FieldIDCtSrcIP
 	FieldIDCtUserAgent
 	FieldIDCtInfo
-	FieldIDCtIsKey
+	FieldIDCtReadOnly
+	FieldIDS3Uri
 	FieldIDS3Bucket
 	FieldIDS3Key
 	FieldIDS3Host
-	FieldIDS3Uri
 	FieldIDS3Bytes
 	FieldIDS3BytesIn
 	FieldIDS3BytesOut
@@ -199,27 +205,27 @@ const (
 //export plugin_get_fields
 func plugin_get_fields() *C.char {
 	flds := []sinsp.FieldEntry{
-		{Type: "string", ID: FieldIDCtID, Name: "ct.id", Desc: "the unique ID of the cloudtrail event (eventID in the json)."},
-		{Type: "string", ID: FieldIDCtTime, Name: "ct.time", Desc: "the timestamp of the cloudtrail event (eventTime in the json)."},
-		{Type: "string", ID: FieldIDCtSrc, Name: "ct.src", Desc: "the source of the cloudtrail event (eventSource in the json, without the '.amazonaws.com' trailer)."},
-		{Type: "string", ID: FieldIDCtName, Name: "ct.name", Desc: "the name of the cloudtrail event (eventName in the json)."},
-		{Type: "string", ID: FieldIDCtUser, Name: "ct.user", Desc: "the user of the cloudtrail event (userIdentity.userName in the json)."},
-		{Type: "string", ID: FieldIDCtRegion, Name: "ct.region", Desc: "the region of the cloudtrail event (awsRegion in the json)."},
-		{Type: "string", ID: FieldIDCtSrcIP, Name: "ct.srcip", Desc: "the IP address generating the event (sourceIPAddress in the json)."},
-		{Type: "string", ID: FieldIDCtUserAgent, Name: "ct.useragent", Desc: "the user agent generating the event (userAgent in the json)."},
-		{Type: "string", ID: FieldIDCtInfo, Name: "ct.info", Desc: "summary information about the event. This varies depending on the event type and, for some events, it contains event-specific details."},
-		{Type: "string", ID: FieldIDCtIsKey, Name: "ct.is_key", Desc: "'true' if the event modifies the state (e.g. RunInstances, CreateLoadBalancer...). 'false' otherwise."},
-		{Type: "string", ID: FieldIDS3Bucket, Name: "s3.bucket", Desc: "the bucket name for s3 events."},
-		{Type: "string", ID: FieldIDS3Key, Name: "s3.key", Desc: "the key name for s3 events."},
-		{Type: "string", ID: FieldIDS3Host, Name: "s3.host", Desc: "the host name for s3 events."},
-		{Type: "string", ID: FieldIDS3Uri, Name: "s3.uri", Desc: "the s3 URI (s3://<bucket>/<key>) for s3 events."},
-		{Type: "uint64", ID: FieldIDS3Bytes, Name: "s3.bytes", Desc: "the size of an s3 download or upload, in bytes."},
-		{Type: "uint64", ID: FieldIDS3BytesIn, Name: "s3.bytes.in", Desc: "the size of an s3 upload, in bytes."},
-		{Type: "uint64", ID: FieldIDS3BytesOut, Name: "s3.bytes.out", Desc: "the size of an s3 download, in bytes."},
-		{Type: "uint64", ID: FieldIDS3CntGet, Name: "s3.cnt.get", Desc: "the number of get operations. This field is 1 for GetObject events, 0 otherwise."},
-		{Type: "uint64", ID: FieldIDS3CntPut, Name: "s3.cnt.put", Desc: "the number of put operations. This field is 1 for PutObject events, 0 otherwise."},
-		{Type: "uint64", ID: FieldIDS3CntOther, Name: "s3.cnt.other", Desc: "the number of non I/O operations. This field is 0 for GetObject and PutObject events, 1 for all the other events."},
-		{Type: "string", ID: FieldIDEc2Name, Name: "ec2.name", Desc: "the name of the ec2 instances, typically stored in the instance tags."},
+		{Type: "string", ID: FieldIDCtID, Name: "ct.id", Display: "Event ID", Desc: "the unique ID of the cloudtrail event (eventID in the json)."},
+		{Type: "string", ID: FieldIDCtTime, Name: "ct.time", Display: "Timestamp", Desc: "the timestamp of the cloudtrail event (eventTime in the json).", Properties: "hidden"},
+		{Type: "string", ID: FieldIDCtSrc, Name: "ct.src", Display: "AWS Service", Desc: "the source of the cloudtrail event (eventSource in the json, without the '.amazonaws.com' trailer)."},
+		{Type: "string", ID: FieldIDCtName, Name: "ct.name", Display: "Event Name", Desc: "the name of the cloudtrail event (eventName in the json)."},
+		{Type: "string", ID: FieldIDCtUser, Name: "ct.user", Display: "User Name", Desc: "the user of the cloudtrail event (userIdentity.userName in the json).", Properties: "conversation"},
+		{Type: "string", ID: FieldIDCtRegion, Name: "ct.region", Display: "Region", Desc: "the region of the cloudtrail event (awsRegion in the json)."},
+		{Type: "string", ID: FieldIDCtSrcIP, Name: "ct.srcip", Display: "Source IP", Desc: "the IP address generating the event (sourceIPAddress in the json).", Properties: "conversation"},
+		{Type: "string", ID: FieldIDCtUserAgent, Name: "ct.useragent", Display: "User Agent", Desc: "the user agent generating the event (userAgent in the json)."},
+		{Type: "string", ID: FieldIDCtInfo, Name: "ct.info", Display: "Info", Desc: "summary information about the event. This varies depending on the event type and, for some events, it contains event-specific details.", Properties: "info"},
+		{Type: "string", ID: FieldIDCtReadOnly, Name: "ct.readonly", Display: "Read Only", Desc: "'true' if the event only reads information (e.g. DescribeInstances), 'false' if the event modifies the state (e.g. RunInstances, CreateLoadBalancer...)."},
+		{Type: "string", ID: FieldIDS3Uri, Name: "s3.uri", Display: "Key URI", Desc: "the s3 URI (s3://<bucket>/<key>).", Properties: "conversation"},
+		{Type: "string", ID: FieldIDS3Bucket, Name: "s3.bucket", Display: "Bucket Name", Desc: "the bucket name for s3 events.", Properties: "conversation"},
+		{Type: "string", ID: FieldIDS3Key, Name: "s3.key", Display: "Key Name", Desc: "the S3 key name."},
+		{Type: "string", ID: FieldIDS3Host, Name: "s3.host", Display: "Host Name", Desc: "the S3 host name."},
+		{Type: "uint64", ID: FieldIDS3Bytes, Name: "s3.bytes", Display: "Tot Bytes", Desc: "the size of an s3 download or upload, in bytes."},
+		{Type: "uint64", ID: FieldIDS3BytesIn, Name: "s3.bytes.in", Display: "Bytes In", Desc: "the size of an s3 upload, in bytes.", Properties: "hidden"},
+		{Type: "uint64", ID: FieldIDS3BytesOut, Name: "s3.bytes.out", Display: "Bytes Out", Desc: "the size of an s3 download, in bytes.", Properties: "hidden"},
+		{Type: "uint64", ID: FieldIDS3CntGet, Name: "s3.cnt.get", Display: "N Get Ops", Desc: "the number of get operations. This field is 1 for GetObject events, 0 otherwise.", Properties: "hidden"},
+		{Type: "uint64", ID: FieldIDS3CntPut, Name: "s3.cnt.put", Display: "N Put Ops", Desc: "the number of put operations. This field is 1 for PutObject events, 0 otherwise.", Properties: "hidden"},
+		{Type: "uint64", ID: FieldIDS3CntOther, Name: "s3.cnt.other", Display: "N Other Ops", Desc: "the number of non I/O operations. This field is 0 for GetObject and PutObject events, 1 for all the other events.", Properties: "hidden"},
+		{Type: "string", ID: FieldIDEc2Name, Name: "ec2.name", Display: "Instance Name", Desc: "the name of the ec2 instances, typically stored in the instance tags."},
 	}
 
 	b, err := json.Marshal(&flds)
@@ -620,6 +626,7 @@ func getEvtInfo(jdata *fastjson.Value) string {
 	var present bool
 	var evtname string
 	var info string
+	var separator string
 
 	present, evtname = getfieldStr(jdata, FieldIDCtName)
 	if !present {
@@ -627,27 +634,49 @@ func getEvtInfo(jdata *fastjson.Value) string {
 	}
 
 	switch evtname {
-	case "GetObject", "PutObject":
-		present, uri := getfieldStr(jdata, FieldIDS3Uri)
-		if present {
-			info = fmt.Sprintf("%s", uri)
-		} else {
-			info = "<URI missing>"
-		}
-
 	case "PutBucketPublicAccessBlock":
 		info = ""
 		jpac := jdata.GetObject("requestParameters", "PublicAccessBlockConfiguration")
 		if jpac != nil {
-			info += fmt.Sprintf("BlockPublicAcls:%v BlockPublicPolicy:%v IgnorePublicAcls:%v RestrictPublicBuckets:%v ",
+			info += fmt.Sprintf("BlockPublicAcls=%v BlockPublicPolicy=%v IgnorePublicAcls=%v RestrictPublicBuckets=%v ",
 				jdata.GetBool("BlockPublicAcls"),
 				jdata.GetBool("BlockPublicPolicy"),
 				jdata.GetBool("IgnorePublicAcls"),
 				jdata.GetBool("RestrictPublicBuckets"),
 			)
 		}
+		return info
 	default:
-		info = ""
+	}
+
+	present, u64val := getfieldU64(jdata, FieldIDS3Bytes)
+	if present {
+		info = fmt.Sprintf("Size=%v", u64val)
+		separator = " "
+	}
+
+	present, val := getfieldStr(jdata, FieldIDS3Uri)
+	if present {
+		info += fmt.Sprintf("%sURI=%s", separator, val)
+		return info
+	}
+
+	present, val = getfieldStr(jdata, FieldIDS3Bucket)
+	if present {
+		info += fmt.Sprintf("%sBucket=%s", separator, val)
+		return info
+	}
+
+	present, val = getfieldStr(jdata, FieldIDS3Key)
+	if present {
+		info += fmt.Sprintf("%sKey=%s", separator, val)
+		return info
+	}
+
+	present, val = getfieldStr(jdata, FieldIDS3Host)
+	if present {
+		info += fmt.Sprintf("%sHost=%s", separator, val)
+		return info
 	}
 
 	return info
@@ -682,24 +711,38 @@ func getfieldStr(jdata *fastjson.Value, id uint32) (bool, string) {
 		res = string(jdata.GetStringBytes("userAgent"))
 	case FieldIDCtInfo:
 		res = getEvtInfo(jdata)
-	case FieldIDCtIsKey:
-		ename := string(jdata.GetStringBytes("eventName"))
-		if strings.HasPrefix(ename, "Start") || strings.HasPrefix(ename, "Stop") || strings.HasPrefix(ename, "Create") ||
-			strings.HasPrefix(ename, "Destroy") || strings.HasPrefix(ename, "Delete") || strings.HasPrefix(ename, "Add") ||
-			strings.HasPrefix(ename, "Remove") || strings.HasPrefix(ename, "Terminate") || strings.HasPrefix(ename, "Put") ||
-			strings.HasPrefix(ename, "Associate") || strings.HasPrefix(ename, "Disassociate") || strings.HasPrefix(ename, "Attach") ||
-			strings.HasPrefix(ename, "Detach") || strings.HasPrefix(ename, "Add") || strings.HasPrefix(ename, "Open") ||
-			strings.HasPrefix(ename, "Close") || strings.HasPrefix(ename, "Wipe") || strings.HasPrefix(ename, "Update") ||
-			strings.HasPrefix(ename, "Upgrade") || strings.HasPrefix(ename, "Unlink") || strings.HasPrefix(ename, "Assign") ||
-			strings.HasPrefix(ename, "Unassign") || strings.HasPrefix(ename, "Suspend") || strings.HasPrefix(ename, "Set") ||
-			strings.HasPrefix(ename, "Run") || strings.HasPrefix(ename, "Register") || strings.HasPrefix(ename, "Deregister") ||
-			strings.HasPrefix(ename, "Reboot") || strings.HasPrefix(ename, "Purchase") || strings.HasPrefix(ename, "Modify") ||
-			strings.HasPrefix(ename, "Initialize") || strings.HasPrefix(ename, "Enable") || strings.HasPrefix(ename, "Disable") ||
-			strings.HasPrefix(ename, "Cancel") || strings.HasPrefix(ename, "Assign") || strings.HasPrefix(ename, "Admin") ||
-			strings.HasPrefix(ename, "Activate") {
+	case FieldIDCtReadOnly:
+		ro := jdata.GetBool("readOnly")
+		if ro {
 			res = "true"
 		} else {
-			res = "false"
+			oro := jdata.Get("readOnly")
+			if oro == nil {
+				//
+				// Once in a while, events without the readOnly property appear. We try to interpret them with the manual
+				// heuristic below.
+				//
+				ename := string(jdata.GetStringBytes("eventName"))
+				if strings.HasPrefix(ename, "Start") || strings.HasPrefix(ename, "Stop") || strings.HasPrefix(ename, "Create") ||
+					strings.HasPrefix(ename, "Destroy") || strings.HasPrefix(ename, "Delete") || strings.HasPrefix(ename, "Add") ||
+					strings.HasPrefix(ename, "Remove") || strings.HasPrefix(ename, "Terminate") || strings.HasPrefix(ename, "Put") ||
+					strings.HasPrefix(ename, "Associate") || strings.HasPrefix(ename, "Disassociate") || strings.HasPrefix(ename, "Attach") ||
+					strings.HasPrefix(ename, "Detach") || strings.HasPrefix(ename, "Add") || strings.HasPrefix(ename, "Open") ||
+					strings.HasPrefix(ename, "Close") || strings.HasPrefix(ename, "Wipe") || strings.HasPrefix(ename, "Update") ||
+					strings.HasPrefix(ename, "Upgrade") || strings.HasPrefix(ename, "Unlink") || strings.HasPrefix(ename, "Assign") ||
+					strings.HasPrefix(ename, "Unassign") || strings.HasPrefix(ename, "Suspend") || strings.HasPrefix(ename, "Set") ||
+					strings.HasPrefix(ename, "Run") || strings.HasPrefix(ename, "Register") || strings.HasPrefix(ename, "Deregister") ||
+					strings.HasPrefix(ename, "Reboot") || strings.HasPrefix(ename, "Purchase") || strings.HasPrefix(ename, "Modify") ||
+					strings.HasPrefix(ename, "Initialize") || strings.HasPrefix(ename, "Enable") || strings.HasPrefix(ename, "Disable") ||
+					strings.HasPrefix(ename, "Cancel") || strings.HasPrefix(ename, "Assign") || strings.HasPrefix(ename, "Admin") ||
+					strings.HasPrefix(ename, "Activate") {
+					res = "false"
+				} else {
+					res = "true"
+				}
+			} else {
+				res = "false"
+			}
 		}
 	case FieldIDS3Bucket:
 		val := jdata.GetStringBytes("requestParameters", "bucketName")
@@ -758,6 +801,54 @@ func getfieldStr(jdata *fastjson.Value, id uint32) (bool, string) {
 	}
 
 	return true, res
+}
+
+func getfieldU64(jdata *fastjson.Value, id uint32) (bool, uint64) {
+	switch id {
+	case FieldIDS3Bytes:
+		var tot uint64 = 0
+		in := jdata.Get("additionalEventData", "bytesTransferredIn")
+		if in != nil {
+			tot = tot + in.GetUint64()
+		}
+		out := jdata.Get("additionalEventData", "bytesTransferredOut")
+		if out != nil {
+			tot = tot + out.GetUint64()
+		}
+		return (in != nil || out != nil), tot
+	case FieldIDS3BytesIn:
+		var tot uint64 = 0
+		in := jdata.Get("additionalEventData", "bytesTransferredIn")
+		if in != nil {
+			tot = tot + in.GetUint64()
+		}
+		return (in != nil), tot
+	case FieldIDS3BytesOut:
+		var tot uint64 = 0
+		out := jdata.Get("additionalEventData", "bytesTransferredOut")
+		if out != nil {
+			tot = tot + out.GetUint64()
+		}
+		return (out != nil), tot
+	case FieldIDS3CntGet:
+		if string(jdata.GetStringBytes("eventName")) == "GetObject" {
+			return true, 1
+		}
+		return false, 0
+	case FieldIDS3CntPut:
+		if string(jdata.GetStringBytes("eventName")) == "PutObject" {
+			return true, 1
+		}
+		return false, 0
+	case FieldIDS3CntOther:
+		ename := string(jdata.GetStringBytes("eventName"))
+		if ename == "GetObject" || ename == "PutObject" {
+			return true, 1
+		}
+		return false, 0
+	default:
+		return false, 0
+	}
 }
 
 //export plugin_event_to_string
@@ -857,57 +948,14 @@ func plugin_extract_u64(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *
 		pCtx.jdataEvtnum = evtnum
 	}
 
-	switch id {
-	case FieldIDS3Bytes:
-		var tot uint64 = 0
-		in := pCtx.jdata.Get("additionalEventData", "bytesTransferredIn")
-		if in != nil {
-			tot = tot + in.GetUint64()
-		}
-		out := pCtx.jdata.Get("additionalEventData", "bytesTransferredOut")
-		if out != nil {
-			tot = tot + out.GetUint64()
-		}
+	// loris
+	present, val := getfieldU64(pCtx.jdata, id)
+	if present {
 		*fieldPresent = 1
-		return tot
-	case FieldIDS3BytesIn:
-		var tot uint64 = 0
-		in := pCtx.jdata.Get("additionalEventData", "bytesTransferredIn")
-		if in != nil {
-			tot = tot + in.GetUint64()
-		}
-		*fieldPresent = 1
-		return tot
-	case FieldIDS3BytesOut:
-		var tot uint64 = 0
-		out := pCtx.jdata.Get("additionalEventData", "bytesTransferredOut")
-		if out != nil {
-			tot = tot + out.GetUint64()
-		}
-		*fieldPresent = 1
-		return tot
-	case FieldIDS3CntGet:
-		if string(pCtx.jdata.GetStringBytes("eventName")) == "GetObject" {
-			*fieldPresent = 1
-			return 1
-		}
-		return 0
-	case FieldIDS3CntPut:
-		if string(pCtx.jdata.GetStringBytes("eventName")) == "PutObject" {
-			*fieldPresent = 1
-			return 1
-		}
-		return 0
-	case FieldIDS3CntOther:
-		ename := string(pCtx.jdata.GetStringBytes("eventName"))
-		if ename == "GetObject" || ename == "PutObject" {
-			*fieldPresent = 1
-			return 0
-		}
-		return 1
-	default:
-		return 0
+	} else {
+		*fieldPresent = 0
 	}
+	return val
 }
 
 ///////////////////////////////////////////////////////////////////////////////
