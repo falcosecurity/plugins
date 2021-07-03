@@ -1,3 +1,19 @@
+/*
+Copyright (C) 2021 The Falco Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 ///////////////////////////////////////////////////////////////////////////////
 // This plugin reads reading cloudtrail files from a local directory or from a
 // remote S3 bucket. Cloudtrail events are dispatched to the engine one by one,
@@ -8,9 +24,11 @@
 
 package main
 
+// #cgo CFLAGS: -I${SRCDIR}/../../
 /*
 #include <stdlib.h>
 #include <inttypes.h>
+#include <plugin_info.h>
 */
 import "C"
 import (
@@ -32,20 +50,26 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
-	"github.com/ldegio/libsinsp-plugin-sdk-go/pkg/sinsp"
+	"github.com/falcosecurity/plugin-sdk-go"
+	"github.com/falcosecurity/plugin-sdk-go/state"
+	"github.com/falcosecurity/plugin-sdk-go/wrappers"
 	"github.com/valyala/fastjson"
 )
 
 // Plugin info
 const (
+	PluginRequiredApiVersion = "1.0.0"
 	PluginID          uint32 = 2
 	PluginName               = "cloudtrail"
 	PluginFilterName         = "ct"
 	PluginDescription        = "reads cloudtrail JSON data saved to file in the directory specified in the settings"
+	PluginContact            = "github.com/leogr/plugins/"
+	PluginVersion = "0.0.1"
+	PluginEventSource        = "aws_cloudtrail"
 )
 
 const s3DownloadConcurrency = 64
-const verbose bool = false
+const verbose bool = true
 const outBufSize uint32 = 65535
 
 func min(a, b int) int {
@@ -96,17 +120,20 @@ type openContext struct {
 	evtJSONListPos     int
 	s3                 s3State
 	nextJParser        fastjson.Parser
-	nextBatchLastTs    uint64
-	nextBatchLastData  []byte
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // PLUGIN INTERFACE IMPLEMENTATION
 ///////////////////////////////////////////////////////////////////////////////
 
+//export plugin_get_required_api_version
+func plugin_get_required_api_version() *C.char {
+	return C.CString(PluginRequiredApiVersion)
+}
+
 //export plugin_get_type
 func plugin_get_type() uint32 {
-	return sinsp.TypeSourcePlugin
+	return sdk.TypeSourcePlugin
 }
 
 //export plugin_init
@@ -119,26 +146,21 @@ func plugin_init(config *C.char, rc *int32) unsafe.Pointer {
 	log.Printf("config string:\n%s\n", C.GoString(config))
 
 	// Allocate the container for buffers and context
-	pluginState := sinsp.NewStateContainer()
-
-	// We need a piece of memory to share data with the C code that we can use
-	// as storage for functions like plugin_event_to_string and plugin_extract_str,
-	// so that their results can be shared without allocations or data copies.
-	sinsp.MakeBuffer(pluginState, outBufSize)
+	pluginState := state.NewStateContainer()
 
 	// Allocate the context struct attach it to the state
 	pCtx := &pluginContext{
 		jdataEvtnum: math.MaxUint64,
 	}
-	sinsp.SetContext(pluginState, unsafe.Pointer(pCtx))
+	state.SetContext(pluginState, unsafe.Pointer(pCtx))
 
-	*rc = sinsp.ScapSuccess
+	*rc = sdk.SSPluginSuccess
 	return pluginState
 }
 
 //export plugin_get_last_error
 func plugin_get_last_error(plgState unsafe.Pointer) *C.char {
-	pCtx := (*pluginContext)(sinsp.Context(plgState))
+	pCtx := (*pluginContext)(state.Context(plgState))
 	if pCtx.lastError != nil {
 		return C.CString(pCtx.lastError.Error())
 	}
@@ -149,7 +171,7 @@ func plugin_get_last_error(plgState unsafe.Pointer) *C.char {
 //export plugin_destroy
 func plugin_destroy(plgState unsafe.Pointer) {
 	log.Printf("[%s] plugin_destroy\n", PluginName)
-	sinsp.Free(plgState)
+	state.Free(plgState)
 }
 
 //export plugin_get_id
@@ -167,9 +189,9 @@ func plugin_get_filter_name() *C.char {
 	return C.CString(PluginFilterName)
 }
 
-//export plugin_get_required_api_version
-func plugin_get_required_api_version() *C.char {
-	return C.CString("1.0.0")
+//export plugin_get_version
+func plugin_get_version() *C.char {
+	return C.CString(PluginVersion)
 }
 
 //export plugin_get_description
@@ -177,55 +199,40 @@ func plugin_get_description() *C.char {
 	return C.CString(PluginDescription)
 }
 
-// Filed identifiers
-const (
-	FieldIDCtID = iota
-	FieldIDCtTime
-	FieldIDCtSrc
-	FieldIDCtName
-	FieldIDCtUser
-	FieldIDCtRegion
-	FieldIDCtSrcIP
-	FieldIDCtUserAgent
-	FieldIDCtInfo
-	FieldIDCtReadOnly
-	FieldIDS3Uri
-	FieldIDS3Bucket
-	FieldIDS3Key
-	FieldIDS3Host
-	FieldIDS3Bytes
-	FieldIDS3BytesIn
-	FieldIDS3BytesOut
-	FieldIDS3CntGet
-	FieldIDS3CntPut
-	FieldIDS3CntOther
-	FieldIDEc2Name
-)
+//export plugin_get_contact
+func plugin_get_contact() *C.char {
+	return C.CString(PluginContact)
+}
+
+//export plugin_get_event_source
+func plugin_get_event_source() *C.char {
+	return C.CString(PluginEventSource)
+}
 
 //export plugin_get_fields
 func plugin_get_fields() *C.char {
-	flds := []sinsp.FieldEntry{
-		{Type: "string", ID: FieldIDCtID, Name: "ct.id", Display: "Event ID", Desc: "the unique ID of the cloudtrail event (eventID in the json)."},
-		{Type: "string", ID: FieldIDCtTime, Name: "ct.time", Display: "Timestamp", Desc: "the timestamp of the cloudtrail event (eventTime in the json).", Properties: "hidden"},
-		{Type: "string", ID: FieldIDCtSrc, Name: "ct.src", Display: "AWS Service", Desc: "the source of the cloudtrail event (eventSource in the json, without the '.amazonaws.com' trailer)."},
-		{Type: "string", ID: FieldIDCtName, Name: "ct.name", Display: "Event Name", Desc: "the name of the cloudtrail event (eventName in the json)."},
-		{Type: "string", ID: FieldIDCtUser, Name: "ct.user", Display: "User Name", Desc: "the user of the cloudtrail event (userIdentity.userName in the json).", Properties: "conversation"},
-		{Type: "string", ID: FieldIDCtRegion, Name: "ct.region", Display: "Region", Desc: "the region of the cloudtrail event (awsRegion in the json)."},
-		{Type: "string", ID: FieldIDCtSrcIP, Name: "ct.srcip", Display: "Source IP", Desc: "the IP address generating the event (sourceIPAddress in the json).", Properties: "conversation"},
-		{Type: "string", ID: FieldIDCtUserAgent, Name: "ct.useragent", Display: "User Agent", Desc: "the user agent generating the event (userAgent in the json)."},
-		{Type: "string", ID: FieldIDCtInfo, Name: "ct.info", Display: "Info", Desc: "summary information about the event. This varies depending on the event type and, for some events, it contains event-specific details.", Properties: "info"},
-		{Type: "string", ID: FieldIDCtReadOnly, Name: "ct.readonly", Display: "Read Only", Desc: "'true' if the event only reads information (e.g. DescribeInstances), 'false' if the event modifies the state (e.g. RunInstances, CreateLoadBalancer...)."},
-		{Type: "string", ID: FieldIDS3Uri, Name: "s3.uri", Display: "Key URI", Desc: "the s3 URI (s3://<bucket>/<key>).", Properties: "conversation"},
-		{Type: "string", ID: FieldIDS3Bucket, Name: "s3.bucket", Display: "Bucket Name", Desc: "the bucket name for s3 events.", Properties: "conversation"},
-		{Type: "string", ID: FieldIDS3Key, Name: "s3.key", Display: "Key Name", Desc: "the S3 key name."},
-		{Type: "string", ID: FieldIDS3Host, Name: "s3.host", Display: "Host Name", Desc: "the S3 host name."},
-		{Type: "uint64", ID: FieldIDS3Bytes, Name: "s3.bytes", Display: "Tot Bytes", Desc: "the size of an s3 download or upload, in bytes."},
-		{Type: "uint64", ID: FieldIDS3BytesIn, Name: "s3.bytes.in", Display: "Bytes In", Desc: "the size of an s3 upload, in bytes.", Properties: "hidden"},
-		{Type: "uint64", ID: FieldIDS3BytesOut, Name: "s3.bytes.out", Display: "Bytes Out", Desc: "the size of an s3 download, in bytes.", Properties: "hidden"},
-		{Type: "uint64", ID: FieldIDS3CntGet, Name: "s3.cnt.get", Display: "N Get Ops", Desc: "the number of get operations. This field is 1 for GetObject events, 0 otherwise.", Properties: "hidden"},
-		{Type: "uint64", ID: FieldIDS3CntPut, Name: "s3.cnt.put", Display: "N Put Ops", Desc: "the number of put operations. This field is 1 for PutObject events, 0 otherwise.", Properties: "hidden"},
-		{Type: "uint64", ID: FieldIDS3CntOther, Name: "s3.cnt.other", Display: "N Other Ops", Desc: "the number of non I/O operations. This field is 0 for GetObject and PutObject events, 1 for all the other events.", Properties: "hidden"},
-		{Type: "string", ID: FieldIDEc2Name, Name: "ec2.name", Display: "Instance Name", Desc: "the name of the ec2 instances, typically stored in the instance tags."},
+	flds := []sdk.FieldEntry{
+		{Type: "string", Name: "ct.id", Display: "Event ID", Desc: "the unique ID of the cloudtrail event (eventID in the json)."},
+		{Type: "string", Name: "ct.time", Display: "Timestamp", Desc: "the timestamp of the cloudtrail event (eventTime in the json).", Properties: "hidden"},
+		{Type: "string", Name: "ct.src", Display: "AWS Service", Desc: "the source of the cloudtrail event (eventSource in the json, without the '.amazonaws.com' trailer)."},
+		{Type: "string", Name: "ct.name", Display: "Event Name", Desc: "the name of the cloudtrail event (eventName in the json)."},
+		{Type: "string", Name: "ct.user", Display: "User Name", Desc: "the user of the cloudtrail event (userIdentity.userName in the json).", Properties: "conversation"},
+		{Type: "string", Name: "ct.region", Display: "Region", Desc: "the region of the cloudtrail event (awsRegion in the json)."},
+		{Type: "string", Name: "ct.srcip", Display: "Source IP", Desc: "the IP address generating the event (sourceIPAddress in the json).", Properties: "conversation"},
+		{Type: "string", Name: "ct.useragent", Display: "User Agent", Desc: "the user agent generating the event (userAgent in the json)."},
+		{Type: "string", Name: "ct.info", Display: "Info", Desc: "summary information about the event. This varies depending on the event type and, for some events, it contains event-specific details.", Properties: "info"},
+		{Type: "string", Name: "ct.readonly", Display: "Read Only", Desc: "'true' if the event only reads information (e.g. DescribeInstances), 'false' if the event modifies the state (e.g. RunInstances, CreateLoadBalancer...)."},
+		{Type: "string", Name: "s3.uri", Display: "Key URI", Desc: "the s3 URI (s3://<bucket>/<key>).", Properties: "conversation"},
+		{Type: "string", Name: "s3.bucket", Display: "Bucket Name", Desc: "the bucket name for s3 events.", Properties: "conversation"},
+		{Type: "string", Name: "s3.key", Display: "Key Name", Desc: "the S3 key name."},
+		{Type: "string", Name: "s3.host", Display: "Host Name", Desc: "the S3 host name."},
+		{Type: "uint64", Name: "s3.bytes", Display: "Tot Bytes", Desc: "the size of an s3 download or upload, in bytes."},
+		{Type: "uint64", Name: "s3.bytes.in", Display: "Bytes In", Desc: "the size of an s3 upload, in bytes.", Properties: "hidden"},
+		{Type: "uint64", Name: "s3.bytes.out", Display: "Bytes Out", Desc: "the size of an s3 download, in bytes.", Properties: "hidden"},
+		{Type: "uint64", Name: "s3.cnt.get", Display: "N Get Ops", Desc: "the number of get operations. This field is 1 for GetObject events, 0 otherwise.", Properties: "hidden"},
+		{Type: "uint64", Name: "s3.cnt.put", Display: "N Put Ops", Desc: "the number of put operations. This field is 1 for PutObject events, 0 otherwise.", Properties: "hidden"},
+		{Type: "uint64", Name: "s3.cnt.other", Display: "N Other Ops", Desc: "the number of non I/O operations. This field is 0 for GetObject and PutObject events, 1 for all the other events.", Properties: "hidden"},
+		{Type: "string", Name: "ec2.name", Display: "Instance Name", Desc: "the name of the ec2 instances, typically stored in the instance tags."},
 	}
 
 	b, err := json.Marshal(&flds)
@@ -246,7 +253,7 @@ func dirExists(path string) bool {
 }
 
 func openLocal(pCtx *pluginContext, oCtx *openContext, params *C.char, rc *int32) {
-	*rc = sinsp.ScapFailure
+	*rc = sdk.SSPluginFailure
 
 	oCtx.isDataFromS3 = false
 
@@ -287,11 +294,11 @@ func openLocal(pCtx *pluginContext, oCtx *openContext, params *C.char, rc *int32
 	}
 
 	log.Printf("[%s] found %d json files\n", PluginName, len(oCtx.files))
-	*rc = sinsp.ScapSuccess
+	*rc = sdk.SSPluginSuccess
 }
 
 func openS3(pCtx *pluginContext, oCtx *openContext, params *C.char, rc *int32) {
-	*rc = sinsp.ScapFailure
+	*rc = sdk.SSPluginFailure
 	input := C.GoString(params)
 
 	oCtx.isDataFromS3 = true
@@ -336,17 +343,17 @@ func openS3(pCtx *pluginContext, oCtx *openContext, params *C.char, rc *int32) {
 	})
 	if err != nil {
 		pCtx.lastError = fmt.Errorf(PluginName + " plugin error: failed to list objects: " + err.Error())
-		*rc = sinsp.ScapFailure
+		*rc = sdk.SSPluginFailure
 		return
 	}
 
 	oCtx.s3.downloader = s3manager.NewDownloader(oCtx.s3.awsSess)
-	*rc = sinsp.ScapSuccess
+	*rc = sdk.SSPluginSuccess
 }
 
 //export plugin_open
 func plugin_open(plgState unsafe.Pointer, params *C.char, rc *int32) unsafe.Pointer {
-	pCtx := (*pluginContext)(sinsp.Context(plgState))
+	pCtx := (*pluginContext)(state.Context(plgState))
 
 	// Allocate the context struct for this open instance
 	oCtx := &openContext{}
@@ -359,16 +366,12 @@ func plugin_open(plgState unsafe.Pointer, params *C.char, rc *int32) unsafe.Poin
 		openLocal(pCtx, oCtx, params, rc)
 	}
 
-	if *rc != sinsp.ScapSuccess {
+	if *rc != sdk.SSPluginSuccess {
 		return nil
 	}
 
 	// Allocate the library-compatible container for the open context
-	openState := sinsp.NewStateContainer()
-
-	// We need a piece of memory to share data with the C code: a buffer that
-	// contains the events that we create and send to the engine through next()
-	sinsp.MakeBuffer(openState, sinsp.MaxNextBufSize)
+	openState := state.NewStateContainer()
 
 	// Create an array of download buffers that will be used to concurrently
 	// download files from s3
@@ -376,7 +379,7 @@ func plugin_open(plgState unsafe.Pointer, params *C.char, rc *int32) unsafe.Poin
 
 	// Tie the just created state to the open context
 	//
-	sinsp.SetContext(openState, unsafe.Pointer(oCtx))
+	state.SetContext(openState, unsafe.Pointer(oCtx))
 
 	// Allocate buffer for next()
 	return openState
@@ -385,7 +388,7 @@ func plugin_open(plgState unsafe.Pointer, params *C.char, rc *int32) unsafe.Poin
 //export plugin_close
 func plugin_close(plgState unsafe.Pointer, openState unsafe.Pointer) {
 	if openState != nil {
-		sinsp.Free(openState)
+		state.Free(openState)
 	}
 }
 
@@ -463,18 +466,20 @@ func extractRecordStrings(jsonStr []byte, res *[][]byte) {
 }
 
 // Next is the core event production function. It is called by both plugin_next() and plugin_next_batch()
-func Next(plgState unsafe.Pointer, openState unsafe.Pointer, data *[]byte, ts *uint64) int32 {
+func Next(plgState unsafe.Pointer, openState unsafe.Pointer) (*sdk.PluginEvent, int32) {
 	var tmpStr []byte
 	var err error
 
-	pCtx := (*pluginContext)(sinsp.Context(plgState))
-	oCtx := (*openContext)(sinsp.Context(openState))
+	pCtx := (*pluginContext)(state.Context(plgState))
+	oCtx := (*openContext)(state.Context(openState))
+
+	ret := sdk.PluginEvent{}
 
 	// Only open the next file once we're sure that the content of the previous one has been full consumed
 	if oCtx.evtJSONListPos == len(oCtx.evtJSONStrings) {
 		// Open the next file and bring its content into memeory
 		if oCtx.curFileNum >= uint32(len(oCtx.files)) {
-			return sinsp.ScapEOF
+			return nil, sdk.SSPluginEOF
 		}
 
 		file := oCtx.files[oCtx.curFileNum]
@@ -487,7 +492,7 @@ func Next(plgState unsafe.Pointer, openState unsafe.Pointer, data *[]byte, ts *u
 		}
 		if err != nil {
 			pCtx.lastError = err
-			return sinsp.ScapFailure
+			return nil, sdk.SSPluginFailure
 		}
 
 		// The file can be gzipped. If it is, we unzip it.
@@ -496,7 +501,7 @@ func Next(plgState unsafe.Pointer, openState unsafe.Pointer, data *[]byte, ts *u
 			defer gr.Close()
 			zdata, err := ioutil.ReadAll(gr)
 			if err != nil {
-				return sinsp.ScapTimeout
+				return nil, sdk.SSPluginTimeout
 			}
 			tmpStr = zdata
 		}
@@ -520,19 +525,19 @@ func Next(plgState unsafe.Pointer, openState unsafe.Pointer, data *[]byte, ts *u
 	// Extract the next record
 	var cr *fastjson.Value
 	if len(oCtx.evtJSONStrings) != 0 {
-		*data = oCtx.evtJSONStrings[oCtx.evtJSONListPos]
-		cr, err = oCtx.nextJParser.Parse(string(*data))
+		ret.Data = oCtx.evtJSONStrings[oCtx.evtJSONListPos]
+		cr, err = oCtx.nextJParser.Parse(string(ret.Data))
 		if err != nil {
 			// Not json? Just skip this event.
 			oCtx.evtJSONListPos++
-			return sinsp.ScapTimeout
+			return nil, sdk.SSPluginTimeout
 		}
 
 		oCtx.evtJSONListPos++
 	} else {
 		// Json not int the expected format. Just skip this event.
 		oCtx.evtJSONListPos++
-		return sinsp.ScapTimeout
+		return nil, sdk.SSPluginTimeout
 	}
 
 	// Extract the timestamp
@@ -543,45 +548,39 @@ func Next(plgState unsafe.Pointer, openState unsafe.Pointer, data *[]byte, ts *u
 		//
 		// We assume this is just some spurious data and we continue
 		//
-		return sinsp.ScapTimeout
+		return nil, sdk.SSPluginTimeout
 	}
-	*ts = uint64(t1.Unix()) * 1000000000
+	ret.Timestamp = uint64(t1.Unix()) * 1000000000
 
 	ets := string(cr.GetStringBytes("eventType"))
 	if ets == "AwsCloudTrailInsight" {
-		return sinsp.ScapTimeout
+		return nil, sdk.SSPluginTimeout
 	}
-
-	// NULL-terminate the json data string, so that C will like it
-	*data = append(*data, 0)
 
 	// Make sure the event is not too big for the engine
-	if len(*data) > int(sinsp.MaxEvtSize) {
-		pCtx.lastError = fmt.Errorf("cloudwatch message too long: %d, max %d supported", len(*data), sinsp.MaxEvtSize)
-		return sinsp.ScapFailure
+	if len(ret.Data) > int(sdk.MaxEvtSize) {
+		pCtx.lastError = fmt.Errorf("cloudwatch message too long: %d, max %d supported", len(ret.Data), sdk.MaxEvtSize)
+		return nil, sdk.SSPluginFailure
 	}
 
-	return sinsp.ScapSuccess
+	return &ret, sdk.SSPluginSuccess
 }
 
 //export plugin_next
-func plugin_next(plgState unsafe.Pointer, openState unsafe.Pointer, data **byte, datalen *uint32, ts *uint64) int32 {
-	var nextData []byte
-
-	res := Next(plgState, openState, &nextData, ts)
-	if res == sinsp.ScapSuccess {
-		// Copy to and return the event buffer
-		*datalen = sinsp.CopyToBuffer(openState, nextData)
-		*data = sinsp.Buffer(openState)
+func plugin_next(plgState unsafe.Pointer, openState unsafe.Pointer, retEvt **C.ss_plugin_event) int32 {
+	evt, res := Next(plgState, openState)
+	if res == sdk.SSPluginSuccess {
+		*retEvt = (*C.ss_plugin_event)(wrappers.Events([]*sdk.PluginEvent{evt}))
 	}
+
+	log.Printf("[%s] plugin_next\n", PluginName)
 
 	return res
 }
 
 //export plugin_get_progress
 func plugin_get_progress(plgState unsafe.Pointer, openState unsafe.Pointer, progress_pct *uint32) *C.char {
-	//pCtx := (*pluginContext)(sinsp.Context(plgState))
-	oCtx := (*openContext)(sinsp.Context(openState))
+	oCtx := (*openContext)(state.Context(openState))
 
 	var pd float64 = float64(oCtx.curFileNum) * 100 / float64(len(oCtx.files))
 	*progress_pct = oCtx.curFileNum * 10000 / uint32(len(oCtx.files))
@@ -605,7 +604,7 @@ func getUser(jdata *fastjson.Value) string {
 				return string(jun)
 			}
 		case "AssumedRole":
-			jun := jdata.GetStringBytes("sessionContext", "sessionIssuer", "userName")
+			jun := jdata.GetStringBytes("userIdentity", "sessionContext", "sessionIssuer", "userName")
 			if jun != nil {
 				return string(jun)
 			}
@@ -628,7 +627,7 @@ func getEvtInfo(jdata *fastjson.Value) string {
 	var info string
 	var separator string
 
-	present, evtname = getfieldStr(jdata, FieldIDCtName)
+	present, evtname = getfieldStr(jdata, "ct.name")
 	if !present {
 		return "<invalid cloudtrail event: eventName field missing>"
 	}
@@ -649,31 +648,31 @@ func getEvtInfo(jdata *fastjson.Value) string {
 	default:
 	}
 
-	present, u64val := getfieldU64(jdata, FieldIDS3Bytes)
+	present, u64val := getfieldU64(jdata, "s3.bytes")
 	if present {
 		info = fmt.Sprintf("Size=%v", u64val)
 		separator = " "
 	}
 
-	present, val := getfieldStr(jdata, FieldIDS3Uri)
+	present, val := getfieldStr(jdata, "s3.uri")
 	if present {
 		info += fmt.Sprintf("%sURI=%s", separator, val)
 		return info
 	}
 
-	present, val = getfieldStr(jdata, FieldIDS3Bucket)
+	present, val = getfieldStr(jdata, "s3.bucket")
 	if present {
 		info += fmt.Sprintf("%sBucket=%s", separator, val)
 		return info
 	}
 
-	present, val = getfieldStr(jdata, FieldIDS3Key)
+	present, val = getfieldStr(jdata, "s3.key")
 	if present {
 		info += fmt.Sprintf("%sKey=%s", separator, val)
 		return info
 	}
 
-	present, val = getfieldStr(jdata, FieldIDS3Host)
+	present, val = getfieldStr(jdata, "s3.host")
 	if present {
 		info += fmt.Sprintf("%sHost=%s", separator, val)
 		return info
@@ -682,15 +681,15 @@ func getEvtInfo(jdata *fastjson.Value) string {
 	return info
 }
 
-func getfieldStr(jdata *fastjson.Value, id uint32) (bool, string) {
+func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 	var res string
 
-	switch id {
-	case FieldIDCtID:
+	switch field {
+	case "ct.id":
 		res = string(jdata.GetStringBytes("eventID"))
-	case FieldIDCtTime:
+	case "ct.time":
 		res = string(jdata.GetStringBytes("eventTime"))
-	case FieldIDCtSrc:
+	case "ct.src":
 		res = string(jdata.GetStringBytes("eventSource"))
 
 		if len(res) > len(".amazonaws.com") {
@@ -699,19 +698,19 @@ func getfieldStr(jdata *fastjson.Value, id uint32) (bool, string) {
 				res = res[0 : len(res)-len(".amazonaws.com")]
 			}
 		}
-	case FieldIDCtName:
+	case "ct.name":
 		res = string(jdata.GetStringBytes("eventName"))
-	case FieldIDCtUser:
+	case "ct.user":
 		res = getUser(jdata)
-	case FieldIDCtRegion:
+	case "ct.region":
 		res = string(jdata.GetStringBytes("awsRegion"))
-	case FieldIDCtSrcIP:
+	case "ct.srcip":
 		res = string(jdata.GetStringBytes("sourceIPAddress"))
-	case FieldIDCtUserAgent:
+	case "ct.useragent":
 		res = string(jdata.GetStringBytes("userAgent"))
-	case FieldIDCtInfo:
+	case "ct.info":
 		res = getEvtInfo(jdata)
-	case FieldIDCtReadOnly:
+	case "ct.readonly":
 		ro := jdata.GetBool("readOnly")
 		if ro {
 			res = "true"
@@ -744,25 +743,25 @@ func getfieldStr(jdata *fastjson.Value, id uint32) (bool, string) {
 				res = "false"
 			}
 		}
-	case FieldIDS3Bucket:
+	case "s3.bucket":
 		val := jdata.GetStringBytes("requestParameters", "bucketName")
 		if val == nil {
 			return false, ""
 		}
 		res = string(val)
-	case FieldIDS3Key:
+	case "s3.key":
 		val := jdata.GetStringBytes("requestParameters", "key")
 		if val == nil {
 			return false, ""
 		}
 		res = string(val)
-	case FieldIDS3Host:
+	case "s3.host":
 		val := jdata.GetStringBytes("requestParameters", "Host")
 		if val == nil {
 			return false, ""
 		}
 		res = string(val)
-	case FieldIDS3Uri:
+	case "s3.uri":
 		sbucket := jdata.GetStringBytes("requestParameters", "bucketName")
 		if sbucket == nil {
 			return false, ""
@@ -772,7 +771,7 @@ func getfieldStr(jdata *fastjson.Value, id uint32) (bool, string) {
 			return false, ""
 		}
 		res = fmt.Sprintf("s3://%s/%s", sbucket, skey)
-	case FieldIDEc2Name:
+	case "ec2.name":
 		var iname string = ""
 		jilist := jdata.GetArray("requestParameters", "tagSpecificationSet", "items")
 		if jilist == nil {
@@ -803,9 +802,9 @@ func getfieldStr(jdata *fastjson.Value, id uint32) (bool, string) {
 	return true, res
 }
 
-func getfieldU64(jdata *fastjson.Value, id uint32) (bool, uint64) {
-	switch id {
-	case FieldIDS3Bytes:
+func getfieldU64(jdata *fastjson.Value, field string) (bool, uint64) {
+	switch field {
+	case "s3.bytes":
 		var tot uint64 = 0
 		in := jdata.Get("additionalEventData", "bytesTransferredIn")
 		if in != nil {
@@ -816,31 +815,31 @@ func getfieldU64(jdata *fastjson.Value, id uint32) (bool, uint64) {
 			tot = tot + out.GetUint64()
 		}
 		return (in != nil || out != nil), tot
-	case FieldIDS3BytesIn:
+	case "s3.bytes.in":
 		var tot uint64 = 0
 		in := jdata.Get("additionalEventData", "bytesTransferredIn")
 		if in != nil {
 			tot = tot + in.GetUint64()
 		}
 		return (in != nil), tot
-	case FieldIDS3BytesOut:
+	case "s3.bytes.out":
 		var tot uint64 = 0
 		out := jdata.Get("additionalEventData", "bytesTransferredOut")
 		if out != nil {
 			tot = tot + out.GetUint64()
 		}
 		return (out != nil), tot
-	case FieldIDS3CntGet:
+	case "s3.cnt.get":
 		if string(jdata.GetStringBytes("eventName")) == "GetObject" {
 			return true, 1
 		}
 		return false, 0
-	case FieldIDS3CntPut:
+	case "s3.cnt.put":
 		if string(jdata.GetStringBytes("eventName")) == "PutObject" {
 			return true, 1
 		}
 		return false, 0
-	case FieldIDS3CntOther:
+	case "s3.cnt.other":
 		ename := string(jdata.GetStringBytes("eventName"))
 		if ename == "GetObject" || ename == "PutObject" {
 			return true, 1
@@ -852,15 +851,15 @@ func getfieldU64(jdata *fastjson.Value, id uint32) (bool, uint64) {
 }
 
 //export plugin_event_to_string
-func plugin_event_to_string(plgState unsafe.Pointer, data *C.char, datalen uint32) *byte {
+func plugin_event_to_string(plgState unsafe.Pointer, data *C.char, datalen uint32) *C.char {
 	var line string
 	var src string
 	var user string
 	var err error
 
-	pCtx := (*pluginContext)(sinsp.Context(plgState))
+	pCtx := (*pluginContext)(state.Context(plgState))
 
-	pCtx.jdata, err = pCtx.jparser.Parse(C.GoString(data))
+	pCtx.jdata, err = pCtx.jparser.Parse(C.GoStringN(data, C.int(datalen)))
 	if err != nil {
 		pCtx.lastError = err
 		line = "<invalid JSON: " + err.Error() + ">"
@@ -890,72 +889,58 @@ func plugin_event_to_string(plgState unsafe.Pointer, data *C.char, datalen uint3
 		)
 	}
 
-	// NULL-terminate the json data string, so that C will like it
-	line += "\x00"
-
-	sinsp.CopyToBuffer(plgState, []byte(line))
-	return sinsp.Buffer(plgState)
+	return C.CString(line)
 }
 
-//export plugin_extract_str
-func plugin_extract_str(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *byte, data *byte, datalen uint32) *byte {
-	var res string
+func extract_str(pluginState unsafe.Pointer, evtnum uint64, data []byte, ts uint64, field string, arg string) (bool, string) {
 	var err error
-	pCtx := (*pluginContext)(sinsp.Context(plgState))
+	pCtx := (*pluginContext)(state.Context(pluginState))
 
 	// Decode the json, but only if we haven't done it yet for this event
 	if evtnum != pCtx.jdataEvtnum {
-		pCtx.jdata, err = pCtx.jparser.Parse(C.GoString(
-			(*C.char)(unsafe.Pointer(data)),
-		))
+
+		// Maybe temp--remove trailing null bytes from string
+		data = bytes.Trim(data, "\x00")
+
+		// For this plugin, events are always strings
+		evtStr := string(data)
+
+		pCtx.jdata, err = pCtx.jparser.Parse(evtStr)
 		if err != nil {
-			// Not a json file. We return nil to indicate that the field is not
-			// present.
-			return nil
+			// Not a json file, so not present.
+			return false, ""
 		}
 		pCtx.jdataEvtnum = evtnum
 	}
 
-	present, val := getfieldStr(pCtx.jdata, id)
-	if !present {
-		return nil
-	}
-
-	res = val
-
-	// NULL terminate the result so C will like it
-	res += "\x00"
-
-	sinsp.CopyToBuffer(plgState, []byte(res))
-
-	return sinsp.Buffer(plgState)
+	return getfieldStr(pCtx.jdata, field)
 }
 
-//export plugin_extract_u64
-func plugin_extract_u64(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *byte, data *byte, datalen uint32, fieldPresent *uint32) uint64 {
+func extract_u64(pluginState unsafe.Pointer, evtnum uint64, data []byte, ts uint64, field string, arg string) (bool, uint64) {
 	var err error
-	*fieldPresent = 0
-	pCtx := (*pluginContext)(sinsp.Context(plgState))
+	pCtx := (*pluginContext)(state.Context(pluginState))
 
 	// Decode the json, but only if we haven't done it yet for this event
 	if evtnum != pCtx.jdataEvtnum {
-		pCtx.jdata, err = pCtx.jparser.Parse(C.GoString((*C.char)(unsafe.Pointer(data))))
+
+		// For this plugin, events are always strings
+		evtStr := string(data)
+
+		pCtx.jdata, err = pCtx.jparser.Parse(evtStr)
 		if err != nil {
-			// Not a json file. We return 0 and *fieldPresent=0 to indicate
-			// that the field is not present.
-			return 0
+			// Not a json file, so not present.
+			return false, 0
 		}
 		pCtx.jdataEvtnum = evtnum
 	}
 
-	// loris
-	present, val := getfieldU64(pCtx.jdata, id)
-	if present {
-		*fieldPresent = 1
-	} else {
-		*fieldPresent = 0
-	}
-	return val
+	return getfieldU64(pCtx.jdata, field)
+}
+
+//export plugin_extract_fields
+func plugin_extract_fields(plgState unsafe.Pointer, evt *C.ss_plugin_event, numFields uint32, fields *C.ss_plugin_extract_field) int32 {
+	log.Printf("[%s] plugin_extract_fields\n", PluginName)
+	return wrappers.WrapExtractFuncs(plgState, unsafe.Pointer(evt), numFields, unsafe.Pointer(fields), extract_str, extract_u64)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -964,12 +949,21 @@ func plugin_extract_u64(plgState unsafe.Pointer, evtnum uint64, id uint32, arg *
 
 //export plugin_register_async_extractor
 func plugin_register_async_extractor(pluginState unsafe.Pointer, asyncExtractorInfo unsafe.Pointer) int32 {
-	return sinsp.RegisterAsyncExtractors(pluginState, asyncExtractorInfo, plugin_extract_str, plugin_extract_u64)
+	return wrappers.RegisterAsyncExtractors(pluginState, asyncExtractorInfo, extract_str, extract_u64)
 }
 
 //export plugin_next_batch
-func plugin_next_batch(plgState unsafe.Pointer, openState unsafe.Pointer, data **byte, datalen *uint32) int32 {
-	return sinsp.NextBatch(plgState, openState, data, datalen, Next)
+func plugin_next_batch(plgState unsafe.Pointer, openState unsafe.Pointer, nevts *uint32, retEvts **C.ss_plugin_event) int32 {
+	evts, res := wrappers.NextBatch(plgState, openState, Next)
+
+	if res == sdk.SSPluginSuccess {
+		*retEvts = (*C.ss_plugin_event)(wrappers.Events(evts))
+		*nevts = (uint32)(len(evts))
+	}
+
+	log.Printf("[%s] plugin_next_batch\n", PluginName)
+
+	return res
 }
 
 func main() {
