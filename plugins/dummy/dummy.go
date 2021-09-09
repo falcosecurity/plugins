@@ -18,8 +18,6 @@ package main
 
 // #cgo CFLAGS: -I${SRCDIR}/../../
 /*
-#include <stdlib.h>
-#include <inttypes.h>
 #include <plugin_info.h>
 */
 import "C"
