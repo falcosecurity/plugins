@@ -32,6 +32,7 @@ import "C"
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -48,6 +49,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"github.com/falcosecurity/plugin-sdk-go"
 	"github.com/falcosecurity/plugin-sdk-go/state"
 	"github.com/falcosecurity/plugin-sdk-go/wrappers"
@@ -95,6 +99,11 @@ type s3State struct {
 	curBuf                int
 }
 
+type snsMessage struct {
+	Bucket string   `json:"s3Bucket"`
+	Keys   []string `json:"s3ObjectKey"`
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // PLUGIN STATE STRUCTS
 ///////////////////////////////////////////////////////////////////////////////
@@ -105,18 +114,34 @@ type pluginContext struct {
 	jdata       *fastjson.Value
 	jdataEvtnum uint64 // The event number jdata refers to. Used to know when we can skip the unmarshaling.
 	lastError   error
+	sqsDelete   bool   // If true, will delete SQS Messages immediately after receiving them
 }
 
+// Struct for plugin init config
+type pluginInitConfig struct {
+	SQSDelete   bool  `json:"sqsDelete"`
+}
+
+type OpenMode int
+
+const (
+	fileMode    OpenMode = iota
+	s3Mode
+	sqsMode
+)
+
 // This is the open state, identifying an open instance reading cloudtrail files from
-// a local directory or from a remote S3 bucket
+// a local directory or from a remote S3 bucket (either direct or via a SQS queue)
 type openContext struct {
-	isDataFromS3       bool
+	openMode           OpenMode
 	cloudTrailFilesDir string
 	files              []fileInfo
 	curFileNum         uint32
 	evtJSONStrings     [][]byte
 	evtJSONListPos     int
 	s3                 s3State
+	sqsClient          *sqs.Client
+	queueURL           string
 	nextJParser        fastjson.Parser
 }
 
@@ -140,16 +165,33 @@ func plugin_init(config *C.char, rc *int32) unsafe.Pointer {
 		log.SetOutput(ioutil.Discard)
 	}
 
-	log.Printf("[%s] plugin_init\n", PluginName)
-	log.Printf("config string:\n%s\n", C.GoString(config))
+	cfg := C.GoString(config)
 
-	// Allocate the container for buffers and context
-	pluginState := state.NewStateContainer()
+	log.Printf("[%s] plugin_init\n", PluginName)
+	log.Printf("config string:\n%s\n", cfg)
 
 	// Allocate the context struct attach it to the state
 	pCtx := &pluginContext{
 		jdataEvtnum: math.MaxUint64,
+		sqsDelete:   true,
 	}
+
+	if cfg != "" {
+		var initConfig pluginInitConfig
+		initConfig.SQSDelete = true
+
+		err := json.Unmarshal([]byte(cfg), &initConfig)
+		if err != nil {
+			pCtx.lastError = err
+			*rc = sdk.SSPluginFailure
+			return nil
+		}
+		pCtx.sqsDelete = initConfig.SQSDelete
+	}
+
+	// Allocate the container for buffers and context
+	pluginState := state.NewStateContainer()
+
 	state.SetContext(pluginState, unsafe.Pointer(pCtx))
 
 	*rc = sdk.SSPluginSuccess
@@ -253,7 +295,7 @@ func dirExists(path string) bool {
 func openLocal(pCtx *pluginContext, oCtx *openContext, params *C.char, rc *int32) {
 	*rc = sdk.SSPluginFailure
 
-	oCtx.isDataFromS3 = false
+	oCtx.openMode = fileMode
 
 	oCtx.cloudTrailFilesDir = C.GoString(params)
 
@@ -295,11 +337,21 @@ func openLocal(pCtx *pluginContext, oCtx *openContext, params *C.char, rc *int32
 	*rc = sdk.SSPluginSuccess
 }
 
+func initS3(oCtx *openContext) {
+	oCtx.s3.awsSess = session.Must(session.NewSessionWithOptions(session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+	}))
+
+	oCtx.s3.awsSvc = s3.New(oCtx.s3.awsSess)
+
+	oCtx.s3.downloader = s3manager.NewDownloader(oCtx.s3.awsSess)
+}
+
 func openS3(pCtx *pluginContext, oCtx *openContext, params *C.char, rc *int32) {
 	*rc = sdk.SSPluginFailure
 	input := C.GoString(params)
 
-	oCtx.isDataFromS3 = true
+	oCtx.openMode = s3Mode
 
 	// remove the initial "s3://"
 	input = input[5:]
@@ -315,12 +367,9 @@ func openS3(pCtx *pluginContext, oCtx *openContext, params *C.char, rc *int32) {
 		prefix = input[slashindex+1:]
 	}
 
-	// Fetch the list of keys
-	oCtx.s3.awsSess = session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
+	initS3(oCtx)
 
-	oCtx.s3.awsSvc = s3.New(oCtx.s3.awsSess)
+	// Fetch the list of keys
 
 	err := oCtx.s3.awsSvc.ListObjectsPages(&s3.ListObjectsInput{
 		Bucket: &oCtx.s3.bucket,
@@ -345,7 +394,125 @@ func openS3(pCtx *pluginContext, oCtx *openContext, params *C.char, rc *int32) {
 		return
 	}
 
-	oCtx.s3.downloader = s3manager.NewDownloader(oCtx.s3.awsSess)
+	*rc = sdk.SSPluginSuccess
+}
+
+func getMoreSQSFiles(pCtx *pluginContext, oCtx *openContext) error {
+	ctx := context.Background()
+
+	input := &sqs.ReceiveMessageInput{
+		MessageAttributeNames: []string{
+			string(types.QueueAttributeNameAll),
+		},
+		QueueUrl:            &oCtx.queueURL,
+		MaxNumberOfMessages: 1,
+	}
+
+	msgResult, err := oCtx.sqsClient.ReceiveMessage(ctx, input)
+
+	if err != nil {
+		return err
+	}
+
+	if (len(msgResult.Messages) == 0) {
+		return nil
+	}
+
+	if pCtx.sqsDelete {
+		// Delete the message from the queue so it won't be read again
+		delInput := &sqs.DeleteMessageInput{
+			QueueUrl:      &oCtx.queueURL,
+			ReceiptHandle: msgResult.Messages[0].ReceiptHandle,
+		}
+
+		_, err = oCtx.sqsClient.DeleteMessage(ctx, delInput)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	// The SQS message is just a SNS notification noting that new
+	// cloudtrail file(s) are available in the s3 bucket. Download
+	// those files.
+
+	var sqsMsg map[string]interface{}
+
+	err = json.Unmarshal([]byte(*msgResult.Messages[0].Body), &sqsMsg)
+
+	if err != nil {
+		return err
+	}
+
+	messageType, ok := sqsMsg["Type"]
+	if !ok {
+		return fmt.Errorf("Received SQS message that did not have a Type property")
+	}
+
+	if messageType.(string) != "Notification" {
+		return fmt.Errorf("Received SQS message that was not a SNS Notification")
+	}
+
+	var notification snsMessage
+
+	err = json.Unmarshal([]byte(sqsMsg["Message"].(string)), &notification)
+
+	if err != nil {
+		return err
+	}
+
+	// The notification contains a bucket and a list of keys that
+	// contain new cloudtrail files.
+	oCtx.s3.bucket = notification.Bucket
+
+	initS3(oCtx)
+
+	for _, key := range notification.Keys {
+
+		isCompressed := strings.HasSuffix(key, ".json.gz")
+
+		oCtx.files = append(oCtx.files, fileInfo{name: key, isCompressed: isCompressed})
+	}
+
+	return nil
+}
+
+func openSQS(pCtx *pluginContext, oCtx *openContext, params *C.char, rc *int32) {
+
+	ctx := context.Background()
+	input := C.GoString(params)
+
+	cfg, err := config.LoadDefaultConfig(ctx)
+	if err != nil {
+		pCtx.lastError = err
+		*rc = sdk.SSPluginFailure
+		return
+	}
+
+	oCtx.openMode = sqsMode
+
+	oCtx.sqsClient = sqs.NewFromConfig(cfg)
+
+	queueName := input[6:]
+
+	urlResult, err := oCtx.sqsClient.GetQueueUrl(ctx, &sqs.GetQueueUrlInput{QueueName: &queueName})
+
+	if err != nil {
+		pCtx.lastError = err
+		*rc = sdk.SSPluginFailure
+		return
+	}
+
+	oCtx.queueURL = *urlResult.QueueUrl
+
+	err = getMoreSQSFiles(pCtx, oCtx)
+
+	if err != nil {
+		pCtx.lastError = err
+		*rc = sdk.SSPluginFailure
+		return
+	}
+
 	*rc = sdk.SSPluginSuccess
 }
 
@@ -360,6 +527,8 @@ func plugin_open(plgState unsafe.Pointer, params *C.char, rc *int32) unsafe.Poin
 	input := C.GoString(params)
 	if len(input) >= 5 && input[:5] == "s3://" {
 		openS3(pCtx, oCtx, params, rc)
+	} else if (len(input) >= 6 && input[:6] == "sqs://") {
+		openSQS(pCtx, oCtx, params, rc)
 	} else {
 		openLocal(pCtx, oCtx, params, rc)
 	}
@@ -477,15 +646,32 @@ func Next(plgState unsafe.Pointer, openState unsafe.Pointer) (*sdk.PluginEvent, 
 	if oCtx.evtJSONListPos == len(oCtx.evtJSONStrings) {
 		// Open the next file and bring its content into memeory
 		if oCtx.curFileNum >= uint32(len(oCtx.files)) {
-			return nil, sdk.SSPluginEOF
+
+			// If reading file names from a queue, try to
+			// get more files first. Otherwise, return EOF.
+			if oCtx.openMode == sqsMode {
+				err = getMoreSQSFiles(pCtx, oCtx)
+				if err != nil {
+					return nil, sdk.SSPluginFailure
+				}
+
+				// If after trying, there are no
+				// additional files, return timeout.
+				if oCtx.curFileNum >= uint32(len(oCtx.files)) {
+					return nil, sdk.SSPluginTimeout
+				}
+			} else {
+				return nil, sdk.SSPluginEOF
+			}
 		}
 
 		file := oCtx.files[oCtx.curFileNum]
 		oCtx.curFileNum++
 
-		if oCtx.isDataFromS3 {
+		switch (oCtx.openMode) {
+		case s3Mode, sqsMode:
 			tmpStr, err = readNextFileS3(oCtx)
-		} else {
+		case fileMode:
 			tmpStr, err = readFileLocal(file.name)
 		}
 		if err != nil {
