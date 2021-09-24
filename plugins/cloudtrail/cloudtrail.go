@@ -70,7 +70,7 @@ const (
 	PluginEventSource        = "aws_cloudtrail"
 )
 
-const s3DownloadConcurrency = 64
+const defaultS3DownloadConcurrency = 1
 const verbose bool = true
 const outBufSize uint32 = 65535
 
@@ -115,11 +115,13 @@ type pluginContext struct {
 	jdataEvtnum uint64 // The event number jdata refers to. Used to know when we can skip the unmarshaling.
 	lastError   error
 	sqsDelete   bool   // If true, will delete SQS Messages immediately after receiving them
+	s3DownloadConcurrency int
 }
 
 // Struct for plugin init config
 type pluginInitConfig struct {
-	SQSDelete   bool  `json:"sqsDelete"`
+	S3DownloadConcurrency     int        `json:"s3DownloadConcurrency"`
+	SQSDelete                 bool       `json:"sqsDelete"`
 }
 
 type OpenMode int
@@ -179,6 +181,7 @@ func plugin_init(config *C.char, rc *int32) unsafe.Pointer {
 	if cfg != "" {
 		var initConfig pluginInitConfig
 		initConfig.SQSDelete = true
+		initConfig.S3DownloadConcurrency = defaultS3DownloadConcurrency
 
 		err := json.Unmarshal([]byte(cfg), &initConfig)
 		if err != nil {
@@ -187,6 +190,7 @@ func plugin_init(config *C.char, rc *int32) unsafe.Pointer {
 			return nil
 		}
 		pCtx.sqsDelete = initConfig.SQSDelete
+		pCtx.s3DownloadConcurrency = initConfig.S3DownloadConcurrency
 	}
 
 	// Allocate the container for buffers and context
@@ -542,7 +546,7 @@ func plugin_open(plgState unsafe.Pointer, params *C.char, rc *int32) unsafe.Poin
 
 	// Create an array of download buffers that will be used to concurrently
 	// download files from s3
-	oCtx.s3.DownloadBufs = make([][]byte, s3DownloadConcurrency)
+	oCtx.s3.DownloadBufs = make([][]byte, pCtx.s3DownloadConcurrency)
 
 	// Tie the just created state to the open context
 	//
@@ -578,16 +582,16 @@ func s3Download(oCtx *openContext, downloader *s3manager.Downloader, name string
 	oCtx.s3.DownloadBufs[dloadSlotNum] = buff.Bytes()
 }
 
-func readNextFileS3(oCtx *openContext) ([]byte, error) {
+func readNextFileS3(pCtx *pluginContext, oCtx *openContext) ([]byte, error) {
 	if oCtx.s3.curBuf < oCtx.s3.nFilledBufs {
 		curBuf := oCtx.s3.curBuf
 		oCtx.s3.curBuf++
 		return oCtx.s3.DownloadBufs[curBuf], nil
 	}
 
-	dlErrChan = make(chan error, s3DownloadConcurrency)
+	dlErrChan = make(chan error, pCtx.s3DownloadConcurrency)
 	k := oCtx.s3.lastDownloadedFileNum
-	oCtx.s3.nFilledBufs = min(s3DownloadConcurrency, len(oCtx.files)-k)
+	oCtx.s3.nFilledBufs = min(pCtx.s3DownloadConcurrency, len(oCtx.files)-k)
 	for j, f := range oCtx.files[k : k+oCtx.s3.nFilledBufs] {
 		oCtx.s3.DownloadWg.Add(1)
 		go s3Download(oCtx, oCtx.s3.downloader, f.name, j)
@@ -600,7 +604,7 @@ func readNextFileS3(oCtx *openContext) ([]byte, error) {
 	default:
 	}
 
-	oCtx.s3.lastDownloadedFileNum += s3DownloadConcurrency
+	oCtx.s3.lastDownloadedFileNum += pCtx.s3DownloadConcurrency
 
 	oCtx.s3.curBuf = 1
 	return oCtx.s3.DownloadBufs[0], nil
@@ -670,7 +674,7 @@ func Next(plgState unsafe.Pointer, openState unsafe.Pointer) (*sdk.PluginEvent, 
 
 		switch (oCtx.openMode) {
 		case s3Mode, sqsMode:
-			tmpStr, err = readNextFileS3(oCtx)
+			tmpStr, err = readNextFileS3(pCtx, oCtx)
 		case fileMode:
 			tmpStr, err = readFileLocal(file.name)
 		}
