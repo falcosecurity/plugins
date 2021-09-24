@@ -604,7 +604,7 @@ func readNextFileS3(pCtx *pluginContext, oCtx *openContext) ([]byte, error) {
 	default:
 	}
 
-	oCtx.s3.lastDownloadedFileNum += pCtx.s3DownloadConcurrency
+	oCtx.s3.lastDownloadedFileNum += oCtx.s3.nFilledBufs
 
 	oCtx.s3.curBuf = 1
 	return oCtx.s3.DownloadBufs[0], nil
