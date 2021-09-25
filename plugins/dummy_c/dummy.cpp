@@ -65,11 +65,10 @@ typedef struct instance_state
 	// The number of events to return before EOF
 	uint64_t max_events;
 
-	// A count of events returned. This is put in every event as
-	// the evtnum property.
+	// A count of events returned. Used to count against maxEvents.
 	uint64_t counter;
 
-	// A semi-random numeric value, derived from the counter and
+	// A semi-random numeric value, derived from this value and
 	// jitter. This is put in every event as the data property.
 	uint64_t sample;
 } instance_state;
@@ -279,7 +278,8 @@ int32_t plugin_next(ss_plugin_t* s, ss_instance_t* i, ss_plugin_event **evt)
 
 	struct ss_plugin_event *ret = (struct ss_plugin_event *) malloc(sizeof(ss_plugin_event));
 
-	ret->evtnum = istate->counter;
+	// Note that evtnum is not set, as event numbers are
+	// assigned by the plugin framework.
 	ret->data = (uint8_t *) strdup(payload.c_str());
 	ret->datalen = payload.size();
 
