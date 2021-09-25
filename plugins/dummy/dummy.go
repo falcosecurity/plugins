@@ -74,11 +74,10 @@ type instanceState struct {
 	// The number of events to return before EOF
 	maxEvents uint64
 
-	// A count of events returned. This is put in every event as
-	// the evtnum property.
+	// A count of events returned. Used to count against maxEvents.
 	counter uint64
 
-	// A semi-random numeric value, derived from the counter and
+	// A semi-random numeric value, derived from this value and
 	// jitter. This is put in every event as the data property.
 	sample uint64
 }
@@ -282,8 +281,10 @@ func Next(pState unsafe.Pointer, iState unsafe.Pointer) (*sdk.PluginEvent, int32
 	// It is not mandatory to set the Timestamp of the event (it
 	// would be filled in by the framework if set to uint_max),
 	// but it's a good practice.
+	//
+	// Also note that the Evtnum is not set, as event numbers are
+	// assigned by the plugin framework.
 	evt := &sdk.PluginEvent{
-		Evtnum:    is.counter,
 		Data:      []byte(str),
 		Timestamp: uint64(time.Now().Unix()) * 1000000000,
 	}
