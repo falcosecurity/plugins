@@ -257,6 +257,7 @@ func plugin_get_event_source() *C.char {
 func plugin_get_fields() *C.char {
 	flds := []sdk.FieldEntry{
 		{Type: "string", Name: "ct.id", Display: "Event ID", Desc: "the unique ID of the cloudtrail event (eventID in the json)."},
+		{Type: "string", Name: "ct.error", Display: "Error Code", Desc: "The error code from the event. Will be \"\" if there was no error."},
 		{Type: "string", Name: "ct.time", Display: "Timestamp", Desc: "the timestamp of the cloudtrail event (eventTime in the json).", Properties: "hidden"},
 		{Type: "string", Name: "ct.src", Display: "AWS Service", Desc: "the source of the cloudtrail event (eventSource in the json, without the '.amazonaws.com' trailer)."},
 		{Type: "string", Name: "ct.name", Display: "Event Name", Desc: "the name of the cloudtrail event (eventName in the json)."},
@@ -875,6 +876,8 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 	switch field {
 	case "ct.id":
 		res = string(jdata.GetStringBytes("eventID"))
+	case "ct.error":
+		res = string(jdata.GetStringBytes("errorCode"))
 	case "ct.time":
 		res = string(jdata.GetStringBytes("eventTime"))
 	case "ct.src":
