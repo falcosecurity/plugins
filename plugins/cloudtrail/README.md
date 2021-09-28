@@ -21,6 +21,7 @@ Here is the current set of supported fields:
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | ct.id | string | the unique ID of the cloudtrail event (eventID in the json).
+| ct.error | string | The error code from the event. Will be "" if there was no error.
 | ct.time | string | the timestamp of the cloudtrail event (eventTime in the json).
 | ct.src | string | the source of the cloudtrail event (eventSource in the json, without the '.amazonaws.com' trailer).
 | ct.name | string | the name of the cloudtrail event (eventName in the json).
