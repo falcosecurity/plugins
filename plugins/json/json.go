@@ -127,12 +127,12 @@ func plugin_get_contact() *C.char {
 //export plugin_get_fields
 func plugin_get_fields() *C.char {
 	flds := []sdk.FieldEntry{
-		{Type: "string", Name: "json.value", ArgRequired: true, Desc: "allows to extract a value from a JSON-encoded input. Syntax is jevt.value[/x/y/z], where x,y and z are levels in the JSON hierarchy."},
-		{Type: "string", Name: "json.obj", Desc: "the full json message as a text string."},
-		{Type: "string", Name: "json.rawtime", Desc: "the time of the event, identical to evt.rawtime."},
-		{Type: "string", Name: "jevt.value", ArgRequired: true, Desc: "alias for json.value, provided for backwards compatibility"},
-		{Type: "string", Name: "jevt.obj", Desc: "alias for json.obj, provided for backwards compatibility"},
-		{Type: "string", Name: "jevt.rawtime", Desc: "alias for json.rawtime, provided for backwards compatibility"},
+		{Type: "string", Name: "json.value", ArgRequired: true, Desc: "Extracts a value from a JSON-encoded input. Syntax is json.value[<json pointer>], where <json pointer> is a json pointer (see https://datatracker.ietf.org/doc/html/rfc6901)"},
+		{Type: "string", Name: "json.obj", Desc: "The full json message as a text string."},
+		{Type: "string", Name: "json.rawtime", Desc: "The time of the event, identical to evt.rawtime."},
+		{Type: "string", Name: "jevt.value", ArgRequired: true, Desc: "Alias for json.value, provided for backwards compatibility."},
+		{Type: "string", Name: "jevt.obj", Desc: "Alias for json.obj, provided for backwards compatibility."},
+		{Type: "string", Name: "jevt.rawtime", Desc: "Alias for json.rawtime, provided for backwards compatibility."},
 	}
 
 	b, err := json.Marshal(&flds)
