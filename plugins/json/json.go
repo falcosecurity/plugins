@@ -41,11 +41,11 @@ import (
 
 // Plugin info
 const (
-	PluginRequiredApiVersion = "1.0.0"
+	PluginRequiredApiVersion = "0.1.0"
 	PluginName               = "json"
 	PluginDescription        = "implements extracting arbitrary fields from inputs formatted as JSON"
 	PluginContact            = "github.com/leogr/plugins/"
-	PluginVersion = "0.0.1"
+	PluginVersion            = "0.1.0"
 )
 
 const verbose bool = false

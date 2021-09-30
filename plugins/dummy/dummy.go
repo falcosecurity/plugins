@@ -37,12 +37,12 @@ import (
 
 // Plugin consts
 const (
-	PluginRequiredApiVersion        = "1.0.0"
+	PluginRequiredApiVersion        = "0.1.0"
 	PluginID                 uint32 = 3
 	PluginName                      = "dummy"
 	PluginDescription               = "Reference plugin for educational purposes"
 	PluginContact                   = "github.com/falcosecurity/plugins"
-	PluginVersion                   = "1.0.0"
+	PluginVersion                   = "0.1.0"
 	PluginEventSource               = "dummy"
 )
 

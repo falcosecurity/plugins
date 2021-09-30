@@ -60,13 +60,13 @@ import (
 
 // Plugin info
 const (
-	PluginRequiredApiVersion = "1.0.0"
+	PluginRequiredApiVersion = "0.1.0"
 	PluginID          uint32 = 2
 	PluginName               = "cloudtrail"
 	PluginFilterName         = "ct"
 	PluginDescription        = "reads cloudtrail JSON data saved to file in the directory specified in the settings"
 	PluginContact            = "github.com/leogr/plugins/"
-	PluginVersion = "0.0.1"
+	PluginVersion            = "0.1.0"
 	PluginEventSource        = "aws_cloudtrail"
 )
 

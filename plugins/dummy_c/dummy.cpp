@@ -27,13 +27,13 @@ limitations under the License.
 
 using json = nlohmann::json;
 
-static const char *pl_required_api_version = "1.0.0";
+static const char *pl_required_api_version = "0.1.0";
 static uint32_t    pl_type                 = TYPE_SOURCE_PLUGIN;
 static uint32_t    pl_id                   = 4;
 static const char *pl_name                 = "dummy_c";
 static const char *pl_desc                 = "Reference plugin for educational purposes";
 static const char *pl_contact              = "github.com/falcosecurity/plugins";
-static const char *pl_version              = "1.0.0";
+static const char *pl_version              = "0.1.0";
 static const char *pl_event_source         = "dummy";
 static const char *pl_fields               = R"(
 [{"type": "uint64", "name": "dummy.divisible", "argRequired": true, "desc": "Return 1 if the value is divisible by the provided divisor, 0 otherwise"},
