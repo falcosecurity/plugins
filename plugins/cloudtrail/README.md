@@ -23,10 +23,28 @@ Here is the current set of supported fields:
 | ct.id | string | the unique ID of the cloudtrail event (eventID in the json).
 | ct.error | string | The error code from the event. Will be "" if there was no error.
 | ct.time | string | the timestamp of the cloudtrail event (eventTime in the json).
-| ct.src | string | the source of the cloudtrail event (eventSource in the json, without the '.amazonaws.com' trailer).
+| ct.src | string | the source of the cloudtrail event (eventSource in the json).
+| ct.shortsrc | string | the source of the cloudtrail event (eventSource in the json, without the '.amazonaws.com' trailer).
 | ct.name | string | the name of the cloudtrail event (eventName in the json).
 | ct.user | string | the user of the cloudtrail event (userIdentity.userName in the json).
+| ct.user.identitytype | string | the kind of user identity (e.g. Root, IAMUser,AWSService, etc.)
+| ct.user.principalid | string | A unique identifier for the user that made the request.
+| ct.user.arn | string | the Amazon Resource Name (ARN) of the user that made the request.
 | ct.region | string | the region of the cloudtrail event (awsRegion in the json).
+| ct.response.subnetid | string | the subnet ID included in the response.
+| ct.response.reservationid | string | the reservation ID included in the response.
+| ct.request.availabilityzone | string | the availability zone included in the request.
+| ct.request.cluster | string | the cluster included in the request.
+| ct.request.functionname | string | the function name included in the request.
+| ct.request.groupname | string | the group name included in the request.
+| ct.request.host | string | the host included in the request
+| ct.request.name | string | the name of the entity being acted on in the request.
+| ct.request.policy | string | the policy included in the request
+| ct.request.serialnumber | string | the serial number provided in the request.
+| ct.request.servicename | string | the service name provided in the request.
+| ct.request.subnetid | string | the subnet ID provided in the request.
+| ct.request.taskDefinition | string | the task definition provided in the request.
+| ct.request.username | string | The username provided in the request (if present)
 | ct.srcip | string | the IP address generating the event (sourceIPAddress in the json).
 | ct.useragent | string | the user agent generating the event (userAgent in the json).
 | ct.info | string | summary information about the event. This varies depending on the event type and, for some events, it contains event-specific details.
@@ -34,7 +52,6 @@ Here is the current set of supported fields:
 | s3.uri | string | the s3 URI (s3://<bucket>/<key>).
 | s3.buckey | string | the bucket name for s3 events.
 | s3.key | string | the S3 key name.
-| s3.host | string |  the S3 host name.
 | s3.bytes | string | the size of an s3 download or upload, in bytes.
 | s3.bytes.in | string | the size of an s3 upload, in bytes.
 | s3.bytes.out | string | the size of an s3 download, in bytes.
