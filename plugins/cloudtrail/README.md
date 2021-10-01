@@ -27,6 +27,7 @@ Here is the current set of supported fields:
 | ct.shortsrc | string | the source of the cloudtrail event (eventSource in the json, without the '.amazonaws.com' trailer).
 | ct.name | string | the name of the cloudtrail event (eventName in the json).
 | ct.user | string | the user of the cloudtrail event (userIdentity.userName in the json).
+| ct.user.accountid | string | the account id of the user of the cloudtrail event.
 | ct.user.identitytype | string | the kind of user identity (e.g. Root, IAMUser,AWSService, etc.)
 | ct.user.principalid | string | A unique identifier for the user that made the request.
 | ct.user.arn | string | the Amazon Resource Name (ARN) of the user that made the request.
