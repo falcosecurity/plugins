@@ -259,10 +259,28 @@ func plugin_get_fields() *C.char {
 		{Type: "string", Name: "ct.id", Display: "Event ID", Desc: "the unique ID of the cloudtrail event (eventID in the json)."},
 		{Type: "string", Name: "ct.error", Display: "Error Code", Desc: "The error code from the event. Will be \"\" if there was no error."},
 		{Type: "string", Name: "ct.time", Display: "Timestamp", Desc: "the timestamp of the cloudtrail event (eventTime in the json).", Properties: "hidden"},
-		{Type: "string", Name: "ct.src", Display: "AWS Service", Desc: "the source of the cloudtrail event (eventSource in the json, without the '.amazonaws.com' trailer)."},
+		{Type: "string", Name: "ct.src", Display: "AWS Service", Desc: "the source of the cloudtrail event (eventSource in the json)."},
+		{Type: "string", Name: "ct.shortsrc", Display: "AWS Service", Desc: "the source of the cloudtrail event (eventSource in the json, without the '.amazonaws.com' trailer)."},
 		{Type: "string", Name: "ct.name", Display: "Event Name", Desc: "the name of the cloudtrail event (eventName in the json)."},
 		{Type: "string", Name: "ct.user", Display: "User Name", Desc: "the user of the cloudtrail event (userIdentity.userName in the json).", Properties: "conversation"},
+		{Type: "string", Name: "ct.user.identitytype", Display: "User Identity Type", Desc: "the kind of user identity (e.g. Root, IAMUser,AWSService, etc.)"},
+		{Type: "string", Name: "ct.user.principalid", Display: "User Principal Id", Desc: "A unique identifier for the user that made the request."},
+		{Type: "string", Name: "ct.user.arn", Display: "User ARN", Desc: "the Amazon Resource Name (ARN) of the user that made the request."},
 		{Type: "string", Name: "ct.region", Display: "Region", Desc: "the region of the cloudtrail event (awsRegion in the json)."},
+		{Type: "string", Name: "ct.response.subnetid", Display: "Response Subnet ID", Desc: "the subnet ID included in the response."},
+		{Type: "string", Name: "ct.response.reservationid", Display: "Response Reservation ID", Desc: "the reservation ID included in the response."},
+		{Type: "string", Name: "ct.request.availabilityzone", Display: "Request Availability Zone", Desc: "the availability zone included in the request."},
+		{Type: "string", Name: "ct.request.cluster", Display: "Request Cluster", Desc: "the cluster included in the request."},
+		{Type: "string", Name: "ct.request.functionname", Display: "Request Function Name", Desc: "the function name included in the request."},
+		{Type: "string", Name: "ct.request.groupname", Display: "Request Group Name", Desc: "the group name included in the request."},
+		{Type: "string", Name: "ct.request.host", Display: "Request Host Name", Desc: "the host included in the request"},
+		{Type: "string", Name: "ct.request.name", Display: "Host Name", Desc: "the name of the entity being acted on in the request."},
+		{Type: "string", Name: "ct.request.policy", Display: "Host Name", Desc: "the policy included in the request"},
+		{Type: "string", Name: "ct.request.serialnumber", Display: "Request Serial Number", Desc: "the serial number provided in the request."},
+		{Type: "string", Name: "ct.request.servicename", Display: "Request Service", Desc: "the service name provided in the request."},
+		{Type: "string", Name: "ct.request.subnetid", Display: "Request Subnet ID", Desc: "the subnet ID provided in the request."},
+		{Type: "string", Name: "ct.request.taskdefinition", Display: "Request Task Definition", Desc: "the task definition prrovided in the request."},
+		{Type: "string", Name: "ct.request.username", Display: "Request User Name", Desc: "the username provided in the request."},
 		{Type: "string", Name: "ct.srcip", Display: "Source IP", Desc: "the IP address generating the event (sourceIPAddress in the json).", Properties: "conversation"},
 		{Type: "string", Name: "ct.useragent", Display: "User Agent", Desc: "the user agent generating the event (userAgent in the json)."},
 		{Type: "string", Name: "ct.info", Display: "Info", Desc: "summary information about the event. This varies depending on the event type and, for some events, it contains event-specific details.", Properties: "info"},
@@ -270,7 +288,6 @@ func plugin_get_fields() *C.char {
 		{Type: "string", Name: "s3.uri", Display: "Key URI", Desc: "the s3 URI (s3://<bucket>/<key>).", Properties: "conversation"},
 		{Type: "string", Name: "s3.bucket", Display: "Bucket Name", Desc: "the bucket name for s3 events.", Properties: "conversation"},
 		{Type: "string", Name: "s3.key", Display: "Key Name", Desc: "the S3 key name."},
-		{Type: "string", Name: "s3.host", Display: "Host Name", Desc: "the S3 host name."},
 		{Type: "uint64", Name: "s3.bytes", Display: "Tot Bytes", Desc: "the size of an s3 download or upload, in bytes."},
 		{Type: "uint64", Name: "s3.bytes.in", Display: "Bytes In", Desc: "the size of an s3 upload, in bytes.", Properties: "hidden"},
 		{Type: "uint64", Name: "s3.bytes.out", Display: "Bytes Out", Desc: "the size of an s3 download, in bytes.", Properties: "hidden"},
@@ -882,7 +899,7 @@ func getEvtInfo(jdata *fastjson.Value) string {
 		return info
 	}
 
-	present, val = getfieldStr(jdata, "s3.host")
+	present, val = getfieldStr(jdata, "ct.request.host")
 	if present {
 		info += fmt.Sprintf("%sHost=%s", separator, val)
 		return info
@@ -924,6 +941,14 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 		} else {
 			res = string(val)
 		}
+	case "ct.shortsrc":
+		val := jdata.GetStringBytes("eventSource")
+
+		if val == nil {
+			return false, ""
+		} else {
+			res = string(val)
+		}
 
 		if len(res) > len(".amazonaws.com") {
 			srctrailer := res[len(res)-len(".amazonaws.com"):]
@@ -944,8 +969,127 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 			return false, ""
 		}
 		return true, res
+	case "ct.user.identitytype":
+		val := jdata.GetStringBytes("userIdentity", "type")
+		if val == nil {
+			return false, ""
+		} else {
+			res = string(val)
+		}
+	case "ct.user.principalid":
+		val := jdata.GetStringBytes("userIdentity", "principalId")
+		if val == nil {
+			return false, ""
+		} else {
+			res = string(val)
+		}
+	case "ct.user.arn":
+		val := jdata.GetStringBytes("userIdentity", "arn")
+		if val == nil {
+			return false, ""
+		} else {
+			res = string(val)
+		}
 	case "ct.region":
 		val := jdata.GetStringBytes("awsRegion")
+		if val == nil {
+			return false, ""
+		} else {
+			res = string(val)
+		}
+	case "ct.response.subnetid":
+		val := jdata.GetStringBytes("responseElements", "subnetId")
+		if val == nil {
+			return false, ""
+		} else {
+			res = string(val)
+		}
+	case "ct.response.reservationid":
+		val := jdata.GetStringBytes("responseElements", "reservationId")
+		if val == nil {
+			return false, ""
+		} else {
+			res = string(val)
+		}
+	case "ct.request.availabilityzone":
+		val := jdata.GetStringBytes("requestParameters", "availabilityZone")
+		if val == nil {
+			return false, ""
+		} else {
+			res = string(val)
+		}
+	case "ct.request.cluster":
+		val := jdata.GetStringBytes("requestParameters", "cluster")
+		if val == nil {
+			return false, ""
+		} else {
+			res = string(val)
+		}
+	case "ct.request.functionname":
+		val := jdata.GetStringBytes("requestParameters", "functionName")
+		if val == nil {
+			return false, ""
+		} else {
+			res = string(val)
+		}
+	case "ct.request.groupname":
+		val := jdata.GetStringBytes("requestParameters", "groupName")
+		if val == nil {
+			return false, ""
+		} else {
+			res = string(val)
+		}
+	case "ct.request.host":
+		val := jdata.GetStringBytes("requestParameters", "Host")
+		if val == nil {
+			return false, ""
+		} else {
+			res = string(val)
+		}
+	case "ct.request.name":
+		val := jdata.GetStringBytes("requestParameters", "name")
+		if val == nil {
+			return false, ""
+		} else {
+			res = string(val)
+		}
+	case "ct.request.policy":
+		val := jdata.GetStringBytes("requestParameters", "policy")
+		if val == nil {
+			return false, ""
+		} else {
+			res = string(val)
+		}
+	case "ct.request.serialnumber":
+		val := jdata.GetStringBytes("requestParameters", "serialNumber")
+		if val == nil {
+			return false, ""
+		} else {
+			res = string(val)
+		}
+	case "ct.request.servicename":
+		val := jdata.GetStringBytes("requestParameters", "serviceName")
+		if val == nil {
+			return false, ""
+		} else {
+			res = string(val)
+		}
+	case "ct.request.subnetid":
+		val := jdata.GetStringBytes("requestParameters", "subnetId")
+		if val == nil {
+			return false, ""
+		} else {
+			res = string(val)
+		}
+	case "ct.request.taskdefinition":
+		val := jdata.GetStringBytes("requestParameters", "taskDefinition")
+		if val == nil {
+			return false, ""
+		} else {
+			res = string(val)
+		}
+	case "ct.request.username":
+		val := jdata.GetStringBytes("requestParameters", "userName")
 		if val == nil {
 			return false, ""
 		} else {
@@ -1012,12 +1156,6 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 		res = string(val)
 	case "s3.key":
 		val := jdata.GetStringBytes("requestParameters", "key")
-		if val == nil {
-			return false, ""
-		}
-		res = string(val)
-	case "s3.host":
-		val := jdata.GetStringBytes("requestParameters", "Host")
 		if val == nil {
 			return false, ""
 		}
