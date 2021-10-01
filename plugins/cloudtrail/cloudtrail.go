@@ -729,10 +729,19 @@ func Next(plgState unsafe.Pointer, openState unsafe.Pointer) (*sdk.PluginEvent, 
 		return nil, sdk.SSPluginTimeout
 	}
 
+	// All cloudtrail events should have a time. If it's missing
+	// skip the event.
+
+	timeVal := cr.GetStringBytes("eventTime")
+
+	if timeVal == nil {
+		return nil, sdk.SSPluginTimeout
+	}
+
 	// Extract the timestamp
 	t1, err := time.Parse(
 		time.RFC3339,
-		string(cr.GetStringBytes("eventTime")))
+		string(timeVal))
 	if err != nil {
 		//
 		// We assume this is just some spurious data and we continue
@@ -741,7 +750,16 @@ func Next(plgState unsafe.Pointer, openState unsafe.Pointer) (*sdk.PluginEvent, 
 	}
 	ret.Timestamp = uint64(t1.Unix()) * 1000000000
 
-	ets := string(cr.GetStringBytes("eventType"))
+	// All cloudtrail events should have a type. If it's missing
+	// skip the event.
+
+	typeVal := cr.GetStringBytes("eventType")
+
+	if typeVal == nil {
+		return nil, sdk.SSPluginTimeout
+	}
+
+	ets := string(typeVal)
 	if ets == "AwsCloudTrailInsight" {
 		return nil, sdk.SSPluginTimeout
 	}
@@ -776,38 +794,41 @@ func plugin_get_progress(plgState unsafe.Pointer, openState unsafe.Pointer, prog
 	return C.CString(fmt.Sprintf("%.2f%% - %v/%v files", pd, oCtx.curFileNum, len(oCtx.files)))
 }
 
-func getUser(jdata *fastjson.Value) string {
+func getUser(jdata *fastjson.Value) (bool, string) {
 	jutype := jdata.GetStringBytes("userIdentity", "type")
-	if jutype != nil {
-		utype := string(jutype)
 
-		switch utype {
-		case "Root", "IAMUser":
-			jun := jdata.GetStringBytes("userIdentity", "userName")
-			if jun != nil {
-				return string(jun)
-			}
-		case "AWSService":
-			jun := jdata.GetStringBytes("userIdentity", "invokedBy")
-			if jun != nil {
-				return string(jun)
-			}
-		case "AssumedRole":
-			jun := jdata.GetStringBytes("userIdentity", "sessionContext", "sessionIssuer", "userName")
-			if jun != nil {
-				return string(jun)
-			}
-			return "AssumedRole"
-		case "AWSAccount":
-			return "AWSAccount"
-		case "FederatedUser":
-			return "FederatedUser"
-		default:
-			return "<unknown user type>"
-		}
+	if jutype == nil {
+		return false, ""
 	}
 
-	return "<NA>"
+	utype := string(jutype)
+
+	switch utype {
+	case "Root", "IAMUser":
+		jun := jdata.GetStringBytes("userIdentity", "userName")
+		if jun != nil {
+			return true, string(jun)
+		}
+	case "AWSService":
+		jun := jdata.GetStringBytes("userIdentity", "invokedBy")
+		if jun != nil {
+			return true, string(jun)
+		}
+	case "AssumedRole":
+		jun := jdata.GetStringBytes("userIdentity", "sessionContext", "sessionIssuer", "userName")
+		if jun != nil {
+			return true, string(jun)
+		}
+		return true, "AssumedRole"
+	case "AWSAccount":
+		return true, "AWSAccount"
+	case "FederatedUser":
+		return true, "FederatedUser"
+	default:
+		return false, "<unknown user type>"
+	}
+
+	return false, "<NA>"
 }
 
 func getEvtInfo(jdata *fastjson.Value) string {
@@ -875,13 +896,34 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 
 	switch field {
 	case "ct.id":
-		res = string(jdata.GetStringBytes("eventID"))
+		val := jdata.GetStringBytes("eventID")
+		if val == nil {
+			return false, ""
+		} else {
+			res = string(val)
+		}
 	case "ct.error":
-		res = string(jdata.GetStringBytes("errorCode"))
+		val := jdata.GetStringBytes("errorCode")
+		if val == nil {
+			return false, ""
+		} else {
+			res = string(val)
+		}
 	case "ct.time":
-		res = string(jdata.GetStringBytes("eventTime"))
+		val := jdata.GetStringBytes("eventTime")
+		if val == nil {
+			return false, ""
+		} else {
+			res = string(val)
+		}
 	case "ct.src":
-		res = string(jdata.GetStringBytes("eventSource"))
+		val := jdata.GetStringBytes("eventSource")
+
+		if val == nil {
+			return false, ""
+		} else {
+			res = string(val)
+		}
 
 		if len(res) > len(".amazonaws.com") {
 			srctrailer := res[len(res)-len(".amazonaws.com"):]
@@ -890,15 +932,39 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 			}
 		}
 	case "ct.name":
-		res = string(jdata.GetStringBytes("eventName"))
+		val := jdata.GetStringBytes("eventName")
+		if val == nil {
+			return false, ""
+		} else {
+			res = string(val)
+		}
 	case "ct.user":
-		res = getUser(jdata)
+		present, res := getUser(jdata)
+		if !present {
+			return false, ""
+		}
+		return true, res
 	case "ct.region":
-		res = string(jdata.GetStringBytes("awsRegion"))
+		val := jdata.GetStringBytes("awsRegion")
+		if val == nil {
+			return false, ""
+		} else {
+			res = string(val)
+		}
 	case "ct.srcip":
-		res = string(jdata.GetStringBytes("sourceIPAddress"))
+		val := jdata.GetStringBytes("sourceIPAddress")
+		if val == nil {
+			return false, ""
+		} else {
+			res = string(val)
+		}
 	case "ct.useragent":
-		res = string(jdata.GetStringBytes("userAgent"))
+		val := jdata.GetStringBytes("userAgent")
+		if val == nil {
+			return false, ""
+		} else {
+			res = string(val)
+		}
 	case "ct.info":
 		res = getEvtInfo(jdata)
 	case "ct.readonly":
@@ -912,7 +978,11 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 				// Once in a while, events without the readOnly property appear. We try to interpret them with the manual
 				// heuristic below.
 				//
-				ename := string(jdata.GetStringBytes("eventName"))
+				val := jdata.GetStringBytes("eventName")
+				if val == nil {
+					return false, ""
+				}
+				ename := string(val)
 				if strings.HasPrefix(ename, "Start") || strings.HasPrefix(ename, "Stop") || strings.HasPrefix(ename, "Create") ||
 					strings.HasPrefix(ename, "Destroy") || strings.HasPrefix(ename, "Delete") || strings.HasPrefix(ename, "Add") ||
 					strings.HasPrefix(ename, "Remove") || strings.HasPrefix(ename, "Terminate") || strings.HasPrefix(ename, "Put") ||
@@ -1054,31 +1124,57 @@ func plugin_event_to_string(plgState unsafe.Pointer, data *C.char, datalen uint3
 	if err != nil {
 		pCtx.lastError = err
 		line = "<invalid JSON: " + err.Error() + ">"
-	} else {
-		src = string(pCtx.jdata.GetStringBytes("eventSource"))
-
-		if len(src) > len(".amazonaws.com") {
-			srctrailer := src[len(src)-len(".amazonaws.com"):]
-			if srctrailer == ".amazonaws.com" {
-				src = src[0 : len(src)-len(".amazonaws.com")]
-			}
-		}
-
-		user = getUser(pCtx.jdata)
-		if user != "" {
-			user = " " + user
-		}
-
-		info := getEvtInfo(pCtx.jdata)
-
-		line = fmt.Sprintf("%s%s %s %s %s",
-			pCtx.jdata.GetStringBytes("awsRegion"),
-			user,
-			src,
-			pCtx.jdata.GetStringBytes("eventName"),
-			info,
-		)
+		return C.CString(line)
 	}
+	val := pCtx.jdata.GetStringBytes("eventSource")
+	if val == nil {
+		pCtx.lastError = fmt.Errorf("Event did not contain a source")
+		line = "<invalid JSON: no source>"
+		return C.CString(line)
+	}
+
+	src = string(val)
+
+	val = pCtx.jdata.GetStringBytes("awsRegion")
+	if val == nil {
+		pCtx.lastError = fmt.Errorf("Event did not contain an awsRegion")
+		line = "<invalid JSON: no awsRegion>"
+		return C.CString(line)
+	}
+
+	region := string(val)
+
+	val = pCtx.jdata.GetStringBytes("eventName")
+	if val == nil {
+		pCtx.lastError = fmt.Errorf("Event did not contain an eventName")
+		line = "<invalid JSON: no eventName>"
+		return C.CString(line)
+	}
+
+	ename := string(val)
+
+	if len(src) > len(".amazonaws.com") {
+		srctrailer := src[len(src)-len(".amazonaws.com"):]
+		if srctrailer == ".amazonaws.com" {
+			src = src[0 : len(src)-len(".amazonaws.com")]
+		}
+	}
+
+	present, user := getUser(pCtx.jdata)
+	if present && user != "" {
+		user = " " + user
+	}
+
+	info := getEvtInfo(pCtx.jdata)
+
+	line = fmt.Sprintf("%s%s %s %s %s",
+		region,
+		user,
+		src,
+		ename,
+		info,
+	)
+
 
 	return C.CString(line)
 }
