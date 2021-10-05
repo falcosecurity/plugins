@@ -44,7 +44,7 @@ const (
 	PluginRequiredApiVersion = "0.1.0"
 	PluginName               = "json"
 	PluginDescription        = "implements extracting arbitrary fields from inputs formatted as JSON"
-	PluginContact            = "github.com/leogr/plugins/"
+	PluginContact            = "github.com/falcosecurity/plugins/"
 	PluginVersion            = "0.1.0"
 )
 
