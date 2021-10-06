@@ -17,12 +17,26 @@ CURL = curl
 
 FALCOSECURITY_LIBS_REVISION=new/plugin-system-api-additions
 
+PLUGINS_VERSION=$(shell git describe --always --tags)
+KERNEL=$(shell uname -s | tr A-Z a-z)
+ARCH=$(shell uname -m)
+PACKAGE_DIR=falcosecurity-plugins-${PLUGINS_VERSION}-${KERNEL}-${ARCH}
+
 plugins = cloudtrail dummy dummy_c json
 pluginsclean = $(addsuffix clean,$(plugins))
 
 all: plugin_info.h $(plugins)
 
-clean: rm-plugin_info.h $(pluginsclean)
+clean: rm-plugin_info.h $(pluginsclean) package-clean
+
+package: all
+	rm -rf ${PACKAGE_DIR}
+	mkdir -p ${PACKAGE_DIR}/cloudtrail
+	mkdir -p ${PACKAGE_DIR}/json
+	cp plugins/cloudtrail/{libcloudtrail.so,README.md} ${PACKAGE_DIR}/cloudtrail/
+	cp plugins/json/{libjson.so,README.md} ${PACKAGE_DIR}/json/
+	tar -zcvf ${PACKAGE_DIR}.tar.gz	${PACKAGE_DIR}
+	rm -rf ${PACKAGE_DIR}
 
 plugin_info.h:
 	$(CURL) -Lso $@ https://raw.githubusercontent.com/falcosecurity/libs/${FALCOSECURITY_LIBS_REVISION}/userspace/libscap/plugin_info.h
