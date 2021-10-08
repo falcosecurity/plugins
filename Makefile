@@ -22,7 +22,7 @@ KERNEL=$(shell uname -s | tr A-Z a-z)
 ARCH=$(shell uname -m)
 PACKAGE_DIR=falcosecurity-plugins-${PLUGINS_VERSION}-${KERNEL}-${ARCH}
 
-plugins = cloudtrail dummy dummy_c json
+plugins = $(shell ls -d plugins/*/ | cut -f2 -d'/' | xargs)
 pluginsclean = $(addsuffix clean,$(plugins))
 
 all: plugin_info.h $(plugins)
