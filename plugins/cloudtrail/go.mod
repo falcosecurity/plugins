@@ -2,6 +2,8 @@ module github.com/falcosecurity/plugins/cloudtrail
 
 go 1.15
 
+replace github.com/falcosecurity/plugin-sdk-go => ../../../plugin-sdk-go
+
 require github.com/aws/aws-sdk-go v1.40.49
 
 require (
