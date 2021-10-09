@@ -116,12 +116,14 @@ type pluginContext struct {
 	lastError   error
 	sqsDelete   bool   // If true, will delete SQS Messages immediately after receiving them
 	s3DownloadConcurrency int
+	useAsync              bool
 }
 
 // Struct for plugin init config
 type pluginInitConfig struct {
 	S3DownloadConcurrency     int        `json:"s3DownloadConcurrency"`
 	SQSDelete                 bool       `json:"sqsDelete"`
+	UseAsync                  bool       `json:"useAsync"`
 }
 
 type OpenMode int
@@ -191,12 +193,19 @@ func plugin_init(config *C.char, rc *int32) unsafe.Pointer {
 		}
 		pCtx.sqsDelete = initConfig.SQSDelete
 		pCtx.s3DownloadConcurrency = initConfig.S3DownloadConcurrency
+		pCtx.useAsync = initConfig.UseAsync
 	}
 
 	// Allocate the container for buffers and context
 	pluginState := state.NewStateContainer()
 
 	state.SetContext(pluginState, unsafe.Pointer(pCtx))
+
+	wrappers.RegisterExtractors(extract_str, extract_u64)
+
+	if pCtx.useAsync {
+		wrappers.RegisterAsyncExtractors(pluginState, extract_str, extract_u64)
+	}
 
 	*rc = sdk.SSPluginSuccess
 	return pluginState
@@ -215,6 +224,12 @@ func plugin_get_last_error(plgState unsafe.Pointer) *C.char {
 //export plugin_destroy
 func plugin_destroy(plgState unsafe.Pointer) {
 	log.Printf("[%s] plugin_destroy\n", PluginName)
+	pCtx := (*pluginContext)(state.Context(plgState))
+
+	if pCtx.useAsync {
+		wrappers.UnregisterAsyncExtractors()
+	}
+
 	state.Free(plgState)
 }
 
@@ -1370,20 +1385,9 @@ func extract_u64(pluginState unsafe.Pointer, evtnum uint64, data []byte, ts uint
 	return getfieldU64(pCtx.jdata, field)
 }
 
-//export plugin_extract_fields
-func plugin_extract_fields(plgState unsafe.Pointer, evt *C.ss_plugin_event, numFields uint32, fields *C.ss_plugin_extract_field) int32 {
-	log.Printf("[%s] plugin_extract_fields\n", PluginName)
-	return wrappers.WrapExtractFuncs(plgState, unsafe.Pointer(evt), numFields, unsafe.Pointer(fields), extract_str, extract_u64)
-}
-
 ///////////////////////////////////////////////////////////////////////////////
 // The following code is part of the plugin interface. Do not remove it.
 ///////////////////////////////////////////////////////////////////////////////
-
-//export plugin_register_async_extractor
-func plugin_register_async_extractor(pluginState unsafe.Pointer, asyncExtractorInfo unsafe.Pointer) int32 {
-	return wrappers.RegisterAsyncExtractors(pluginState, asyncExtractorInfo, extract_str, extract_u64)
-}
 
 //export plugin_next_batch
 func plugin_next_batch(plgState unsafe.Pointer, openState unsafe.Pointer, nevts *uint32, retEvts **C.ss_plugin_event) int32 {
