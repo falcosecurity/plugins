@@ -55,6 +55,7 @@ import (
 	"github.com/falcosecurity/plugin-sdk-go"
 	"github.com/falcosecurity/plugin-sdk-go/state"
 	"github.com/falcosecurity/plugin-sdk-go/wrappers"
+	"github.com/falcosecurity/plugin-sdk-go/free"
 	"github.com/valyala/fastjson"
 )
 
@@ -1384,10 +1385,6 @@ func extract_u64(pluginState unsafe.Pointer, evtnum uint64, data []byte, ts uint
 
 	return getfieldU64(pCtx.jdata, field)
 }
-
-///////////////////////////////////////////////////////////////////////////////
-// The following code is part of the plugin interface. Do not remove it.
-///////////////////////////////////////////////////////////////////////////////
 
 //export plugin_next_batch
 func plugin_next_batch(plgState unsafe.Pointer, openState unsafe.Pointer, nevts *uint32, retEvts **C.ss_plugin_event) int32 {
