@@ -193,6 +193,11 @@ func plugin_init(config *C.char, rc *int32) unsafe.Pointer {
 	handle := state.NewStateContainer()
 	state.SetContext(handle, unsafe.Pointer(ps))
 
+	// This "wraps" the go-specific simple extraction functions,
+	// taking care of the details of type conversion between go
+	// types and C types.
+	wrappers.RegisterExtractors(extract_str, extract_u64)
+
 	*rc = sdk.SSPluginSuccess
 
 	return handle
@@ -382,27 +387,6 @@ func extract_u64(pState unsafe.Pointer, evtnum uint64, data []byte, ts uint64, f
 		ps.lastError = fmt.Errorf("No known field %s", field)
 		return false, 0
 	}
-}
-
-// This wraps the simple extract functions above and is the actual exported function
-
-//export plugin_extract_fields
-func plugin_extract_fields(pState unsafe.Pointer, evt *C.struct_ss_plugin_event, numFields uint32, fields *C.struct_ss_plugin_extract_field) int32 {
-	log.Printf("[%s] plugin_extract_fields\n", PluginName)
-	return wrappers.WrapExtractFuncs(pState, unsafe.Pointer(evt), numFields, unsafe.Pointer(fields), extract_str, extract_u64)
-}
-
-// This wraps the simple extract functions above to allow for multiple
-// field extractions in a single function call. Although provided here
-// for example purposes, there is a CPU cost of async extraction and
-// it should only be defined if a plugin has a very high rate of
-// events (> thousands/second) and where the CPU cost of async
-// extraction is worth avoiding the overhead of C-to-Go function calls
-// for individual calls to plugin_extract_fields
-
-//export plugin_register_async_extractor
-func plugin_register_async_extractor(pluginState unsafe.Pointer, asyncExtractorInfo unsafe.Pointer) int32 {
-	return wrappers.RegisterAsyncExtractors(pluginState, asyncExtractorInfo, extract_str, extract_u64)
 }
 
 func main() {}
