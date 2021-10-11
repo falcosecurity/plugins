@@ -154,6 +154,12 @@ char* plugin_get_last_error(ss_plugin_t* s)
 }
 
 extern "C"
+void plugin_free_mem(void *ptr)
+{
+    free(ptr);
+}
+
+extern "C"
 ss_plugin_t* plugin_init(char* config, int32_t* rc)
 {
 	printf("[%s] plugin_init config=%s\n", pl_name, config);
