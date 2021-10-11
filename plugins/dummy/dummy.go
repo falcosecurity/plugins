@@ -33,6 +33,7 @@ import (
 	"github.com/falcosecurity/plugin-sdk-go"
 	"github.com/falcosecurity/plugin-sdk-go/state"
 	"github.com/falcosecurity/plugin-sdk-go/wrappers"
+	"github.com/falcosecurity/plugin-sdk-go/free"
 )
 
 // Plugin consts
