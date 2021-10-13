@@ -318,7 +318,6 @@ func plugin_get_fields() *C.char {
 	b, err := json.Marshal(&flds)
 	if err != nil {
 		panic(err)
-		return nil
 	}
 
 	return C.CString(string(b))
@@ -326,10 +325,7 @@ func plugin_get_fields() *C.char {
 
 func dirExists(path string) bool {
 	_, err := os.Stat(path)
-	if err == nil {
-		return true
-	}
-	return false
+	return err == nil
 }
 
 func openLocal(pCtx *pluginContext, oCtx *openContext, params *C.char, rc *int32) {
@@ -486,11 +482,11 @@ func getMoreSQSFiles(pCtx *pluginContext, oCtx *openContext) error {
 
 	messageType, ok := sqsMsg["Type"]
 	if !ok {
-		return fmt.Errorf("Received SQS message that did not have a Type property")
+		return fmt.Errorf("received SQS message that did not have a Type property")
 	}
 
 	if messageType.(string) != "Notification" {
-		return fmt.Errorf("Received SQS message that was not a SNS Notification")
+		return fmt.Errorf("received SQS message that was not a SNS Notification")
 	}
 
 	var notification snsMessage
@@ -727,6 +723,9 @@ func Next(pCtx *pluginContext, oCtx *openContext, currEvt sdk.PluginEvent) int32
 		// The file can be gzipped. If it is, we unzip it.
 		if file.isCompressed {
 			gr, err := gzip.NewReader(bytes.NewBuffer(tmpStr))
+			if err != nil {
+				return sdk.SSPluginTimeout
+			}
 			defer gr.Close()
 			zdata, err := ioutil.ReadAll(gr)
 			if err != nil {
@@ -801,7 +800,7 @@ func Next(pCtx *pluginContext, oCtx *openContext, currEvt sdk.PluginEvent) int32
 		//
 		return sdk.SSPluginTimeout
 	}
-	currEvt.SetTimestamp(uint64(t1.Unix()) * 1000000000) // fixme: t1.UnixNano() ?
+	currEvt.SetTimestamp(uint64(t1.UnixNano()))
 
 	// All cloudtrail events should have a type. If it's missing
 	// skip the event.
@@ -1306,7 +1305,7 @@ func plugin_event_to_string(plgState unsafe.Pointer, data *C.char, datalen uint3
 	}
 	val := pCtx.jdata.GetStringBytes("eventSource")
 	if val == nil {
-		pCtx.lastError = fmt.Errorf("Event did not contain a source")
+		pCtx.lastError = fmt.Errorf("event did not contain a source")
 		line = "<invalid JSON: no source>"
 		return C.CString(line)
 	}
@@ -1315,7 +1314,7 @@ func plugin_event_to_string(plgState unsafe.Pointer, data *C.char, datalen uint3
 
 	val = pCtx.jdata.GetStringBytes("awsRegion")
 	if val == nil {
-		pCtx.lastError = fmt.Errorf("Event did not contain an awsRegion")
+		pCtx.lastError = fmt.Errorf("event did not contain an awsRegion")
 		line = "<invalid JSON: no awsRegion>"
 		return C.CString(line)
 	}
@@ -1324,7 +1323,7 @@ func plugin_event_to_string(plgState unsafe.Pointer, data *C.char, datalen uint3
 
 	val = pCtx.jdata.GetStringBytes("eventName")
 	if val == nil {
-		pCtx.lastError = fmt.Errorf("Event did not contain an eventName")
+		pCtx.lastError = fmt.Errorf("event did not contain an eventName")
 		line = "<invalid JSON: no eventName>"
 		return C.CString(line)
 	}
