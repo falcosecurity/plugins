@@ -24,6 +24,8 @@ import "C"
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"strconv"
@@ -31,9 +33,9 @@ import (
 	"unsafe"
 
 	sdk "github.com/falcosecurity/plugin-sdk-go"
+	_ "github.com/falcosecurity/plugin-sdk-go/free"
 	"github.com/falcosecurity/plugin-sdk-go/state"
 	"github.com/falcosecurity/plugin-sdk-go/wrappers"
-	_ "github.com/falcosecurity/plugin-sdk-go/free"
 )
 
 // Plugin consts
@@ -68,6 +70,9 @@ type pluginState struct {
 }
 
 type instanceState struct {
+
+	// Slab for plugin events data
+	events sdk.PluginEvents
 
 	// Copy of the init params from plugin_open()
 	initParams string
@@ -243,7 +248,15 @@ func plugin_open(pState unsafe.Pointer, params *C.char, rc *int32) unsafe.Pointe
 		return nil
 	}
 
+	events, err := sdk.NewPluginEvents(sdk.MaxNextBatchEvents, int64(sdk.MaxEvtSize))
+	if err != nil {
+		ps.lastError = err
+		*rc = sdk.SSPluginFailure
+		return nil
+	}
+
 	is := &instanceState{
+		events:     events,
 		initParams: prms,
 		maxEvents:  obj["maxEvents"],
 		counter:    0,
@@ -265,46 +278,51 @@ func plugin_close(pState unsafe.Pointer, iState unsafe.Pointer) {
 }
 
 // This higher-level function will be called by both plugin_next and plugin_next_batch
-func Next(pState unsafe.Pointer, iState unsafe.Pointer) (*sdk.PluginEvent, int32) {
+func Next(ps *pluginState, is *instanceState, currEvt sdk.PluginEvent) int32 {
 	log.Printf("[%s] Next\n", PluginName)
-
-	ps := (*pluginState)(state.Context(pState))
-	is := (*instanceState)(state.Context(iState))
 
 	is.counter++
 
 	// Return eof if reached maxEvents
 	if is.counter >= is.maxEvents {
-		return nil, sdk.SSPluginEOF
+		return sdk.SSPluginEOF
 	}
 
 	// Increment sample by 1, also add a jitter of [0:jitter]
 	is.sample += 1 + uint64(ps.rand.Int63n(int64(ps.jitter+1)))
 
 	// The representation of a dummy event is the sample as a string.
-	str := strconv.Itoa(int(is.sample))
+	sample := strconv.Itoa(int(is.sample))
+
+	// The writter allows us to write inside the current event's data
+	// Note that creating a new Writer erases the previously stored data
+	writer := currEvt.Writer()
+	if _, err := writer.Write([]byte(sample)); err != nil {
+		ps.lastError = err
+		return sdk.SSPluginFailure
+	}
 
 	// It is not mandatory to set the Timestamp of the event (it
 	// would be filled in by the framework if set to uint_max),
 	// but it's a good practice.
-	//
+	currEvt.SetTimestamp(uint64(time.Now().Unix()) * 1000000000)
+
 	// Also note that the Evtnum is not set, as event numbers are
 	// assigned by the plugin framework.
-	evt := &sdk.PluginEvent{
-		Data:      []byte(str),
-		Timestamp: uint64(time.Now().Unix()) * 1000000000,
-	}
 
-	return evt, sdk.SSPluginSuccess
+	return sdk.SSPluginSuccess
 }
 
 //export plugin_next
 func plugin_next(pState unsafe.Pointer, iState unsafe.Pointer, retEvt **C.ss_plugin_event) int32 {
 	log.Printf("[%s] plugin_next\n", PluginName)
 
-	evt, res := Next(pState, iState)
+	is := (*instanceState)(state.Context(iState))
+	ps := (*pluginState)(state.Context(pState))
+	res := Next(ps, is, is.events.Get(0))
+
 	if res == sdk.SSPluginSuccess {
-		*retEvt = (*C.ss_plugin_event)(wrappers.Events([]*sdk.PluginEvent{evt}))
+		*retEvt = (*C.ss_plugin_event)(is.events.ArrayPtr())
 	}
 
 	return res
@@ -314,15 +332,25 @@ func plugin_next(pState unsafe.Pointer, iState unsafe.Pointer, retEvt **C.ss_plu
 // details of assembling multiple events.
 
 //export plugin_next_batch
-func plugin_next_batch(pState unsafe.Pointer, iState unsafe.Pointer, nevts *uint32, retEvts **C.ss_plugin_event) int32 {
-	evts, res := wrappers.NextBatch(pState, iState, Next)
+func plugin_next_batch(pState unsafe.Pointer, iState unsafe.Pointer, nevts *uint32, retEvts **C.ss_plugin_event) (res int32) {
+	log.Printf("[%s] plugin_next_batch\n", PluginName)
 
-	if res == sdk.SSPluginSuccess {
-		*retEvts = (*C.ss_plugin_event)(wrappers.Events(evts))
-		*nevts = (uint32)(len(evts))
+	is := (*instanceState)(state.Context(iState))
+	ps := (*pluginState)(state.Context(pState))
+
+	i := 0
+	for i < is.events.Len() {
+		res = Next(ps, is, is.events.Get(i))
+		if res != sdk.SSPluginSuccess {
+			break
+		}
+		i++
 	}
 
-	log.Printf("[%s] plugin_next_batch\n", PluginName)
+	if res == sdk.SSPluginSuccess {
+		*retEvts = (*C.ss_plugin_event)(is.events.ArrayPtr())
+		*nevts = uint32(i)
+	}
 
 	return res
 }
@@ -345,26 +373,36 @@ func plugin_event_to_string(pState unsafe.Pointer, data *C.uint8_t, datalen uint
 // of extract_str/extract_u64. A utility function will take these
 // functions as arguments and handle the work of conversion/iterating
 // over fields.
-func extract_str(pState unsafe.Pointer, evtnum uint64, data []byte, ts uint64, field string, arg string) (bool, string) {
+func extract_str(pState unsafe.Pointer, evtnum uint64, data io.ReadSeeker, ts uint64, field string, arg string) (bool, string) {
 	log.Printf("[%s] extract_str\n", PluginName)
 
 	ps := (*pluginState)(state.Context(pState))
 
 	switch field {
 	case "dummy.strvalue":
-		return true, string(data)
+		if b, err := ioutil.ReadAll(data); err == nil {
+			return true, string(b)
+		} else {
+			ps.lastError = err
+			return false, ""
+		}
 	default:
 		ps.lastError = fmt.Errorf("No known field %s", field)
 		return false, ""
 	}
 }
 
-func extract_u64(pState unsafe.Pointer, evtnum uint64, data []byte, ts uint64, field string, arg string) (bool, uint64) {
+func extract_u64(pState unsafe.Pointer, evtnum uint64, data io.ReadSeeker, ts uint64, field string, arg string) (bool, uint64) {
 	log.Printf("[%s] extract_str\n", PluginName)
 
 	ps := (*pluginState)(state.Context(pState))
+	b, err := ioutil.ReadAll(data)
+	if err != nil {
+		ps.lastError = err
+		return false, 0
+	}
 
-	val, err := strconv.Atoi(string(data))
+	val, err := strconv.Atoi(string(b))
 	if err != nil {
 		return false, 0
 	}
