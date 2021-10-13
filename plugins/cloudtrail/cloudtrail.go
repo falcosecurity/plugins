@@ -35,6 +35,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"math"
@@ -45,35 +46,34 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/sqs"
-	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
-	"github.com/falcosecurity/plugin-sdk-go"
+	sdk "github.com/falcosecurity/plugin-sdk-go"
+	_ "github.com/falcosecurity/plugin-sdk-go/free"
 	"github.com/falcosecurity/plugin-sdk-go/state"
 	"github.com/falcosecurity/plugin-sdk-go/wrappers"
-	_ "github.com/falcosecurity/plugin-sdk-go/free"
 	"github.com/valyala/fastjson"
 )
 
 // Plugin info
 const (
-	PluginRequiredApiVersion = "0.1.0"
-	PluginID          uint32 = 2
-	PluginName               = "cloudtrail"
-	PluginFilterName         = "ct"
-	PluginDescription        = "reads cloudtrail JSON data saved to file in the directory specified in the settings"
-	PluginContact            = "github.com/falcosecurity/plugins/"
-	PluginVersion            = "0.1.0"
-	PluginEventSource        = "aws_cloudtrail"
+	PluginRequiredApiVersion        = "0.1.0"
+	PluginID                 uint32 = 2
+	PluginName                      = "cloudtrail"
+	PluginFilterName                = "ct"
+	PluginDescription               = "reads cloudtrail JSON data saved to file in the directory specified in the settings"
+	PluginContact                   = "github.com/falcosecurity/plugins/"
+	PluginVersion                   = "0.1.0"
+	PluginEventSource               = "aws_cloudtrail"
 )
 
 const defaultS3DownloadConcurrency = 1
 const verbose bool = true
-const outBufSize uint32 = 65535
 
 func min(a, b int) int {
 	if a < b {
@@ -111,26 +111,26 @@ type snsMessage struct {
 
 // This is the global plugin state, identifying an instance of this plugin
 type pluginContext struct {
-	jparser     fastjson.Parser
-	jdata       *fastjson.Value
-	jdataEvtnum uint64 // The event number jdata refers to. Used to know when we can skip the unmarshaling.
-	lastError   error
-	sqsDelete   bool   // If true, will delete SQS Messages immediately after receiving them
+	jparser               fastjson.Parser
+	jdata                 *fastjson.Value
+	jdataEvtnum           uint64 // The event number jdata refers to. Used to know when we can skip the unmarshaling.
+	lastError             error
+	sqsDelete             bool // If true, will delete SQS Messages immediately after receiving them
 	s3DownloadConcurrency int
 	useAsync              bool
 }
 
 // Struct for plugin init config
 type pluginInitConfig struct {
-	S3DownloadConcurrency     int        `json:"s3DownloadConcurrency"`
-	SQSDelete                 bool       `json:"sqsDelete"`
-	UseAsync                  bool       `json:"useAsync"`
+	S3DownloadConcurrency int  `json:"s3DownloadConcurrency"`
+	SQSDelete             bool `json:"sqsDelete"`
+	UseAsync              bool `json:"useAsync"`
 }
 
 type OpenMode int
 
 const (
-	fileMode    OpenMode = iota
+	fileMode OpenMode = iota
 	s3Mode
 	sqsMode
 )
@@ -138,6 +138,7 @@ const (
 // This is the open state, identifying an open instance reading cloudtrail files from
 // a local directory or from a remote S3 bucket (either direct or via a SQS queue)
 type openContext struct {
+	events             sdk.PluginEvents
 	openMode           OpenMode
 	cloudTrailFilesDir string
 	files              []fileInfo
@@ -453,7 +454,7 @@ func getMoreSQSFiles(pCtx *pluginContext, oCtx *openContext) error {
 		return err
 	}
 
-	if (len(msgResult.Messages) == 0) {
+	if len(msgResult.Messages) == 0 {
 		return nil
 	}
 
@@ -559,14 +560,24 @@ func openSQS(pCtx *pluginContext, oCtx *openContext, params *C.char, rc *int32) 
 func plugin_open(plgState unsafe.Pointer, params *C.char, rc *int32) unsafe.Pointer {
 	pCtx := (*pluginContext)(state.Context(plgState))
 
+	// Allocate events slab
+	events, err := sdk.NewPluginEvents(sdk.MaxNextBatchEvents, int64(sdk.MaxEvtSize))
+	if err != nil {
+		pCtx.lastError = err
+		*rc = sdk.SSPluginFailure
+		return nil
+	}
+
 	// Allocate the context struct for this open instance
-	oCtx := &openContext{}
+	oCtx := &openContext{
+		events: events,
+	}
 
 	// Perform the open
 	input := C.GoString(params)
 	if len(input) >= 5 && input[:5] == "s3://" {
 		openS3(pCtx, oCtx, params, rc)
-	} else if (len(input) >= 6 && input[:6] == "sqs://") {
+	} else if len(input) >= 6 && input[:6] == "sqs://" {
 		openSQS(pCtx, oCtx, params, rc)
 	} else {
 		openLocal(pCtx, oCtx, params, rc)
@@ -672,14 +683,9 @@ func extractRecordStrings(jsonStr []byte, res *[][]byte) {
 }
 
 // Next is the core event production function. It is called by both plugin_next() and plugin_next_batch()
-func Next(plgState unsafe.Pointer, openState unsafe.Pointer) (*sdk.PluginEvent, int32) {
+func Next(pCtx *pluginContext, oCtx *openContext, currEvt sdk.PluginEvent) int32 {
 	var tmpStr []byte
 	var err error
-
-	pCtx := (*pluginContext)(state.Context(plgState))
-	oCtx := (*openContext)(state.Context(openState))
-
-	ret := sdk.PluginEvent{}
 
 	// Only open the next file once we're sure that the content of the previous one has been full consumed
 	if oCtx.evtJSONListPos == len(oCtx.evtJSONStrings) {
@@ -691,23 +697,23 @@ func Next(plgState unsafe.Pointer, openState unsafe.Pointer) (*sdk.PluginEvent, 
 			if oCtx.openMode == sqsMode {
 				err = getMoreSQSFiles(pCtx, oCtx)
 				if err != nil {
-					return nil, sdk.SSPluginFailure
+					return sdk.SSPluginFailure
 				}
 
 				// If after trying, there are no
 				// additional files, return timeout.
 				if oCtx.curFileNum >= uint32(len(oCtx.files)) {
-					return nil, sdk.SSPluginTimeout
+					return sdk.SSPluginTimeout
 				}
 			} else {
-				return nil, sdk.SSPluginEOF
+				return sdk.SSPluginEOF
 			}
 		}
 
 		file := oCtx.files[oCtx.curFileNum]
 		oCtx.curFileNum++
 
-		switch (oCtx.openMode) {
+		switch oCtx.openMode {
 		case s3Mode, sqsMode:
 			tmpStr, err = readNextFileS3(pCtx, oCtx)
 		case fileMode:
@@ -715,7 +721,7 @@ func Next(plgState unsafe.Pointer, openState unsafe.Pointer) (*sdk.PluginEvent, 
 		}
 		if err != nil {
 			pCtx.lastError = err
-			return nil, sdk.SSPluginFailure
+			return sdk.SSPluginFailure
 		}
 
 		// The file can be gzipped. If it is, we unzip it.
@@ -724,7 +730,7 @@ func Next(plgState unsafe.Pointer, openState unsafe.Pointer) (*sdk.PluginEvent, 
 			defer gr.Close()
 			zdata, err := ioutil.ReadAll(gr)
 			if err != nil {
-				return nil, sdk.SSPluginTimeout
+				return sdk.SSPluginTimeout
 			}
 			tmpStr = zdata
 		}
@@ -748,19 +754,32 @@ func Next(plgState unsafe.Pointer, openState unsafe.Pointer) (*sdk.PluginEvent, 
 	// Extract the next record
 	var cr *fastjson.Value
 	if len(oCtx.evtJSONStrings) != 0 {
-		ret.Data = oCtx.evtJSONStrings[oCtx.evtJSONListPos]
-		cr, err = oCtx.nextJParser.Parse(string(ret.Data))
+		data := oCtx.evtJSONStrings[oCtx.evtJSONListPos]
+		cr, err = oCtx.nextJParser.ParseBytes(data)
 		if err != nil {
 			// Not json? Just skip this event.
 			oCtx.evtJSONListPos++
-			return nil, sdk.SSPluginTimeout
+			return sdk.SSPluginTimeout
 		}
 
 		oCtx.evtJSONListPos++
+
+		// Make sure the event is not too big for the engine
+		if len(data) > int(sdk.MaxEvtSize) {
+			pCtx.lastError = fmt.Errorf("cloudwatch message too long: %d, max %d supported", len(data), sdk.MaxEvtSize)
+			return sdk.SSPluginFailure
+		}
+
+		// Write to the event buffer
+		_, err = currEvt.Writer().Write(data)
+		if err != nil {
+			pCtx.lastError = err
+			return sdk.SSPluginFailure
+		}
 	} else {
 		// Json not int the expected format. Just skip this event.
 		oCtx.evtJSONListPos++
-		return nil, sdk.SSPluginTimeout
+		return sdk.SSPluginTimeout
 	}
 
 	// All cloudtrail events should have a time. If it's missing
@@ -769,7 +788,7 @@ func Next(plgState unsafe.Pointer, openState unsafe.Pointer) (*sdk.PluginEvent, 
 	timeVal := cr.GetStringBytes("eventTime")
 
 	if timeVal == nil {
-		return nil, sdk.SSPluginTimeout
+		return sdk.SSPluginTimeout
 	}
 
 	// Extract the timestamp
@@ -780,9 +799,9 @@ func Next(plgState unsafe.Pointer, openState unsafe.Pointer) (*sdk.PluginEvent, 
 		//
 		// We assume this is just some spurious data and we continue
 		//
-		return nil, sdk.SSPluginTimeout
+		return sdk.SSPluginTimeout
 	}
-	ret.Timestamp = uint64(t1.Unix()) * 1000000000
+	currEvt.SetTimestamp(uint64(t1.Unix()) * 1000000000) // fixme: t1.UnixNano() ?
 
 	// All cloudtrail events should have a type. If it's missing
 	// skip the event.
@@ -790,28 +809,25 @@ func Next(plgState unsafe.Pointer, openState unsafe.Pointer) (*sdk.PluginEvent, 
 	typeVal := cr.GetStringBytes("eventType")
 
 	if typeVal == nil {
-		return nil, sdk.SSPluginTimeout
+		return sdk.SSPluginTimeout
 	}
 
 	ets := string(typeVal)
 	if ets == "AwsCloudTrailInsight" {
-		return nil, sdk.SSPluginTimeout
+		return sdk.SSPluginTimeout
 	}
 
-	// Make sure the event is not too big for the engine
-	if len(ret.Data) > int(sdk.MaxEvtSize) {
-		pCtx.lastError = fmt.Errorf("cloudwatch message too long: %d, max %d supported", len(ret.Data), sdk.MaxEvtSize)
-		return nil, sdk.SSPluginFailure
-	}
-
-	return &ret, sdk.SSPluginSuccess
+	return sdk.SSPluginSuccess
 }
 
 //export plugin_next
 func plugin_next(plgState unsafe.Pointer, openState unsafe.Pointer, retEvt **C.ss_plugin_event) int32 {
-	evt, res := Next(plgState, openState)
+	pCtx := (*pluginContext)(state.Context(plgState))
+	oCtx := (*openContext)(state.Context(openState))
+	res := Next(pCtx, oCtx, oCtx.events.Get(0))
+
 	if res == sdk.SSPluginSuccess {
-		*retEvt = (*C.ss_plugin_event)(wrappers.Events([]*sdk.PluginEvent{evt}))
+		*retEvt = (*C.ss_plugin_event)(oCtx.events.ArrayPtr())
 	}
 
 	log.Printf("[%s] plugin_next\n", PluginName)
@@ -1337,24 +1353,28 @@ func plugin_event_to_string(plgState unsafe.Pointer, data *C.char, datalen uint3
 		info,
 	)
 
-
 	return C.CString(line)
 }
 
-func extract_str(pluginState unsafe.Pointer, evtnum uint64, data []byte, ts uint64, field string, arg string) (bool, string) {
-	var err error
+func extract_str(pluginState unsafe.Pointer, evtnum uint64, data io.ReadSeeker, ts uint64, field string, arg string) (bool, string) {
+
 	pCtx := (*pluginContext)(state.Context(pluginState))
 
 	// Decode the json, but only if we haven't done it yet for this event
 	if evtnum != pCtx.jdataEvtnum {
+		var b []byte
+		var err error
+
+		b, err = ioutil.ReadAll(data)
+		if err != nil {
+			// Cannot read data, so not present.
+			return false, ""
+		}
 
 		// Maybe temp--remove trailing null bytes from string
-		data = bytes.Trim(data, "\x00")
+		b = bytes.Trim(b, "\x00")
 
-		// For this plugin, events are always strings
-		evtStr := string(data)
-
-		pCtx.jdata, err = pCtx.jparser.Parse(evtStr)
+		pCtx.jdata, err = pCtx.jparser.ParseBytes(b)
 		if err != nil {
 			// Not a json file, so not present.
 			return false, ""
@@ -1365,17 +1385,21 @@ func extract_str(pluginState unsafe.Pointer, evtnum uint64, data []byte, ts uint
 	return getfieldStr(pCtx.jdata, field)
 }
 
-func extract_u64(pluginState unsafe.Pointer, evtnum uint64, data []byte, ts uint64, field string, arg string) (bool, uint64) {
-	var err error
+func extract_u64(pluginState unsafe.Pointer, evtnum uint64, data io.ReadSeeker, ts uint64, field string, arg string) (bool, uint64) {
 	pCtx := (*pluginContext)(state.Context(pluginState))
 
 	// Decode the json, but only if we haven't done it yet for this event
 	if evtnum != pCtx.jdataEvtnum {
+		var b []byte
+		var err error
 
-		// For this plugin, events are always strings
-		evtStr := string(data)
+		b, err = ioutil.ReadAll(data)
+		if err != nil {
+			// Cannot read data, so not present.
+			return false, 0
+		}
 
-		pCtx.jdata, err = pCtx.jparser.Parse(evtStr)
+		pCtx.jdata, err = pCtx.jparser.ParseBytes(b)
 		if err != nil {
 			// Not a json file, so not present.
 			return false, 0
@@ -1387,17 +1411,27 @@ func extract_u64(pluginState unsafe.Pointer, evtnum uint64, data []byte, ts uint
 }
 
 //export plugin_next_batch
-func plugin_next_batch(plgState unsafe.Pointer, openState unsafe.Pointer, nevts *uint32, retEvts **C.ss_plugin_event) int32 {
-	evts, res := wrappers.NextBatch(plgState, openState, Next)
+func plugin_next_batch(plgState unsafe.Pointer, openState unsafe.Pointer, nevts *uint32, retEvts **C.ss_plugin_event) (res int32) {
+
+	pCtx := (*pluginContext)(state.Context(plgState))
+	oCtx := (*openContext)(state.Context(openState))
+
+	i := 0
+	for i < oCtx.events.Len() {
+		res = Next(pCtx, oCtx, oCtx.events.Get(i))
+		if res != sdk.SSPluginSuccess {
+			break
+		}
+		i++
+	}
 
 	if res == sdk.SSPluginSuccess {
-		*retEvts = (*C.ss_plugin_event)(wrappers.Events(evts))
-		*nevts = (uint32)(len(evts))
+		*retEvts = (*C.ss_plugin_event)(oCtx.events.ArrayPtr())
+		*nevts = uint32(i)
 	}
 
 	log.Printf("[%s] plugin_next_batch\n", PluginName)
-
-	return res
+	return
 }
 
 func main() {
