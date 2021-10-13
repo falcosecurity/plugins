@@ -71,6 +71,9 @@ typedef struct instance_state
 	// A semi-random numeric value, derived from this value and
 	// jitter. This is put in every event as the data property.
 	uint64_t sample;
+
+	// The event will be allocated once and reused for each next iteration.
+	ss_plugin_event *event;
 } instance_state;
 
 extern "C"
@@ -245,6 +248,8 @@ ss_instance_t* plugin_open(ss_plugin_t* s, char* params, int32_t* rc)
 	ret->counter = 0;
 	ret->max_events = *max_events_it;
 	ret->sample = *start_it;
+	ret->event = (struct ss_plugin_event *)malloc(sizeof(ss_plugin_event));
+	ret->event->data = (uint8_t *)malloc(sizeof(uint8_t) * 1024);
 
 	*rc = SS_PLUGIN_SUCCESS;
 
@@ -258,7 +263,9 @@ void plugin_close(ss_plugin_t* s, ss_instance_t* i)
 
 	instance_state *istate = (instance_state *) i;
 
-	delete(istate);
+	free(istate->event->data);
+	free(istate->event);
+	delete (istate);
 }
 
 extern "C"
@@ -282,17 +289,14 @@ int32_t plugin_next(ss_plugin_t* s, ss_instance_t* i, ss_plugin_event **evt)
 	// The event payload is simply the sample, as a string
 	std::string payload = std::to_string(istate->sample);
 
-	struct ss_plugin_event *ret = (struct ss_plugin_event *) malloc(sizeof(ss_plugin_event));
-
+	*evt = istate->event;
 	// Note that evtnum is not set, as event numbers are
 	// assigned by the plugin framework.
-	ret->data = (uint8_t *) strdup(payload.c_str());
-	ret->datalen = payload.size();
+	memcpy((*evt)->data, payload.c_str(), payload.size());
+	(*evt)->datalen = payload.size();
 
 	// Let the plugin framework assign timestamps
-	ret->ts = (uint64_t) -1;
-
-	*evt = ret;
+	(*evt)->ts = (uint64_t)-1;
 
 	return SS_PLUGIN_SUCCESS;
 }
