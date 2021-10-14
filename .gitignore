@@ -1,6 +1,7 @@
 *~
+.DS_Store
+output/
 plugins/*/*.so
 plugins/*/lib*.h
 plugins/dummy_c/nlohmann
 plugin_info.h
-

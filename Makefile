@@ -17,35 +17,48 @@ CURL = curl
 
 FALCOSECURITY_LIBS_REVISION=new/plugin-system-api-additions
 
-PLUGINS_VERSION=$(shell git describe --always --tags)
-KERNEL=$(shell uname -s | tr A-Z a-z)
-ARCH=$(shell uname -m)
-PACKAGE_DIR=falcosecurity-plugins-${PLUGINS_VERSION}-${KERNEL}-${ARCH}
+OUTPUT_DIR := output
+SOURCE_DIR := plugins
+PLUGINS_VERSION ?= $(shell git describe --always --tags)
+ARCH ?=$(shell uname -m)
 
-plugins = $(shell ls -d plugins/*/ | cut -f2 -d'/' | xargs)
-pluginsclean = $(addsuffix clean,$(plugins))
+plugins = $(shell ls -d ${SOURCE_DIR}/*/ | cut -f2 -d'/' | xargs)
+plugins-clean = $(addprefix clean/,$(plugins))
+plugins-packages = $(addprefix package/,$(plugins))
 
+.PHONY: all
 all: plugin_info.h $(plugins)
 
-clean: rm-plugin_info.h $(pluginsclean) package-clean
-
-package: all
-	rm -rf ${PACKAGE_DIR}
-	mkdir -p ${PACKAGE_DIR}/cloudtrail
-	mkdir -p ${PACKAGE_DIR}/json
-	cp plugins/cloudtrail/{libcloudtrail.so,README.md} ${PACKAGE_DIR}/cloudtrail/
-	cp plugins/json/{libjson.so,README.md} ${PACKAGE_DIR}/json/
-	tar -zcvf ${PACKAGE_DIR}.tar.gz	${PACKAGE_DIR}
-	rm -rf ${PACKAGE_DIR}
-
-plugin_info.h:
-	$(CURL) -Lso $@ https://raw.githubusercontent.com/falcosecurity/libs/${FALCOSECURITY_LIBS_REVISION}/userspace/libscap/plugin_info.h
-
-rm-plugin_info.h:
-	rm -f plugin_info.h
-
+.PHONY: $(plugins)
 $(plugins):
 	cd plugins/$@ && make
 
-%clean:
-	cd plugins/$* && make clean
+.PHONY: clean
+clean: clean/plugin_info.h $(plugins-clean) clean/packages
+
+.PHONY: clean/plugin_info.h
+clean/plugin_info.h:
+	rm -f plugin_info.h
+
+.PHONY: clean/packages
+clean/packages:
+	rm -rf ${OUTPUT_DIR}
+
+.PHONY: $(plugins-clean)
+$(plugins-clean):
+	cd plugins/$(shell basename $@) && make clean
+
+.PHONY: packages
+packages: clean/packages $(plugins-clean) $(plugins-packages)
+
+.PHONY: $(plugins-packages)
+$(plugins-packages): all
+	$(eval PLUGIN_NAME := $(shell basename $@))
+	mkdir -p $(OUTPUT_DIR)/$(PLUGIN_NAME)
+	cp -r plugins/$(PLUGIN_NAME)/*.so $(OUTPUT_DIR)/$(PLUGIN_NAME)/
+	cp -r plugins/$(PLUGIN_NAME)/README.md $(OUTPUT_DIR)/$(PLUGIN_NAME)/
+	tar -zcvf $(OUTPUT_DIR)/$(PLUGIN_NAME)-${PLUGINS_VERSION}-${ARCH}.tar.gz -C ${OUTPUT_DIR}/$(PLUGIN_NAME) .
+
+.PHONY: plugin_info.h
+plugin_info.h:
+	$(CURL) -Lso $@ https://raw.githubusercontent.com/falcosecurity/libs/${FALCOSECURITY_LIBS_REVISION}/userspace/libscap/plugin_info.h
