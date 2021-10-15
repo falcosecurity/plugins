@@ -36,6 +36,7 @@ import (
 	"github.com/falcosecurity/plugin-sdk-go"
 	"github.com/falcosecurity/plugin-sdk-go/state"
 	"github.com/falcosecurity/plugin-sdk-go/wrappers"
+	_ "github.com/falcosecurity/plugin-sdk-go/free"
 	"github.com/valyala/fastjson"
 )
 
@@ -83,6 +84,8 @@ func plugin_init(config *C.char, rc *int32) unsafe.Pointer {
 	// Allocate the context struct and set it to the state
 	pCtx := &pluginContext{}
 	state.SetContext(pluginState, unsafe.Pointer(pCtx))
+
+	wrappers.RegisterExtractors(extract_str, extract_u64)
 
 	*rc = sdk.SSPluginSuccess
 	return pluginState
@@ -200,20 +203,6 @@ func extract_str(pluginState unsafe.Pointer, evtnum uint64, data []byte, ts uint
 func extract_u64(pluginState unsafe.Pointer, evtnum uint64, data []byte, ts uint64, field string, arg string) (bool, uint64) {
 	// No numeric fields for this plugin
 	return false, 0
-}
-
-//export plugin_extract_fields
-func plugin_extract_fields(plgState unsafe.Pointer, evt *C.struct_ss_plugin_event, numFields uint32, fields *C.struct_ss_plugin_extract_field) int32 {
-	return wrappers.WrapExtractFuncs(plgState, unsafe.Pointer(evt), numFields, unsafe.Pointer(fields), extract_str, extract_u64)
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// The following code is part of the plugin interface. Do not remove it.
-///////////////////////////////////////////////////////////////////////////////
-
-//export plugin_register_async_extractor
-func plugin_register_async_extractor(pluginState unsafe.Pointer, asyncExtractorInfo unsafe.Pointer) int32 {
-	return wrappers.RegisterAsyncExtractors(pluginState, asyncExtractorInfo, extract_str, nil)
 }
 
 func main() {
