@@ -15,7 +15,7 @@ SHELL := /bin/bash
 GO ?= $(shell which go)
 CURL = curl
 
-FALCOSECURITY_LIBS_REVISION=add-plugins-support
+FALCOSECURITY_LIBS_REVISION=master
 
 OUTPUT_DIR := output
 SOURCE_DIR := plugins
