@@ -168,23 +168,29 @@ func plugin_init(config *C.char, rc *int32) unsafe.Pointer {
 	cfg := C.GoString(config)
 	log.Printf("[%s] plugin_init config=%s\n", PluginName, cfg)
 
+	var jitter uint64 = 10
+
 	// The format of cfg is a json object with a single param
 	// "jitter", e.g. {"jitter": 10}
-	var obj map[string]uint64
-	err := json.Unmarshal([]byte(cfg), &obj)
-	if err != nil {
-		*rc = sdk.SSPluginFailure
-		return nil
-	}
-	if _, ok := obj["jitter"]; !ok {
-		*rc = sdk.SSPluginFailure
-		return nil
+	//
+	// Empty configs are allowed, in which case the default is
+	// used.
+	if cfg != "" && cfg != "{}" {
+		var obj map[string]uint64
+		err := json.Unmarshal([]byte(cfg), &obj)
+		if err != nil {
+			*rc = sdk.SSPluginFailure
+			return nil
+		}
+		if _, ok := obj["jitter"]; ok {
+			jitter = obj["jitter"]
+		}
 	}
 
 	ps := &pluginState{
 		config:    cfg,
 		lastError: nil,
-		jitter:    obj["jitter"],
+		jitter:    jitter,
 		rand:      rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
 
