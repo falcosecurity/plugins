@@ -165,20 +165,27 @@ ss_plugin_t* plugin_init(char* config, int32_t* rc)
 	printf("[%s] plugin_init config=%s\n", pl_name, config);
 
 	json obj;
+	uint64_t jitter;
 
-	try {
-		obj = json::parse(config);
-	}
-	catch (std::exception &e)
+	if(config[0] != '\0' && strncmp(config, "{}", 2) != 0)
 	{
-		return NULL;
-	}
 
-	auto it = obj.find("jitter");
+		try {
+			obj = json::parse(config);
+		}
+		catch (std::exception &e)
+		{
+			return NULL;
+		}
 
-	if(it == obj.end())
-	{
-		return NULL;
+		auto it = obj.find("jitter");
+
+		if(it == obj.end())
+		{
+			return NULL;
+		}
+
+		jitter = *it;
 	}
 
 	// Note: Using new/delete is okay, as long as the plugin
@@ -186,7 +193,7 @@ ss_plugin_t* plugin_init(char* config, int32_t* rc)
 	plugin_state *ret = new plugin_state();
 	ret->config = config;
 	ret->last_error = "";
-	ret->jitter = *it;
+	ret->jitter = jitter;
 
 	*rc = SS_PLUGIN_SUCCESS;
 
