@@ -12,6 +12,7 @@
 #
 
 PLUGIN_INFO_H_DIR= ../../
+FALCOSECURITY_PLUGIN_H_DIR=../../sdk/cpp
 CURL = curl
 
 all: nlohmann/json.hpp libdummy_c.so
@@ -23,4 +24,4 @@ nlohmann/json.hpp:
 	rm -rf nlohmann && mkdir nlohmann && $(CURL) -sLo nlohmann/json.hpp https://github.com/nlohmann/json/releases/download/v3.10.2/json.hpp
 
 libdummy_c.so: dummy.cpp
-	g++ -std=c++0x -fPIC -I$(PLUGIN_INFO_H_DIR) -shared -o libdummy_c.so dummy.cpp
+	g++ -std=c++0x -fPIC -I$(FALCOSECURITY_PLUGIN_H_DIR) -I$(PLUGIN_INFO_H_DIR) -shared -o libdummy_c.so dummy.cpp
