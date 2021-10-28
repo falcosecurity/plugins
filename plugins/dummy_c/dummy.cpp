@@ -15,7 +15,9 @@ limitations under the License.
 */
 
 /* Reference "dummy" plugin, similar to the dummy plugin, but written
- * in C */
+ * in C++. It uses the C++ sdk ../../sdk/cpp/falcosecurity_plugin.h
+ * and implements classes that derive from
+ * falcosecurity::source_plugin and falcosecurity::plugin_instance. */
 
 #include <string>
 #include <stdio.h>
@@ -23,347 +25,279 @@ limitations under the License.
 
 #include "nlohmann/json.hpp"
 
-#include <plugin_info.h>
+#include <falcosecurity_plugin.h>
 
 using json = nlohmann::json;
 
-static const char *pl_required_api_version = "0.1.0";
-static uint32_t    pl_type                 = TYPE_SOURCE_PLUGIN;
-static uint32_t    pl_id                   = 4;
-static const char *pl_name                 = "dummy_c";
-static const char *pl_desc                 = "Reference plugin for educational purposes";
-static const char *pl_contact              = "github.com/falcosecurity/plugins";
-static const char *pl_version              = "0.1.0";
-static const char *pl_event_source         = "dummy";
-static const char *pl_fields               = R"(
-[{"type": "uint64", "name": "dummy.divisible", "argRequired": true, "desc": "Return 1 if the value is divisible by the provided divisor, 0 otherwise"},
-{"type": "uint64", "name": "dummy.value", "desc": "The sample value in the event"},
-{"type": "string", "name": "dummy.strvalue", "desc": "The sample value in the event, as a string"}])";
+class dummy_plugin : public falcosecurity::source_plugin {
+public:
+	dummy_plugin();
+	virtual ~dummy_plugin();
 
-// This struct represents the state of a plugin. Just has a placeholder string value.
-typedef struct plugin_state
-{
-	// A copy of the config provided to plugin_init()
-	std::string config;
+	// All of these are from falcosecurity::source_plugin_iface.
+	void get_info(falcosecurity::plugin_info &info) override;
+	ss_plugin_rc init(const char *config) override;
+	void destroy() override;
+	falcosecurity::plugin_instance *create_instance(falcosecurity::source_plugin &plugin) override;
+	std::string event_to_string(const uint8_t *data, uint32_t datalen) override;
+	bool extract_str(const ss_plugin_event &evt, const std::string &field, const std::string &arg, std::string &extract_val) override;
+	bool extract_u64(const ss_plugin_event &evt, const std::string &field, const std::string &arg, uint64_t &extract_val) override;
 
-	// When a function results in an error, this is set and can be
-	// retrieved in plugin_get_last_error().
-	std::string last_error;
+	// Return the configured jitter.
+	uint64_t jitter();
+
+private:
+	// A copy of the config provided to init()
+	std::string m_config;
 
 	// This reflects potential internal state for the plugin. In
 	// this case, the plugin is configured with a jitter (e.g. a
-	// random amount to add to the sample with each call to Next()
-	uint64_t jitter;
+	// random amount to add to the sample with each call to next().
+	uint64_t m_jitter;
+};
 
-} plugin_state;
+class dummy_instance : public falcosecurity::plugin_instance {
+public:
+	dummy_instance(dummy_plugin &plugin);
+	virtual ~dummy_instance();
 
-typedef struct instance_state
-{
+	// All of these are from falcosecurity::plugin_instance_iface.
+	ss_plugin_rc open(const char *params) override;
+	void close() override;
+	ss_plugin_rc next(falcosecurity::plugin_event &evt) override;
+
+private:
+	// The plugin that created this instance
+	dummy_plugin &m_plugin;
+
+	// All of these reflect potential internal state for the
+	// instance.
+
 	// Copy of the init params from plugin_open()
-	std::string params;
+	std::string m_params;
 
 	// The number of events to return before EOF
-	uint64_t max_events;
+	uint64_t m_max_events;
 
-	// A count of events returned. Used to count against maxEvents.
-	uint64_t counter;
+	// A count of events returned. Used to count against m_max_events
+	uint64_t m_counter;
 
 	// A semi-random numeric value, derived from this value and
 	// jitter. This is put in every event as the data property.
-	uint64_t sample;
-} instance_state;
+	uint64_t m_sample;
+};
 
-extern "C"
-char* plugin_get_required_api_version()
+dummy_plugin::dummy_plugin()
+	: m_jitter(10)
 {
-	printf("[%s] plugin_get_required_api_version\n", pl_name);
-	return strdup(pl_required_api_version);
+};
+
+dummy_plugin::~dummy_plugin()
+{
+};
+
+
+void dummy_plugin::get_info(falcosecurity::plugin_info &info)
+{
+	info.name = "dummy_c";
+	info.description = "Reference plugin for educational purposes";
+	info.contact = "github.com/falcosecurity/plugins";
+	info.version = "0.1.0";
+	info.event_source = "dummy";
+	info.fields = {
+		{FTYPE_UINT64, "dummy.divisible", true, "Return 1 if the value is divisible by the provided divisor, 0 otherwise"},
+		{FTYPE_UINT64, "dummy.value", false, "The sample value in the event"},
+		{FTYPE_STRING, "dummy.strvalue", false, "The sample value in the event, as a string"}
+	};
 }
 
-extern "C"
-uint32_t plugin_get_type()
+ss_plugin_rc dummy_plugin::init(const char *config)
 {
-	printf("[%s] plugin_get_type\n", pl_name);
-	return pl_type;
-}
+	m_config = config;
 
-extern "C"
-uint32_t plugin_get_id()
-{
-	printf("[%s] plugin_get_id\n", pl_name);
-	return pl_id;
-}
-
-extern "C"
-char* plugin_get_name()
-{
-	printf("[%s] plugin_get_name\n", pl_name);
-	return strdup(pl_name);
-}
-
-extern "C"
-char* plugin_get_description()
-{
-	printf("[%s] plugin_get_description\n", pl_name);
-	return strdup(pl_desc);
-}
-
-extern "C"
-char* plugin_get_contact()
-{
-	printf("[%s] plugin_get_contact\n", pl_name);
-	return strdup(pl_contact);
-}
-
-extern "C"
-char* plugin_get_version()
-{
-	printf("[%s] plugin_get_version\n", pl_name);
-	return strdup(pl_version);
-}
-
-extern "C"
-char* plugin_get_event_source()
-{
-	printf("[%s] plugin_get_event_source\n", pl_name);
-	return strdup(pl_event_source);
-}
-
-extern "C"
-char* plugin_get_fields()
-{
-	printf("[%s] plugin_get_fields\n", pl_name);
-	return strdup(pl_fields);
-}
-
-extern "C"
-char* plugin_get_last_error(ss_plugin_t* s)
-{
-	printf("[%s] plugin_get_last_error\n", pl_name);
-
-	plugin_state *state = (plugin_state *) s;
-
-	if(!state->last_error.empty())
+	// Config is optional. In this case defaults are used.
+	if(m_config == "" || m_config == "{}")
 	{
-		char *ret = strdup(state->last_error.c_str());
-		state->last_error = "";
-		return ret;
+		return SS_PLUGIN_SUCCESS;
 	}
-
-	return NULL;
-}
-
-extern "C"
-void plugin_free_mem(void *ptr)
-{
-    free(ptr);
-}
-
-extern "C"
-ss_plugin_t* plugin_init(char* config, int32_t* rc)
-{
-	printf("[%s] plugin_init config=%s\n", pl_name, config);
-
-	json obj;
-	uint64_t jitter;
-
-	if(config[0] != '\0' && strncmp(config, "{}", 2) != 0)
-	{
-
-		try {
-			obj = json::parse(config);
-		}
-		catch (std::exception &e)
-		{
-			return NULL;
-		}
-
-		auto it = obj.find("jitter");
-
-		if(it == obj.end())
-		{
-			return NULL;
-		}
-
-		jitter = *it;
-	}
-
-	// Note: Using new/delete is okay, as long as the plugin
-	// framework is not deleting the memory.
-	plugin_state *ret = new plugin_state();
-	ret->config = config;
-	ret->last_error = "";
-	ret->jitter = jitter;
-
-	*rc = SS_PLUGIN_SUCCESS;
-
-	return ret;
-}
-
-extern "C"
-void plugin_destroy(ss_plugin_t* s)
-{
-	printf("[%s] plugin_destroy\n", pl_name);
-
-	plugin_state *ps = (plugin_state *) s;
-
-	delete(ps);
-}
-
-extern "C"
-ss_instance_t* plugin_open(ss_plugin_t* s, char* params, int32_t* rc)
-{
-	printf("[%s] plugin_open params=%s\n", pl_name, params);
-
-	plugin_state *ps = (plugin_state *) s;
 
 	json obj;
 
 	try {
-		obj = json::parse(params);
+		obj = json::parse(m_config);
 	}
 	catch (std::exception &e)
 	{
-		ps->last_error = std::string("Params ") + params + " could not be parsed: " + e.what();
-		*rc = SS_PLUGIN_FAILURE;
-		return NULL;
+		// No need to call set_last_error() here as the plugin
+		// struct doesn't exist to the framework yet.
+		return SS_PLUGIN_FAILURE;
 	}
 
-	auto start_it = obj.find("start");
-	if(start_it == obj.end())
+	auto it = obj.find("jitter");
+
+	if(it == obj.end())
 	{
-		ps->last_error = std::string("Params ") + params + " did not contain start property";
-		*rc = SS_PLUGIN_FAILURE;
-		return NULL;
+		// No need to call set_last_error() here as the plugin
+		// struct doesn't exist to the framework yet.
+		return SS_PLUGIN_FAILURE;
 	}
 
-	auto max_events_it = obj.find("maxEvents");
-	if(max_events_it == obj.end())
-	{
-		ps->last_error = std::string("Params ") + params + " did not contain maxEvents property";
-		*rc = SS_PLUGIN_FAILURE;
-		return NULL;
-	}
-
-	// Note: Using new/delete is okay, as long as the plugin
-	// framework is not deleting the memory.
-	instance_state *ret = new instance_state();
-	ret->params = params;
-	ret->counter = 0;
-	ret->max_events = *max_events_it;
-	ret->sample = *start_it;
-
-	*rc = SS_PLUGIN_SUCCESS;
-
-	return ret;
-}
-
-extern "C"
-void plugin_close(ss_plugin_t* s, ss_instance_t* i)
-{
-	printf("[%s] plugin_close\n", pl_name);
-
-	instance_state *istate = (instance_state *) i;
-
-	delete(istate);
-}
-
-extern "C"
-int32_t plugin_next(ss_plugin_t* s, ss_instance_t* i, ss_plugin_event **evt)
-{
-	printf("[%s] plugin_next\n", pl_name);
-
-	plugin_state *state = (plugin_state *) s;
-	instance_state *istate = (instance_state *) i;
-
-	istate->counter++;
-
-	if(istate->counter > istate->max_events)
-	{
-		return SS_PLUGIN_EOF;
-	}
-
-	// Increment sample by 1, also add a jitter of [0:jitter]
-	istate->sample = istate->sample + 1 + (random() % (state->jitter + 1));
-
-	// The event payload is simply the sample, as a string
-	std::string payload = std::to_string(istate->sample);
-
-	struct ss_plugin_event *ret = (struct ss_plugin_event *) malloc(sizeof(ss_plugin_event));
-
-	// Note that evtnum is not set, as event numbers are
-	// assigned by the plugin framework.
-	ret->data = (uint8_t *) strdup(payload.c_str());
-	ret->datalen = payload.size();
-
-	// Let the plugin framework assign timestamps
-	ret->ts = (uint64_t) -1;
-
-	*evt = ret;
+	m_jitter = *it;
 
 	return SS_PLUGIN_SUCCESS;
 }
 
-// This plugin does not implement plugin_next_batch, due to the lower
-// overhead of calling C functions from the plugin framework compared
-// to calling Go functions.
-
-extern "C"
-char *plugin_event_to_string(ss_plugin_t *s, const uint8_t *data, uint32_t datalen)
+void dummy_plugin::destroy()
 {
-	printf("[%s] plugin_event_to_string\n", pl_name);
+}
 
-	plugin_state *state = (plugin_state *) s;
+falcosecurity::plugin_instance *dummy_plugin::create_instance(falcosecurity::source_plugin &plugin)
+{
+	return new dummy_instance((dummy_plugin &) plugin);
 
+}
+
+std::string dummy_plugin::event_to_string(const uint8_t *data, uint32_t datalen)
+{
 	// The string representation of an event is a json object with the sample
 	std::string rep = "{\"sample\": ";
 	rep.append((char *) data, datalen);
 	rep += "}";
 
-	return strdup(rep.c_str());
+	return rep;
 }
 
-extern "C"
-int32_t plugin_extract_fields(ss_plugin_t *s, const ss_plugin_event *evt, uint32_t num_fields, ss_plugin_extract_field *fields)
+bool dummy_plugin::extract_str(const ss_plugin_event &evt, const std::string &field, const std::string &arg, std::string &extract_val)
 {
-	printf("[%s] plugin_extract_fields\n", pl_name);
+	if (field == "dummy.strvalue")
+	{
+		extract_val.assign((char *) evt.data, evt.datalen);
+		return true;
+	}
 
-	std::string sample((char *) evt->data, evt->datalen);
+	return false;
+}
+
+bool dummy_plugin::extract_u64(const ss_plugin_event &evt, const std::string &field, const std::string &arg, uint64_t &extract_val)
+{
+	std::string sample((char *) evt.data, evt.datalen);
 	uint64_t isample = std::stoi(sample);
 
-	for(uint32_t i=0; i < num_fields; i++)
+	if(field == "dummy.divisible")
 	{
-		ss_plugin_extract_field *field = &(fields[i]);
-
-		if(strcmp(field->field, "dummy.divisible") == 0)
+		uint64_t divisor = std::stoi(arg);
+		if ((isample % divisor) == 0)
 		{
-			field->field_present = 1;
-
-			uint64_t divisor = std::stoi(std::string(field->arg));
-			if ((isample % divisor) == 0)
-			{
-				field->res_u64 = 1;
-			}
-			else
-			{
-				field->res_u64 = 0;
-			}
-		}
-		else if (strcmp(field->field, "dummy.value") == 0)
-		{
-			field->field_present = 1;
-			field->res_u64 = isample;
-		}
-		else if (strcmp(field->field, "dummy.strvalue") == 0)
-		{
-			field->field_present = 1;
-			field->res_str = strdup(sample.c_str());
+			extract_val = 1;
 		}
 		else
 		{
-			field->field_present = 0;
+			extract_val = 0;
 		}
+
+		return true;
 	}
+	else if (field == "dummy.value")
+	{
+		extract_val = isample;
+
+		return true;
+	}
+
+	return false;
+}
+
+uint64_t dummy_plugin::jitter()
+{
+	return m_jitter;
+}
+
+dummy_instance::dummy_instance(dummy_plugin &plugin)
+	: m_plugin(plugin)
+{
+}
+
+dummy_instance::~dummy_instance()
+{
+}
+
+ss_plugin_rc dummy_instance::open(const char *params)
+{
+	m_params = params;
+
+	// Params are optional. In this case defaults are used.
+	if(m_params == "" || m_params == "{}")
+	{
+		return SS_PLUGIN_SUCCESS;
+	}
+
+	json obj;
+
+	try {
+		obj = json::parse(m_params);
+	}
+	catch (std::exception &e)
+	{
+		std::string errstr = std::string("Params ") + m_params + " could not be parsed: " + e.what();
+		m_plugin.set_last_error(errstr);
+		return SS_PLUGIN_FAILURE;
+	}
+
+	auto start_it = obj.find("start");
+	if(start_it == obj.end())
+	{
+		std::string errstr = std::string("Params ") + m_params + " did not contain start property";
+		m_plugin.set_last_error(errstr);
+		return SS_PLUGIN_FAILURE;
+	}
+
+	auto max_events_it = obj.find("maxEvents");
+	if(max_events_it == obj.end())
+	{
+		std::string errstr = std::string("Params ") + m_params + " did not contain maxEvents property";
+		m_plugin.set_last_error(errstr);
+		return SS_PLUGIN_FAILURE;
+	}
+
+	m_counter = 0;
+	m_max_events = *max_events_it;
+	m_sample = *start_it;
 
 	return SS_PLUGIN_SUCCESS;
 }
+
+void dummy_instance::close()
+{
+}
+
+ss_plugin_rc dummy_instance::next(falcosecurity::plugin_event &evt)
+{
+	m_counter++;
+
+	if(m_counter > m_max_events)
+	{
+		return SS_PLUGIN_EOF;
+	}
+
+	// Increment sample by 1, also add a jitter of [0:jitter]
+	m_sample = m_sample + 1 + (random() % (m_plugin.jitter() + 1));
+
+	// The event payload is simply the sample, as a string
+	std::string payload = std::to_string(m_sample);
+
+	// Note that evtnum is not set, as event numbers are
+	// assigned by the plugin framework.
+	evt.data.assign(payload.begin(), payload.end());
+
+	// Let the plugin framework assign timestamps
+	evt.ts = (uint64_t) -1;
+
+	return SS_PLUGIN_SUCCESS;
+}
+
+// This macro creates the plugin_xxx functions that comprise the
+// source plugin API. It creates dummy_plugin and dummy_instance
+// objects as needed and translates the plugin API calls into the
+// methods in falcosecurity::source_plugin_iface and
+// falcosecurity::plugin_instance_iface.
+GEN_SOURCE_PLUGIN_API_HOOKS(dummy_plugin, dummy_instance)
