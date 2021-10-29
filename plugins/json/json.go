@@ -20,29 +20,24 @@ limitations under the License.
 ///////////////////////////////////////////////////////////////////////////////
 package main
 
-// #cgo CFLAGS: -I${SRCDIR}/../../
-/*
-#include <plugin_info.h>
-*/
-import "C"
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"strings"
-	"unsafe"
 
-	"github.com/falcosecurity/plugin-sdk-go"
-	"github.com/falcosecurity/plugin-sdk-go/state"
-	"github.com/falcosecurity/plugin-sdk-go/wrappers"
-	_ "github.com/falcosecurity/plugin-sdk-go/free"
+	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
+	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins"
+	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/extractor"
 	"github.com/valyala/fastjson"
 )
 
 // Plugin info
 const (
-	PluginRequiredApiVersion = "0.1.0"
+	PluginRequiredApiVersion = "0.2.0"
 	PluginName               = "json"
 	PluginDescription        = "implements extracting arbitrary fields from inputs formatted as JSON"
 	PluginContact            = "github.com/falcosecurity/plugins/"
@@ -50,86 +45,45 @@ const (
 )
 
 const verbose bool = false
-const outBufSize uint32 = 65535
 
-type pluginContext struct {
+type MyPlugin struct {
+	plugins.BasePlugin
 	jparser     fastjson.Parser
 	jdata       *fastjson.Value
 	jdataEvtnum uint64 // The event number jdata refers to. Used to know when we can skip the unmarshaling.
-	lastError   error
 }
 
-//export plugin_get_required_api_version
-func plugin_get_required_api_version() *C.char {
-	return C.CString(PluginRequiredApiVersion)
+func init() {
+	p := &MyPlugin{}
+	extractor.Register(p)
 }
 
-//export plugin_get_type
-func plugin_get_type() uint32 {
-	return sdk.TypeExtractorPlugin
+func (m *MyPlugin) Info() *plugins.Info {
+	return &plugins.Info{
+		Name:               PluginName,
+		Description:        PluginDescription,
+		Contact:            PluginContact,
+		Version:            PluginVersion,
+		RequiredAPIVersion: PluginRequiredApiVersion,
+	}
 }
 
-//export plugin_init
-func plugin_init(config *C.char, rc *int32) unsafe.Pointer {
+func (m *MyPlugin) Init(config string) error {
 	if !verbose {
 		log.SetOutput(ioutil.Discard)
 	}
 
-	log.Printf("[%s] plugin_init\n", PluginName)
-	log.Printf("config string:\n%s\n", C.GoString(config))
-
-	// Allocate the container for buffers and context
-	pluginState := state.NewStateContainer()
-
-	// Allocate the context struct and set it to the state
-	pCtx := &pluginContext{}
-	state.SetContext(pluginState, unsafe.Pointer(pCtx))
-
-	wrappers.RegisterExtractors(extract_str, extract_u64)
-
-	*rc = sdk.SSPluginSuccess
-	return pluginState
+	log.Printf("[%s] Init, config=%s\n", PluginName, config)
+	return nil
 }
 
-//export plugin_get_last_error
-func plugin_get_last_error(plgState unsafe.Pointer) *C.char {
-	pCtx := (*pluginContext)(state.Context(plgState))
-	if pCtx.lastError != nil {
-		return C.CString(pCtx.lastError.Error())
-	}
-
-	return C.CString("no error")
+func (m *MyPlugin) Destroy() {
+	log.Printf("[%s] Destroy\n", PluginName)
 }
 
-//export plugin_destroy
-func plugin_destroy(plgState unsafe.Pointer) {
-	log.Printf("[%s] plugin_destroy\n", PluginName)
-	state.Free(plgState)
-}
-
-//export plugin_get_name
-func plugin_get_name() *C.char {
-	return C.CString(PluginName)
-}
-
-//export plugin_get_version
-func plugin_get_version() *C.char {
-	return C.CString(PluginVersion)
-}
-
-//export plugin_get_description
-func plugin_get_description() *C.char {
-	return C.CString(PluginDescription)
-}
-
-//export plugin_get_contact
-func plugin_get_contact() *C.char {
-	return C.CString(PluginContact)
-}
-
-//export plugin_get_fields
-func plugin_get_fields() *C.char {
-	flds := []sdk.FieldEntry{
+func (m *MyPlugin) Fields() []sdk.FieldEntry {
+	log.Printf("[%s] Fields\n", PluginName)
+	return []sdk.FieldEntry{
 		{Type: "string", Name: "json.value", ArgRequired: true, Desc: "Extracts a value from a JSON-encoded input. Syntax is json.value[<json pointer>], where <json pointer> is a json pointer (see https://datatracker.ietf.org/doc/html/rfc6901)"},
 		{Type: "string", Name: "json.obj", Desc: "The full json message as a text string."},
 		{Type: "string", Name: "json.rawtime", Desc: "The time of the event, identical to evt.rawtime."},
@@ -137,72 +91,91 @@ func plugin_get_fields() *C.char {
 		{Type: "string", Name: "jevt.obj", Desc: "Alias for json.obj, provided for backwards compatibility."},
 		{Type: "string", Name: "jevt.rawtime", Desc: "Alias for json.rawtime, provided for backwards compatibility."},
 	}
-
-	b, err := json.Marshal(&flds)
-	if err != nil {
-		panic(err)
-		return nil
-	}
-
-	return C.CString(string(b))
 }
 
-func extract_str(pluginState unsafe.Pointer, evtnum uint64, data []byte, ts uint64, field string, arg string) (bool, string) {
-	var res string
-	var err error
-	pCtx := (*pluginContext)(state.Context(pluginState))
+func (m *MyPlugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
+	log.Printf("[%s] Extract\n", PluginName)
+	reader := evt.Reader()
 
 	// As a very quick sanity check, only try to extract all if
 	// the first character is '{' or '['
+	data := []byte{0}
+	_, err := reader.Read(data)
+	if err != nil {
+		return err
+	}
 	if !(data[0] == '{' || data[0] == '[') {
-		return false, ""
+		return fmt.Errorf("invalid json format")
 	}
 
 	// Decode the json, but only if we haven't done it yet for this event
-	if evtnum != pCtx.jdataEvtnum {
+	if evt.EventNum() != m.jdataEvtnum {
+		_, err := reader.Seek(0, io.SeekStart)
+		if err != nil {
+			return err
+		}
+
+		data, err = ioutil.ReadAll(reader)
+		if err != nil {
+			return err
+		}
 
 		// Try to parse the data as json
-		evtStr := string(data)
-
-		pCtx.jdata, err = pCtx.jparser.Parse(evtStr)
+		m.jdata, err = m.jparser.ParseBytes(data)
 		if err != nil {
-			// Not a json file, so not present
-			return false, ""
+			return err
 		}
-		pCtx.jdataEvtnum = evtnum
+		m.jdataEvtnum = evt.EventNum()
 	}
 
-	switch field {
-	case "json.rawtime", "jevt.rawtime":
-		return true, string(ts)
-	case "json.value", "jevt.value":
+	switch req.FieldID() {
+	case 3: // jevt.value
+		fallthrough
+	case 0: // json.value
+		arg := req.Arg()
+		if len(arg) == 0 {
+			return fmt.Errorf("value argument is required")
+		}
 		if arg[0] == '/' {
 			arg = arg[1:]
 		}
 		hc := strings.Split(arg, "/")
-
-		val := pCtx.jdata.GetStringBytes(hc...)
+		val := m.jdata.Get(hc...)
 		if val == nil {
-			return false, ""
+			return fmt.Errorf("json key not found: %s", arg)
 		}
-		res = string(val)
-	case "json.obj", "jevt.obj":
+		req.SetStrValue(string(val.MarshalTo(nil)))
+	case 4: // jevt.obj
+		fallthrough
+	case 1: // json.obj
+		// If we skipped the deserialization, we have to read
+		// the event data.
+		if len(data) == 1 {
+			_, err := reader.Seek(0, io.SeekStart)
+			if err != nil {
+				return err
+			}
+
+			data, err = ioutil.ReadAll(reader)
+			if err != nil {
+				return err
+			}
+		}
 		var out bytes.Buffer
 		err = json.Indent(&out, data, "", "  ")
 		if err != nil {
-			return false, ""
+			return err
 		}
-		res = string(out.Bytes())
+		req.SetStrValue(out.String())
+	case 5: // jevt.rawtime
+		fallthrough
+	case 2: // json.rawtime
+		req.SetStrValue(fmt.Sprintf("%d", evt.Timestamp()))
 	default:
-		return false, ""
+		return fmt.Errorf("no known field: %s", req.Field())
 	}
 
-	return true, res
-}
-
-func extract_u64(pluginState unsafe.Pointer, evtnum uint64, data []byte, ts uint64, field string, arg string) (bool, uint64) {
-	// No numeric fields for this plugin
-	return false, 0
+	return nil
 }
 
 func main() {
