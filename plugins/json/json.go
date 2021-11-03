@@ -144,7 +144,7 @@ func (m *MyPlugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 		if val == nil {
 			return fmt.Errorf("json key not found: %s", arg)
 		}
-		req.SetStrValue(string(val.MarshalTo(nil)))
+		req.SetValue(string(val.MarshalTo(nil)))
 	case 4: // jevt.obj
 		fallthrough
 	case 1: // json.obj
@@ -166,11 +166,11 @@ func (m *MyPlugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 		if err != nil {
 			return err
 		}
-		req.SetStrValue(out.String())
+		req.SetValue(out.String())
 	case 5: // jevt.rawtime
 		fallthrough
 	case 2: // json.rawtime
-		req.SetStrValue(fmt.Sprintf("%d", evt.Timestamp()))
+		req.SetValue(fmt.Sprintf("%d", evt.Timestamp()))
 	default:
 		return fmt.Errorf("no known field: %s", req.Field())
 	}
