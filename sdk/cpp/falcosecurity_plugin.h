@@ -115,8 +115,16 @@ public:
 	//    close instance.
 	virtual ss_plugin_rc next(plugin_event &evt) = 0;
 
-	// This function is optional--the default implementation returns a progress_pct of 0.
-	virtual const char* get_progress(uint32_t &progress_pct)
+	// Return the read progress, as a number between 0 (no data
+	// has been read) and 10000 (100% of the data has been
+	// read). This encoding allows the engine to print progress
+	// decimals without requiring to deal with floating point
+	// numbers (which could cause incompatibility problems with
+	// some languages).
+	//
+	// This function is optional--the default implementation
+	// returns a progress_pct of 0.
+	virtual std::string get_progress(uint32_t &progress_pct)
 	{
 		progress_pct = 0;
 		return "0";
@@ -180,12 +188,20 @@ public:
 		return res;
 	}
 
+	const char *plugin_get_progress(uint32_t &progress_pct)
+	{
+		m_read_progress = get_progress(progress_pct);
+
+		return m_read_progress.c_str();
+	}
+
 private:
 
 	static const uint32_t s_max_batch_events = 512;
 
 	std::vector<std::shared_ptr<plugin_event>> m_events;
 	ss_plugin_event *m_pevents;
+	std::string m_read_progress;
 };
 
 // The interface from a sdk to a source plugin. Classes that derive
@@ -501,7 +517,7 @@ const char* plugin_get_progress(ss_plugin_t* s, ss_instance_t* i, uint32_t* prog
 {  \
 	source_plugin_instance_name *instance = (source_plugin_instance_name *) i;  \
   \
-        return instance->get_progress(*progress_pct);  \
+        return instance->plugin_get_progress(*progress_pct);  \
 }  \
   \
 extern "C"  \
