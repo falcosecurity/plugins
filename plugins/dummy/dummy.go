@@ -231,14 +231,14 @@ func (m *MyPlugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 			return fmt.Errorf("argument to dummy.divisible %s could not be converted to number", arg)
 		}
 		if evtVal%divisor == 0 {
-			req.SetU64Value(1)
+			req.SetValue(uint64(1))
 		} else {
-			req.SetU64Value(0)
+			req.SetValue(uint64(0))
 		}
 	case 1: // dummy.value
-		req.SetU64Value(uint64(evtVal))
+		req.SetValue(uint64(evtVal))
 	case 2: // dummy.strvalue
-		req.SetStrValue(evtStr)
+		req.SetValue(evtStr)
 	default:
 		return fmt.Errorf("no known field: %s", req.Field())
 	}
