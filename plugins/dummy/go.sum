@@ -1,4 +1,2 @@
-github.com/falcosecurity/plugin-sdk-go v0.0.0-20211029153607-7d7e75ab60c0 h1:tj5soxuOLzF4AAaCiStDP8OokgoFPyrEjoab0lV2OCw=
-github.com/falcosecurity/plugin-sdk-go v0.0.0-20211029153607-7d7e75ab60c0/go.mod h1:9IdFIqRwJIFDfKnwTTM6S4mLITNfdjVl+5r4RY0TmRo=
-github.com/falcosecurity/plugin-sdk-go v0.0.0-20211102134608-fd84fe958d14 h1:idOHclTrpy5xWRsGf62a2KOho4IgsTmGiHJ/unXaqcI=
-github.com/falcosecurity/plugin-sdk-go v0.0.0-20211102134608-fd84fe958d14/go.mod h1:9IdFIqRwJIFDfKnwTTM6S4mLITNfdjVl+5r4RY0TmRo=
+github.com/falcosecurity/plugin-sdk-go v0.0.0-20211105150954-f1111dfdc937 h1:RzhApOA2P70DpRSr86MERmMrpdlf45/5cHPMg1iFfyw=
+github.com/falcosecurity/plugin-sdk-go v0.0.0-20211105150954-f1111dfdc937/go.mod h1:9IdFIqRwJIFDfKnwTTM6S4mLITNfdjVl+5r4RY0TmRo=
