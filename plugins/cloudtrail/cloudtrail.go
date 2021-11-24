@@ -161,27 +161,28 @@ func (p *pluginContext) Init(cfg string) error {
 
 	log.Printf("[%s] Init, config=%s\n", PluginName, cfg)
 
-	// Allocate the context struct attach it to the state
-	pCtx := &pluginContext{
-		jdataEvtnum: math.MaxUint64,
-		sqsDelete:   true,
-	}
+	p.jdataEvtnum = math.MaxUint64
+	p.sqsDelete = true
+	p.s3DownloadConcurrency = defaultS3DownloadConcurrency
+	p.useAsync = false
 
 	if cfg != "" {
 		var initConfig pluginInitConfig
 		initConfig.SQSDelete = true
 		initConfig.S3DownloadConcurrency = defaultS3DownloadConcurrency
+		initConfig.UseAsync = false
 
 		err := json.Unmarshal([]byte(cfg), &initConfig)
 		if err != nil {
 			return err
 		}
-		pCtx.sqsDelete = initConfig.SQSDelete
-		pCtx.s3DownloadConcurrency = initConfig.S3DownloadConcurrency
-		pCtx.useAsync = initConfig.UseAsync
+
+		p.sqsDelete = initConfig.SQSDelete
+		p.s3DownloadConcurrency = initConfig.S3DownloadConcurrency
+		p.useAsync = initConfig.UseAsync
 	}
 
-	if pCtx.useAsync {
+	if p.useAsync {
 		extract.StartAsync(p)
 	}
 
