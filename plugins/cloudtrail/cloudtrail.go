@@ -48,7 +48,7 @@ import (
 
 // Plugin info
 const (
-	PluginRequiredApiVersion        = "0.2.0"
+	PluginRequiredApiVersion        = "0.3.0"
 	PluginID                 uint32 = 2
 	PluginName                      = "cloudtrail"
 	PluginDescription               = "reads cloudtrail JSON data saved to file in the directory specified in the settings"

@@ -36,7 +36,7 @@ import (
 
 // Plugin info
 const (
-	PluginRequiredApiVersion = "0.2.0"
+	PluginRequiredApiVersion = "0.3.0"
 	PluginName               = "json"
 	PluginDescription        = "implements extracting arbitrary fields from inputs formatted as JSON"
 	PluginContact            = "github.com/falcosecurity/plugins/"
