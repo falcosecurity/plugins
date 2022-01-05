@@ -213,9 +213,8 @@ public:
 
 	// Initialize this plugin. config is the init config as
 	// defined by the plugin. Returns SS_PLUGIN_SUCCESS on
-	// success, SS_PLUGIN_FAILURE on failure. There isn't any need
-	// to set an error string via set_last_error() as the Plugin
-	// API doesn't pass back error strings from plugin_init.
+	// success, SS_PLUGIN_FAILURE on failure. In case of failure,
+	// an error string can be set via set_last_error().
 	virtual ss_plugin_rc init(const char* config) = 0;
 
 	// Destroy this plugin. The plugin object will be destroyed
@@ -474,9 +473,11 @@ ss_plugin_t* plugin_init(const char* config, ss_plugin_rc* rc)  \
   \
 	*rc = plugin->init(config);  \
   \
-	if(*rc != SS_PLUGIN_SUCCESS)  \
+	if(*rc != SS_PLUGIN_SUCCESS &&	\
+		(plugin->plugin_get_last_error() == NULL || strlen(plugin->plugin_get_last_error()) == 0))	\
 	{  \
-		delete plugin;  \
+		delete plugin;	\
+		plugin = NULL;	\
 	}  \
   \
 	return plugin;  \
