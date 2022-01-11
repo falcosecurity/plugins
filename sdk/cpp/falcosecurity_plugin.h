@@ -205,7 +205,7 @@ private:
 };
 
 // The interface from a sdk to a source plugin. Classes that derive
-// from source_plugin should override all of these methods.
+// from source_plugin should override these methods.
 class source_plugin_iface {
 public:
 	// Return info about this source plugin.
@@ -241,6 +241,23 @@ public:
 	// provided field is known to the plugin and the event has a
 	// value for the provided field.
 	virtual bool extract_u64(const ss_plugin_event &evt, const std::string &field, const std::string &arg, uint64_t &extract_val) = 0;
+
+	// Return a list of suggested open parameters supported by this plugin,
+	// encoded as a JSON array. Any of the values in the returned list are
+	// valid parameters for open().
+	virtual std::string list_open_params(ss_plugin_rc *rc)
+	{
+		*rc = SS_PLUGIN_SUCCESS;
+		return std::string("");
+	}
+
+	// Return a string representation of a schema describing the data expected
+	// to be passed as a configuration during the plugin initialization.
+	virtual std::string get_init_schema(ss_plugin_schema_type* schema_type)
+	{
+		*schema_type = SS_PLUGIN_SCHEMA_NONE;
+		return std::string("");
+	}
 };
 
 // The sdk implementation of a source plugin. Derived classes do not
@@ -385,11 +402,27 @@ public:
 		return SS_PLUGIN_SUCCESS;
 	}
 
+	const char* plugin_list_open_params(ss_plugin_rc* rc)
+	{
+		m_last_open_params_list = list_open_params(rc);
+
+		return m_last_open_params_list.c_str();
+	}
+
+	const char* plugin_get_init_schema(ss_plugin_schema_type* schema_type)
+	{
+		m_last_init_schema = get_init_schema(schema_type);
+
+		return m_last_init_schema.c_str();
+	}
+
 private:
 	plugin_info m_info;
 	std::string m_fields_json;
 	std::string m_last_error;
 	std::string m_last_evtstr;
+	std::string m_last_open_params_list;
+	std::string m_last_init_schema;
 	std::set<plugin_instance *> m_open_instances;
 	std::list<std::string> m_extract_strs;
 };
@@ -467,6 +500,12 @@ const char* plugin_get_last_error(ss_plugin_t* s)  \
 }  \
   \
 extern "C"  \
+const char* plugin_get_init_schema(ss_plugin_schema_type* schema_type)  \
+{  \
+	return g_plugin.plugin_get_init_schema(schema_type);  \
+}  \
+  \
+extern "C"  \
 ss_plugin_t* plugin_init(const char* config, ss_plugin_rc* rc)  \
 {  \
 	source_plugin_class_name *plugin = new source_plugin_class_name();  \
@@ -504,6 +543,14 @@ void plugin_close(ss_plugin_t* s, ss_instance_t* i)  \
 	source_plugin_class_name *plugin = (source_plugin_class_name *) s;  \
   \
 	return plugin->plugin_close(i);  \
+}  \
+  \
+extern "C"  \
+const char* plugin_list_open_params(ss_plugin_t* s, ss_plugin_rc* rc)  \
+{  \
+	source_plugin_class_name *plugin = (source_plugin_class_name *) s;  \
+  \
+	return plugin->plugin_list_open_params(rc);  \
 }  \
   \
 extern "C"  \
