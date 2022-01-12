@@ -146,7 +146,7 @@ func getMoreSQSFiles(pCtx *pluginContext, oCtx *openContext) error {
 		return nil
 	}
 
-	if pCtx.sqsDelete {
+	if pCtx.config.SQSDelete {
 		// Delete the message from the queue so it won't be read again
 		delInput := &sqs.DeleteMessageInput{
 			QueueUrl:      &oCtx.queueURL,
@@ -256,9 +256,9 @@ func readNextFileS3(pCtx *pluginContext, oCtx *openContext) ([]byte, error) {
 		return oCtx.s3.DownloadBufs[curBuf], nil
 	}
 
-	dlErrChan = make(chan error, pCtx.s3DownloadConcurrency)
+	dlErrChan = make(chan error, pCtx.config.S3DownloadConcurrency)
 	k := oCtx.s3.lastDownloadedFileNum
-	oCtx.s3.nFilledBufs = min(pCtx.s3DownloadConcurrency, len(oCtx.files)-k)
+	oCtx.s3.nFilledBufs = min(pCtx.config.S3DownloadConcurrency, len(oCtx.files)-k)
 	for j, f := range oCtx.files[k : k+oCtx.s3.nFilledBufs] {
 		oCtx.s3.DownloadWg.Add(1)
 		go s3Download(oCtx, oCtx.s3.downloader, f.name, j)
