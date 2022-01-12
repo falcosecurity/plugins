@@ -103,7 +103,7 @@ void dummy_plugin::get_info(falcosecurity::plugin_info &info)
 	info.description = "Reference plugin for educational purposes";
 	info.contact = "github.com/falcosecurity/plugins";
 	info.version = "0.1.0";
-	info.event_source = "dummy";
+	info.event_source = "dummy_c";
 	info.fields = {
 		{FTYPE_UINT64, "dummy.divisible", true, "Return 1 if the value is divisible by the provided divisor, 0 otherwise"},
 		{FTYPE_UINT64, "dummy.value", false, "The sample value in the event"},

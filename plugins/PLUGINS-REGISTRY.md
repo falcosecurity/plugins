@@ -10,7 +10,7 @@ This page documents the known set of Falco source plugins and their associated e
 | ---- | --- | --- | --- | ---
 | `cloudtrail` | Reads Cloudtrail JSON logs from files/S3 and injects as events | https://github.com/falcosecurity/plugins | 2 | `aws_cloudtrail`
 | `dummy` | Reference plugin used to document interface | https://github.com/falcosecurity/plugins | 3 | `dummy`
-| `dummy_c` | Like Dummy, but written in C | https://github.com/falcosecurity/plugins | 4 | `dummy`
+| `dummy_c` | Like Dummy, but written in C | https://github.com/falcosecurity/plugins | 4 | `dummy_c`
 | N/A | This ID is reserved for source plugin development. Any plugin author can use this ID, but authors can expect events from other developers with this ID. After development is complete, the author should request an actual ID. | None | 999 | `test`
 
 ### Extractor Plugins
