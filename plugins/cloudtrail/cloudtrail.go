@@ -30,7 +30,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"math"
 	"sync"
 
@@ -57,8 +56,6 @@ const (
 	PluginVersion                   = "0.1.0"
 	PluginEventSource               = "aws_cloudtrail"
 )
-
-const verbose bool = true
 
 func min(a, b int) int {
 	if a < b {
@@ -144,7 +141,6 @@ func (p *pluginInitConfig) setDefault() {
 }
 
 func (p *pluginContext) Info() *plugins.Info {
-	log.Printf("[%s] Info\n", PluginName)
 	return &plugins.Info{
 		ID:                  PluginID,
 		Name:                PluginName,
@@ -158,12 +154,6 @@ func (p *pluginContext) Info() *plugins.Info {
 }
 
 func (p *pluginContext) Init(cfg string) error {
-	if !verbose {
-		log.SetOutput(ioutil.Discard)
-	}
-
-	log.Printf("[%s] Init, config=%s\n", PluginName, cfg)
-
 	// initialize state
 	p.jdataEvtnum = math.MaxUint64
 
@@ -178,17 +168,10 @@ func (p *pluginContext) Init(cfg string) error {
 
 	// enable/disable async extraction optimazion (enabled by default)
 	extract.SetAsync(p.config.UseAsync)
-
 	return nil
 }
 
-func (p *pluginContext) Destroy() {
-	log.Printf("[%s] Destroy\n", PluginName)
-}
-
 func (p *pluginContext) Open(params string) (source.Instance, error) {
-	log.Printf("[%s] Open, params=%s\n", PluginName, params)
-
 	// Allocate the context struct for this open instance
 	oCtx := &openContext{}
 
@@ -213,13 +196,7 @@ func (p *pluginContext) Open(params string) (source.Instance, error) {
 	return oCtx, nil
 }
 
-func (o *openContext) Close() {
-	log.Printf("[%s] Close\n", PluginName)
-}
-
 func (o *openContext) NextBatch(pState sdk.PluginState, evts sdk.EventWriters) (int, error) {
-	log.Printf("[%s] NextBatch\n", PluginName)
-
 	var n int
 	var err error
 	pCtx := pState.(*pluginContext)
@@ -230,15 +207,11 @@ func (o *openContext) NextBatch(pState sdk.PluginState, evts sdk.EventWriters) (
 }
 
 func (o *openContext) Progress(pState sdk.PluginState) (float64, string) {
-	log.Printf("[%s] Progress\n", PluginName)
-
 	pd := float64(o.curFileNum) / float64(len(o.files))
 	return pd, fmt.Sprintf("%.2f%% - %v/%v files", pd*100, o.curFileNum, len(o.files))
 }
 
 func (p *pluginContext) String(in io.ReadSeeker) (string, error) {
-	log.Printf("[%s] String\n", PluginName)
-
 	var src string
 	var user string
 	var err error
@@ -297,14 +270,10 @@ func (p *pluginContext) String(in io.ReadSeeker) (string, error) {
 }
 
 func (p *pluginContext) Fields() []sdk.FieldEntry {
-	log.Printf("[%s] Fields\n", PluginName)
-
 	return supportedFields
 }
 
 func (p *pluginContext) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
-	log.Printf("[%s] Extract\n", PluginName)
-
 	// Decode the json, but only if we haven't done it yet for this event
 	if evt.EventNum() != p.jdataEvtnum {
 		// Read the event data

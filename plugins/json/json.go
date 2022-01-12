@@ -26,7 +26,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"strings"
 
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
@@ -43,8 +42,6 @@ const (
 	PluginContact            = "github.com/falcosecurity/plugins/"
 	PluginVersion            = "0.1.0"
 )
-
-const verbose bool = false
 
 type MyPlugin struct {
 	plugins.BasePlugin
@@ -69,20 +66,10 @@ func (m *MyPlugin) Info() *plugins.Info {
 }
 
 func (m *MyPlugin) Init(config string) error {
-	if !verbose {
-		log.SetOutput(ioutil.Discard)
-	}
-
-	log.Printf("[%s] Init, config=%s\n", PluginName, config)
 	return nil
 }
 
-func (m *MyPlugin) Destroy() {
-	log.Printf("[%s] Destroy\n", PluginName)
-}
-
 func (m *MyPlugin) Fields() []sdk.FieldEntry {
-	log.Printf("[%s] Fields\n", PluginName)
 	return []sdk.FieldEntry{
 		{Type: "string", Name: "json.value", ArgRequired: true, Desc: "Extracts a value from a JSON-encoded input. Syntax is json.value[<json pointer>], where <json pointer> is a json pointer (see https://datatracker.ietf.org/doc/html/rfc6901)"},
 		{Type: "string", Name: "json.obj", Desc: "The full json message as a text string."},
@@ -94,7 +81,6 @@ func (m *MyPlugin) Fields() []sdk.FieldEntry {
 }
 
 func (m *MyPlugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
-	log.Printf("[%s] Extract\n", PluginName)
 	reader := evt.Reader()
 
 	// As a very quick sanity check, only try to extract all if

@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -43,8 +42,6 @@ func openLocal(pCtx *pluginContext, oCtx *openContext, params string) error {
 		return fmt.Errorf(PluginName+" plugin error: cannot open %s", oCtx.cloudTrailFilesDir)
 	}
 
-	log.Printf("[%s] scanning directory %s\n", PluginName, oCtx.cloudTrailFilesDir)
-
 	err := filepath.Walk(oCtx.cloudTrailFilesDir, func(path string, info os.FileInfo, err error) error {
 		if info != nil && info.IsDir() {
 			return nil
@@ -66,7 +63,6 @@ func openLocal(pCtx *pluginContext, oCtx *openContext, params string) error {
 		return fmt.Errorf(PluginName + " plugin error: no json files found in " + oCtx.cloudTrailFilesDir)
 	}
 
-	log.Printf("[%s] found %d json files\n", PluginName, len(oCtx.files))
 	return nil
 }
 
@@ -106,7 +102,6 @@ func openS3(pCtx *pluginContext, oCtx *openContext, input string) error {
 		Prefix: &prefix,
 	}, func(p *s3.ListObjectsOutput, last bool) (shouldContinue bool) {
 		for _, obj := range p.Contents {
-			//fmt.Printf("> %v %v\n", *obj.Size, *obj.Key)
 			path := obj.Key
 			isCompressed := strings.HasSuffix(*path, ".json.gz")
 			if filepath.Ext(*path) != ".json" && !isCompressed {

@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"math/rand"
 	"strconv"
 	"time"
@@ -88,7 +87,6 @@ func (p *MyPluginConfig) setDefault() {
 }
 
 func (m *MyPlugin) Info() *plugins.Info {
-	log.Printf("[%s] Info\n", PluginName)
 	return &plugins.Info{
 		ID:                 PluginID,
 		Name:               PluginName,
@@ -101,8 +99,6 @@ func (m *MyPlugin) Info() *plugins.Info {
 }
 
 func (m *MyPlugin) Init(cfg string) error {
-	log.Printf("[%s] Init, config=%s\n", PluginName, cfg)
-
 	// initialize state
 	m.rand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
@@ -123,12 +119,10 @@ func (m *MyPlugin) Init(cfg string) error {
 }
 
 func (m *MyPlugin) Destroy() {
-	log.Printf("[%s] Destroy\n", PluginName)
+	// nothing to do here
 }
 
 func (m *MyPlugin) Open(prms string) (source.Instance, error) {
-	log.Printf("[%s] Open, params=%s\n", PluginName, prms)
-
 	// The format of params is a json object with two params:
 	// - "start", which denotes the initial value of sample
 	// - "maxEvents": which denotes the number of events to return before EOF.
@@ -156,12 +150,10 @@ func (m *MyPlugin) Open(prms string) (source.Instance, error) {
 }
 
 func (m *MyInstance) Close() {
-	log.Printf("[%s] Close\n", PluginName)
+	// nothing to do here
 }
 
 func (m *MyInstance) NextBatch(pState sdk.PluginState, evts sdk.EventWriters) (int, error) {
-	log.Printf("[%s] NextBatch\n", PluginName)
-
 	// Return EOF if reached maxEvents
 	if m.counter >= m.maxEvents {
 		return 0, sdk.ErrEOF
@@ -194,7 +186,6 @@ func (m *MyInstance) NextBatch(pState sdk.PluginState, evts sdk.EventWriters) (i
 }
 
 func (m *MyPlugin) String(in io.ReadSeeker) (string, error) {
-	log.Printf("[%s] String\n", PluginName)
 	evtBytes, err := ioutil.ReadAll(in)
 	if err != nil {
 		return "", err
@@ -206,7 +197,6 @@ func (m *MyPlugin) String(in io.ReadSeeker) (string, error) {
 }
 
 func (m *MyPlugin) Fields() []sdk.FieldEntry {
-	log.Printf("[%s] Fields\n", PluginName)
 	return []sdk.FieldEntry{
 		{Type: "uint64", Name: "dummy.divisible", ArgRequired: true, Desc: "Return 1 if the value is divisible by the provided divisor, 0 otherwise"},
 		{Type: "uint64", Name: "dummy.value", Desc: "The sample value in the event"},
@@ -215,7 +205,6 @@ func (m *MyPlugin) Fields() []sdk.FieldEntry {
 }
 
 func (m *MyPlugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
-	log.Printf("[%s] Extract\n", PluginName)
 	evtBytes, err := ioutil.ReadAll(evt.Reader())
 	if err != nil {
 		return err
