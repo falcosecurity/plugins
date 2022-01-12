@@ -45,15 +45,19 @@ const (
 
 ///////////////////////////////////////////////////////////////////////////////
 
-type MyPlugin struct {
-	plugins.BasePlugin
+type MyPluginConfig struct {
 	// This reflects potential internal state for the plugin. In
 	// this case, the plugin is configured with a jitter (e.g. a
 	// random amount to add to the sample with each call to Next()
-	jitter uint64
+	Jitter uint64 `json:"jitter"`
+}
 
+type MyPlugin struct {
+	plugins.BasePlugin
 	// Will be used to randomize samples
 	rand *rand.Rand
+	// Contains the init configuration values
+	config MyPluginConfig
 }
 
 type MyInstance struct {
@@ -79,6 +83,10 @@ func init() {
 	extractor.Register(p)
 }
 
+func (p *MyPluginConfig) setDefault() {
+	p.Jitter = 10
+}
+
 func (m *MyPlugin) Info() *plugins.Info {
 	log.Printf("[%s] Info\n", PluginName)
 	return &plugins.Info{
@@ -95,26 +103,21 @@ func (m *MyPlugin) Info() *plugins.Info {
 func (m *MyPlugin) Init(cfg string) error {
 	log.Printf("[%s] Init, config=%s\n", PluginName, cfg)
 
-	var jitter uint64 = 10
+	// initialize state
+	m.rand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	// The format of cfg is a json object with a single param
 	// "jitter", e.g. {"jitter": 10}
 	//
 	// Empty configs are allowed, in which case the default is
 	// used.
-	if cfg != "" && cfg != "{}" {
-		var obj map[string]uint64
-		err := json.Unmarshal([]byte(cfg), &obj)
+	m.config.setDefault()
+	if cfg != "" {
+		err := json.Unmarshal([]byte(cfg), &m.config)
 		if err != nil {
 			return err
 		}
-		if _, ok := obj["jitter"]; ok {
-			jitter = obj["jitter"]
-		}
 	}
-
-	m.jitter = jitter
-	m.rand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	return nil
 }
@@ -172,7 +175,7 @@ func (m *MyInstance) NextBatch(pState sdk.PluginState, evts sdk.EventWriters) (i
 		m.counter++
 
 		// Increment sample by 1, also add a jitter of [0:jitter]
-		m.sample += 1 + uint64(myPlugin.rand.Int63n(int64(myPlugin.jitter+1)))
+		m.sample += 1 + uint64(myPlugin.rand.Int63n(int64(myPlugin.config.Jitter+1)))
 
 		// The representation of a dummy event is the sample as a string.
 		str := strconv.Itoa(int(m.sample))

@@ -58,7 +58,6 @@ const (
 	PluginEventSource               = "aws_cloudtrail"
 )
 
-const defaultS3DownloadConcurrency = 1
 const verbose bool = true
 
 func min(a, b int) int {
@@ -91,22 +90,20 @@ type snsMessage struct {
 	Keys   []string `json:"s3ObjectKey"`
 }
 
-// This is the global plugin state, identifying an instance of this plugin
-type pluginContext struct {
-	plugins.BasePlugin
-	jparser               fastjson.Parser
-	jdata                 *fastjson.Value
-	jdataEvtnum           uint64 // The event number jdata refers to. Used to know when we can skip the unmarshaling.
-	sqsDelete             bool   // If true, will delete SQS Messages immediately after receiving them
-	s3DownloadConcurrency int
-	useAsync              bool
-}
-
 // Struct for plugin init config
 type pluginInitConfig struct {
 	S3DownloadConcurrency int  `json:"s3DownloadConcurrency"`
-	SQSDelete             bool `json:"sqsDelete"`
-	UseAsync              bool `json:"useAsync"`
+	SQSDelete             bool `json:"sqsDelete"` // If true, will delete SQS Messages immediately after receiving them
+	UseAsync              bool `json:"useAsync"`  // If false, async extraction optimization is disabled
+}
+
+// This is the global plugin state, identifying an instance of this plugin
+type pluginContext struct {
+	plugins.BasePlugin
+	jparser     fastjson.Parser
+	jdata       *fastjson.Value
+	jdataEvtnum uint64 // The event number jdata refers to. Used to know when we can skip the unmarshaling.
+	config      pluginInitConfig
 }
 
 type OpenMode int
@@ -140,6 +137,12 @@ func init() {
 	extractor.Register(p)
 }
 
+func (p *pluginInitConfig) setDefault() {
+	p.SQSDelete = true
+	p.S3DownloadConcurrency = 1
+	p.UseAsync = true
+}
+
 func (p *pluginContext) Info() *plugins.Info {
 	log.Printf("[%s] Info\n", PluginName)
 	return &plugins.Info{
@@ -161,40 +164,26 @@ func (p *pluginContext) Init(cfg string) error {
 
 	log.Printf("[%s] Init, config=%s\n", PluginName, cfg)
 
+	// initialize state
 	p.jdataEvtnum = math.MaxUint64
-	p.sqsDelete = true
-	p.s3DownloadConcurrency = defaultS3DownloadConcurrency
-	p.useAsync = false
 
+	// set config default values and read the passed one, if available
+	p.config.setDefault()
 	if cfg != "" {
-		var initConfig pluginInitConfig
-		initConfig.SQSDelete = true
-		initConfig.S3DownloadConcurrency = defaultS3DownloadConcurrency
-		initConfig.UseAsync = false
-
-		err := json.Unmarshal([]byte(cfg), &initConfig)
+		err := json.Unmarshal([]byte(cfg), &p.config)
 		if err != nil {
 			return err
 		}
-
-		p.sqsDelete = initConfig.SQSDelete
-		p.s3DownloadConcurrency = initConfig.S3DownloadConcurrency
-		p.useAsync = initConfig.UseAsync
 	}
 
-	if p.useAsync {
-		extract.StartAsync(p)
-	}
+	// enable/disable async extraction optimazion (enabled by default)
+	extract.SetAsync(p.config.UseAsync)
 
 	return nil
 }
 
 func (p *pluginContext) Destroy() {
 	log.Printf("[%s] Destroy\n", PluginName)
-
-	if p.useAsync {
-		extract.StopAsync(p)
-	}
 }
 
 func (p *pluginContext) Open(params string) (source.Instance, error) {
@@ -219,7 +208,7 @@ func (p *pluginContext) Open(params string) (source.Instance, error) {
 
 	// Create an array of download buffers that will be used to concurrently
 	// download files from s3
-	oCtx.s3.DownloadBufs = make([][]byte, p.s3DownloadConcurrency)
+	oCtx.s3.DownloadBufs = make([][]byte, p.config.S3DownloadConcurrency)
 
 	return oCtx, nil
 }
