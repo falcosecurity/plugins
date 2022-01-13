@@ -19,7 +19,6 @@ FALCOSECURITY_LIBS_REVISION=e25e44b3ba4cb90ba9ac75bf747978e41fb6b221
 
 OUTPUT_DIR := output
 SOURCE_DIR := plugins
-PLUGINS_VERSION ?= $(shell git describe --always --tags)
 ARCH ?=$(shell uname -m)
 
 plugins = $(shell ls -d ${SOURCE_DIR}/*/ | cut -f2 -d'/' | xargs)
@@ -52,12 +51,15 @@ $(plugins-clean):
 packages: clean/packages $(plugins-clean) $(plugins-packages)
 
 .PHONY: $(plugins-packages)
-$(plugins-packages): all
+$(plugins-packages): all build/utils/version
 	$(eval PLUGIN_NAME := $(shell basename $@))
+	$(eval PLUGIN_PATH := plugins/$(PLUGIN_NAME)/lib$(PLUGIN_NAME).so)
+	$(eval PLUGIN_VERSION := $(shell ./build/utils/version --path $(PLUGIN_PATH) --pre-release | tail -n 1))
+	echo $(PLUGIN_VERSION)
 	mkdir -p $(OUTPUT_DIR)/$(PLUGIN_NAME)
-	cp -r plugins/$(PLUGIN_NAME)/*.so $(OUTPUT_DIR)/$(PLUGIN_NAME)/
+	cp -r $(PLUGIN_PATH) $(OUTPUT_DIR)/$(PLUGIN_NAME)/
 	cp -r plugins/$(PLUGIN_NAME)/README.md $(OUTPUT_DIR)/$(PLUGIN_NAME)/
-	tar -zcvf $(OUTPUT_DIR)/$(PLUGIN_NAME)-${PLUGINS_VERSION}-${ARCH}.tar.gz -C ${OUTPUT_DIR}/$(PLUGIN_NAME) .
+	tar -zcvf $(OUTPUT_DIR)/$(PLUGIN_NAME)-$(PLUGIN_VERSION)-${ARCH}.tar.gz -C ${OUTPUT_DIR}/$(PLUGIN_NAME) .
 
 .PHONY: plugin_info.h
 plugin_info.h:
