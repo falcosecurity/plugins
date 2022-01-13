@@ -34,7 +34,7 @@ $(plugins):
 	cd plugins/$@ && make
 
 .PHONY: clean
-clean: clean/plugin_info.h $(plugins-clean) clean/packages
+clean: clean/plugin_info.h $(plugins-clean) clean/packages clean/build/utils/version
 
 .PHONY: clean/plugin_info.h
 clean/plugin_info.h:
@@ -62,3 +62,11 @@ $(plugins-packages): all
 .PHONY: plugin_info.h
 plugin_info.h:
 	$(CURL) -Lso $@ https://raw.githubusercontent.com/falcosecurity/libs/${FALCOSECURITY_LIBS_REVISION}/userspace/libscap/plugin_info.h
+
+.PHONY: build/utils/version
+build/utils/version:
+	cd build/utils && $(GO) build -o version version.go
+
+.PHONY: clean/build/utils/version
+clean/build/utils/version:
+	rm -f build/utils/version
