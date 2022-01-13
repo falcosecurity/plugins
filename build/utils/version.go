@@ -128,25 +128,27 @@ func main() {
 		// - n is the numeber of commits since the latest released version
 		// - hash is the git commit id (abbrev to 7 digits)
 
+		lastVer := "0.0.0" // fallback value
+		var n int
+		var hash string
+
 		// get last tag
 		tags, err := git("describe", "--tags", "--abbrev=0", "--match", name+`-*`)
-		if err != nil {
-			fail(err)
-		}
-		if len(tags) == 0 {
-			fail(errors.New("no git tag found for: " + name))
-		}
-		lastTag := tags[0]
-		lastVer := strings.Replace(lastTag, name+"-", "", 1)
+		if err == nil {
+			if len(tags) == 0 {
+				fail(errors.New("no git tag found for: " + name))
+			}
+			lastTag := tags[0]
+			lastVer = strings.Replace(lastTag, name+"-", "", 1)
 
-		// get number of commits since the last tag
-		counts, err := git("rev-list", lastTag+"..", "--count")
-		if err != nil {
-			fail(err)
-		}
-		count := 0
-		if len(counts) > 0 {
-			count, _ = strconv.Atoi(counts[0])
+			// get number of commits since the last tag
+			counts, err := git("rev-list", lastTag+"..", "--count")
+			if err != nil {
+				fail(err)
+			}
+			if len(counts) > 0 {
+				n, _ = strconv.Atoi(counts[0])
+			}
 		}
 
 		refs, err := git("rev-parse", "--short=7", "HEAD")
@@ -156,9 +158,9 @@ func main() {
 		if len(refs) == 0 {
 			fail(errors.New("no commit id found"))
 		}
-		commitId := refs[0]
+		hash = refs[0]
 
-		fmt.Printf("%s-%s-%d+%s\n", version, lastVer, count, commitId)
+		fmt.Printf("%s-%s-%d+%s\n", version, lastVer, n, hash)
 
 	} else {
 		// stable versions MUST have a precise tag matching plugin name and version
