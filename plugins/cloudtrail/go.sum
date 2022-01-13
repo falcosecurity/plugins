@@ -4,6 +4,8 @@ github.com/aws/aws-sdk-go v1.42.12 h1:zVrAgi3/HuMPygZknc+f2KAHcn+Zuq767857hnHBMP
 github.com/aws/aws-sdk-go v1.42.12/go.mod h1:585smgzpB/KqRA+K3y/NL/oYRqQvpNJYvLm+LY1U59Q=
 github.com/aws/aws-sdk-go v1.42.32 h1:YRe7du5KeSa2jHKEccOSL6/1fNM1Qaj0JqSGTdmtaws=
 github.com/aws/aws-sdk-go v1.42.32/go.mod h1:OGr6lGMAKGlG9CVrYnWYDKIyb829c6EVBRjxqjmPepc=
+github.com/aws/aws-sdk-go v1.42.33 h1:YlwikF3suaqs6XXwCQAnQ1xDXv0olmYRqD4W+lXcfF8=
+github.com/aws/aws-sdk-go v1.42.33/go.mod h1:OGr6lGMAKGlG9CVrYnWYDKIyb829c6EVBRjxqjmPepc=
 github.com/aws/aws-sdk-go-v2 v1.10.0 h1:+dCJ5W2HiZNa4UtaIc5ljKNulm0dK0vS5dxb5LdDOAA=
 github.com/aws/aws-sdk-go-v2 v1.10.0/go.mod h1:U/EyyVvKtzmFeQQcca7eBotKdlpcP2zzU6bXBYcf7CE=
 github.com/aws/aws-sdk-go-v2 v1.11.1 h1:GzvOVAdTbWxhEMRK4FfiblkGverOkAT0UodDxC1jHQM=
@@ -80,6 +82,8 @@ github.com/falcosecurity/plugin-sdk-go v0.0.0-20211125012426-11baaa45581c h1:aO8
 github.com/falcosecurity/plugin-sdk-go v0.0.0-20211125012426-11baaa45581c/go.mod h1:9IdFIqRwJIFDfKnwTTM6S4mLITNfdjVl+5r4RY0TmRo=
 github.com/falcosecurity/plugin-sdk-go v0.0.0-20220110093445-95e8e3b26060 h1:QWZ1HV4IYvWTYMWZfJDffRjSNLVSL9ebdP+pt7PPS+0=
 github.com/falcosecurity/plugin-sdk-go v0.0.0-20220110093445-95e8e3b26060/go.mod h1:9IdFIqRwJIFDfKnwTTM6S4mLITNfdjVl+5r4RY0TmRo=
+github.com/falcosecurity/plugin-sdk-go v0.0.0-20220113100444-1b05a1228a44 h1:SfWJBwP6EH/3xFXdXNhEvPSoOunDiEFrwhxXuoNRilc=
+github.com/falcosecurity/plugin-sdk-go v0.0.0-20220113100444-1b05a1228a44/go.mod h1:9IdFIqRwJIFDfKnwTTM6S4mLITNfdjVl+5r4RY0TmRo=
 github.com/google/go-cmp v0.5.4/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/gNBxE=
 github.com/google/go-cmp v0.5.6 h1:BKbKCqvP6I+rmFHt06ZmyQtvB8xAkWdhFyr0ZUNZcxQ=
 github.com/google/go-cmp v0.5.6/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/gNBxE=
