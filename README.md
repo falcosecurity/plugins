@@ -8,7 +8,7 @@ This repository contains several reference [plugins](https://deploy-preview-493-
 
 You can find pre-built versions of the [cloudtrail](./plugins/cloudtrail/) and [json](./plugins/json/) plugins in falco packages. They are not enabled by default--read the [documentation](https://deploy-preview-493--falcosecurity.netlify.app/docs/plugins) for how to modify `falco.yaml` to enable them and configure them with inputs.
 
-When ready to release your plugin, make sure to register the plugin with the Falcosecurity organization by creating a PR to modify the [PLUGINS-REGISTRY.md](https://github.com/falcosecurity/plugins/blob/master/plugins/PLUGINS-REGISTRY.md) file with details on the new plugin. This ensures that a given ID is used by exactly one source plugin, and allows source plugin authors and extractor plugin authors to coordinate about event source formats.
+When ready to release your plugin, make sure to register the plugin with the Falcosecurity organization by creating a PR to modify the [registry.yaml](https://github.com/andreabonanno/plugins/blob/refactor/new-registry-format/registry/registry.yaml) file with details on the new plugin. This ensures that a given ID is used by exactly one source plugin, and allows source plugin authors and extractor plugin authors to coordinate about event source formats.
 ## Source plugins
 
 | ID | Event Source | Name | Description | Info |
