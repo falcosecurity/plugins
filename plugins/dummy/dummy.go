@@ -33,7 +33,7 @@ import (
 
 // Plugin consts
 const (
-	PluginRequiredApiVersion        = "0.2.0"
+	PluginRequiredApiVersion        = "0.3.0"
 	PluginID                 uint32 = 3
 	PluginName                      = "dummy"
 	PluginDescription               = "Reference plugin for educational purposes"
