@@ -9,4 +9,16 @@ This repository contains several reference [plugins](https://deploy-preview-493-
 You can find pre-built versions of the [cloudtrail](./plugins/cloudtrail/) and [json](./plugins/json/) plugins in falco packages. They are not enabled by default--read the [documentation](https://deploy-preview-493--falcosecurity.netlify.app/docs/plugins) for how to modify `falco.yaml` to enable them and configure them with inputs.
 
 When ready to release your plugin, make sure to register the plugin with the Falcosecurity organization by creating a PR to modify the [PLUGINS-REGISTRY.md](https://github.com/falcosecurity/plugins/blob/master/plugins/PLUGINS-REGISTRY.md) file with details on the new plugin. This ensures that a given ID is used by exactly one source plugin, and allows source plugin authors and extractor plugin authors to coordinate about event source formats.
+## Source plugins
 
+| ID | Event Source | Name | Description | Info |
+| --- | --- | --- | --- | ---|
+| 2 | cloudtrail | `aws_cloudtrail` | Reads Cloudtrail JSON logs from files/S3 and injects as events | Authors: The Falco Community <br/> Repository: https://github.com/falcosecurity/plugins <br/> Contact: https://falco.org/community|
+| 3 | dummy | `dummy` | Reference plugin used to document interface | Authors: The Falco Community <br/> Repository: https://github.com/falcosecurity/plugins <br/> Contact: https://falco.org/community|
+| 4 | dummy_c | `dummy_c` | Like Dummy, but written in C++ | Authors: The Falco Community <br/> Repository: https://github.com/falcosecurity/plugins <br/> Contact: https://falco.org/community|
+| 999 | N/A | `test` | This ID is reserved for source plugin development. Any plugin author can use this ID, but authors can expect events from other developers with this ID. After development is complete, the author should request an actual ID. | Authors: N/A <br/> Repository: N/A <br/> Contact: N/A|
+## Extractor plugins
+
+| Name | Extract Event Sources | Description | Info |
+| --- | --- | --- | --- |
+| json | N/A | Extract values from any JSON payload | Authors: The Falco Community <br/> Repository: https://github.com/falcosecurity/plugins <br/> Contact: https://falco.org/community|
