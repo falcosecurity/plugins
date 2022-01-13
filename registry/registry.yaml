@@ -1,0 +1,55 @@
+
+#
+# Copyright (C) 2022 The Falco Authors.
+#
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+plugins:
+  source:
+    - id: 2
+      source: aws_cloudtrail
+      name: cloudtrail
+      description: Reads Cloudtrail JSON logs from files/S3 and injects as events
+      authors: The Falco Community
+      contact: https://falco.org/community
+      repository: https://github.com/falcosecurity/plugins
+    - id: 3
+      source: dummy
+      name: dummy
+      description: Reference plugin used to document interface
+      authors: The Falco Community
+      contact: https://falco.org/community
+      repository: https://github.com/falcosecurity/plugins
+    - id: 4
+      source: dummy_c
+      name: dummy_c
+      description: Like Dummy, but written in C++
+      authors: The Falco Community
+      contact: https://falco.org/community
+      repository: https://github.com/falcosecurity/plugins
+    - id: 999
+      source: test
+      name: N/A
+      description: This ID is reserved for source plugin development. Any plugin author can use this ID, but authors can expect events from other developers with this ID. After development is complete, the author should request an actual ID.
+      authors: N/A
+      contact: N/A
+      repository: N/A
+  extractor:
+    - name: json
+      source: N/A
+      description: Extract values from any JSON payload
+      authors: The Falco Community
+      contact: https://falco.org/community
+      repository: https://github.com/falcosecurity/plugins
