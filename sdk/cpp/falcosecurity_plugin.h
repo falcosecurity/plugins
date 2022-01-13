@@ -34,6 +34,7 @@ typedef struct plugin_field {
 	std::string name;
 	bool arg_required;
 	std::string description;
+	std::list<std::string> properties;
 } plugin_field;
 
 std::ostream& operator<< (std::ostream &os, plugin_field const &f)
@@ -43,6 +44,24 @@ std::ostream& operator<< (std::ostream &os, plugin_field const &f)
 	os << "\"name\":\"" << f.name << "\",";
 	os << "\"argRequired\":" << std::boolalpha << f.arg_required << ",";
 	os << "\"desc\":\"" << f.description << "\"";
+	os << "\"properties\":[";
+
+	bool first = true;
+	for(const auto &str : f.properties)
+	{
+		if(!first)
+		{
+			os << ",";
+		}
+		else
+		{
+			first=false;
+		}
+
+		os << "\"" << str << "\"";
+	}
+	os << "]";
+
 	os << "}";
 
 	return os;
@@ -441,7 +460,7 @@ static source_plugin_class_name g_plugin; \
 extern "C"				       \
 const char* plugin_get_required_api_version()  \
 {  \
-	return "0.1.0";  \
+	return "0.3.0";  \
 }  \
   \
 extern "C"  \
