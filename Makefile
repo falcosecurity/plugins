@@ -56,6 +56,10 @@ $(plugins-packages): all build/utils/version
 	$(eval PLUGIN_PATH := plugins/$(PLUGIN_NAME)/lib$(PLUGIN_NAME).so)
 	$(eval PLUGIN_VERSION := $(shell ./build/utils/version --path $(PLUGIN_PATH) --pre-release | tail -n 1))
 	echo $(PLUGIN_VERSION)
+
+# re-run command to stop in case of non-zero exit code 
+	@./build/utils/version --path $(PLUGIN_PATH) --pre-release > /dev/null
+
 	mkdir -p $(OUTPUT_DIR)/$(PLUGIN_NAME)
 	cp -r $(PLUGIN_PATH) $(OUTPUT_DIR)/$(PLUGIN_NAME)/
 	cp -r plugins/$(PLUGIN_NAME)/README.md $(OUTPUT_DIR)/$(PLUGIN_NAME)/

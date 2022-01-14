@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -56,6 +57,27 @@ static char* get_version(uintptr_t h, char** err) {
 
 */
 import "C"
+
+var rgxVersion *regexp.Regexp
+var rgxHash *regexp.Regexp
+var rgxName *regexp.Regexp
+
+func init() {
+	var err error
+	// see: https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
+	rgxVersion, err = regexp.Compile(`^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?$`)
+	if err != nil {
+		panic(err.Error())
+	}
+	rgxHash, err = regexp.Compile(`^[0-9a-z]+$`)
+	if err != nil {
+		panic(err.Error())
+	}
+	rgxName, err = regexp.Compile(`^[a-z]+[a-z_]*$`)
+	if err != nil {
+		panic(err.Error())
+	}
+}
 
 func pluginInfo(path string) (name, version string, err error) {
 	path, err = filepath.Abs(path)
@@ -117,14 +139,17 @@ func main() {
 	if err != nil {
 		fail(err)
 	}
-
-	// fmt.Println(name)
-	// fmt.Println(version)
+	if !rgxVersion.MatchString(version) {
+		fail(errors.New("plugin declared version is not compatible with SemVer: " + version))
+	}
+	if !rgxName.MatchString(name) {
+		fail(errors.New("plugin declared name is not correctly-formatted: " + name))
+	}
 
 	if pre {
-		// pre-releases MUST adhere to x.y.z-a.b.c-n+hash format, given:
-		// - x.y.z is the plugin declared version
-		// - a.b.c is the latest released version of the plugin (git tagged)
+		// pre-releases MUST adhere to VP-VT-n+hash format, given:
+		// - VP is the SemVer-compatible plugin declared version
+		// - VT is the SemVer-compatible latest released version of the plugin (git tagged)
 		// - n is the numeber of commits since the latest released version
 		// - hash is the git commit id (abbrev to 7 digits)
 
@@ -140,6 +165,9 @@ func main() {
 			}
 			lastTag := tags[0]
 			lastVer = strings.Replace(lastTag, name+"-", "", 1)
+			if !rgxVersion.MatchString(lastVer) {
+				fail(errors.New("plugin latest released version not compatible with SemVer: " + lastTag))
+			}
 
 			// get number of commits since the last tag
 			counts, err := git("rev-list", lastTag+"..", "--count")
@@ -159,6 +187,9 @@ func main() {
 			fail(errors.New("no commit id found"))
 		}
 		hash = refs[0]
+		if !rgxHash.MatchString(hash) {
+			fail(errors.New("commit hash not in correct hex form: " + hash))
+		}
 
 		fmt.Printf("%s-%s-%d+%s\n", version, lastVer, n, hash)
 
