@@ -25,6 +25,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/alecthomas/jsonschema"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/extractor"
@@ -46,9 +47,8 @@ const (
 
 type MyPluginConfig struct {
 	// This reflects potential internal state for the plugin. In
-	// this case, the plugin is configured with a jitter (e.g. a
-	// random amount to add to the sample with each call to Next()
-	Jitter uint64 `json:"jitter"`
+	// this case, the plugin is configured with a jitter.
+	Jitter uint64 `json:"jitter" jsonschema:"description=A random amount added to the sample of each event (Default: 10)"`
 }
 
 type MyPlugin struct {
@@ -98,22 +98,30 @@ func (m *MyPlugin) Info() *plugins.Info {
 	}
 }
 
+func (p *MyPlugin) InitSchema() *sdk.SchemaInfo {
+	reflector := jsonschema.Reflector{
+		RequiredFromJSONSchemaTags: true, // all properties are optional by default
+		AllowAdditionalProperties:  true, // unrecognized properties don't cause a parsing failures
+	}
+	if schema, err := reflector.Reflect(&MyPluginConfig{}).MarshalJSON(); err == nil {
+		return &sdk.SchemaInfo{
+			Schema: string(schema),
+		}
+	}
+	return nil
+}
+
 func (m *MyPlugin) Init(cfg string) error {
 	// initialize state
 	m.rand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	// The format of cfg is a json object with a single param
 	// "jitter", e.g. {"jitter": 10}
-	//
-	// Empty configs are allowed, in which case the default is
-	// used.
+	// Empty configs are allowed, in which case the default is used.
+	// Since we provide a schema through InitSchema(), the framework
+	// guarantees that the config is always well-formed json.
 	m.config.setDefault()
-	if cfg != "" {
-		err := json.Unmarshal([]byte(cfg), &m.config)
-		if err != nil {
-			return err
-		}
-	}
+	json.Unmarshal([]byte(cfg), &m.config)
 
 	return nil
 }
