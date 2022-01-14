@@ -33,6 +33,7 @@ import (
 	"math"
 	"sync"
 
+	"github.com/alecthomas/jsonschema"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -89,9 +90,9 @@ type snsMessage struct {
 
 // Struct for plugin init config
 type pluginInitConfig struct {
-	S3DownloadConcurrency int  `json:"s3DownloadConcurrency"`
-	SQSDelete             bool `json:"sqsDelete"` // If true, will delete SQS Messages immediately after receiving them
-	UseAsync              bool `json:"useAsync"`  // If false, async extraction optimization is disabled
+	S3DownloadConcurrency int  `json:"s3DownloadConcurrency" jsonschema:"description=Controls the number of background goroutines used to download S3 files (Default: 1)"`
+	SQSDelete             bool `json:"sqsDelete" jsonschema:"description=If true then the plugin will delete sqs messages from the queue immediately after receiving them (Default: true)"`
+	UseAsync              bool `json:"useAsync" jsonschema:"description=If true then async extraction optimization is enabled (Default: true)"`
 }
 
 // This is the global plugin state, identifying an instance of this plugin
@@ -153,18 +154,28 @@ func (p *pluginContext) Info() *plugins.Info {
 	}
 }
 
+func (p *pluginContext) InitSchema() *sdk.SchemaInfo {
+	reflector := jsonschema.Reflector{
+		RequiredFromJSONSchemaTags: true, // all properties are optional by default
+		AllowAdditionalProperties:  true, // unrecognized properties don't cause a parsing failures
+	}
+	if schema, err := reflector.Reflect(&pluginInitConfig{}).MarshalJSON(); err == nil {
+		return &sdk.SchemaInfo{
+			Schema: string(schema),
+		}
+	}
+	return nil
+}
+
 func (p *pluginContext) Init(cfg string) error {
 	// initialize state
 	p.jdataEvtnum = math.MaxUint64
 
-	// set config default values and read the passed one, if available
+	// Set config default values and read the passed one, if available.
+	// Since we provide a schema through InitSchema(), the framework
+	// guarantees that the config is always well-formed json.
 	p.config.setDefault()
-	if cfg != "" {
-		err := json.Unmarshal([]byte(cfg), &p.config)
-		if err != nil {
-			return err
-		}
-	}
+	json.Unmarshal([]byte(cfg), &p.config)
 
 	// enable/disable async extraction optimazion (enabled by default)
 	extract.SetAsync(p.config.UseAsync)
