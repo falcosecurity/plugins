@@ -67,8 +67,8 @@ plugin_info.h:
 
 .PHONY: build/utils/version
 build/utils/version:
-	cd build/utils && $(GO) build -o version version.go
+	@cd build/utils && make
 
 .PHONY: clean/build/utils/version
 clean/build/utils/version:
-	rm -f build/utils/version
+	@cd build/utils && make clean
