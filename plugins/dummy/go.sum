@@ -5,6 +5,8 @@ github.com/falcosecurity/plugin-sdk-go v0.0.0-20220110093445-95e8e3b26060 h1:QWZ
 github.com/falcosecurity/plugin-sdk-go v0.0.0-20220110093445-95e8e3b26060/go.mod h1:9IdFIqRwJIFDfKnwTTM6S4mLITNfdjVl+5r4RY0TmRo=
 github.com/falcosecurity/plugin-sdk-go v0.0.0-20220113100444-1b05a1228a44 h1:SfWJBwP6EH/3xFXdXNhEvPSoOunDiEFrwhxXuoNRilc=
 github.com/falcosecurity/plugin-sdk-go v0.0.0-20220113100444-1b05a1228a44/go.mod h1:9IdFIqRwJIFDfKnwTTM6S4mLITNfdjVl+5r4RY0TmRo=
+github.com/falcosecurity/plugin-sdk-go v0.1.0 h1:uLcU/3ydPxXHpojqHg8hROaPL2fsE43VdoS//OL1HoI=
+github.com/falcosecurity/plugin-sdk-go v0.1.0/go.mod h1:9IdFIqRwJIFDfKnwTTM6S4mLITNfdjVl+5r4RY0TmRo=
 github.com/iancoleman/orderedmap v0.0.0-20190318233801-ac98e3ecb4b0 h1:i462o439ZjprVSFSZLZxcsoAe592sZB1rci2Z8j4wdk=
 github.com/iancoleman/orderedmap v0.0.0-20190318233801-ac98e3ecb4b0/go.mod h1:N0Wam8K1arqPXNWjMo21EXnBPOPp36vB07FNRdD2geA=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
