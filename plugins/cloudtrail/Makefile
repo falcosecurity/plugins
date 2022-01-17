@@ -12,14 +12,21 @@
 #
 
 SHELL=/bin/bash -o pipefail
-
 GO ?= go
 
-all: libcloudtrail.so
+NAME := cloudtrail
+OUTPUT := lib$(NAME).so
+
+ifeq ($(DEBUG), 1)
+    GODEBUGFLAGS= GODEBUG=cgocheck=2
+else
+    GODEBUGFLAGS= GODEBUG=cgocheck=0
+endif
+
+all: $(OUTPUT)
 
 clean:
-	rm -f *.so *.h
+	@rm -f *.so *.h
 
-libcloudtrail.so: cloudtrail.go extract.go source.go
-	GODEBUG=cgocheck=2 $(GO) build -buildmode=c-shared -o libcloudtrail.so *.go
-
+$(OUTPUT): *.go
+	@$(GODEBUGFLAGS) $(GO) build -buildmode=c-shared -o $(OUTPUT)

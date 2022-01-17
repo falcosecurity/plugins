@@ -17,6 +17,7 @@ CURL = curl
 
 FALCOSECURITY_LIBS_REVISION=e25e44b3ba4cb90ba9ac75bf747978e41fb6b221
 
+DEBUG = 1
 OUTPUT_DIR := output
 SOURCE_DIR := plugins
 ARCH ?=$(shell uname -m)
@@ -31,7 +32,7 @@ all: plugin_info.h $(plugins)
 
 .PHONY: $(plugins)
 $(plugins):
-	cd plugins/$@ && make
+	cd plugins/$@ && make DEBUG=$(DEBUG)
 
 .PHONY: clean
 clean: clean/plugin_info.h $(plugins-clean) clean/packages clean/build/utils/version
@@ -67,6 +68,7 @@ $(plugins-packages): all build/utils/version
 	cp -r plugins/$(PLUGIN_NAME)/README.md $(OUTPUT_DIR)/$(PLUGIN_NAME)/
 	tar -zcvf $(OUTPUT_DIR)/$(PLUGIN_NAME)-$(PLUGIN_VERSION)-${ARCH}.tar.gz -C ${OUTPUT_DIR}/$(PLUGIN_NAME) .
 
+release/%: DEBUG=0
 release/%: plugin_info.h clean/% % build/utils/version
 	$(eval PLUGIN_NAME := $(shell basename $@))
 	$(eval PLUGIN_PATH := plugins/$(PLUGIN_NAME)/lib$(PLUGIN_NAME).so)

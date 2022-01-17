@@ -12,14 +12,21 @@
 #
 
 SHELL=/bin/bash -o pipefail
-
 GO ?= go
 
-all: libjson.so
+NAME := json
+OUTPUT := lib$(NAME).so
+
+ifeq ($(DEBUG), 1)
+    GODEBUGFLAGS= GODEBUG=cgocheck=2
+else
+    GODEBUGFLAGS= GODEBUG=cgocheck=0
+endif
+
+all: $(OUTPUT)
 
 clean:
-	rm -f *.h *.so
+	@rm -f *.so *.h
 
-libjson.so: json.go
-	GODEBUG=cgocheck=2 $(GO) build -buildmode=c-shared -o libjson.so *.go
-
+$(OUTPUT): *.go
+	@$(GODEBUGFLAGS) $(GO) build -buildmode=c-shared -o $(OUTPUT)
