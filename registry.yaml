@@ -18,6 +18,9 @@
 
 plugins:
   source:
+    - id: 1
+      source: k8s_audit
+      name: k8s_auditlogs
     - id: 2
       source: aws_cloudtrail
       name: cloudtrail
@@ -41,14 +44,11 @@ plugins:
       repository: https://github.com/falcosecurity/plugins
     - id: 999
       source: test
-      name: N/A
+      name: test
       description: This ID is reserved for source plugin development. Any plugin author can use this ID, but authors can expect events from other developers with this ID. After development is complete, the author should request an actual ID.
-      authors: N/A
-      contact: N/A
-      repository: N/A
+
   extractor:
     - name: json
-      source: N/A
       description: Extract values from any JSON payload
       authors: The Falco Community
       contact: https://falco.org/community
