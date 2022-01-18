@@ -12,6 +12,7 @@ When ready to release your plugin, make sure to register the plugin with the Fal
 
 # Plugin Registry
 
+<!-- The text inside \<!-- REGISTRY --\> comments is auto-generated. These comments and the text between them should not be edited by hand -->
 <!-- REGISTRY -->
 ## Source Plugins
 | ID | Event Source | Name | Description | Info |
