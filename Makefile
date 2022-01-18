@@ -13,7 +13,6 @@
 
 SHELL := /bin/bash
 GO ?= $(shell which go)
-CURL = curl
 
 FALCOSECURITY_LIBS_REVISION=e25e44b3ba4cb90ba9ac75bf747978e41fb6b221
 
@@ -28,18 +27,14 @@ plugins-packages = $(addprefix package/,$(plugins))
 plugins-releases = $(addprefix release/,$(plugins))
 
 .PHONY: all
-all: plugin_info.h $(plugins)
+all: $(plugins)
 
 .PHONY: $(plugins)
 $(plugins):
 	cd plugins/$@ && make DEBUG=$(DEBUG)
 
 .PHONY: clean
-clean: clean/plugin_info.h $(plugins-clean) clean/packages clean/build/utils/version
-
-.PHONY: clean/plugin_info.h
-clean/plugin_info.h:
-	rm -f plugin_info.h
+clean: $(plugins-clean) clean/packages clean/build/utils/version
 
 .PHONY: clean/packages
 clean/packages:
@@ -68,7 +63,7 @@ $(plugins-packages): all build/utils/version
 	tar -zcvf $(OUTPUT_DIR)/$(PLUGIN_NAME)-$(PLUGIN_VERSION)-${ARCH}.tar.gz -C ${OUTPUT_DIR}/$(PLUGIN_NAME) $$(ls -A ${OUTPUT_DIR}/$(PLUGIN_NAME))
 
 release/%: DEBUG=0
-release/%: plugin_info.h clean/% % build/utils/version
+release/%: clean/% % build/utils/version
 	$(eval PLUGIN_NAME := $(shell basename $@))
 	$(eval PLUGIN_PATH := plugins/$(PLUGIN_NAME)/lib$(PLUGIN_NAME).so)
 	$(eval PLUGIN_VERSION := $(shell ./build/utils/version --path $(PLUGIN_PATH) | tail -n 1))
@@ -78,10 +73,6 @@ release/%: plugin_info.h clean/% % build/utils/version
 	cp -r $(PLUGIN_PATH) $(OUTPUT_DIR)/$(PLUGIN_NAME)/
 	cp -r plugins/$(PLUGIN_NAME)/README.md $(OUTPUT_DIR)/$(PLUGIN_NAME)/
 	tar -zcvf $(OUTPUT_DIR)/$(PLUGIN_NAME)-$(PLUGIN_VERSION)-${ARCH}.tar.gz -C ${OUTPUT_DIR}/$(PLUGIN_NAME) $$(ls -A ${OUTPUT_DIR}/$(PLUGIN_NAME))
-
-.PHONY: plugin_info.h
-plugin_info.h:
-	$(CURL) -Lso $@ https://raw.githubusercontent.com/falcosecurity/libs/${FALCOSECURITY_LIBS_REVISION}/userspace/libscap/plugin_info.h
 
 .PHONY: build/utils/version
 build/utils/version:
