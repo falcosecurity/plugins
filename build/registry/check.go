@@ -23,8 +23,6 @@ import (
 )
 
 var (
-	forbiddenSourceIDs   = []uint{0}
-	forbiddenSourceNames = []string{"syscall", "internal", "plugins"}
 	rgxName              *regexp.Regexp
 )
 
@@ -37,18 +35,17 @@ func init() {
 	}
 }
 
-func (s *Source) Check() error {
-	for _, id := range forbiddenSourceIDs {
-		if s.ID == id {
-			return fmt.Errorf("forbidden source ID: '%d'", s.ID)
-		}
+func (s *Source) Check(reserved []string) error {
+
+	if s.ID == 0 {
+		return fmt.Errorf("forbidden source ID: '%d'", s.ID)
 	}
 
 	if !rgxName.MatchString(s.Name) {
 		return fmt.Errorf("name does follow the naming convention: '%s'", s.Name)
 	}
 
-	for _, source := range forbiddenSourceNames {
+	for _, source := range reserved {
 		if s.Source == source {
 			return fmt.Errorf("forbidden source name: '%s'", s.Source)
 		}
@@ -69,13 +66,13 @@ func (e *Extractor) Check() error {
 	return nil
 }
 
-func (p *Plugins) Check() error {
+func (p *Plugins) Check(reserved []string) error {
 	ids := make(map[uint]bool)
 	names := make(map[string]bool)
 	sourceNames := make(map[string]bool)
 
 	for _, s := range p.Source {
-		if err := s.Check(); err != nil {
+		if err := s.Check(reserved); err != nil {
 			return err
 		}
 		if _, ok := names[s.Name]; ok {
@@ -106,5 +103,5 @@ func (p *Plugins) Check() error {
 }
 
 func (r *Registry) Check() error {
-	return r.Plugins.Check()
+	return r.Plugins.Check(r.ReservedSources)
 }

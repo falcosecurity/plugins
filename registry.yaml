@@ -16,11 +16,15 @@
 # limitations under the License.
 #
 
+reserved_sources: [ "syscall", "internal", "plugins" ]
+
 plugins:
   source:
     - id: 1
       source: k8s_audit
-      name: k8s_auditlogs
+      name: k8s_audit
+      description: Reserved for a future back-port of Falco's k8s_audit event source as a plugin
+      reserved: true
     - id: 2
       source: aws_cloudtrail
       name: cloudtrail
@@ -46,6 +50,7 @@ plugins:
       source: test
       name: test
       description: This ID is reserved for source plugin development. Any plugin author can use this ID, but authors can expect events from other developers with this ID. After development is complete, the author should request an actual ID.
+      reserved: true
 
   extractor:
     - name: json
