@@ -28,7 +28,7 @@ plugins-packages = $(addprefix package/,$(plugins))
 plugins-releases = $(addprefix release/,$(plugins))
 
 .PHONY: all
-all: $(plugins)
+all: check-registry $(plugins)
 
 .PHONY: $(plugins)
 $(plugins):
