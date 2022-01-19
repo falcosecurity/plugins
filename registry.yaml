@@ -1,4 +1,3 @@
-
 #
 # Copyright (C) 2022 The Falco Authors.
 #
@@ -49,7 +48,7 @@ plugins:
     - id: 999
       source: test
       name: test
-      description: This ID is reserved for source plugin development. Any plugin author can use this ID, but authors can expect events from other developers with this ID. After development is complete, the author should request an actual ID.
+      description: This ID is reserved for source plugin development. Any plugin author can use this ID, but authors can expect events from other developers with this ID. After development is complete, the author should request an actual ID
       reserved: true
 
   extractor:
