@@ -31,9 +31,9 @@ Please remove the leading whitespace before the `/kind <>` you uncommented.
 
 > Uncomment one (or more) `/area <>` lines:
 
-> /area source-plugins
+> /area plugins
 
-> /area extractor-plugins
+> /area registry
 
 > /area build
 
