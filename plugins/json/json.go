@@ -40,7 +40,7 @@ const (
 	PluginName               = "json"
 	PluginDescription        = "implements extracting arbitrary fields from inputs formatted as JSON"
 	PluginContact            = "github.com/falcosecurity/plugins/"
-	PluginVersion            = "0.2.0"
+	PluginVersion            = "0.2.1"
 )
 
 type MyPlugin struct {
