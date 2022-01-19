@@ -17,16 +17,16 @@ When ready to release your plugin, make sure to register the plugin with the Fal
 ## Source Plugins
 | ID | Name | Event Source | Description | Info |
 | --- | --- | --- | --- | --- |
-| 1 | **k8s_audit** | `k8s_audit` | Reserved for a future back-port of Falco's k8s_audit event source as a plugin | Authors: N/A <br/> Repository: N/A <br/> Contact: N/A |
-| 2 | **cloudtrail** | `aws_cloudtrail` | Reads Cloudtrail JSON logs from files/S3 and injects as events | Authors: The Falco Community <br/> Repository: https://github.com/falcosecurity/plugins <br/> Contact: https://falco.org/community |
-| 3 | **dummy** | `dummy` | Reference plugin used to document interface | Authors: The Falco Community <br/> Repository: https://github.com/falcosecurity/plugins <br/> Contact: https://falco.org/community |
-| 4 | **dummy_c** | `dummy_c` | Like Dummy, but written in C++ | Authors: The Falco Community <br/> Repository: https://github.com/falcosecurity/plugins <br/> Contact: https://falco.org/community |
-| 999 | **test** | `test` | This ID is reserved for source plugin development. Any plugin author can use this ID, but authors can expect events from other developers with this ID. After development is complete, the author should request an actual ID. | Authors: N/A <br/> Repository: N/A <br/> Contact: N/A |
+| 1 | k8s_audit | `k8s_audit` | Reserved for a future back-port of Falco's k8s_audit event source as a plugin | Authors: N/A <br/> License: N/A |
+| 2 | [cloudtrail](https://github.com/falcosecurity/plugins/tree/master/plugins/cloudtrail) | `aws_cloudtrail` | Reads Cloudtrail JSON logs from files/S3 and injects as events | Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
+| 3 | [dummy](https://github.com/falcosecurity/plugins/tree/master/plugins/dummy) | `dummy` | Reference plugin used to document interface | Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
+| 4 | [dummy_c](https://github.com/falcosecurity/plugins/tree/master/plugins/dummy_c) | `dummy_c` | Like Dummy, but written in C++ | Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
+| 999 | test | `test` | This ID is reserved for source plugin development. Any plugin author can use this ID, but authors can expect events from other developers with this ID. After development is complete, the author should request an actual ID | Authors: N/A <br/> License: N/A |
 
 ## Extractor Plugins
 | Name | Extract Event Sources | Description | Info |
 | --- | --- | --- | --- |
-| **json** | N/A | Extract values from any JSON payload | Authors: The Falco Community <br/> Repository: https://github.com/falcosecurity/plugins <br/> Contact: https://falco.org/community |
+| [json](https://github.com/falcosecurity/plugins/tree/master/plugins/json) | N/A | Extract values from any JSON payload | Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
 
 <!-- REGISTRY -->
 
