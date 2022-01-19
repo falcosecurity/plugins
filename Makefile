@@ -20,6 +20,7 @@ DEBUG = 1
 OUTPUT_DIR := output
 SOURCE_DIR := plugins
 ARCH ?=$(shell uname -m)
+PLATFORM ?=$(shell uname -s | tr '[:upper:]' '[:lower:]')
 
 plugins = $(shell ls -d ${SOURCE_DIR}/*/ | cut -f2 -d'/' | xargs)
 plugins-clean = $(addprefix clean/,$(plugins))
@@ -56,11 +57,11 @@ $(plugins-packages): all build/utils/version
 	$(eval PLUGIN_PATH := plugins/$(PLUGIN_NAME)/lib$(PLUGIN_NAME).so)
 	$(eval PLUGIN_VERSION := $(shell ./build/utils/version --path $(PLUGIN_PATH) --pre-release | tail -n 1))
 # re-run command to stop in case of non-zero exit code 
-	@./build/utils/version --path $(PLUGIN_PATH) --pre-release > /dev/null
+	@./build/utils/version --path $(PLUGIN_PATH) --pre-release
 	mkdir -p $(OUTPUT_DIR)/$(PLUGIN_NAME)
 	cp -r $(PLUGIN_PATH) $(OUTPUT_DIR)/$(PLUGIN_NAME)/
 	cp -r plugins/$(PLUGIN_NAME)/README.md $(OUTPUT_DIR)/$(PLUGIN_NAME)/
-	tar -zcvf $(OUTPUT_DIR)/$(PLUGIN_NAME)-$(PLUGIN_VERSION)-${ARCH}.tar.gz -C ${OUTPUT_DIR}/$(PLUGIN_NAME) $$(ls -A ${OUTPUT_DIR}/$(PLUGIN_NAME))
+	tar -zcvf $(OUTPUT_DIR)/$(PLUGIN_NAME)-$(PLUGIN_VERSION)-${PLATFORM}-${ARCH}.tar.gz -C ${OUTPUT_DIR}/$(PLUGIN_NAME) $$(ls -A ${OUTPUT_DIR}/$(PLUGIN_NAME))
 
 release/%: DEBUG=0
 release/%: clean/% % build/utils/version
@@ -68,11 +69,11 @@ release/%: clean/% % build/utils/version
 	$(eval PLUGIN_PATH := plugins/$(PLUGIN_NAME)/lib$(PLUGIN_NAME).so)
 	$(eval PLUGIN_VERSION := $(shell ./build/utils/version --path $(PLUGIN_PATH) | tail -n 1))
 # re-run command to stop in case of non-zero exit code 
-	@./build/utils/version --path $(PLUGIN_PATH) > /dev/null
+	@./build/utils/version --path $(PLUGIN_PATH)
 	mkdir -p $(OUTPUT_DIR)/$(PLUGIN_NAME)
 	cp -r $(PLUGIN_PATH) $(OUTPUT_DIR)/$(PLUGIN_NAME)/
 	cp -r plugins/$(PLUGIN_NAME)/README.md $(OUTPUT_DIR)/$(PLUGIN_NAME)/
-	tar -zcvf $(OUTPUT_DIR)/$(PLUGIN_NAME)-$(PLUGIN_VERSION)-${ARCH}.tar.gz -C ${OUTPUT_DIR}/$(PLUGIN_NAME) $$(ls -A ${OUTPUT_DIR}/$(PLUGIN_NAME))
+	tar -zcvf $(OUTPUT_DIR)/$(PLUGIN_NAME)-$(PLUGIN_VERSION)-${PLATFORM}-${ARCH}.tar.gz -C ${OUTPUT_DIR}/$(PLUGIN_NAME) $$(ls -A ${OUTPUT_DIR}/$(PLUGIN_NAME))
 
 .PHONY: check-registry
 check-registry: build/registry/registry
