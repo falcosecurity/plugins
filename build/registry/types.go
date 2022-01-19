@@ -29,7 +29,8 @@ type Source struct {
 	Description string `yaml:"description"`
 	Authors     string `yaml:"authors"`
 	Contact     string `yaml:"contact"`
-	Repository  string `yaml:"repository"`
+	URL         string `yaml:"url"`
+	License     string `yaml:"license"`
 	Reserved    bool   `yaml:"reserved"`
 }
 
@@ -39,7 +40,8 @@ type Extractor struct {
 	Description string   `yaml:"description"`
 	Authors     string   `yaml:"authors"`
 	Contact     string   `yaml:"contact"`
-	Repository  string   `yaml:"repository"`
+	URL         string   `yaml:"url"`
+	License     string   `yaml:"license"`
 	Reserved    bool     `yaml:"reserved"`
 }
 
