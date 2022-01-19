@@ -23,7 +23,7 @@ import (
 )
 
 var (
-	rgxName              *regexp.Regexp
+	rgxName *regexp.Regexp
 )
 
 func init() {

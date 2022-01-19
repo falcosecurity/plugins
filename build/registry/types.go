@@ -30,7 +30,7 @@ type Source struct {
 	Authors     string `yaml:"authors"`
 	Contact     string `yaml:"contact"`
 	Repository  string `yaml:"repository"`
-	Reserved    bool    `yaml:"reserved"`
+	Reserved    bool   `yaml:"reserved"`
 }
 
 type Extractor struct {
@@ -40,7 +40,7 @@ type Extractor struct {
 	Authors     string   `yaml:"authors"`
 	Contact     string   `yaml:"contact"`
 	Repository  string   `yaml:"repository"`
-	Reserved    bool    `yaml:"reserved"`
+	Reserved    bool     `yaml:"reserved"`
 }
 
 type Plugins struct {
@@ -49,7 +49,7 @@ type Plugins struct {
 }
 
 type Registry struct {
-	Plugins Plugins `yaml:"plugins"`
+	Plugins         Plugins  `yaml:"plugins"`
 	ReservedSources []string `yaml:"reserved_sources"`
 }
 

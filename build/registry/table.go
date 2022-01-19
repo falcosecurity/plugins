@@ -32,7 +32,7 @@ func (r *Registry) FormatMarkdownTable() string {
 
 	ret.WriteString("## Source Plugins\n")
 	ret.WriteString("| ID | Event Source | Name | Description | Info |\n")
-	ret.WriteString("| --- | --- | --- | --- | ---|\n")
+	ret.WriteString("| --- | --- | --- | --- | --- |\n")
 	for _, s := range r.Plugins.Source {
 		line := fmt.Sprintf("| %d | %s | `%s` | %s | Authors: %s <br/> Repository: %s <br/> Contact: %s |\n",
 			s.ID,
