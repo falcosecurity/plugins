@@ -16,8 +16,8 @@ When ready to release your plugin, make sure to register the plugin with the Fal
 <!-- REGISTRY -->
 ## Source Plugins
 | ID | Event Source | Name | Description | Info |
-| --- | --- | --- | --- | ---|
-| 1 | k8s_auditlogs | `k8s_audit` | N/A | Authors: N/A <br/> Repository: N/A <br/> Contact: N/A |
+| --- | --- | --- | --- | --- |
+| 1 | k8s_audit | `k8s_audit` | Reserved for a future back-port of Falco's k8s_audit event source as a plugin | Authors: N/A <br/> Repository: N/A <br/> Contact: N/A |
 | 2 | cloudtrail | `aws_cloudtrail` | Reads Cloudtrail JSON logs from files/S3 and injects as events | Authors: The Falco Community <br/> Repository: https://github.com/falcosecurity/plugins <br/> Contact: https://falco.org/community |
 | 3 | dummy | `dummy` | Reference plugin used to document interface | Authors: The Falco Community <br/> Repository: https://github.com/falcosecurity/plugins <br/> Contact: https://falco.org/community |
 | 4 | dummy_c | `dummy_c` | Like Dummy, but written in C++ | Authors: The Falco Community <br/> Repository: https://github.com/falcosecurity/plugins <br/> Contact: https://falco.org/community |
