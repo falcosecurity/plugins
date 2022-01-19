@@ -29,19 +29,24 @@ func (r *Registry) FormatMarkdownTable() string {
 		}
 		return s
 	}
+	formatWithURL := func(s string, url string) string {
+		if len(url) == 0 {
+			return wrapNotAvailable(s)
+		}
+		return fmt.Sprintf("[%s](%s)", wrapNotAvailable(s), url)
+	}
 
 	ret.WriteString("## Source Plugins\n")
 	ret.WriteString("| ID | Name | Event Source | Description | Info |\n")
 	ret.WriteString("| --- | --- | --- | --- | --- |\n")
 	for _, s := range r.Plugins.Source {
-		line := fmt.Sprintf("| %d | **%s** | `%s` | %s | Authors: %s <br/> Repository: %s <br/> Contact: %s |\n",
+		line := fmt.Sprintf("| %d | %s | `%s` | %s | Authors: %s <br/> License: %s |\n",
 			s.ID,
-			wrapNotAvailable(s.Name),
+			formatWithURL(s.Name, s.URL),
 			wrapNotAvailable(s.Source),
 			wrapNotAvailable(s.Description),
-			wrapNotAvailable(s.Authors),
-			wrapNotAvailable(s.Repository),
-			wrapNotAvailable(s.Contact),
+			formatWithURL(s.Authors, s.Contact),
+			wrapNotAvailable(s.License),
 		)
 		ret.WriteString(line)
 	}
@@ -53,13 +58,12 @@ func (r *Registry) FormatMarkdownTable() string {
 		for _, s := range e.Sources {
 			sources = append(sources, fmt.Sprintf("`%s`", s))
 		}
-		line := fmt.Sprintf("| **%s** | %s | %s | Authors: %s <br/> Repository: %s <br/> Contact: %s |\n",
-			e.Name,
+		line := fmt.Sprintf("| %s | %s | %s | Authors: %s <br/> License: %s |\n",
+			formatWithURL(e.Name, e.URL),
 			wrapNotAvailable(strings.Join(sources, ", ")),
 			wrapNotAvailable(e.Description),
-			wrapNotAvailable(e.Authors),
-			wrapNotAvailable(e.Repository),
-			wrapNotAvailable(e.Contact),
+			formatWithURL(e.Authors, e.Contact),
+			wrapNotAvailable(e.License),
 		)
 		ret.WriteString(line)
 	}
