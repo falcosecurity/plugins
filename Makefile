@@ -82,8 +82,15 @@ check-registry: build/registry/registry
 
 .PHONY: update-readme
 update-readme: build/registry/registry
-	@build/registry/registry table ./registry.yaml --subfile=./README.md
-	@echo Readme successfully updated
+	@build/registry/registry table ./registry.yaml \
+		--subfile=./README.md \
+		--subtag="<!-- REGISTRY:SOURCE-TABLE -->" \
+		--type=plugins-source
+	@build/registry/registry table ./registry.yaml \
+		--subfile=./README.md \
+		--subtag="<!-- REGISTRY:EXTRACTOR-TABLE -->" \
+		--type=plugins-extractor
+	@echo Readme has been updated successfully
 
 .PHONY: build/utils/version
 build/utils/version:
