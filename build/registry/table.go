@@ -36,7 +36,7 @@ func (r *Registry) FormatMarkdownTable() string {
 		return fmt.Sprintf("[%s](%s)", wrapNotAvailable(s), url)
 	}
 
-	ret.WriteString("## Source Plugins\n")
+	ret.WriteString("### Source Plugins\n")
 	ret.WriteString("| ID | Name | Event Source | Description | Info |\n")
 	ret.WriteString("| --- | --- | --- | --- | --- |\n")
 	for _, s := range r.Plugins.Source {
@@ -50,7 +50,7 @@ func (r *Registry) FormatMarkdownTable() string {
 		)
 		ret.WriteString(line)
 	}
-	ret.WriteString("\n## Extractor Plugins\n")
+	ret.WriteString("\n### Extractor Plugins\n")
 	ret.WriteString("| Name | Extract Event Sources | Description | Info |\n")
 	ret.WriteString("| --- | --- | --- | --- |\n")
 	for _, e := range r.Plugins.Extractor {
