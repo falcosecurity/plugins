@@ -36,9 +36,10 @@ You can find the full registry specification here: *(coming soon...)*
 
 The tables below list the all plugins currently registered. The tables are are automatically generated from [registry.yaml](./registry.yaml).
 
-<!-- The text inside \<!-- REGISTRY --\> comments is auto-generated. These comments and the text between them should not be edited by hand -->
-<!-- REGISTRY -->
+<!-- The text inside \<!-- REGISTRY:xxx --\> comments is auto-generated. These comments and the text between them should not be edited by hand -->
+
 #### Source Plugins
+<!-- REGISTRY:SOURCE-TABLE -->
 | ID | Name | Event Source | Description | Info |
 | --- | --- | --- | --- | --- |
 | 1 | k8s_audit | `k8s_audit` | Reserved for a future back-port of Falco's k8s_audit event source as a plugin | Authors: N/A <br/> License: N/A |
@@ -47,14 +48,15 @@ The tables below list the all plugins currently registered. The tables are are a
 | 4 | [dummy_c](https://github.com/falcosecurity/plugins/tree/master/plugins/dummy_c) | `dummy_c` | Like Dummy, but written in C++ | Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
 | 999 | test | `test` | This ID is reserved for source plugin development. Any plugin author can use this ID, but authors can expect events from other developers with this ID. After development is complete, the author should request an actual ID | Authors: N/A <br/> License: N/A |
 
+<!-- REGISTRY:SOURCE-TABLE -->
+
 #### Extractor Plugins
+<!-- REGISTRY:EXTRACTOR-TABLE -->
 | Name | Extract Event Sources | Description | Info |
 | --- | --- | --- | --- |
 | [json](https://github.com/falcosecurity/plugins/tree/master/plugins/json) | N/A | Extract values from any JSON payload | Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
 
-<!-- REGISTRY -->
-
-
+<!-- REGISTRY:EXTRACTOR-TABLE -->
 
 ## Hosted Plugins 
 

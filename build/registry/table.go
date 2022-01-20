@@ -21,7 +21,12 @@ import (
 	"strings"
 )
 
-func (r *Registry) FormatMarkdownTable() string {
+var (
+	sourcePluginsTableContentType    = "plugins-source"
+	extractorPluginsTableContentType = "plugins-extractor"
+)
+
+func (r *Registry) FormatMarkdownTable(contentType string) (string, error) {
 	var ret strings.Builder
 	wrapNotAvailable := func(s string) string {
 		if len(s) == 0 {
@@ -36,36 +41,41 @@ func (r *Registry) FormatMarkdownTable() string {
 		return fmt.Sprintf("[%s](%s)", wrapNotAvailable(s), url)
 	}
 
-	ret.WriteString("### Source Plugins\n")
-	ret.WriteString("| ID | Name | Event Source | Description | Info |\n")
-	ret.WriteString("| --- | --- | --- | --- | --- |\n")
-	for _, s := range r.Plugins.Source {
-		line := fmt.Sprintf("| %d | %s | `%s` | %s | Authors: %s <br/> License: %s |\n",
-			s.ID,
-			formatWithURL(s.Name, s.URL),
-			wrapNotAvailable(s.Source),
-			wrapNotAvailable(s.Description),
-			formatWithURL(s.Authors, s.Contact),
-			wrapNotAvailable(s.License),
-		)
-		ret.WriteString(line)
-	}
-	ret.WriteString("\n### Extractor Plugins\n")
-	ret.WriteString("| Name | Extract Event Sources | Description | Info |\n")
-	ret.WriteString("| --- | --- | --- | --- |\n")
-	for _, e := range r.Plugins.Extractor {
-		sources := make([]string, 0)
-		for _, s := range e.Sources {
-			sources = append(sources, fmt.Sprintf("`%s`", s))
+	switch contentType {
+	case sourcePluginsTableContentType:
+		ret.WriteString("| ID | Name | Event Source | Description | Info |\n")
+		ret.WriteString("| --- | --- | --- | --- | --- |\n")
+		for _, s := range r.Plugins.Source {
+			line := fmt.Sprintf("| %d | %s | `%s` | %s | Authors: %s <br/> License: %s |\n",
+				s.ID,
+				formatWithURL(s.Name, s.URL),
+				wrapNotAvailable(s.Source),
+				wrapNotAvailable(s.Description),
+				formatWithURL(s.Authors, s.Contact),
+				wrapNotAvailable(s.License),
+			)
+			ret.WriteString(line)
 		}
-		line := fmt.Sprintf("| %s | %s | %s | Authors: %s <br/> License: %s |\n",
-			formatWithURL(e.Name, e.URL),
-			wrapNotAvailable(strings.Join(sources, ", ")),
-			wrapNotAvailable(e.Description),
-			formatWithURL(e.Authors, e.Contact),
-			wrapNotAvailable(e.License),
-		)
-		ret.WriteString(line)
+	case extractorPluginsTableContentType:
+		ret.WriteString("| Name | Extract Event Sources | Description | Info |\n")
+		ret.WriteString("| --- | --- | --- | --- |\n")
+		for _, e := range r.Plugins.Extractor {
+			sources := make([]string, 0)
+			for _, s := range e.Sources {
+				sources = append(sources, fmt.Sprintf("`%s`", s))
+			}
+			line := fmt.Sprintf("| %s | %s | %s | Authors: %s <br/> License: %s |\n",
+				formatWithURL(e.Name, e.URL),
+				wrapNotAvailable(strings.Join(sources, ", ")),
+				wrapNotAvailable(e.Description),
+				formatWithURL(e.Authors, e.Contact),
+				wrapNotAvailable(e.License),
+			)
+			ret.WriteString(line)
+		}
+	default:
+		return "", fmt.Errorf("unknown table content type: %s", contentType)
 	}
-	return ret.String()
+
+	return ret.String(), nil
 }
