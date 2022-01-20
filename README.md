@@ -1,5 +1,8 @@
 # Plugins
 
+![GitHub branch checks state](https://img.shields.io/github/checks-status/falcosecurity/plugins/master?style=for-the-badge)
+[![License](https://img.shields.io/github/license/falcosecurity/plugins?style=for-the-badge)](./LICENSE)
+
 Note: *The plugin system is a new feature introduced since Falco 0.31.0. You can find more detail in the original [proposal document](https://github.com/falcosecurity/falco/blob/master/proposals/20210501-plugin-system.md).*
 
 This repository contains the [Plugin Registry](#plugin-registry) and the [plugins officially maintained](#falcusecurity-plugins) by the Falcosecurity organization. [Plugins](https://deploy-preview-493--falcosecurity.netlify.app/docs/plugins) can be used to extend the functionality of [Falco](https://github.com/falcosecurity/falco) and of applications using [Falcosecurity libs](https://github.com/falcosecurity/libs). Please refer to the [official documentation](https://deploy-preview-493--falcosecurity.netlify.app/docs/plugins/) to better understand the concepts and the architecture behind the plugin system. 
