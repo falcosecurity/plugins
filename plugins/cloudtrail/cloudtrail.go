@@ -211,8 +211,12 @@ func (o *openContext) NextBatch(pState sdk.PluginState, evts sdk.EventWriters) (
 	var n int
 	var err error
 	pCtx := pState.(*pluginContext)
-	for n = 0; err == nil && n < evts.Len(); n++ {
+	for n = 0; n < evts.Len(); n++ {
 		err = nextEvent(pCtx, o, evts.Get(n))
+
+		if err != nil {
+			break
+		}
 	}
 	return n, err
 }
