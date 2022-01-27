@@ -218,6 +218,14 @@ func (o *openContext) NextBatch(pState sdk.PluginState, evts sdk.EventWriters) (
 			break
 		}
 	}
+
+	// If the loop above ended on EOF, but retrieved some events
+	// before EOF, return nil here. (The next call will return
+	// EOF).
+	if n > 0 && err == sdk.ErrEOF {
+		err = nil
+	}
+
 	return n, err
 }
 
