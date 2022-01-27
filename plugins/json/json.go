@@ -130,7 +130,16 @@ func (m *MyPlugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 		if val == nil {
 			return fmt.Errorf("json key not found: %s", arg)
 		}
-		req.SetValue(string(val.MarshalTo(nil)))
+
+		if val.Type() == fastjson.TypeString {
+			str, err := val.StringBytes()
+			if err != nil {
+				return err
+			}
+			req.SetValue(string(str))
+		} else {
+			req.SetValue(string(val.MarshalTo(nil)))
+		}
 	case 4: // jevt.obj
 		fallthrough
 	case 1: // json.obj
