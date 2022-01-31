@@ -5,7 +5,7 @@
 
 Note: *The plugin system is a new feature introduced since Falco 0.31.0. You can find more detail in the original [proposal document](https://github.com/falcosecurity/falco/blob/master/proposals/20210501-plugin-system.md).*
 
-This repository contains the [Plugin Registry](#plugin-registry) and the [plugins officially maintained](#falcusecurity-plugins) by the Falcosecurity organization. [Plugins](https://deploy-preview-493--falcosecurity.netlify.app/docs/plugins) can be used to extend [Falco](https://github.com/falcosecurity/falco) and of applications using [Falcosecurity libs](https://github.com/falcosecurity/libs). Please refer to the [official documentation](https://deploy-preview-493--falcosecurity.netlify.app/docs/plugins/) to better understand the plugin system's concepts and architecture. 
+This repository contains the [Plugin Registry](#plugin-registry) and the [plugins officially maintained](#falcusecurity-plugins) by the Falcosecurity organization. [Plugins](https://falco.org/docs/plugins) can be used to extend [Falco](https://github.com/falcosecurity/falco) and of applications using [Falcosecurity libs](https://github.com/falcosecurity/libs). Please refer to the [official documentation](https://falco.org/docs/plugins) to better understand the plugin system's concepts and architecture. 
 
 ## Plugin Registry
 
@@ -13,7 +13,7 @@ The Registry contains metadata and information about every plugin known and reco
 
 ### Registering a new Plugin
 
-Registering your plugin inside the registry helps ensure that some technical constraints are respected, such as that a [given ID is used by exactly one source plugin](https://deploy-preview-493--falcosecurity.netlify.app/docs/plugins/#plugin-event-ids) and allows source plugin authors and extractor plugin authors to [coordinate event source formats](https://deploy-preview-493--falcosecurity.netlify.app/docs/plugins/#plugin-event-sources-and-interoperability). Moreover, this is a great way to share your plugin project with the community and engage with it, thus gaining new users and **increasing its visibility**. We encourage you to register your plugin in this registry before publishing it. You can add your plugins in this registry regardless of where its source code is hosted (there's a `url` field for this specifically).
+Registering your plugin inside the registry helps ensure that some technical constraints are respected, such as that a [given ID is used by exactly one source plugin](https://falco.org/docs/plugins/#plugin-event-ids) and allows source plugin authors and extractor plugin authors to [coordinate event source formats](https://falco.org/docs/plugins/#plugin-event-sources-and-interoperability). Moreover, this is a great way to share your plugin project with the community and engage with it, thus gaining new users and **increasing its visibility**. We encourage you to register your plugin in this registry before publishing it. You can add your plugins in this registry regardless of where its source code is hosted (there's a `url` field for this specifically).
 
 The registration process involves adding an entry about your plugin inside the [registry.yaml](./registry.yaml) file by creating a Pull Request in this repository. Please be mindful of a few constraints that are automatically checked and required for your plugin to be accepted:
 
