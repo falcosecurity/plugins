@@ -69,7 +69,6 @@ func (e *Extractor) Check() error {
 func (p *Plugins) Check(reserved []string) error {
 	ids := make(map[uint]bool)
 	names := make(map[string]bool)
-	sourceNames := make(map[string]bool)
 
 	for _, s := range p.Source {
 		if err := s.Check(reserved); err != nil {
@@ -81,12 +80,8 @@ func (p *Plugins) Check(reserved []string) error {
 		if _, ok := ids[s.ID]; ok {
 			return fmt.Errorf("source id is not unique: '%d'", s.ID)
 		}
-		if _, ok := sourceNames[s.Source]; ok {
-			return fmt.Errorf("source name is not unique: '%s'", s.Source)
-		}
 		names[s.Name] = true
 		ids[s.ID] = true
-		sourceNames[s.Source] = true
 	}
 
 	for _, e := range p.Extractor {
