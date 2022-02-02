@@ -18,7 +18,7 @@ Registering your plugin inside the registry helps ensure that some technical con
 The registration process involves adding an entry about your plugin inside the [registry.yaml](./registry.yaml) file by creating a Pull Request in this repository. Please be mindful of a few constraints that are automatically checked and required for your plugin to be accepted:
 
 - The `name` field is mandatory and must be **unique** across all the plugins in the registry
-- *(Source plugins only)* The `id` and `source` fields are mandatory and must be **unique** across all the source plugins in the registry
+- *(Source plugins only)* The `id` field is mandatory and must be **unique** across all the source plugins in the registry
 - The plugin `name` and `source` fields should match this [regular expression](https://en.wikipedia.org/wiki/Regular_expression): `^[a-z]+[a-z0-9_]*$`
 
 For reference, here's an example of a source plugin entry:
