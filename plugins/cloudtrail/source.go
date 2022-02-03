@@ -321,7 +321,7 @@ func nextEvent(pCtx *pluginContext, oCtx *openContext, evt sdk.EventWriter) erro
 	var err error
 
 	// Only open the next file once we're sure that the content of the previous one has been full consumed
-	if oCtx.evtJSONListPos == len(oCtx.evtJSONStrings) {
+	if oCtx.evtJSONListPos >= len(oCtx.evtJSONStrings) {
 		// Open the next file and bring its content into memeory
 		if oCtx.curFileNum >= uint32(len(oCtx.files)) {
 
@@ -400,7 +400,6 @@ func nextEvent(pCtx *pluginContext, oCtx *openContext, evt sdk.EventWriter) erro
 		oCtx.evtJSONListPos++
 	} else {
 		// Json not int the expected format. Just skip this event.
-		oCtx.evtJSONListPos++
 		return sdk.ErrTimeout
 	}
 	// All cloudtrail events should have a time. If it's missing
