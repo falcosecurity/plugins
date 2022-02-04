@@ -1,4 +1,4 @@
-module github.com/falcosecurity/plugins/cloudtrail
+module github.com/falcosecurity/plugins/plugins/cloudtrail
 
 go 1.15
 

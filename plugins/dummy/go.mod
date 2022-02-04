@@ -1,4 +1,4 @@
-module github.com/falcosecurity/plugins/dummy
+module github.com/falcosecurity/plugins/plugins/dummy
 
 go 1.15
 
