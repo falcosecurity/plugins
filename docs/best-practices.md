@@ -80,3 +80,6 @@ An important topic is the difference between producing events from a *live* or *
 - Falco has been designed as a tool for runtime security, and it is supposed to stay in that space as much as possible
 - By default, plugins are meant to always produce live events
 - Plugins can **optionally** produce offline events with a given configuration or with special open parameters. This is helpful to satisfy use cases involving debugging, testing, and reproducibility
+- Live events do not include events that happened before the plugin startup. For instance, assuming one has a log file:
+    - `tail -f` would output live events only
+    - `cat` would output all events (ie. offline mode)
