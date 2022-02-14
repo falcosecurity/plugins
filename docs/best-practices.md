@@ -1,6 +1,6 @@
 # Best Practices
 
-This page is summary of some best practices and guidelines that can be useful to developers that are getting started with the [plugin system of Falco](https://falco.org/docs/plugins/). The [Developers Guide](https://falco.org/docs/plugins/developers-guide/) is mostly focused on the technical aspects of plugin development, whereas here we provide some guidance on more high-level points that may occur during the design and implementation phases.
+This page summarizes some best practices and guidelines that can be useful to developers that are getting started with the [plugin system of Falco](https://falco.org/docs/plugins/). The [Developers Guide](https://falco.org/docs/plugins/developers-guide/) is mostly focused on the technical aspects of plugin development. In contrast, here we provide some guidance on more high-level points that may occur during the design and implementation phases.
 
 ## Configuration in Source Plugins
 
@@ -8,14 +8,14 @@ One of the main differences between source and extractor plugins is the way they
 
 There's no silver bullet for this problem, and the solution strictly depends on the use cases of your plugin. However, there are some principles you can follow.
 
-- The init configuration should contain information that is used during the whole plugin lifecycle and that is used across both field extraction and event generation
-- The init configuration is the right place for structured data. In fact, in most cases plugins accept JSON strings as a configuration, and also expose a schema describing/documenting the expected data format (see [`plugin_get_init_schema`](https://falco.org/docs/plugins/plugin-api-reference/#const-char-plugin-get-init-schema-ss-plugin-schema-type-schema-type-required-no) for more details)
-- The open parameters should contain information that is only relevant for opening a specific event source, and their lifecycle ends at the invokation of `plugin_close()`
-- The open parameters should contain minimal and non-structured information, such as an URI or a resource descriptor string. This is the reason why the framework does not support any schema definition for open parameters, and treats them as a opaque string. Ideally, if more than one parameter is required to open a data source, comma-separated string contatenation is preferrable than structured data formats such as JSON
+- The [init configuration](https://falco.org/docs/configuration/#plugins) should contain information that is used during the whole plugin lifecycle and that is used across both field extraction and event generation
+- The init configuration is the right place for structured data. In fact, in most cases, plugins accept JSON strings as a configuration and also expose a schema describing/documenting the expected data format (see [`plugin_get_init_schema`](https://falco.org/docs/plugins/plugin-api-reference/#const-char-plugin-get-init-schema-ss-plugin-schema-type-schema-type-required-no) for more details)
+- The open parameters should contain information that is only relevant for opening a specific event source, and their lifecycle ends at the invocation of `plugin_close()`
+- The open parameters should contain minimal and non-structured information, such as a URI or a resource descriptor string. This is the reason why the framework does not support any schema definition for open parameters and treats them as an opaque string. Ideally, if more than one parameter is required to open a data source, comma-separated string concatenation is preferable to structured data formats such as JSON
 
 ## Secret Management
 
-An important decision during plugin development is how secrets are managed. It's common to manage connections to external services, authenticate with credentials, or use private tokens. Plugins accept user-defined values only through the init configuration or the open parameters. In general, you shouldn't pass secrets directly inside the init configuration or the open parameters. Instead, there are few guidelines you can follow in order to ensure that your secrets are managed safely in the plugin framework.
+An important decision during plugin development is how secrets are managed. It's common to manage connections to external services, authenticate with credentials, or use private tokens. Plugins accept user-defined values only through the [init configuration](https://falco.org/docs/configuration/#plugins) or the open parameters. In general, you shouldn't pass secrets directly inside the init configuration or the open parameters. Instead, there are a few guidelines you can follow in order to ensure that your secrets are managed safely in the plugin framework.
 
 ### Don't
 
@@ -27,31 +27,31 @@ An important decision during plugin development is how secrets are managed. It's
 
 ### Do
 
-- Retrieve credentials or secrets through environment variables, or external files, and pass their name in the plugin:
+- Retrieve credentials or secrets through environment variables or external files, and pass their name in the plugin:
     - Init configuration
     - Open parameters, only if they are required to open the event source
-- Follow the secret management guidelines imposed by well-known packages such as [aws-sdk-go](https://github.com/aws/aws-sdk-go#configuring-credentials)
+- Follow the secret management guidelines mandated by well-known packages such as [aws-sdk-go](https://github.com/aws/aws-sdk-go#configuring-credentials)
 
 
 ## Managing the NextBatch Loop
 
-In source plugins, new events are created and returned in batches with the `plugin_next_batch()` function. This design decision reduces the overhead that may occur by integrating C with other programming languages such as Go. Although the SDKs cover most of the hard work, plugin developers must manage the batching system manually and there are some things to keep in mind in order to ensure optimal performance and correct behavior.
+In source plugins, new events are created and returned in batches with the `plugin_next_batch()` function. This design decision reduces the overhead that may occur by integrating C with other programming languages such as Go. Although the SDKs cover most of the hard work, plugin developers must manage the batching system manually and there are some things to keep in mind to ensure optimal performance and correct behavior.
 
 ### Don't
 
-- Allocate a new event batch at every invokation of `plugin_next_batch()`, because event generation is a very hot path
+- Allocate a new event batch at every invocation of `plugin_next_batch()`, because event generation is a very hot path
 - Block the execution for long times: be mindful that `plugin_next_batch()` is blocking for the framework
-- Return an EOF error and then return new events at the following invokation of `plugin_next_batch()`
+- Return an EOF error and then return new events at the following invocation of `plugin_next_batch()`
 - Return a given number of events without filling their data in the event batch
 
 ### Do
 
 - Rely on the Go SDK and C++ SDK to ensure that all memory allocations are optimized
 - Return a number of events smaller than the size of the batch, if fastly available (see the behavior described [in the Go SDK](https://pkg.go.dev/github.com/falcosecurity/plugin-sdk-go@v0.1.0/pkg/sdk#NextBatcher))
-- Return Timeout (see [`sdk.ErrTimeout`](https://github.com/falcosecurity/plugin-sdk-go/blob/0b4b6dc215141116c53398f3232aac98e49cdb80/pkg/sdk/sdk.go#L30) in Go or [`SS_PLUGIN_TIMEOUT`](https://github.com/falcosecurity/libs/blob/033c4b9f28e58e20a5822bd8a7419beea098af91/userspace/libscap/plugin_info.h#L76) in C/C++) after a short time period passes without producing any event (no more than few milliseconds)
+- Return Timeout (see [`sdk.ErrTimeout`](https://github.com/falcosecurity/plugin-sdk-go/blob/0b4b6dc215141116c53398f3232aac98e49cdb80/pkg/sdk/sdk.go#L30) in Go or [`SS_PLUGIN_TIMEOUT`](https://github.com/falcosecurity/libs/blob/033c4b9f28e58e20a5822bd8a7419beea098af91/userspace/libscap/plugin_info.h#L76) in C/C++) after a short time period passes without producing any event (no more than a few milliseconds)
 - Return Timeout even with a non-zero number of events, if they are available
 - Return EOF (see [`sdk.ErrEOF`](https://github.com/falcosecurity/plugin-sdk-go/blob/0b4b6dc215141116c53398f3232aac98e49cdb80/pkg/sdk/sdk.go#L25) in Go or [`SS_PLUGIN_EOF`](https://github.com/falcosecurity/libs/blob/033c4b9f28e58e20a5822bd8a7419beea098af91/userspace/libscap/plugin_info.h#L77) in C/C++) when you are certain that no more events will be produced
-- Return EOF with a non-zero number of events, but ensuring that every following invokation of `plugin_next_batch()` returns EOF and zero events
+- Return EOF with a non-zero number of events, but ensuring that every following invocation of `plugin_next_batch()` returns EOF and zero events
 
 
 ## Fields Naming Conventions
