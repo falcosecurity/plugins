@@ -54,6 +54,14 @@ plugins:
       contact: https://falco.org/community
       url: https://github.com/falcosecurity/plugins/tree/master/plugins/dummy_c
       license: Apache-2.0
+    - id: 5
+      source: docker
+      name: docker
+      description: Docker Events
+      authors: Thomas Labarussias
+      contact: https://github.org/Issif
+      url: https://github.com/Issif/docker-plugin
+      license: Apache-2.0
     - id: 999
       source: test
       name: test
