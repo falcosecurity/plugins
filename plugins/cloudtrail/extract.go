@@ -466,6 +466,19 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 	return true, res
 }
 
+func getvalueU64(jvalue *fastjson.Value) uint64 {
+	// Values are sometimes floats, e.g. "bytesTransferredOut": 33.0
+	u64, err := jvalue.Uint64()
+	if err == nil {
+		return u64
+	}
+	f64, err := jvalue.Float64()
+	if err == nil {
+		return uint64(f64)
+	}
+	return 0
+}
+
 func getfieldU64(jdata *fastjson.Value, field string) (bool, uint64) {
 	// Go should do binary search here:
 	// https://github.com/golang/go/blob/8ee9bca2729ead81da6bf5a18b87767ff396d1b7/src/cmd/compile/internal/gc/swt.go#L375
@@ -474,25 +487,25 @@ func getfieldU64(jdata *fastjson.Value, field string) (bool, uint64) {
 		var tot uint64 = 0
 		in := jdata.Get("additionalEventData", "bytesTransferredIn")
 		if in != nil {
-			tot = tot + in.GetUint64()
+			tot = tot + getvalueU64(in)
 		}
 		out := jdata.Get("additionalEventData", "bytesTransferredOut")
 		if out != nil {
-			tot = tot + out.GetUint64()
+			tot = tot + getvalueU64(out)
 		}
 		return (in != nil || out != nil), tot
 	case "s3.bytes.in":
 		var tot uint64 = 0
 		in := jdata.Get("additionalEventData", "bytesTransferredIn")
 		if in != nil {
-			tot = tot + in.GetUint64()
+			tot = tot + getvalueU64(in)
 		}
 		return (in != nil), tot
 	case "s3.bytes.out":
 		var tot uint64 = 0
 		out := jdata.Get("additionalEventData", "bytesTransferredOut")
 		if out != nil {
-			tot = tot + out.GetUint64()
+			tot = tot + getvalueU64(out)
 		}
 		return (out != nil), tot
 	case "s3.cnt.get":
