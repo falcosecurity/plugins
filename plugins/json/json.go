@@ -21,17 +21,12 @@ limitations under the License.
 package main
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"io"
-	"io/ioutil"
-	"strings"
 
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/extractor"
-	"github.com/valyala/fastjson"
+	"github.com/falcosecurity/plugins/plugins/json/pkg/json"
 )
 
 // Plugin info
@@ -45,9 +40,7 @@ const (
 
 type MyPlugin struct {
 	plugins.BasePlugin
-	jparser     fastjson.Parser
-	jdata       *fastjson.Value
-	jdataEvtnum uint64 // The event number jdata refers to. Used to know when we can skip the unmarshaling.
+	helper json.Extractor
 }
 
 func init() {
@@ -81,87 +74,17 @@ func (m *MyPlugin) Fields() []sdk.FieldEntry {
 }
 
 func (m *MyPlugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
-	reader := evt.Reader()
-
-	// As a very quick sanity check, only try to extract all if
-	// the first character is '{' or '['
-	data := []byte{0}
-	_, err := reader.Read(data)
-	if err != nil {
-		return err
-	}
-	if !(data[0] == '{' || data[0] == '[') {
-		return fmt.Errorf("invalid json format")
-	}
-
-	// Decode the json, but only if we haven't done it yet for this event
-	if evt.EventNum() != m.jdataEvtnum {
-		_, err := reader.Seek(0, io.SeekStart)
-		if err != nil {
-			return err
-		}
-
-		data, err = ioutil.ReadAll(reader)
-		if err != nil {
-			return err
-		}
-
-		// Try to parse the data as json
-		m.jdata, err = m.jparser.ParseBytes(data)
-		if err != nil {
-			return err
-		}
-		m.jdataEvtnum = evt.EventNum()
-	}
-
 	switch req.FieldID() {
 	case 3: // jevt.value
 		fallthrough
 	case 0: // json.value
-		arg := req.Arg()
-		if len(arg) == 0 {
-			return fmt.Errorf("value argument is required")
-		}
-		if arg[0] == '/' {
-			arg = arg[1:]
-		}
-		hc := strings.Split(arg, "/")
-		val := m.jdata.Get(hc...)
-		if val == nil {
-			return fmt.Errorf("json key not found: %s", arg)
-		}
-
-		if val.Type() == fastjson.TypeString {
-			str, err := val.StringBytes()
-			if err != nil {
-				return err
-			}
-			req.SetValue(string(str))
-		} else {
-			req.SetValue(string(val.MarshalTo(nil)))
-		}
+		m.helper.SetEventReader(evt)
+		return m.helper.ExtractValue(req, req.Arg())
 	case 4: // jevt.obj
 		fallthrough
 	case 1: // json.obj
-		// If we skipped the deserialization, we have to read
-		// the event data.
-		if len(data) == 1 {
-			_, err := reader.Seek(0, io.SeekStart)
-			if err != nil {
-				return err
-			}
-
-			data, err = ioutil.ReadAll(reader)
-			if err != nil {
-				return err
-			}
-		}
-		var out bytes.Buffer
-		err = json.Indent(&out, data, "", "  ")
-		if err != nil {
-			return err
-		}
-		req.SetValue(out.String())
+		m.helper.SetEventReader(evt)
+		return m.helper.ExtractObject(req)
 	case 5: // jevt.rawtime
 		fallthrough
 	case 2: // json.rawtime
