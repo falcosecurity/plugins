@@ -2,6 +2,7 @@
 .DS_Store
 output/
 plugins/*/*.so
+plugins/*/*.yaml
 plugins/*/lib*.h
 plugins/dummy_c/nlohmann
 plugins/dummy_c/sdk

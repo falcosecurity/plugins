@@ -1,0 +1,4 @@
+github.com/falcosecurity/plugin-sdk-go v0.1.0 h1:uLcU/3ydPxXHpojqHg8hROaPL2fsE43VdoS//OL1HoI=
+github.com/falcosecurity/plugin-sdk-go v0.1.0/go.mod h1:9IdFIqRwJIFDfKnwTTM6S4mLITNfdjVl+5r4RY0TmRo=
+github.com/valyala/fastjson v1.6.3 h1:tAKFnnwmeMGPbwJ7IwxcTPCNr3uIzoIj3/Fh90ra4xc=
+github.com/valyala/fastjson v1.6.3/go.mod h1:CLCAqky6SMuOcxStkYQvblddUtoRxhYMGLrsQns1aXY=
