@@ -49,6 +49,7 @@ The tables below list all the plugins currently registered. The tables are autom
 | 2 | [cloudtrail](https://github.com/falcosecurity/plugins/tree/master/plugins/cloudtrail) | `aws_cloudtrail` | Reads Cloudtrail JSON logs from files/S3 and injects as events | Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
 | 3 | [dummy](https://github.com/falcosecurity/plugins/tree/master/plugins/dummy) | `dummy` | Reference plugin used to document interface | Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
 | 4 | [dummy_c](https://github.com/falcosecurity/plugins/tree/master/plugins/dummy_c) | `dummy_c` | Like Dummy, but written in C++ | Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
+| 5 | [docker](https://github.com/Issif/docker-plugin) | `docker` | Docker Events | Authors: [Thomas Labarussias](https://github.org/Issif) <br/> License: Apache-2.0 |
 | 999 | test | `test` | This ID is reserved for source plugin development. Any plugin author can use this ID, but authors can expect events from other developers with this ID. After development is complete, the author should request an actual ID | Authors: N/A <br/> License: N/A |
 
 <!-- REGISTRY:SOURCE-TABLE -->
