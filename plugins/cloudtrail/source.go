@@ -45,9 +45,17 @@ func openLocal(pCtx *pluginContext, oCtx *openContext, params string) error {
 
 	log.Printf("[%s] scanning directory %s\n", PluginName, oCtx.cloudTrailFilesDir)
 
-	err := filepath.Walk(oCtx.cloudTrailFilesDir, func(path string, info os.FileInfo, err error) error {
-		if info != nil && info.IsDir() {
-			return nil
+	// filepath.Walk doesn't traverse symlinks.
+	// We implement it throug a recursive anonymous function
+	var handleFile func(path string, info os.FileInfo, err error) error
+	handleFile = func(path string, info os.FileInfo, err error) error {
+		if info != nil {
+			if info.Mode()&os.ModeSymlink != 0 {
+				sl, _ := filepath.EvalSymlinks(path)
+				filepath.Walk(sl, handleFile)
+			} else if info.IsDir() {
+				return nil
+			}
 		}
 
 		isCompressed := strings.HasSuffix(path, ".json.gz")
@@ -58,7 +66,9 @@ func openLocal(pCtx *pluginContext, oCtx *openContext, params string) error {
 		var fi fileInfo = fileInfo{name: path, isCompressed: isCompressed}
 		oCtx.files = append(oCtx.files, fi)
 		return nil
-	})
+	}
+
+	err := filepath.Walk(oCtx.cloudTrailFilesDir, handleFile)
 	if err != nil {
 		return err
 	}

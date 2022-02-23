@@ -140,11 +140,11 @@ func (m *MyPlugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 			arg = arg[1:]
 		}
 		hc := strings.Split(arg, "/")
-		val := m.jdata.Get(hc...)
+		val := m.jdata.GetStringBytes(hc...)
 		if val == nil {
 			return fmt.Errorf("json key not found: %s", arg)
 		}
-		req.SetValue(string(val.MarshalTo(nil)))
+		req.SetValue(string(string(val)))
 	case 4: // jevt.obj
 		fallthrough
 	case 1: // json.obj

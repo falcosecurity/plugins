@@ -44,6 +44,7 @@ import (
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/source"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/symbols/extract"
 	_ "github.com/falcosecurity/plugin-sdk-go/pkg/sdk/symbols/progress"
+	"github.com/oschwald/maxminddb-golang"
 	"github.com/valyala/fastjson"
 )
 
@@ -59,7 +60,7 @@ const (
 )
 
 const defaultS3DownloadConcurrency = 1
-const verbose bool = true
+const verbose bool = false
 
 func min(a, b int) int {
 	if a < b {
@@ -100,6 +101,7 @@ type pluginContext struct {
 	sqsDelete             bool   // If true, will delete SQS Messages immediately after receiving them
 	s3DownloadConcurrency int
 	useAsync              bool
+	geoipDB               *maxminddb.Reader // Used to resolve IPs to countries/cities
 }
 
 // Struct for plugin init config
@@ -141,7 +143,7 @@ func init() {
 }
 
 func (p *pluginContext) Info() *plugins.Info {
-	log.Printf("[%s] Info\n", PluginName)
+	//log.Printf("[%s] Info\n", PluginName)
 	return &plugins.Info{
 		ID:                  PluginID,
 		Name:                PluginName,
@@ -186,6 +188,14 @@ func (p *pluginContext) Init(cfg string) error {
 		extract.StartAsync(p)
 	}
 
+	// If available, load the maxmind geoip database that we will use to gather country/city info
+	var err error
+	p.geoipDB, err = maxminddb.Open("./GeoLite2-City.mmdb")
+	if err != nil {
+		p.geoipDB = nil
+		log.Printf("[%s] Cannot load GeoLite2-City.mmdb, geoIP resolution will be disabled: %s\n", PluginName, err)
+	}
+
 	return nil
 }
 
@@ -194,6 +204,10 @@ func (p *pluginContext) Destroy() {
 
 	if p.useAsync {
 		extract.StopAsync(p)
+	}
+
+	if p.geoipDB != nil {
+		p.geoipDB.Close()
 	}
 }
 
@@ -296,7 +310,7 @@ func (p *pluginContext) String(in io.ReadSeeker) (string, error) {
 		user = " " + user
 	}
 
-	info := getEvtInfo(p.jdata)
+	info := getEvtInfo(p, p.jdata)
 
 	return fmt.Sprintf("%s%s %s %s %s",
 		region,
@@ -308,7 +322,7 @@ func (p *pluginContext) String(in io.ReadSeeker) (string, error) {
 }
 
 func (p *pluginContext) Fields() []sdk.FieldEntry {
-	log.Printf("[%s] Fields\n", PluginName)
+	//log.Printf("[%s] Fields\n", PluginName)
 
 	return supportedFields
 }
@@ -344,7 +358,7 @@ func (p *pluginContext) Extract(req sdk.ExtractRequest, evt sdk.EventReader) err
 	if req.FieldType() == sdk.ParamTypeUint64 {
 		present, value = getfieldU64(p.jdata, req.Field())
 	} else {
-		present, value = getfieldStr(p.jdata, req.Field())
+		present, value = getfieldStr(p, p.jdata, req.Field())
 	}
 	if present {
 		req.SetValue(value)
