@@ -9,5 +9,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.13.0
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.16.0
 	github.com/falcosecurity/plugin-sdk-go v0.1.0
+	github.com/oschwald/maxminddb-golang v1.8.0
 	github.com/valyala/fastjson v1.6.3
 )

@@ -70,7 +70,7 @@ var supportedFields = []sdk.FieldEntry{
 	{Type: "uint64", Name: "s3.cnt.put", Display: "N Put Ops", Desc: "the number of put operations. This field is 1 for PutObject events, 0 otherwise.", Properties: []string{"hidden"}},
 	{Type: "uint64", Name: "s3.cnt.other", Display: "N Other Ops", Desc: "the number of non I/O operations. This field is 0 for GetObject and PutObject events, 1 for all the other events.", Properties: []string{"hidden"}},
 	{Type: "string", Name: "ec2.name", Display: "Instance Name", Desc: "the name of the ec2 instances, typically stored in the instance tags."},
-	{Type: "string", Name: "ct.user_activity_key", Display: "User Activity Key", Desc: "For internal use.", Properties: "hidden"},
+	{Type: "string", Name: "ct.user_activity_key", Display: "User Activity Key", Desc: "For internal use.", Properties: []string{"hidden"}},
 }
 
 // For geoip lookup
