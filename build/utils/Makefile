@@ -12,21 +12,13 @@
 #
 
 SHELL=/bin/bash -o pipefail
+
 GO ?= go
 
-NAME := cloudtrail
-OUTPUT := lib$(NAME).so
-
-ifeq ($(DEBUG), 1)
-    GODEBUGFLAGS= GODEBUG=cgocheck=2
-else
-    GODEBUGFLAGS= GODEBUG=cgocheck=0
-endif
-
-all: $(OUTPUT)
+all: version
 
 clean:
-	@rm -f *.so *.h
+	@rm -f version
 
-$(OUTPUT): *.go
-	@$(GODEBUGFLAGS) $(GO) build -buildmode=c-shared -o $(OUTPUT)
+version: version.go
+	@$(GO) build -o version version.go

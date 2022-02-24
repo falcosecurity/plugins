@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2021 The Falco Authors.
+Copyright (C) 2022 The Falco Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,11 +21,11 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"math/rand"
 	"strconv"
 	"time"
 
+	"github.com/alecthomas/jsonschema"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/extractor"
@@ -34,26 +34,29 @@ import (
 
 // Plugin consts
 const (
-	PluginRequiredApiVersion        = "0.2.0"
+	PluginRequiredApiVersion        = "0.3.0"
 	PluginID                 uint32 = 3
 	PluginName                      = "dummy"
 	PluginDescription               = "Reference plugin for educational purposes"
 	PluginContact                   = "github.com/falcosecurity/plugins"
-	PluginVersion                   = "0.1.0"
+	PluginVersion                   = "0.2.1"
 	PluginEventSource               = "dummy"
 )
 
 ///////////////////////////////////////////////////////////////////////////////
 
+type MyPluginConfig struct {
+	// This reflects potential internal state for the plugin. In
+	// this case, the plugin is configured with a jitter.
+	Jitter uint64 `json:"jitter" jsonschema:"description=A random amount added to the sample of each event (Default: 10)"`
+}
+
 type MyPlugin struct {
 	plugins.BasePlugin
-	// This reflects potential internal state for the plugin. In
-	// this case, the plugin is configured with a jitter (e.g. a
-	// random amount to add to the sample with each call to Next()
-	jitter uint64
-
 	// Will be used to randomize samples
 	rand *rand.Rand
+	// Contains the init configuration values
+	config MyPluginConfig
 }
 
 type MyInstance struct {
@@ -79,8 +82,11 @@ func init() {
 	extractor.Register(p)
 }
 
+func (p *MyPluginConfig) setDefault() {
+	p.Jitter = 10
+}
+
 func (m *MyPlugin) Info() *plugins.Info {
-	log.Printf("[%s] Info\n", PluginName)
 	return &plugins.Info{
 		ID:                 PluginID,
 		Name:               PluginName,
@@ -92,40 +98,39 @@ func (m *MyPlugin) Info() *plugins.Info {
 	}
 }
 
-func (m *MyPlugin) Init(cfg string) error {
-	log.Printf("[%s] Init, config=%s\n", PluginName, cfg)
+func (p *MyPlugin) InitSchema() *sdk.SchemaInfo {
+	reflector := jsonschema.Reflector{
+		RequiredFromJSONSchemaTags: true, // all properties are optional by default
+		AllowAdditionalProperties:  true, // unrecognized properties don't cause a parsing failures
+	}
+	if schema, err := reflector.Reflect(&MyPluginConfig{}).MarshalJSON(); err == nil {
+		return &sdk.SchemaInfo{
+			Schema: string(schema),
+		}
+	}
+	return nil
+}
 
-	var jitter uint64 = 10
+func (m *MyPlugin) Init(cfg string) error {
+	// initialize state
+	m.rand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	// The format of cfg is a json object with a single param
 	// "jitter", e.g. {"jitter": 10}
-	//
-	// Empty configs are allowed, in which case the default is
-	// used.
-	if cfg != "" && cfg != "{}" {
-		var obj map[string]uint64
-		err := json.Unmarshal([]byte(cfg), &obj)
-		if err != nil {
-			return err
-		}
-		if _, ok := obj["jitter"]; ok {
-			jitter = obj["jitter"]
-		}
-	}
-
-	m.jitter = jitter
-	m.rand = rand.New(rand.NewSource(time.Now().UnixNano()))
+	// Empty configs are allowed, in which case the default is used.
+	// Since we provide a schema through InitSchema(), the framework
+	// guarantees that the config is always well-formed json.
+	m.config.setDefault()
+	json.Unmarshal([]byte(cfg), &m.config)
 
 	return nil
 }
 
 func (m *MyPlugin) Destroy() {
-	log.Printf("[%s] Destroy\n", PluginName)
+	// nothing to do here
 }
 
 func (m *MyPlugin) Open(prms string) (source.Instance, error) {
-	log.Printf("[%s] Open, params=%s\n", PluginName, prms)
-
 	// The format of params is a json object with two params:
 	// - "start", which denotes the initial value of sample
 	// - "maxEvents": which denotes the number of events to return before EOF.
@@ -153,12 +158,10 @@ func (m *MyPlugin) Open(prms string) (source.Instance, error) {
 }
 
 func (m *MyInstance) Close() {
-	log.Printf("[%s] Close\n", PluginName)
+	// nothing to do here
 }
 
 func (m *MyInstance) NextBatch(pState sdk.PluginState, evts sdk.EventWriters) (int, error) {
-	log.Printf("[%s] NextBatch\n", PluginName)
-
 	// Return EOF if reached maxEvents
 	if m.counter >= m.maxEvents {
 		return 0, sdk.ErrEOF
@@ -172,7 +175,7 @@ func (m *MyInstance) NextBatch(pState sdk.PluginState, evts sdk.EventWriters) (i
 		m.counter++
 
 		// Increment sample by 1, also add a jitter of [0:jitter]
-		m.sample += 1 + uint64(myPlugin.rand.Int63n(int64(myPlugin.jitter+1)))
+		m.sample += 1 + uint64(myPlugin.rand.Int63n(int64(myPlugin.config.Jitter+1)))
 
 		// The representation of a dummy event is the sample as a string.
 		str := strconv.Itoa(int(m.sample))
@@ -191,7 +194,6 @@ func (m *MyInstance) NextBatch(pState sdk.PluginState, evts sdk.EventWriters) (i
 }
 
 func (m *MyPlugin) String(in io.ReadSeeker) (string, error) {
-	log.Printf("[%s] String\n", PluginName)
 	evtBytes, err := ioutil.ReadAll(in)
 	if err != nil {
 		return "", err
@@ -203,7 +205,6 @@ func (m *MyPlugin) String(in io.ReadSeeker) (string, error) {
 }
 
 func (m *MyPlugin) Fields() []sdk.FieldEntry {
-	log.Printf("[%s] Fields\n", PluginName)
 	return []sdk.FieldEntry{
 		{Type: "uint64", Name: "dummy.divisible", ArgRequired: true, Desc: "Return 1 if the value is divisible by the provided divisor, 0 otherwise"},
 		{Type: "uint64", Name: "dummy.value", Desc: "The sample value in the event"},
@@ -212,7 +213,6 @@ func (m *MyPlugin) Fields() []sdk.FieldEntry {
 }
 
 func (m *MyPlugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
-	log.Printf("[%s] Extract\n", PluginName)
 	evtBytes, err := ioutil.ReadAll(evt.Reader())
 	if err != nil {
 		return err

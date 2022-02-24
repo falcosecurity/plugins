@@ -1,3 +1,19 @@
+/*
+Copyright (C) 2022 The Falco Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package main
 
 import (
@@ -76,7 +92,6 @@ func openLocal(pCtx *pluginContext, oCtx *openContext, params string) error {
 		return fmt.Errorf(PluginName + " plugin error: no json files found in " + oCtx.cloudTrailFilesDir)
 	}
 
-	log.Printf("[%s] found %d json files\n", PluginName, len(oCtx.files))
 	return nil
 }
 
@@ -116,7 +131,6 @@ func openS3(pCtx *pluginContext, oCtx *openContext, input string) error {
 		Prefix: &prefix,
 	}, func(p *s3.ListObjectsOutput, last bool) (shouldContinue bool) {
 		for _, obj := range p.Contents {
-			//fmt.Printf("> %v %v\n", *obj.Size, *obj.Key)
 			path := obj.Key
 			isCompressed := strings.HasSuffix(*path, ".json.gz")
 			if filepath.Ext(*path) != ".json" && !isCompressed {
@@ -156,7 +170,7 @@ func getMoreSQSFiles(pCtx *pluginContext, oCtx *openContext) error {
 		return nil
 	}
 
-	if pCtx.sqsDelete {
+	if pCtx.config.SQSDelete {
 		// Delete the message from the queue so it won't be read again
 		delInput := &sqs.DeleteMessageInput{
 			QueueUrl:      &oCtx.queueURL,
@@ -266,9 +280,9 @@ func readNextFileS3(pCtx *pluginContext, oCtx *openContext) ([]byte, error) {
 		return oCtx.s3.DownloadBufs[curBuf], nil
 	}
 
-	dlErrChan = make(chan error, pCtx.s3DownloadConcurrency)
+	dlErrChan = make(chan error, pCtx.config.S3DownloadConcurrency)
 	k := oCtx.s3.lastDownloadedFileNum
-	oCtx.s3.nFilledBufs = min(pCtx.s3DownloadConcurrency, len(oCtx.files)-k)
+	oCtx.s3.nFilledBufs = min(pCtx.config.S3DownloadConcurrency, len(oCtx.files)-k)
 	for j, f := range oCtx.files[k : k+oCtx.s3.nFilledBufs] {
 		oCtx.s3.DownloadWg.Add(1)
 		go s3Download(oCtx, oCtx.s3.downloader, f.name, j)
@@ -320,7 +334,7 @@ func nextEvent(pCtx *pluginContext, oCtx *openContext, evt sdk.EventWriter) erro
 	var err error
 
 	// Only open the next file once we're sure that the content of the previous one has been full consumed
-	if oCtx.evtJSONListPos == len(oCtx.evtJSONStrings) {
+	if oCtx.evtJSONListPos >= len(oCtx.evtJSONStrings) {
 		// Open the next file and bring its content into memeory
 		if oCtx.curFileNum >= uint32(len(oCtx.files)) {
 
@@ -399,7 +413,6 @@ func nextEvent(pCtx *pluginContext, oCtx *openContext, evt sdk.EventWriter) erro
 		oCtx.evtJSONListPos++
 	} else {
 		// Json not int the expected format. Just skip this event.
-		oCtx.evtJSONListPos++
 		return sdk.ErrTimeout
 	}
 	// All cloudtrail events should have a time. If it's missing

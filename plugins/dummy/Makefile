@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2021 The Falco Authors.
+# Copyright (C) 2022 The Falco Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 # the License. You may obtain a copy of the License at
@@ -12,14 +12,21 @@
 #
 
 SHELL=/bin/bash -o pipefail
-
 GO ?= go
 
-all: libdummy.so
+NAME := dummy
+OUTPUT := lib$(NAME).so
+
+ifeq ($(DEBUG), 1)
+    GODEBUGFLAGS= GODEBUG=cgocheck=2
+else
+    GODEBUGFLAGS= GODEBUG=cgocheck=0
+endif
+
+all: $(OUTPUT)
 
 clean:
-	rm -f *.so *.h
+	@rm -f *.so *.h
 
-libdummy.so: dummy.go
-	GODEBUG=cgocheck=2 $(GO) build -buildmode=c-shared -o libdummy.so *.go
-
+$(OUTPUT): *.go
+	@$(GODEBUGFLAGS) $(GO) build -buildmode=c-shared -o $(OUTPUT)

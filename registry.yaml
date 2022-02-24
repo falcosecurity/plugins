@@ -1,0 +1,85 @@
+#
+# Copyright (C) 2022 The Falco Authors.
+#
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# The list of the data sources not allowed in plugins, since they are already
+# used in Falco.
+reserved_sources: [ "syscall", "internal", "plugins" ]
+
+# The list of plugins officially recognized by the Falcosecurity organization.
+# Registering your plugin here is required to reserve a given name, source, or id.
+#
+# License IDs refer to the SPDX License List at https://spdx.org/licenses
+plugins:
+  source:
+    - id: 1
+      source: k8s_audit
+      name: k8s_audit
+      description: Reserved for a future back-port of Falco's k8s_audit event source as a plugin
+      reserved: true
+    - id: 2
+      source: aws_cloudtrail
+      name: cloudtrail
+      description: Reads Cloudtrail JSON logs from files/S3 and injects as events
+      authors: The Falco Authors
+      contact: https://falco.org/community
+      url: https://github.com/falcosecurity/plugins/tree/master/plugins/cloudtrail
+      license: Apache-2.0
+    - id: 3
+      source: dummy
+      name: dummy
+      description: Reference plugin used to document interface
+      authors: The Falco Authors
+      contact: https://falco.org/community
+      url: https://github.com/falcosecurity/plugins/tree/master/plugins/dummy
+      license: Apache-2.0
+    - id: 4
+      source: dummy_c
+      name: dummy_c
+      description: Like Dummy, but written in C++
+      authors: The Falco Authors
+      contact: https://falco.org/community
+      url: https://github.com/falcosecurity/plugins/tree/master/plugins/dummy_c
+      license: Apache-2.0
+    - id: 5
+      source: docker
+      name: docker
+      description: Docker Events
+      authors: Thomas Labarussias
+      contact: https://github.org/Issif
+      url: https://github.com/Issif/docker-plugin
+      license: Apache-2.0
+    - id: 6
+      source: seccompagent
+      name: seccompagent
+      description: Seccomp Agent Events
+      authors: Alban Crequy
+      contact: https://github.com/kinvolk/seccompagent
+      url: https://github.com/kinvolk/seccompagent
+      license: Apache-2.0
+    - id: 999
+      source: test
+      name: test
+      description: This ID is reserved for source plugin development. Any plugin author can use this ID, but authors can expect events from other developers with this ID. After development is complete, the author should request an actual ID
+      reserved: true
+
+  extractor:
+    - name: json
+      description: Extract values from any JSON payload
+      authors: The Falco Authors
+      contact: https://falco.org/community
+      url: https://github.com/falcosecurity/plugins/tree/master/plugins/json
+      license: Apache-2.0

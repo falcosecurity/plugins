@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2021 The Falco Authors.
+Copyright (C) 2022 The Falco Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -102,8 +102,8 @@ void dummy_plugin::get_info(falcosecurity::plugin_info &info)
 	info.name = "dummy_c";
 	info.description = "Reference plugin for educational purposes";
 	info.contact = "github.com/falcosecurity/plugins";
-	info.version = "0.1.0";
-	info.event_source = "dummy";
+	info.version = "0.2.1";
+	info.event_source = "dummy_c";
 	info.fields = {
 		{FTYPE_UINT64, "dummy.divisible", true, "Return 1 if the value is divisible by the provided divisor, 0 otherwise"},
 		{FTYPE_UINT64, "dummy.value", false, "The sample value in the event"},
@@ -113,7 +113,7 @@ void dummy_plugin::get_info(falcosecurity::plugin_info &info)
 
 ss_plugin_rc dummy_plugin::init(const char *config)
 {
-	m_config = config;
+	m_config = config != NULL ? config : "";
 
 	// Config is optional. In this case defaults are used.
 	if(m_config == "" || m_config == "{}")
@@ -128,8 +128,7 @@ ss_plugin_rc dummy_plugin::init(const char *config)
 	}
 	catch (std::exception &e)
 	{
-		// No need to call set_last_error() here as the plugin
-		// struct doesn't exist to the framework yet.
+		set_last_error(e.what());
 		return SS_PLUGIN_FAILURE;
 	}
 
@@ -137,8 +136,7 @@ ss_plugin_rc dummy_plugin::init(const char *config)
 
 	if(it == obj.end())
 	{
-		// No need to call set_last_error() here as the plugin
-		// struct doesn't exist to the framework yet.
+		set_last_error("jitter not defined");
 		return SS_PLUGIN_FAILURE;
 	}
 

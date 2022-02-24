@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2021 The Falco Authors.
+Copyright (C) 2022 The Falco Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ import (
 	"math"
 	"sync"
 
+	"github.com/alecthomas/jsonschema"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -50,17 +51,14 @@ import (
 
 // Plugin info
 const (
-	PluginRequiredApiVersion        = "0.2.0"
+	PluginRequiredApiVersion        = "0.3.0"
 	PluginID                 uint32 = 2
 	PluginName                      = "cloudtrail"
 	PluginDescription               = "reads cloudtrail JSON data saved to file in the directory specified in the settings"
 	PluginContact                   = "github.com/falcosecurity/plugins/"
-	PluginVersion                   = "0.1.0"
+	PluginVersion                   = "0.2.5"
 	PluginEventSource               = "aws_cloudtrail"
 )
-
-const defaultS3DownloadConcurrency = 1
-const verbose bool = false
 
 func min(a, b int) int {
 	if a < b {
@@ -92,23 +90,21 @@ type snsMessage struct {
 	Keys   []string `json:"s3ObjectKey"`
 }
 
+// Struct for plugin init config
+type pluginInitConfig struct {
+	S3DownloadConcurrency int  `json:"s3DownloadConcurrency" jsonschema:"description=Controls the number of background goroutines used to download S3 files (Default: 1)"`
+	SQSDelete             bool `json:"sqsDelete" jsonschema:"description=If true then the plugin will delete sqs messages from the queue immediately after receiving them (Default: true)"`
+	UseAsync              bool `json:"useAsync" jsonschema:"description=If true then async extraction optimization is enabled (Default: true)"`
+}
+
 // This is the global plugin state, identifying an instance of this plugin
 type pluginContext struct {
 	plugins.BasePlugin
-	jparser               fastjson.Parser
-	jdata                 *fastjson.Value
-	jdataEvtnum           uint64 // The event number jdata refers to. Used to know when we can skip the unmarshaling.
-	sqsDelete             bool   // If true, will delete SQS Messages immediately after receiving them
-	s3DownloadConcurrency int
-	useAsync              bool
-	geoipDB               *maxminddb.Reader // Used to resolve IPs to countries/cities
-}
-
-// Struct for plugin init config
-type pluginInitConfig struct {
-	S3DownloadConcurrency int  `json:"s3DownloadConcurrency"`
-	SQSDelete             bool `json:"sqsDelete"`
-	UseAsync              bool `json:"useAsync"`
+	jparser     fastjson.Parser
+	jdata       *fastjson.Value
+	jdataEvtnum uint64 // The event number jdata refers to. Used to know when we can skip the unmarshaling.
+	config      pluginInitConfig
+	geoipDB     *maxminddb.Reader // Used to resolve IPs to countries/cities
 }
 
 type OpenMode int
@@ -142,8 +138,13 @@ func init() {
 	extractor.Register(p)
 }
 
+func (p *pluginInitConfig) setDefault() {
+	p.SQSDelete = true
+	p.S3DownloadConcurrency = 1
+	p.UseAsync = true
+}
+
 func (p *pluginContext) Info() *plugins.Info {
-	//log.Printf("[%s] Info\n", PluginName)
 	return &plugins.Info{
 		ID:                  PluginID,
 		Name:                PluginName,
@@ -156,37 +157,31 @@ func (p *pluginContext) Info() *plugins.Info {
 	}
 }
 
-func (p *pluginContext) Init(cfg string) error {
-	if !verbose {
-		log.SetOutput(ioutil.Discard)
+func (p *pluginContext) InitSchema() *sdk.SchemaInfo {
+	reflector := jsonschema.Reflector{
+		RequiredFromJSONSchemaTags: true, // all properties are optional by default
+		AllowAdditionalProperties:  true, // unrecognized properties don't cause a parsing failures
 	}
-
-	log.Printf("[%s] Init, config=%s\n", PluginName, cfg)
-
-	p.jdataEvtnum = math.MaxUint64
-	p.sqsDelete = true
-	p.s3DownloadConcurrency = defaultS3DownloadConcurrency
-	p.useAsync = false
-
-	if cfg != "" {
-		var initConfig pluginInitConfig
-		initConfig.SQSDelete = true
-		initConfig.S3DownloadConcurrency = defaultS3DownloadConcurrency
-		initConfig.UseAsync = false
-
-		err := json.Unmarshal([]byte(cfg), &initConfig)
-		if err != nil {
-			return err
+	if schema, err := reflector.Reflect(&pluginInitConfig{}).MarshalJSON(); err == nil {
+		return &sdk.SchemaInfo{
+			Schema: string(schema),
 		}
-
-		p.sqsDelete = initConfig.SQSDelete
-		p.s3DownloadConcurrency = initConfig.S3DownloadConcurrency
-		p.useAsync = initConfig.UseAsync
 	}
+	return nil
+}
 
-	if p.useAsync {
-		extract.StartAsync(p)
-	}
+func (p *pluginContext) Init(cfg string) error {
+	// initialize state
+	p.jdataEvtnum = math.MaxUint64
+
+	// Set config default values and read the passed one, if available.
+	// Since we provide a schema through InitSchema(), the framework
+	// guarantees that the config is always well-formed json.
+	p.config.setDefault()
+	json.Unmarshal([]byte(cfg), &p.config)
+
+	// enable/disable async extraction optimazion (enabled by default)
+	extract.SetAsync(p.config.UseAsync)
 
 	// If available, load the maxmind geoip database that we will use to gather country/city info
 	var err error
@@ -200,20 +195,12 @@ func (p *pluginContext) Init(cfg string) error {
 }
 
 func (p *pluginContext) Destroy() {
-	log.Printf("[%s] Destroy\n", PluginName)
-
-	if p.useAsync {
-		extract.StopAsync(p)
-	}
-
 	if p.geoipDB != nil {
 		p.geoipDB.Close()
 	}
 }
 
 func (p *pluginContext) Open(params string) (source.Instance, error) {
-	log.Printf("[%s] Open, params=%s\n", PluginName, params)
-
 	// Allocate the context struct for this open instance
 	oCtx := &openContext{}
 
@@ -233,37 +220,31 @@ func (p *pluginContext) Open(params string) (source.Instance, error) {
 
 	// Create an array of download buffers that will be used to concurrently
 	// download files from s3
-	oCtx.s3.DownloadBufs = make([][]byte, p.s3DownloadConcurrency)
+	oCtx.s3.DownloadBufs = make([][]byte, p.config.S3DownloadConcurrency)
 
 	return oCtx, nil
 }
 
-func (o *openContext) Close() {
-	log.Printf("[%s] Close\n", PluginName)
-}
-
 func (o *openContext) NextBatch(pState sdk.PluginState, evts sdk.EventWriters) (int, error) {
-	log.Printf("[%s] NextBatch\n", PluginName)
-
 	var n int
 	var err error
 	pCtx := pState.(*pluginContext)
-	for n = 0; err == nil && n < evts.Len(); n++ {
+	for n = 0; n < evts.Len(); n++ {
 		err = nextEvent(pCtx, o, evts.Get(n))
+
+		if err != nil {
+			break
+		}
 	}
 	return n, err
 }
 
 func (o *openContext) Progress(pState sdk.PluginState) (float64, string) {
-	log.Printf("[%s] Progress\n", PluginName)
-
 	pd := float64(o.curFileNum) / float64(len(o.files))
 	return pd, fmt.Sprintf("%.2f%% - %v/%v files", pd*100, o.curFileNum, len(o.files))
 }
 
 func (p *pluginContext) String(in io.ReadSeeker) (string, error) {
-	log.Printf("[%s] String\n", PluginName)
-
 	var src string
 	var user string
 	var err error
@@ -322,14 +303,10 @@ func (p *pluginContext) String(in io.ReadSeeker) (string, error) {
 }
 
 func (p *pluginContext) Fields() []sdk.FieldEntry {
-	//log.Printf("[%s] Fields\n", PluginName)
-
 	return supportedFields
 }
 
 func (p *pluginContext) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
-	log.Printf("[%s] Extract\n", PluginName)
-
 	// Decode the json, but only if we haven't done it yet for this event
 	if evt.EventNum() != p.jdataEvtnum {
 		// Read the event data

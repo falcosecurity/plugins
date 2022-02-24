@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2021 The Falco Authors.
+Copyright (C) 2022 The Falco Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -26,7 +26,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"strings"
 
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
@@ -37,14 +36,12 @@ import (
 
 // Plugin info
 const (
-	PluginRequiredApiVersion = "0.2.0"
+	PluginRequiredApiVersion = "0.3.0"
 	PluginName               = "json"
 	PluginDescription        = "implements extracting arbitrary fields from inputs formatted as JSON"
 	PluginContact            = "github.com/falcosecurity/plugins/"
-	PluginVersion            = "0.1.0"
+	PluginVersion            = "0.2.2"
 )
-
-const verbose bool = false
 
 type MyPlugin struct {
 	plugins.BasePlugin
@@ -69,20 +66,10 @@ func (m *MyPlugin) Info() *plugins.Info {
 }
 
 func (m *MyPlugin) Init(config string) error {
-	if !verbose {
-		log.SetOutput(ioutil.Discard)
-	}
-
-	log.Printf("[%s] Init, config=%s\n", PluginName, config)
 	return nil
 }
 
-func (m *MyPlugin) Destroy() {
-	log.Printf("[%s] Destroy\n", PluginName)
-}
-
 func (m *MyPlugin) Fields() []sdk.FieldEntry {
-	log.Printf("[%s] Fields\n", PluginName)
 	return []sdk.FieldEntry{
 		{Type: "string", Name: "json.value", ArgRequired: true, Desc: "Extracts a value from a JSON-encoded input. Syntax is json.value[<json pointer>], where <json pointer> is a json pointer (see https://datatracker.ietf.org/doc/html/rfc6901)"},
 		{Type: "string", Name: "json.obj", Desc: "The full json message as a text string."},
@@ -94,7 +81,6 @@ func (m *MyPlugin) Fields() []sdk.FieldEntry {
 }
 
 func (m *MyPlugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
-	log.Printf("[%s] Extract\n", PluginName)
 	reader := evt.Reader()
 
 	// As a very quick sanity check, only try to extract all if
@@ -144,7 +130,16 @@ func (m *MyPlugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 		if val == nil {
 			return fmt.Errorf("json key not found: %s", arg)
 		}
-		req.SetValue(string(string(val)))
+
+		if val.Type() == fastjson.TypeString {
+			str, err := val.StringBytes()
+			if err != nil {
+				return err
+			}
+			req.SetValue(string(str))
+		} else {
+			req.SetValue(string(val.MarshalTo(nil)))
+		}
 	case 4: // jevt.obj
 		fallthrough
 	case 1: // json.obj
