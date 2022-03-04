@@ -59,7 +59,7 @@ func (client *Client) NextBatch(filter *Filter, pState sdk.PluginState, evts sdk
 		LogStreamNamePrefix: filter.FilterLogEventsInput.LogStreamNamePrefix,
 		LogStreamNames:      filter.FilterLogEventsInput.LogStreamNames,
 		NextToken:           filter.FilterLogEventsInput.NextToken,
-		StartTime:           aws.Int64(time.Now().UnixMilli()),
+		StartTime:           filter.FilterLogEventsInput.StartTime,
 	}
 
 	logs, err := client.CloudWatchLogs.FilterLogEvents(cfi)
@@ -67,15 +67,17 @@ func (client *Client) NextBatch(filter *Filter, pState sdk.PluginState, evts sdk
 		fmt.Println(err)
 		return 0, sdk.ErrEOF, 0
 	}
+	if len(logs.Events) == 0 {
+		time.Sleep(2 * time.Second)
+		return client.NextBatch(filter, pState, evts)
+	}
 	var lastTimestamp int64
 	for n := 0; n < evts.Len() && n < len(logs.Events); n++ {
 		evt := evts.Get(n)
 		log := logs.Events[n]
 
-		// fmt.Println(*log.Message)
-
-		lastTimestamp = *log.Timestamp
-		evt.SetTimestamp(uint64(lastTimestamp))
+		lastTimestamp = *log.Timestamp + 1
+		evt.SetTimestamp(uint64(lastTimestamp * 1e6))
 
 		_, err := evt.Writer().Write([]byte(*log.Message))
 		if err != nil {

@@ -89,7 +89,7 @@ func (m *K8SAuditLogsEKSPlugin) Open(params string) (source.Instance, error) {
 	filter := cloudwatchlogs.GetFilter()
 	filter.FilterLogEventsInput.SetLogGroupName("/aws/eks/" + obj["cluster"] + "/cluster")
 	filter.FilterLogEventsInput.SetLogStreamNamePrefix("kube-apiserver-audit")
-	filter.FilterLogEventsInput.SetStartTime(time.Now().Add(-10 * time.Second).Unix())
+	filter.FilterLogEventsInput.SetStartTime(time.Now().Add(-10 * time.Second).UnixMilli())
 
 	return &K8SAuditLogsEKSInstance{
 		Client: cloudwatchlogs.GetClient(aws.NewConfig().WithRegion(obj["region"])),
