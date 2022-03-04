@@ -59,7 +59,7 @@ func (client *Client) NextBatch(filter *Filter, pState sdk.PluginState, evts sdk
 		LogStreamNamePrefix: filter.FilterLogEventsInput.LogStreamNamePrefix,
 		LogStreamNames:      filter.FilterLogEventsInput.LogStreamNames,
 		NextToken:           filter.FilterLogEventsInput.NextToken,
-		StartTime:           time.Now().UnixMilli(),
+		StartTime:           aws.Int64(time.Now().UnixMilli()),
 	}
 
 	logs, err := client.CloudWatchLogs.FilterLogEvents(cfi)
