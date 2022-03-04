@@ -18,6 +18,7 @@ package cloudwatchlogs
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
@@ -58,7 +59,7 @@ func (client *Client) NextBatch(filter *Filter, pState sdk.PluginState, evts sdk
 		LogStreamNamePrefix: filter.FilterLogEventsInput.LogStreamNamePrefix,
 		LogStreamNames:      filter.FilterLogEventsInput.LogStreamNames,
 		NextToken:           filter.FilterLogEventsInput.NextToken,
-		StartTime:           filter.FilterLogEventsInput.StartTime,
+		StartTime:           time.Now().UnixMilli(),
 	}
 
 	logs, err := client.CloudWatchLogs.FilterLogEvents(cfi)
