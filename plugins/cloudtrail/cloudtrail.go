@@ -194,12 +194,6 @@ func (p *pluginContext) Init(cfg string) error {
 	return nil
 }
 
-func (p *pluginContext) Destroy() {
-	if p.geoipDB != nil {
-		p.geoipDB.Close()
-	}
-}
-
 func (p *pluginContext) Open(params string) (source.Instance, error) {
 	// Allocate the context struct for this open instance
 	oCtx := &openContext{}
