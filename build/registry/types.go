@@ -23,26 +23,28 @@ import (
 )
 
 type Source struct {
-	ID          uint   `yaml:"id"`
-	Source      string `yaml:"source"`
-	Name        string `yaml:"name"`
-	Description string `yaml:"description"`
-	Authors     string `yaml:"authors"`
-	Contact     string `yaml:"contact"`
-	URL         string `yaml:"url"`
-	License     string `yaml:"license"`
-	Reserved    bool   `yaml:"reserved"`
+	ID           uint   `yaml:"id"`
+	Source       string `yaml:"source"`
+	Name         string `yaml:"name"`
+	Description  string `yaml:"description"`
+	Authors      string `yaml:"authors"`
+	Contact      string `yaml:"contact"`
+	SourcesURL   string `yaml:"sources"`
+	ArtifactsURL string `yaml:"url"`
+	License      string `yaml:"license"`
+	Reserved     bool   `yaml:"reserved"`
 }
 
 type Extractor struct {
-	Sources     []string `yaml:"sources"`
-	Name        string   `yaml:"name"`
-	Description string   `yaml:"description"`
-	Authors     string   `yaml:"authors"`
-	Contact     string   `yaml:"contact"`
-	URL         string   `yaml:"url"`
-	License     string   `yaml:"license"`
-	Reserved    bool     `yaml:"reserved"`
+	Sources      []string `yaml:"source"`
+	Name         string   `yaml:"name"`
+	Description  string   `yaml:"description"`
+	Authors      string   `yaml:"authors"`
+	Contact      string   `yaml:"contact"`
+	SourcesURL   string   `yaml:"sources"`
+	ArtifactsURL string   `yaml:"url"`
+	License      string   `yaml:"license"`
+	Reserved     bool     `yaml:"reserved"`
 }
 
 type Plugins struct {
