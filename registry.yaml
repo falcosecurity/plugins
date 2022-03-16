@@ -36,7 +36,7 @@ plugins:
       description: Reads Cloudtrail JSON logs from files/S3 and injects as events
       authors: The Falco Authors
       contact: https://falco.org/community
-      url: https://github.com/falcosecurity/plugins/tree/master/plugins/cloudtrail
+      sources: https://github.com/falcosecurity/plugins/tree/master/plugins/cloudtrail
       license: Apache-2.0
     - id: 3
       source: dummy
@@ -44,7 +44,7 @@ plugins:
       description: Reference plugin used to document interface
       authors: The Falco Authors
       contact: https://falco.org/community
-      url: https://github.com/falcosecurity/plugins/tree/master/plugins/dummy
+      sources: https://github.com/falcosecurity/plugins/tree/master/plugins/dummy
       license: Apache-2.0
     - id: 4
       source: dummy_c
@@ -52,7 +52,7 @@ plugins:
       description: Like Dummy, but written in C++
       authors: The Falco Authors
       contact: https://falco.org/community
-      url: https://github.com/falcosecurity/plugins/tree/master/plugins/dummy_c
+      sources: https://github.com/falcosecurity/plugins/tree/master/plugins/dummy_c
       license: Apache-2.0
     - id: 5
       source: docker
@@ -60,7 +60,7 @@ plugins:
       description: Docker Events
       authors: Thomas Labarussias
       contact: https://github.org/Issif
-      url: https://github.com/Issif/docker-plugin
+      sources: https://github.com/Issif/docker-plugin
       license: Apache-2.0
     - id: 6
       source: seccompagent
@@ -68,7 +68,7 @@ plugins:
       description: Seccomp Agent Events
       authors: Alban Crequy
       contact: https://github.com/kinvolk/seccompagent
-      url: https://github.com/kinvolk/seccompagent
+      sources: https://github.com/kinvolk/seccompagent
       license: Apache-2.0
     - id: 999
       source: test
@@ -81,5 +81,5 @@ plugins:
       description: Extract values from any JSON payload
       authors: The Falco Authors
       contact: https://falco.org/community
-      url: https://github.com/falcosecurity/plugins/tree/master/plugins/json
+      sources: https://github.com/falcosecurity/plugins/tree/master/plugins/json
       license: Apache-2.0
