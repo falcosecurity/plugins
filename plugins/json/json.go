@@ -36,11 +36,10 @@ import (
 
 // Plugin info
 const (
-	PluginRequiredApiVersion = "0.3.0"
-	PluginName               = "json"
-	PluginDescription        = "implements extracting arbitrary fields from inputs formatted as JSON"
-	PluginContact            = "github.com/falcosecurity/plugins/"
-	PluginVersion            = "0.2.2"
+	PluginName        = "json"
+	PluginDescription = "implements extracting arbitrary fields from inputs formatted as JSON"
+	PluginContact     = "github.com/falcosecurity/plugins/"
+	PluginVersion     = "0.2.2"
 )
 
 type MyPlugin struct {
@@ -57,11 +56,10 @@ func init() {
 
 func (m *MyPlugin) Info() *plugins.Info {
 	return &plugins.Info{
-		Name:               PluginName,
-		Description:        PluginDescription,
-		Contact:            PluginContact,
-		Version:            PluginVersion,
-		RequiredAPIVersion: PluginRequiredApiVersion,
+		Name:        PluginName,
+		Description: PluginDescription,
+		Contact:     PluginContact,
+		Version:     PluginVersion,
 	}
 }
 
