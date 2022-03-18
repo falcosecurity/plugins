@@ -34,13 +34,12 @@ import (
 
 // Plugin consts
 const (
-	PluginRequiredApiVersion        = "0.3.0"
-	PluginID                 uint32 = 3
-	PluginName                      = "dummy"
-	PluginDescription               = "Reference plugin for educational purposes"
-	PluginContact                   = "github.com/falcosecurity/plugins"
-	PluginVersion                   = "0.2.1"
-	PluginEventSource               = "dummy"
+	PluginID          uint32 = 3
+	PluginName               = "dummy"
+	PluginDescription        = "Reference plugin for educational purposes"
+	PluginContact            = "github.com/falcosecurity/plugins"
+	PluginVersion            = "0.2.1"
+	PluginEventSource        = "dummy"
 )
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -88,13 +87,12 @@ func (p *MyPluginConfig) setDefault() {
 
 func (m *MyPlugin) Info() *plugins.Info {
 	return &plugins.Info{
-		ID:                 PluginID,
-		Name:               PluginName,
-		Description:        PluginDescription,
-		Contact:            PluginContact,
-		Version:            PluginVersion,
-		RequiredAPIVersion: PluginRequiredApiVersion,
-		EventSource:        PluginEventSource,
+		ID:          PluginID,
+		Name:        PluginName,
+		Description: PluginDescription,
+		Contact:     PluginContact,
+		Version:     PluginVersion,
+		EventSource: PluginEventSource,
 	}
 }
 

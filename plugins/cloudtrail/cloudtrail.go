@@ -49,13 +49,12 @@ import (
 
 // Plugin info
 const (
-	PluginRequiredApiVersion        = "0.3.0"
-	PluginID                 uint32 = 2
-	PluginName                      = "cloudtrail"
-	PluginDescription               = "reads cloudtrail JSON data saved to file in the directory specified in the settings"
-	PluginContact                   = "github.com/falcosecurity/plugins/"
-	PluginVersion                   = "0.2.5"
-	PluginEventSource               = "aws_cloudtrail"
+	PluginID          uint32 = 2
+	PluginName               = "cloudtrail"
+	PluginDescription        = "reads cloudtrail JSON data saved to file in the directory specified in the settings"
+	PluginContact            = "github.com/falcosecurity/plugins/"
+	PluginVersion            = "0.2.5"
+	PluginEventSource        = "aws_cloudtrail"
 )
 
 func min(a, b int) int {
@@ -148,7 +147,6 @@ func (p *pluginContext) Info() *plugins.Info {
 		Description:         PluginDescription,
 		Contact:             PluginContact,
 		Version:             PluginVersion,
-		RequiredAPIVersion:  PluginRequiredApiVersion,
 		EventSource:         PluginEventSource,
 		ExtractEventSources: []string{"ct", "s3", "ec2"},
 	}
@@ -314,7 +312,7 @@ func (p *pluginContext) Extract(req sdk.ExtractRequest, evt sdk.EventReader) err
 	// Extract the field value
 	var present bool
 	var value interface{}
-	if req.FieldType() == sdk.ParamTypeUint64 {
+	if req.FieldType() == sdk.FieldTypeUint64 {
 		present, value = getfieldU64(p.jdata, req.Field())
 	} else {
 		present, value = getfieldStr(p.jdata, req.Field())
