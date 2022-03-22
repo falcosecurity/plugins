@@ -70,6 +70,14 @@ plugins:
       contact: https://github.com/kinvolk/seccompagent
       url: https://github.com/kinvolk/seccompagent
       license: Apache-2.0
+    - id: 7
+      source: okta
+      name: okta
+      description: Okta Log Events
+      authors: Thomas Labarussias
+      contact: https://github.org/Issif
+      url: https://github.com/Issif/okta-plugin
+      license: Apache-2.0
     - id: 999
       source: test
       name: test
