@@ -57,7 +57,6 @@ func OpenEventSource(ctx context.Context, eventChan <-chan []byte, errorChan <-c
 	// One or more audit events can be extracted from each message.
 	newEventChan := make(chan *auditEvent)
 	newErrorChan := make(chan error)
-	newCtx, newCtxCancel := context.WithCancel(ctx)
 	go func() {
 		defer close(newEventChan)
 		defer close(newErrorChan)
@@ -80,7 +79,7 @@ func OpenEventSource(ctx context.Context, eventChan <-chan []byte, errorChan <-c
 				for _, v := range values {
 					newEventChan <- v
 				}
-			case <-newCtx.Done():
+			case <-ctx.Done():
 				return
 			case err := <-errorChan:
 				newErrorChan <- err
@@ -95,15 +94,14 @@ func OpenEventSource(ctx context.Context, eventChan <-chan []byte, errorChan <-c
 		eventChan:     newEventChan,
 		errorChan:     newErrorChan,
 		timeoutMillis: timeoutMillis,
-		cancel: func() {
-			newCtxCancel()
-			onClose()
-		},
+		cancel:        onClose,
 	}, nil
 }
 
 func (e *eventSource) Close() {
-	e.cancel()
+	if e.cancel != nil {
+		e.cancel()
+	}
 }
 
 func (e *eventSource) NextBatch(pState sdk.PluginState, evts sdk.EventWriters) (int, error) {
@@ -142,7 +140,10 @@ func (e *eventSource) NextBatch(pState sdk.PluginState, evts sdk.EventWriters) (
 			e.eof = true
 			return i, sdk.ErrEOF
 		// an error occurs, so we exit
-		case err := <-e.errorChan:
+		case err, ok := <-e.errorChan:
+			if !ok {
+				err = sdk.ErrEOF
+			}
 			e.eof = true
 			return i, err
 		}
