@@ -26,13 +26,15 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/source"
 	"github.com/falcosecurity/plugins/plugins/k8saudit/pkg/k8saudit"
 )
 
 const (
-	webServerParamRgxStr = "^(localhost)?(:[0-9]+)(\\/[.\\-\\w]+)$"
+	webServerParamRgxStr         = "^(localhost)?(:[0-9]+)(\\/[.\\-\\w]+)$"
+	webServerShutdownTimeoutSecs = 5
 )
 
 func (k *K8SAuditPlugin) Open(params string) (source.Instance, error) {
@@ -71,7 +73,6 @@ func (k *K8SAuditPlugin) openLocalFile(filePath string) (source.Instance, error)
 	}
 	eventChan := make(chan []byte)
 	errorChan := make(chan error)
-	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
 		defer file.Close()
 		defer close(eventChan)
@@ -88,55 +89,71 @@ func (k *K8SAuditPlugin) openLocalFile(filePath string) (source.Instance, error)
 			errorChan <- err
 		}
 	}()
-	return k8saudit.OpenEventSource(ctx, eventChan, errorChan, k.config.TimeoutMillis, cancel)
+	return k8saudit.OpenEventSource(context.Background(), eventChan, errorChan, k.config.TimeoutMillis, nil)
 }
 
 // Opens parameters with "http://" and "https://" prefixes.
 // Starts a webserver and listens for K8S Audit Event webhooks.
 func (k *K8SAuditPlugin) openWebServer(port, endpoint string, ssl bool) (source.Instance, error) {
+	ctx, cancelCtx := context.WithCancel(context.Background())
 	eventChan := make(chan []byte)
 	errorChan := make(chan error)
-	ctx, cancel := context.WithCancel(context.Background())
+
+	// configure server
+	m := http.NewServeMux()
+	s := &http.Server{Addr: port, Handler: m}
+	m.HandleFunc(endpoint, func(w http.ResponseWriter, req *http.Request) {
+		if req.Method != "POST" {
+			http.Error(w, fmt.Sprintf("%s method not allowed", req.Method), http.StatusMethodNotAllowed)
+			return
+		}
+		if req.Header.Get("Content-Type") != "application/json" {
+			http.Error(w, "wrong Content Type", http.StatusBadRequest)
+			return
+		}
+		req.Body = http.MaxBytesReader(w, req.Body, int64(k.config.MaxEventBytes))
+		bytes, err := ioutil.ReadAll(req.Body)
+		if err != nil {
+			msg := fmt.Sprintf("bad request: %s", err.Error())
+			// todo: use SDK Go native logging once available, see:
+			// https://github.com/falcosecurity/plugin-sdk-go/issues/24
+			println("ERROR: " + msg)
+			http.Error(w, msg, http.StatusBadRequest)
+			return
+		}
+		eventChan <- bytes
+		w.Header().Set("Content-Type", "text/html")
+		w.Write([]byte("<html><body>Ok</body></html>"))
+	})
+
+	// launch server
 	go func() {
-		defer close(eventChan)
+		//defer close(eventChan)
 		defer close(errorChan)
-		http.HandleFunc(endpoint, func(w http.ResponseWriter, req *http.Request) {
-			if req.Method != "POST" {
-				http.Error(w, fmt.Sprintf("%s method not allowed", req.Method), http.StatusMethodNotAllowed)
-				return
-			}
-			if req.Header.Get("Content-Type") != "application/json" {
-				http.Error(w, "wrong Content Type", http.StatusBadRequest)
-				return
-			}
-			req.Body = http.MaxBytesReader(w, req.Body, int64(k.config.MaxEventBytes))
-			bytes, err := ioutil.ReadAll(req.Body)
-			if err != nil {
-				msg := fmt.Sprintf("bad request: %s", err.Error())
-				// todo: use SDK Go native logging once available, see:
-				// https://github.com/falcosecurity/plugin-sdk-go/issues/24
-				println("ERROR: " + msg)
-				http.Error(w, msg, http.StatusBadRequest)
-				return
-			}
-			eventChan <- bytes
-			w.Header().Set("Content-Type", "text/html")
-			w.Write([]byte("<html><body>Ok</body></html>"))
-		})
 		var err error
 		if ssl {
 			// note: the legacy K8S Audit implementation concatenated the key and cert PEM
 			// files, however this seems to be unusual. Here we use the same concatenated files
 			// for both key and cert, but we may want to split them (this seems to work though).
-			err = http.ListenAndServeTLS(port, k.config.SSLCertificate, k.config.SSLCertificate, nil)
+			err = s.ListenAndServeTLS(k.config.SSLCertificate, k.config.SSLCertificate)
 		} else {
-			err = http.ListenAndServe(port, nil)
+			err = s.ListenAndServe()
 		}
-		if err != nil {
+		if err != nil && err != http.ErrServerClosed {
 			errorChan <- err
 		}
 	}()
-	return k8saudit.OpenEventSource(ctx, eventChan, errorChan, k.config.TimeoutMillis, cancel)
+
+	// on close, shutdown the webserver gracefully with, and wait for it with a timeout
+	onClose := func() {
+		timedCtx, cancelTimeoutCtx := context.WithTimeout(ctx, time.Second*webServerShutdownTimeoutSecs)
+		defer cancelTimeoutCtx()
+		s.Shutdown(timedCtx)
+		cancelCtx()
+	}
+
+	// open the event source
+	return k8saudit.OpenEventSource(ctx, eventChan, errorChan, k.config.TimeoutMillis, onClose)
 }
 
 func (k *K8SAuditPlugin) String(in io.ReadSeeker) (string, error) {
