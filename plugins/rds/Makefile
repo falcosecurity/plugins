@@ -14,7 +14,7 @@
 SHELL=/bin/bash -o pipefail
 GO ?= go
 
-NAME := aurora
+NAME := rds
 OUTPUT := lib$(NAME).so
 
 ifeq ($(DEBUG), 1)

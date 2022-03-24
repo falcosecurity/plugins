@@ -79,12 +79,12 @@ plugins:
       url: https://github.com/falcosecurity/plugins/tree/master/plugins/okta
       license: Apache-2.0
     - id: 8
-      source: aws_aurora
-      name: aurora
-      description: Reads and process AWS Aurora logs exported on Cloudwatch
+      source: aws_rds
+      name: rds
+      description: Reads and process AWS RDS logs exported on Cloudwatch
       authors: The Falco Authors
       contact: https://falco.org/community
-      url: https://github.com/falcosecurity/plugins/tree/master/plugins/aurora
+      url: https://github.com/falcosecurity/plugins/tree/master/plugins/rds
       license: Apache-2.0
     - id: 999
       source: test

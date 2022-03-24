@@ -15,8 +15,7 @@ limitations under the License.
 */
 
 ///////////////////////////////////////////////////////////////////////////////
-// This plugin reads Amazon Aurora MySQL and Amazon Aurora PostgreSQL logs
-// exported on Cloudwatch.
+// This plugin reads Amazon RDS logs exported on Cloudwatch.
 ///////////////////////////////////////////////////////////////////////////////
 
 package main
@@ -49,11 +48,11 @@ import (
 const (
 	PluginRequiredApiVersion        = "0.3.0"
 	PluginID                 uint32 = 7
-	PluginName                      = "aurora"
-	PluginDescription               = "listens to RDS aurora audit logs via aws Cloudwatch"
+	PluginName                      = "rds"
+	PluginDescription               = "listens to RDS audit logs via aws Cloudwatch"
 	PluginContact                   = "github.com/falcosecurity/plugins/"
 	PluginVersion                   = "0.1.0"
-	PluginEventSource               = "aws_aurora"
+	PluginEventSource               = "aws_rds"
 )
 
 const (
@@ -124,7 +123,7 @@ type recordMsg struct {
 	Rec []byte
 }
 
-// This is the open state, identifying an open instance reading Aurora audit logs
+// This is the open state, identifying an open instance reading rds audit logs
 type openContext struct {
 	source.BaseInstance
 	AwsSess   *session.Session
@@ -175,53 +174,53 @@ func (p *pluginContext) Init(config string) error {
 }
 
 // Fields exposes to Falco plugin framework all availables fields for this plugin
-func (auroraPlugin *pluginContext) Fields() []sdk.FieldEntry {
+func (plugin *pluginContext) Fields() []sdk.FieldEntry {
 	return []sdk.FieldEntry{
-		{Type: "string", Name: "aurora.timestamp", Desc: "Timestamp with millisec precision."},
-		{Type: "string", Name: "aurora.serverhost", Desc: "The name of the instance that the event is logged for."},
-		{Type: "string", Name: "aurora.username", Desc: "The connected user name of the user."},
-		{Type: "string", Name: "aurora.host", Desc: "The host that the user connected from."},
-		{Type: "string", Name: "aurora.connectionid", Desc: "The connection ID number for the logged operation."},
-		{Type: "string", Name: "aurora.queryid", Desc: "The query ID number, which can be used for finding the relational table events and related queries. For TABLE events, multiple lines are added."},
-		{Type: "string", Name: "aurora.operation", Desc: "The recorded action type. Possible values are: CONNECT, QUERY, READ, WRITE, CREATE, ALTER, RENAME, and DROP."},
-		{Type: "string", Name: "aurora.database", Desc: "The active database, as set by the USE command."},
-		{Type: "string", Name: "aurora.object", Desc: "For QUERY events, this value indicates the query that the database performed. For TABLE events, it indicates the table name."},
-		{Type: "string", Name: "aurora.retcode", Desc: "The return code of the logged operation."},
-		{Type: "string", Name: "aurora.stream", Desc: "Cloudwatch stream id used to fetch this log"},
+		{Type: "string", Name: "rds.timestamp", Desc: "Timestamp with millisec precision."},
+		{Type: "string", Name: "rds.serverhost", Desc: "The name of the instance that the event is logged for."},
+		{Type: "string", Name: "rds.username", Desc: "The connected user name of the user."},
+		{Type: "string", Name: "rds.host", Desc: "The host that the user connected from."},
+		{Type: "string", Name: "rds.connectionid", Desc: "The connection ID number for the logged operation."},
+		{Type: "string", Name: "rds.queryid", Desc: "The query ID number, which can be used for finding the relational table events and related queries. For TABLE events, multiple lines are added."},
+		{Type: "string", Name: "rds.operation", Desc: "The recorded action type. Possible values are: CONNECT, QUERY, READ, WRITE, CREATE, ALTER, RENAME, and DROP."},
+		{Type: "string", Name: "rds.database", Desc: "The active database, as set by the USE command."},
+		{Type: "string", Name: "rds.object", Desc: "For QUERY events, this value indicates the query that the database performed. For TABLE events, it indicates the table name."},
+		{Type: "string", Name: "rds.retcode", Desc: "The return code of the logged operation."},
+		{Type: "string", Name: "rds.stream", Desc: "Cloudwatch stream id used to fetch this log"},
 		//Fields from SQL query parsing
-		{Type: "string", Name: "aurora.isselect", Desc: "True if a QUERY operation contains SELECT statements."},
-		{Type: "string", Name: "aurora.isset", Desc: "True if a QUERY operation contains SET statements."},
-		{Type: "string", Name: "aurora.iscreate", Desc: "True if a QUERY operation contains CREATE statements."},
-		{Type: "string", Name: "aurora.isdrop", Desc: "True if a QUERY operation contains SELECT statements."},
-		{Type: "string", Name: "aurora.isupdate", Desc: "True if a QUERY operation contains UPDATE statements."},
-		{Type: "string", Name: "aurora.isinsert", Desc: "True if a QUERY operation contains INSERT statements."},
-		{Type: "string", Name: "aurora.isgrant", Desc: "True if a QUERY operation contains GRANT statements."},
-		{Type: "string", Name: "aurora.isrevoke", Desc: "True if a QUERY operation contains REVOKE statements."},
-		{Type: "string", Name: "aurora.isalter", Desc: "True if a QUERY operation contains ALTER statements."},
-		{Type: "string", Name: "aurora.isdelete", Desc: "True if a QUERY operation contains DELETE statements."},
-		{Type: "string", Name: "aurora.dropargs", Desc: "DROP statemtent arguments, if present."},
-		{Type: "string", Name: "aurora.selectargs", Desc: "SELECT statemtent arguments, if present."},
-		{Type: "string", Name: "aurora.setargs", Desc: "SET statemtent arguments, if present."},
-		{Type: "string", Name: "aurora.join", Desc: "JOIN statemtent arguments, if present."},
-		{Type: "string", Name: "aurora.where", Desc: "WHERE statement arguments, if present."},
-		{Type: "string", Name: "aurora.createloc", Desc: "CREATE statemtent location, if present."},
-		{Type: "string", Name: "aurora.createargs", Desc: "CREATE statemtent elements, if present."},
-		{Type: "string", Name: "aurora.updateargs", Desc: "UPDATE statemtent arguments, if present."},
-		{Type: "string", Name: "aurora.insertclmns", Desc: "INSRT statemtent columns argument, if present."},
-		{Type: "string", Name: "aurora.inserttable", Desc: "INSERT statemtent table arguments, if present."},
-		{Type: "string", Name: "aurora.grantargs", Desc: "GRANT statement roles, if present."},
-		{Type: "string", Name: "aurora.grantusr", Desc: "GRANT statement users, if present."},
-		{Type: "string", Name: "aurora.revokeusr", Desc: "REVOKE statement user, if present."},
-		{Type: "string", Name: "aurora.revokeargs", Desc: "REVOKE statement privileges/roles, if present."},
-		{Type: "string", Name: "aurora.altertable", Desc: "ALTER statement table, if present."},
-		{Type: "string", Name: "aurora.alterspecs", Desc: "ALTER statement arguments, if present."},
-		{Type: "string", Name: "aurora.deletetable", Desc: "DELETE statemtent table arguments, if present."},
+		{Type: "string", Name: "rds.isselect", Desc: "True if a QUERY operation contains SELECT statements."},
+		{Type: "string", Name: "rds.isset", Desc: "True if a QUERY operation contains SET statements."},
+		{Type: "string", Name: "rds.iscreate", Desc: "True if a QUERY operation contains CREATE statements."},
+		{Type: "string", Name: "rds.isdrop", Desc: "True if a QUERY operation contains SELECT statements."},
+		{Type: "string", Name: "rds.isupdate", Desc: "True if a QUERY operation contains UPDATE statements."},
+		{Type: "string", Name: "rds.isinsert", Desc: "True if a QUERY operation contains INSERT statements."},
+		{Type: "string", Name: "rds.isgrant", Desc: "True if a QUERY operation contains GRANT statements."},
+		{Type: "string", Name: "rds.isrevoke", Desc: "True if a QUERY operation contains REVOKE statements."},
+		{Type: "string", Name: "rds.isalter", Desc: "True if a QUERY operation contains ALTER statements."},
+		{Type: "string", Name: "rds.isdelete", Desc: "True if a QUERY operation contains DELETE statements."},
+		{Type: "string", Name: "rds.dropargs", Desc: "DROP statemtent arguments, if present."},
+		{Type: "string", Name: "rds.selectargs", Desc: "SELECT statemtent arguments, if present."},
+		{Type: "string", Name: "rds.setargs", Desc: "SET statemtent arguments, if present."},
+		{Type: "string", Name: "rds.join", Desc: "JOIN statemtent arguments, if present."},
+		{Type: "string", Name: "rds.where", Desc: "WHERE statement arguments, if present."},
+		{Type: "string", Name: "rds.createloc", Desc: "CREATE statemtent location, if present."},
+		{Type: "string", Name: "rds.createargs", Desc: "CREATE statemtent elements, if present."},
+		{Type: "string", Name: "rds.updateargs", Desc: "UPDATE statemtent arguments, if present."},
+		{Type: "string", Name: "rds.insertclmns", Desc: "INSRT statemtent columns argument, if present."},
+		{Type: "string", Name: "rds.inserttable", Desc: "INSERT statemtent table arguments, if present."},
+		{Type: "string", Name: "rds.grantargs", Desc: "GRANT statement roles, if present."},
+		{Type: "string", Name: "rds.grantusr", Desc: "GRANT statement users, if present."},
+		{Type: "string", Name: "rds.revokeusr", Desc: "REVOKE statement user, if present."},
+		{Type: "string", Name: "rds.revokeargs", Desc: "REVOKE statement privileges/roles, if present."},
+		{Type: "string", Name: "rds.altertable", Desc: "ALTER statement table, if present."},
+		{Type: "string", Name: "rds.alterspecs", Desc: "ALTER statement arguments, if present."},
+		{Type: "string", Name: "rds.deletetable", Desc: "DELETE statemtent table arguments, if present."},
 	}
 }
 
 // String represents the raw value of on event
 // (not currently used by Falco plugin framework, only there for future usage)
-func (auroraPlugin *pluginContext) String(in io.ReadSeeker) (string, error) {
+func (plugin *pluginContext) String(in io.ReadSeeker) (string, error) {
 	rawData, err := ioutil.ReadAll(in)
 	res := auditRecord{}
 	if err != nil {
@@ -284,83 +283,83 @@ func (p *pluginContext) Extract(req sdk.ExtractRequest, evt sdk.EventReader) err
 
 	switch req.Field() {
 	//Log-related fields
-	case "aurora.timestamp":
+	case "rds.timestamp":
 		req.SetValue(p.evtData.Timestamp)
-	case "aurora.serverhost":
+	case "rds.serverhost":
 		req.SetValue(p.evtData.ServerHost)
-	case "aurora.username":
+	case "rds.username":
 		req.SetValue(p.evtData.Username)
-	case "aurora.host":
+	case "rds.host":
 		req.SetValue(p.evtData.Host)
-	case "aurora.connectionid":
+	case "rds.connectionid":
 		req.SetValue(p.evtData.ConnectionId)
-	case "aurora.queryid":
+	case "rds.queryid":
 		req.SetValue(p.evtData.QueryId)
-	case "aurora.operation":
+	case "rds.operation":
 		req.SetValue(p.evtData.Operation)
-	case "aurora.database":
+	case "rds.database":
 		req.SetValue(p.evtData.Database)
-	case "aurora.object":
+	case "rds.object":
 		req.SetValue(p.evtData.Object)
-	case "aurora.retcode":
+	case "rds.retcode":
 		req.SetValue(p.evtData.Retcode)
-	case "aurora.stream":
+	case "rds.stream":
 		req.SetValue(p.evtData.Stream)
 
 		//Query-related fields. Strconv needed as bool are not supported by the SDK
-	case "aurora.isselect":
+	case "rds.isselect":
 		req.SetValue(strconv.FormatBool(p.queryData.IsSelect))
-	case "aurora.isset":
+	case "rds.isset":
 		req.SetValue(strconv.FormatBool(p.queryData.IsSet))
-	case "aurora.iscreate":
+	case "rds.iscreate":
 		req.SetValue(strconv.FormatBool(p.queryData.IsCreate))
-	case "aurora.isdrop":
+	case "rds.isdrop":
 		req.SetValue(strconv.FormatBool(p.queryData.IsDrop))
-	case "aurora.isupdate":
+	case "rds.isupdate":
 		req.SetValue(strconv.FormatBool(p.queryData.IsUpdate))
-	case "aurora.isinsert":
+	case "rds.isinsert":
 		req.SetValue(strconv.FormatBool(p.queryData.IsInsert))
-	case "aurora.isgrant":
+	case "rds.isgrant":
 		req.SetValue(strconv.FormatBool(p.queryData.IsGrant))
-	case "aurora.isrevoke":
+	case "rds.isrevoke":
 		req.SetValue(strconv.FormatBool(p.queryData.IsRevoke))
-	case "aurora.isalter":
+	case "rds.isalter":
 		req.SetValue(strconv.FormatBool(p.queryData.IsAlter))
-	case "aurora.delete":
+	case "rds.delete":
 		req.SetValue(strconv.FormatBool(p.queryData.IsDelete))
-	case "aurora.dropargs":
+	case "rds.dropargs":
 		req.SetValue(strings.Join(p.queryData.DropArgs, " "))
-	case "aurora.selectargs":
+	case "rds.selectargs":
 		req.SetValue(strings.Join(p.queryData.Select, " "))
-	case "aurora.setargs":
+	case "rds.setargs":
 		req.SetValue(strings.Join(p.queryData.SetArgs, " "))
-	case "aurora.join":
+	case "rds.join":
 		req.SetValue(strings.Join(p.queryData.Join, " "))
-	case "aurora.where":
+	case "rds.where":
 		req.SetValue(strings.Join(p.queryData.Where, " "))
-	case "aurora.createloc":
+	case "rds.createloc":
 		req.SetValue(strings.Join(p.queryData.CreateLoc, " "))
-	case "aurora.createargs":
+	case "rds.createargs":
 		req.SetValue(strings.Join(p.queryData.CreateArgs, " "))
-	case "aurora.updateargs":
+	case "rds.updateargs":
 		req.SetValue(strings.Join(p.queryData.UpdateArgs, " "))
-	case "aurora.insertclmns":
+	case "rds.insertclmns":
 		req.SetValue(strings.Join(p.queryData.InsertClmns, " "))
-	case "aurora.inserttable":
+	case "rds.inserttable":
 		req.SetValue(strings.Join(p.queryData.InsertTable, " "))
-	case "aurora.grantargs":
+	case "rds.grantargs":
 		req.SetValue(strings.Join(p.queryData.GrantArgs, " "))
-	case "aurora.grantusr":
+	case "rds.grantusr":
 		req.SetValue(strings.Join(p.queryData.GrantUSR, " "))
-	case "aurora.revokeusr":
+	case "rds.revokeusr":
 		req.SetValue(strings.Join(p.queryData.RevokeUSR, " "))
-	case "aurora.revokeargs":
+	case "rds.revokeargs":
 		req.SetValue(strings.Join(p.queryData.RevokeArgs, " "))
-	case "aurora.altertable":
+	case "rds.altertable":
 		req.SetValue(strings.Join(p.queryData.AlterTable, " "))
-	case "aurora.alterspecs":
+	case "rds.alterspecs":
 		req.SetValue(strings.Join(p.queryData.AlterSpec, " "))
-	case "aurora.deletetable":
+	case "rds.deletetable":
 		req.SetValue(strings.Join(p.queryData.DeleteTable, " "))
 	default:
 		return fmt.Errorf("no known field: %s", req.Field())
