@@ -43,33 +43,35 @@ func (r *Registry) FormatMarkdownTable(contentType string) (string, error) {
 
 	switch contentType {
 	case sourcePluginsTableContentType:
-		ret.WriteString("| ID | Name | Event Source | Description | Info |\n")
-		ret.WriteString("| --- | --- | --- | --- | --- |\n")
+		ret.WriteString("| ID | Name | Event Source | Description | Info | Artifacts |\n")
+		ret.WriteString("| --- | --- | --- | --- | --- | --- |\n")
 		for _, s := range r.Plugins.Source {
-			line := fmt.Sprintf("| %d | %s | `%s` | %s | Authors: %s <br/> License: %s |\n",
+			line := fmt.Sprintf("| %d | %s | `%s` | %s | Authors: %s <br/> License: %s | %s |\n",
 				s.ID,
-				formatWithURL(s.Name, s.URL),
+				formatWithURL(s.Name, s.SourcesURL),
 				wrapNotAvailable(s.Source),
 				wrapNotAvailable(s.Description),
 				formatWithURL(s.Authors, s.Contact),
 				wrapNotAvailable(s.License),
+				formatWithURL(s.ArtifactsURL, s.ArtifactsURL),
 			)
 			ret.WriteString(line)
 		}
 	case extractorPluginsTableContentType:
-		ret.WriteString("| Name | Extract Event Sources | Description | Info |\n")
-		ret.WriteString("| --- | --- | --- | --- |\n")
+		ret.WriteString("| Name | Extract Event Sources | Description | Info | Artifacts |\n")
+		ret.WriteString("| --- | --- | --- | --- | --- |\n")
 		for _, e := range r.Plugins.Extractor {
 			sources := make([]string, 0)
 			for _, s := range e.Sources {
 				sources = append(sources, fmt.Sprintf("`%s`", s))
 			}
-			line := fmt.Sprintf("| %s | %s | %s | Authors: %s <br/> License: %s |\n",
-				formatWithURL(e.Name, e.URL),
+			line := fmt.Sprintf("| %s | %s | %s | Authors: %s <br/> License: %s | %s |\n",
+				formatWithURL(e.Name, e.SourcesURL),
 				wrapNotAvailable(strings.Join(sources, ", ")),
 				wrapNotAvailable(e.Description),
 				formatWithURL(e.Authors, e.Contact),
 				wrapNotAvailable(e.License),
+				formatWithURL(e.ArtifactsURL, e.ArtifactsURL),
 			)
 			ret.WriteString(line)
 		}
