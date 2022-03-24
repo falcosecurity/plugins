@@ -28,8 +28,10 @@ import (
 	"fmt"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
+	"github.com/aws/aws-sdk-go/service/rds"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/extractor"
@@ -46,7 +48,7 @@ import (
 // Plugin info
 const (
 	PluginRequiredApiVersion        = "0.3.0"
-	PluginID                 uint32 = 999
+	PluginID                 uint32 = 7
 	PluginName                      = "aurora"
 	PluginDescription               = "listens to RDS aurora audit logs via aws Cloudwatch"
 	PluginContact                   = "github.com/falcosecurity/plugins/"
@@ -55,12 +57,39 @@ const (
 )
 
 const (
-	log_group_prefix = "/aws/rds/cluster/"
-	log_group_match  = "/audit"
-	audit_fields_num = 10
-	audit_obj_index  = 8
-	polling_freq     = 3
-	buffer_size      = 128
+	cluster_log_group_prefix  = "/aws/rds/cluster/"
+	instance_log_group_prefix = "/aws/rds/instance/"
+	log_group_match           = "/audit"
+	aurora_fields_num         = 10
+	aurora_obj_index          = 8
+	mariadb_fields_num        = 12
+	mariadb_obj_index         = 8
+	mariadb_time_format       = "20060102 15:04:05"
+	polling_freq              = 3
+	buffer_size               = 128
+)
+
+type LogFormat int64
+
+type Parser interface {
+	LogParse(string) (*auditRecord, error)
+}
+
+type AuroraParser struct {
+	FieldsNum int
+	ObjIndex  int
+}
+
+type MariaDBParser struct {
+	FieldsNum int
+	ObjIndex  int
+	TimeFmt   string
+}
+
+const (
+	Aurora LogFormat = iota
+	MariaDB
+	Other
 )
 
 // Struct for plugin init config
@@ -98,12 +127,26 @@ type recordMsg struct {
 // This is the open state, identifying an open instance reading Aurora audit logs
 type openContext struct {
 	source.BaseInstance
-	Sess      *session.Session
+	AwsSess   *session.Session
 	CLW       *cloudwatchlogs.CloudWatchLogs
+	RDS       *rds.RDS
+	Type      LogFormat
+	Parser    *Parser
 	GroupName *string
 	StartTime time.Time
 	Records   []*cloudwatchlogs.FilteredLogEvent
 	Link      chan *recordMsg
+}
+
+type MultipleMatchesError struct{}
+type NoMatchesError struct{}
+
+func (e *MultipleMatchesError) Error() string {
+	return "multiple matches for the identifier"
+}
+
+func (e *NoMatchesError) Error() string {
+	return "no matches for the identifier"
 }
 
 func main() {}
@@ -330,16 +373,68 @@ func (p *pluginContext) Open(params string) (source.Instance, error) {
 	oCtx := &openContext{}
 	//TODO process also other log categories (error, slowquery...)
 	//Eg: /aws/rds/cluster/mycluster/audit
-	oCtx.GroupName = aws.String(log_group_prefix + params + log_group_match)
 	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
 		return nil, err
 	}
 	sess := session.Must(session.NewSession(&aws.Config{
 		Region: aws.String(cfg.Region)}))
+
+	oCtx.AwsSess = sess
+	oCtx.RDS = rds.New(oCtx.AwsSess)
+	oCtx.CLW = cloudwatchlogs.New(oCtx.AwsSess)
+
+	var isCluster *rds.DescribeDBClustersOutput
+	var isDb *rds.DescribeDBInstancesOutput
+	var matches int
+	var parser Parser
+
+	//Check for Aurora cluster matches
+	isCluster, err = oCtx.RDS.DescribeDBClusters(&rds.DescribeDBClustersInput{DBClusterIdentifier: aws.String(params)})
+
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			case rds.ErrCodeDBClusterNotFoundFault:
+				break
+			default:
+				return nil, err
+			}
+		}
+	} else if len(isCluster.DBClusters) > 0 {
+		matches += len(isCluster.DBClusters)
+		oCtx.Type = Aurora
+		oCtx.GroupName = aws.String(cluster_log_group_prefix + params + log_group_match)
+		parser = AuroraParser{FieldsNum: aurora_fields_num, ObjIndex: aurora_obj_index}
+		oCtx.Parser = &parser
+	}
+	//Check for non-Aurora db matches
+	isDb, err = oCtx.RDS.DescribeDBInstances(&rds.DescribeDBInstancesInput{DBInstanceIdentifier: aws.String(params)})
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			case rds.ErrCodeDBInstanceNotFoundFault:
+				break
+			default:
+				return nil, err
+			}
+		}
+	} else if len(isDb.DBInstances) > 0 {
+		matches += len(isDb.DBInstances)
+		oCtx.Type = MariaDB
+		oCtx.GroupName = aws.String(instance_log_group_prefix + params + log_group_match)
+		parser = MariaDBParser{FieldsNum: mariadb_fields_num, ObjIndex: mariadb_obj_index, TimeFmt: mariadb_time_format}
+		oCtx.Parser = &parser
+	}
+
+	if matches == 0 {
+		return nil, &NoMatchesError{}
+	}
+	if matches != 1 {
+		return nil, &MultipleMatchesError{}
+	}
+
 	fmt.Println("Listening ", params, " on region ", cfg.Region)
-	oCtx.Sess = sess
-	oCtx.CLW = cloudwatchlogs.New(oCtx.Sess)
 	//TODO to optionally start listening from the past
 	oCtx.StartTime = time.Now()
 	oCtx.Link = make(chan *recordMsg, buffer_size)
@@ -378,7 +473,8 @@ func nextEvent(oCtx *openContext) {
 	for {
 		_, err := oCtx.fetchRecords()
 		for i := 0; i < len(oCtx.Records); i++ {
-			record, err = parseAudit(*oCtx.Records[i].Message)
+			p := *oCtx.Parser
+			record, err = p.LogParse(*oCtx.Records[i].Message)
 			record.Stream = *oCtx.Records[i].LogStreamName
 			recordJson, _ := json.Marshal(record)
 			oCtx.Link <- &recordMsg{err, recordJson}
@@ -387,14 +483,25 @@ func nextEvent(oCtx *openContext) {
 	}
 }
 
-func parseAudit(record string) (*auditRecord, error) {
+func (p AuroraParser) LogParse(record string) (*auditRecord, error) {
 	split := strings.Split(record, ",")
-	if len(split) < audit_fields_num {
-		return nil, errors.New("Cannot parse record.")
+	if len(split) < p.FieldsNum {
+		return nil, errors.New("cannot parse record")
 	}
 	// "Object" log field can contain comma-separated SQL statements
-	obj := strings.Join(split[audit_obj_index:len(split)-1], ", ")
+	obj := strings.Join(split[p.ObjIndex:len(split)-1], ", ")
 	return &auditRecord{split[0], split[1], split[2], split[3], split[4], split[5], split[6], split[7], obj, split[9], ""}, nil
+}
+
+func (p MariaDBParser) LogParse(record string) (*auditRecord, error) {
+	split := strings.Split(record, ",")
+	if len(split) < p.FieldsNum {
+		return nil, errors.New("cannot parse record")
+	}
+	t, _ := time.Parse(p.TimeFmt, split[0])
+	tmil := strconv.FormatInt(t.UnixMilli(), 10)
+	obj := strings.Join(split[p.ObjIndex:len(split)-3], ",")
+	return &auditRecord{tmil, split[1], split[2], split[3], split[4], split[5], split[6], split[7], obj, split[9], ""}, nil
 }
 
 // Updates the context with all log records newer than StartTime
