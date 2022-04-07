@@ -21,7 +21,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/url"
-	"strconv"
 	"strings"
 
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
@@ -136,12 +135,8 @@ func (e *AuditEventExtractor) ExtractFromJSON(req sdk.ExtractRequest, jsonValue 
 	case "ka.uri":
 		return e.extractFromKeys(req, jsonValue, "requestURI")
 	case "ka.uri.param":
-		arg, err := e.requireKeyArgument(req)
-		if err != nil {
-			return err
-		}
 		uriValue := jsonValue.Get("requestURI")
-		if err == nil {
+		if uriValue == nil {
 			return ErrExtractNotAvailable
 		}
 		uriString, err := e.jsonValueAsString(uriValue)
@@ -156,7 +151,7 @@ func (e *AuditEventExtractor) ExtractFromJSON(req sdk.ExtractRequest, jsonValue 
 		if err != nil {
 			return err
 		}
-		param := query[arg]
+		param := query[req.ArgKey()]
 		if len(param) > 0 {
 			req.SetValue(param[0])
 		}
@@ -173,10 +168,6 @@ func (e *AuditEventExtractor) ExtractFromJSON(req sdk.ExtractRequest, jsonValue 
 	case "ka.req.binding.role":
 		return e.extractFromKeys(req, jsonValue, "requestObject", "roleRef", "name")
 	case "ka.req.binding.subject.has_name":
-		_, err := e.requireKeyArgument(req)
-		if err != nil {
-			return err
-		}
 		// note(jasondellaluce): this is documented to return N/A, however
 		// the original K8S Audit implementation returns true here
 		req.SetValue("true")
@@ -185,20 +176,14 @@ func (e *AuditEventExtractor) ExtractFromJSON(req sdk.ExtractRequest, jsonValue 
 	case "ka.req.configmap.obj":
 		return e.extractFromKeys(req, jsonValue, "requestObject", "data")
 	case "ka.req.pod.containers.image":
-		indexFilter, err := e.allowIndexArgument(req)
-		if err != nil {
-			return err
-		}
+		indexFilter := e.argIndexFilter(req)
 		images, err := e.readContainerImages(jsonValue, indexFilter)
 		if err != nil {
 			return err
 		}
 		req.SetValue(images)
 	case "ka.req.pod.containers.image.repository":
-		indexFilter, err := e.allowIndexArgument(req)
-		if err != nil {
-			return err
-		}
+		indexFilter := e.argIndexFilter(req)
 		repos, err := e.readContainerRepositories(jsonValue, indexFilter)
 		if err != nil {
 			return err
@@ -225,20 +210,14 @@ func (e *AuditEventExtractor) ExtractFromJSON(req sdk.ExtractRequest, jsonValue 
 	case "ka.req.pod.host_pid":
 		return e.extractFromKeys(req, jsonValue, "requestObject", "spec", "hostPID")
 	case "ka.req.pod.containers.host_port":
-		indexFilter, err := e.allowIndexArgument(req)
-		if err != nil {
-			return err
-		}
+		indexFilter := e.argIndexFilter(req)
 		values, err := e.readContainerHostPorts(jsonValue, indexFilter)
 		if err != nil {
 			return err
 		}
 		req.SetValue(values)
 	case "ka.req.pod.containers.privileged":
-		indexFilter, err := e.allowIndexArgument(req)
-		if err != nil {
-			return err
-		}
+		indexFilter := e.argIndexFilter(req)
 		arr, err := e.getArray(jsonValue, indexFilter, "requestObject", "spec", "containers")
 		if err != nil {
 			return err
@@ -259,10 +238,7 @@ func (e *AuditEventExtractor) ExtractFromJSON(req sdk.ExtractRequest, jsonValue 
 		}
 		req.SetValue(privileged)
 	case "ka.req.pod.containers.allow_privilege_escalation":
-		indexFilter, err := e.allowIndexArgument(req)
-		if err != nil {
-			return err
-		}
+		indexFilter := e.argIndexFilter(req)
 		arr, err := e.getArray(jsonValue, indexFilter, "requestObject", "spec", "containers")
 		if err != nil {
 			return err
@@ -277,10 +253,7 @@ func (e *AuditEventExtractor) ExtractFromJSON(req sdk.ExtractRequest, jsonValue 
 		}
 		req.SetValue(values)
 	case "ka.req.pod.containers.read_only_fs":
-		indexFilter, err := e.allowIndexArgument(req)
-		if err != nil {
-			return err
-		}
+		indexFilter := e.argIndexFilter(req)
 		arr, err := e.getArray(jsonValue, indexFilter, "requestObject", "spec", "containers")
 		if err != nil {
 			return err
@@ -297,10 +270,7 @@ func (e *AuditEventExtractor) ExtractFromJSON(req sdk.ExtractRequest, jsonValue 
 	case "ka.req.pod.run_as_user":
 		return e.extractFromKeys(req, jsonValue, "requestObject", "spec", "securityContext", "runAsUser")
 	case "ka.req.pod.containers.run_as_user":
-		indexFilter, err := e.allowIndexArgument(req)
-		if err != nil {
-			return err
-		}
+		indexFilter := e.argIndexFilter(req)
 		arr, err := e.getArray(jsonValue, indexFilter, "requestObject", "spec", "containers")
 		if err != nil {
 			return err
@@ -315,10 +285,7 @@ func (e *AuditEventExtractor) ExtractFromJSON(req sdk.ExtractRequest, jsonValue 
 		}
 		req.SetValue(values)
 	case "ka.req.pod.containers.eff_run_as_user":
-		indexFilter, err := e.allowIndexArgument(req)
-		if err != nil {
-			return err
-		}
+		indexFilter := e.argIndexFilter(req)
 		values, err := e.readFromContainerEffectively(jsonValue, indexFilter, "runAsUser")
 		if err != nil {
 			return err
@@ -327,10 +294,7 @@ func (e *AuditEventExtractor) ExtractFromJSON(req sdk.ExtractRequest, jsonValue 
 	case "ka.req.pod.run_as_group":
 		return e.extractFromKeys(req, jsonValue, "requestObject", "spec", "securityContext", "runAsGroup")
 	case "ka.req.pod.containers.run_as_group":
-		indexFilter, err := e.allowIndexArgument(req)
-		if err != nil {
-			return err
-		}
+		indexFilter := e.argIndexFilter(req)
 		arr, err := e.getArray(jsonValue, indexFilter, "requestObject", "spec", "containers")
 		if err != nil {
 			return err
@@ -345,20 +309,14 @@ func (e *AuditEventExtractor) ExtractFromJSON(req sdk.ExtractRequest, jsonValue 
 		}
 		req.SetValue(values)
 	case "ka.req.pod.containers.eff_run_as_group":
-		indexFilter, err := e.allowIndexArgument(req)
-		if err != nil {
-			return err
-		}
+		indexFilter := e.argIndexFilter(req)
 		values, err := e.readFromContainerEffectively(jsonValue, indexFilter, "runAsGroup")
 		if err != nil {
 			return err
 		}
 		req.SetValue(values)
 	case "ka.req.pod.containers.proc_mount":
-		indexFilter, err := e.allowIndexArgument(req)
-		if err != nil {
-			return err
-		}
+		indexFilter := e.argIndexFilter(req)
 		arr, err := e.getArray(jsonValue, indexFilter, "requestObject", "spec", "containers")
 		if err != nil {
 			return err
@@ -387,10 +345,7 @@ func (e *AuditEventExtractor) ExtractFromJSON(req sdk.ExtractRequest, jsonValue 
 	case "ka.req.pod.supplemental_groups":
 		return e.extractFromKeys(req, jsonValue, "requestObject", "spec", "securityContext", "supplementalGroups")
 	case "ka.req.pod.containers.add_capabilities":
-		indexFilter, err := e.allowIndexArgument(req)
-		if err != nil {
-			return err
-		}
+		indexFilter := e.argIndexFilter(req)
 		arr, err := e.getArray(jsonValue, indexFilter, "requestObject", "spec", "containers")
 		if err != nil {
 			return err
@@ -407,10 +362,7 @@ func (e *AuditEventExtractor) ExtractFromJSON(req sdk.ExtractRequest, jsonValue 
 	case "ka.req.service.type":
 		return e.extractFromKeys(req, jsonValue, "requestObject", "spec", "type")
 	case "ka.req.service.ports":
-		indexFilter, err := e.allowIndexArgument(req)
-		if err != nil {
-			return err
-		}
+		indexFilter := e.argIndexFilter(req)
 		arr, err := e.getArray(jsonValue, indexFilter, "requestObject", "spec", "ports")
 		if err != nil {
 			return err
@@ -421,10 +373,7 @@ func (e *AuditEventExtractor) ExtractFromJSON(req sdk.ExtractRequest, jsonValue 
 		}
 		req.SetValue(values)
 	case "ka.req.volume.hostpath":
-		arg, err := e.requireKeyArgument(req)
-		if err != nil {
-			return err
-		}
+		arg := req.ArgKey()
 		arr, err := e.getArray(jsonValue, noIndexFilter, "requestObject", "spec", "volumes")
 		if err != nil {
 			return err
@@ -450,10 +399,7 @@ func (e *AuditEventExtractor) ExtractFromJSON(req sdk.ExtractRequest, jsonValue 
 		}
 		req.SetValue("false")
 	case "ka.req.pod.volumes.hostpath":
-		indexFilter, err := e.allowIndexArgument(req)
-		if err != nil {
-			return err
-		}
+		indexFilter := e.argIndexFilter(req)
 		arr, err := e.getArray(jsonValue, indexFilter, "requestObject", "spec", "volumes")
 		if err != nil {
 			return err
@@ -468,10 +414,7 @@ func (e *AuditEventExtractor) ExtractFromJSON(req sdk.ExtractRequest, jsonValue 
 		}
 		req.SetValue(values)
 	case "ka.req.pod.volumes.flexvolume_driver":
-		indexFilter, err := e.allowIndexArgument(req)
-		if err != nil {
-			return err
-		}
+		indexFilter := e.argIndexFilter(req)
 		arr, err := e.getArray(jsonValue, indexFilter, "requestObject", "spec", "volumes")
 		if err != nil {
 			return err
@@ -486,10 +429,7 @@ func (e *AuditEventExtractor) ExtractFromJSON(req sdk.ExtractRequest, jsonValue 
 		}
 		req.SetValue(values)
 	case "ka.req.pod.volumes.volume_type":
-		indexFilter, err := e.allowIndexArgument(req)
-		if err != nil {
-			return err
-		}
+		indexFilter := e.argIndexFilter(req)
 		arr, err := e.getArray(jsonValue, indexFilter, "requestObject", "spec", "volumes")
 		if err != nil {
 			return err
@@ -523,19 +463,11 @@ func (e *AuditEventExtractor) ExtractFromJSON(req sdk.ExtractRequest, jsonValue 
 	return nil
 }
 
-func (e *AuditEventExtractor) allowIndexArgument(req sdk.ExtractRequest) (int, error) {
-	value, err := strconv.Atoi(req.Arg())
-	if err != nil {
-		return noIndexFilter, nil
+func (e *AuditEventExtractor) argIndexFilter(req sdk.ExtractRequest) int {
+	if !req.ArgPresent() {
+		return noIndexFilter
 	}
-	return value, nil
-}
-
-func (e *AuditEventExtractor) requireKeyArgument(req sdk.ExtractRequest) (string, error) {
-	if len(req.Arg()) == 0 {
-		return "", fmt.Errorf("field '%s' requires a key argument", req.Field())
-	}
-	return req.Arg(), nil
+	return int(req.ArgIndex())
 }
 
 func (e *AuditEventExtractor) getArray(jsonValue *fastjson.Value, indexFilter int, keys ...string) ([]*fastjson.Value, error) {
@@ -698,10 +630,7 @@ func (e *AuditEventExtractor) readFromContainerEffectively(jsonValue *fastjson.V
 }
 
 func (e *AuditEventExtractor) extractRulesField(req sdk.ExtractRequest, jsonValue *fastjson.Value, keys ...string) error {
-	indexFilter, err := e.allowIndexArgument(req)
-	if err != nil {
-		return err
-	}
+	indexFilter := e.argIndexFilter(req)
 	arr, err := e.getArray(jsonValue, indexFilter, "requestObject", "rules")
 	if err != nil {
 		return err
