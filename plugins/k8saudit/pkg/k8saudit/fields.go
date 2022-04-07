@@ -22,8 +22,6 @@ import (
 
 // Fields returns the list of extractor fields exported for K8S Audit events.
 func Fields() []sdk.FieldEntry {
-	// todo(jasondellaluce): implement argument metadata (ArgIndex, ArgKey, ArgAllowed...)
-	// See: https://github.com/falcosecurity/libs/pull/206
 	return []sdk.FieldEntry{
 		{
 			Type: "string",
@@ -72,11 +70,13 @@ func Fields() []sdk.FieldEntry {
 			Desc: "The request URI as sent from client to server",
 		},
 		{
-			Type:        "string",
-			Name:        "ka.uri.param",
-			Desc:        "The value of a given query parameter in the uri (e.g. when uri=/foo?key=val, ka.uri.param[key] is val).",
-			ArgRequired: true,
-			// ArgKey: true
+			Type: "string",
+			Name: "ka.uri.param",
+			Desc: "The value of a given query parameter in the uri (e.g. when uri=/foo?key=val, ka.uri.param[key] is val).",
+			Arg: sdk.FieldEntryArg{
+				IsRequired: true,
+				IsKey:      true,
+			},
 		},
 		{
 			Type: "string",
@@ -110,11 +110,13 @@ func Fields() []sdk.FieldEntry {
 			Desc: "When the request object refers to a cluster role binding, the role being linked by the binding",
 		},
 		{
-			Type:        "string",
-			Name:        "ka.req.binding.subject.has_name",
-			Desc:        "Deprecated, always returns \"N/A\". Only provided for backwards compatibility",
-			ArgRequired: true,
-			// ArgKey: true
+			Type: "string",
+			Name: "ka.req.binding.subject.has_name",
+			Desc: "Deprecated, always returns \"N/A\". Only provided for backwards compatibility",
+			Arg: sdk.FieldEntryArg{
+				IsRequired: true,
+				IsKey:      true,
+			},
 		},
 		{
 			Type: "string",
@@ -127,12 +129,14 @@ func Fields() []sdk.FieldEntry {
 			Desc: "If the request object refers to a configmap, the entire configmap object",
 		},
 		{
-			Type: "string",
-			Name: "ka.req.pod.containers.image",
-			Desc: "When the request object refers to a pod, the container's images.",
-			// ArgAllowed: true
-			// ArgIndex: true
+			Type:   "string",
+			Name:   "ka.req.pod.containers.image",
+			Desc:   "When the request object refers to a pod, the container's images.",
 			IsList: true,
+			Arg: sdk.FieldEntryArg{
+				IsRequired: false,
+				IsIndex:    true,
+			},
 		},
 		{
 			Type: "string",
@@ -140,12 +144,14 @@ func Fields() []sdk.FieldEntry {
 			Desc: "Deprecated by ka.req.pod.containers.image. Returns the image of the first container only",
 		},
 		{
-			Type: "string",
-			Name: "ka.req.pod.containers.image.repository",
-			Desc: "The same as req.container.image, but only the repository part (e.g. falcosecurity/falco).",
-			// ArgAllowed: true
-			// ArgIndex: true
+			Type:   "string",
+			Name:   "ka.req.pod.containers.image.repository",
+			Desc:   "The same as req.container.image, but only the repository part (e.g. falcosecurity/falco).",
 			IsList: true,
+			Arg: sdk.FieldEntryArg{
+				IsRequired: false,
+				IsIndex:    true,
+			},
 		},
 		{
 			Type: "string",
@@ -173,20 +179,24 @@ func Fields() []sdk.FieldEntry {
 			Desc: "When the request object refers to a pod, the value of the hostPID flag.",
 		},
 		{
-			Type: "string",
-			Name: "ka.req.pod.containers.host_port",
-			Desc: "When the request object refers to a pod, all container's hostPort values.",
-			// ArgAllowed: true
-			// ArgIndex: true
+			Type:   "string",
+			Name:   "ka.req.pod.containers.host_port",
+			Desc:   "When the request object refers to a pod, all container's hostPort values.",
 			IsList: true,
+			Arg: sdk.FieldEntryArg{
+				IsRequired: false,
+				IsIndex:    true,
+			},
 		},
 		{
-			Type: "string",
-			Name: "ka.req.pod.containers.privileged",
-			Desc: "When the request object refers to a pod, the value of the privileged flag for all containers.",
-			// ArgAllowed: true
-			// ArgIndex: true
+			Type:   "string",
+			Name:   "ka.req.pod.containers.privileged",
+			Desc:   "When the request object refers to a pod, the value of the privileged flag for all containers.",
 			IsList: true,
+			Arg: sdk.FieldEntryArg{
+				IsRequired: false,
+				IsIndex:    true,
+			},
 		},
 		{
 			Type: "string",
@@ -194,42 +204,49 @@ func Fields() []sdk.FieldEntry {
 			Desc: "Deprecated by ka.req.pod.containers.privileged. Returns true if any container has privileged=true",
 		},
 		{
-			Type: "string",
-			Name: "ka.req.pod.containers.allow_privilege_escalation",
-			Desc: "When the request object refers to a pod, the value of the allowPrivilegeEscalation flag for all containers",
-			// ArgAllowed: true
-			// ArgIndex: true
+			Type:   "string",
+			Name:   "ka.req.pod.containers.allow_privilege_escalation",
+			Desc:   "When the request object refers to a pod, the value of the allowPrivilegeEscalation flag for all containers",
 			IsList: true,
+			Arg: sdk.FieldEntryArg{
+				IsRequired: false,
+				IsIndex:    true,
+			},
 		},
 		{
-			Type: "string",
-			Name: "ka.req.pod.containers.read_only_fs",
-			Desc: "When the request object refers to a pod, the value of the readOnlyRootFilesystem flag for all containers",
-			// ArgAllowed: true
-			// ArgIndex: true
+			Type:   "string",
+			Name:   "ka.req.pod.containers.read_only_fs",
+			Desc:   "When the request object refers to a pod, the value of the readOnlyRootFilesystem flag for all containers",
 			IsList: true,
+			Arg: sdk.FieldEntryArg{
+				IsRequired: false,
+				IsIndex:    true,
+			},
 		},
 		{
 			Type: "string",
 			Name: "ka.req.pod.run_as_user",
 			Desc: "When the request object refers to a pod, the runAsUser uid specified in the security context for the pod. See ....containers.run_as_user for the runAsUser for individual containers",
-			// ArgAllowed: true
 		},
 		{
-			Type: "string",
-			Name: "ka.req.pod.containers.run_as_user",
-			Desc: "When the request object refers to a pod, the runAsUser uid for all containers",
-			// ArgAllowed: true
-			// ArgIndex: true
+			Type:   "string",
+			Name:   "ka.req.pod.containers.run_as_user",
+			Desc:   "When the request object refers to a pod, the runAsUser uid for all containers",
 			IsList: true,
+			Arg: sdk.FieldEntryArg{
+				IsRequired: false,
+				IsIndex:    true,
+			},
 		},
 		{
 			Type:   "string",
 			Name:   "ka.req.pod.containers.eff_run_as_user",
 			Desc:   "When the request object refers to a pod, the initial uid that will be used for all containers. This combines information from both the pod and container security contexts and uses 0 if no uid is specified",
 			IsList: true,
-			// ArgAllowed: true
-			// ArgIndex: true
+			Arg: sdk.FieldEntryArg{
+				IsRequired: false,
+				IsIndex:    true,
+			},
 		},
 		{
 			Type: "string",
@@ -237,28 +254,34 @@ func Fields() []sdk.FieldEntry {
 			Desc: "When the request object refers to a pod, the runAsGroup gid specified in the security context for the pod. See ....containers.run_as_group for the runAsGroup for individual containers",
 		},
 		{
-			Type: "string",
-			Name: "ka.req.pod.containers.run_as_group",
-			Desc: "When the request object refers to a pod, the runAsGroup gid for all containers",
-			// ArgAllowed: true
-			// ArgIndex: true
+			Type:   "string",
+			Name:   "ka.req.pod.containers.run_as_group",
+			Desc:   "When the request object refers to a pod, the runAsGroup gid for all containers",
 			IsList: true,
+			Arg: sdk.FieldEntryArg{
+				IsRequired: false,
+				IsIndex:    true,
+			},
 		},
 		{
-			Type: "string",
-			Name: "ka.req.pod.containers.eff_run_as_group",
-			Desc: "When the request object refers to a pod, the initial gid that will be used for all containers. This combines information from both the pod and container security contexts and uses 0 if no gid is specified",
-			// ArgAllowed: true
-			// ArgIndex: true
+			Type:   "string",
+			Name:   "ka.req.pod.containers.eff_run_as_group",
+			Desc:   "When the request object refers to a pod, the initial gid that will be used for all containers. This combines information from both the pod and container security contexts and uses 0 if no gid is specified",
 			IsList: true,
+			Arg: sdk.FieldEntryArg{
+				IsRequired: false,
+				IsIndex:    true,
+			},
 		},
 		{
-			Type: "string",
-			Name: "ka.req.pod.containers.proc_mount",
-			Desc: "When the request object refers to a pod, the procMount types for all containers",
-			// ArgAllowed: true
-			// ArgIndex: true
+			Type:   "string",
+			Name:   "ka.req.pod.containers.proc_mount",
+			Desc:   "When the request object refers to a pod, the procMount types for all containers",
 			IsList: true,
+			Arg: sdk.FieldEntryArg{
+				IsRequired: false,
+				IsIndex:    true,
+			},
 		},
 		{
 			Type:   "string",
@@ -267,36 +290,44 @@ func Fields() []sdk.FieldEntry {
 			IsList: true,
 		},
 		{
-			Type: "string",
-			Name: "ka.req.role.rules.apiGroups",
-			Desc: "When the request object refers to a role/cluster role, the api groups associated with the role's rules",
-			// ArgAllowed: true
-			// ArgIndex: true
+			Type:   "string",
+			Name:   "ka.req.role.rules.apiGroups",
+			Desc:   "When the request object refers to a role/cluster role, the api groups associated with the role's rules",
 			IsList: true,
+			Arg: sdk.FieldEntryArg{
+				IsRequired: false,
+				IsIndex:    true,
+			},
 		},
 		{
-			Type: "string",
-			Name: "ka.req.role.rules.nonResourceURLs",
-			Desc: "When the request object refers to a role/cluster role, the non resource urls associated with the role's rules",
-			// ArgAllowed: true
-			// ArgIndex: true
+			Type:   "string",
+			Name:   "ka.req.role.rules.nonResourceURLs",
+			Desc:   "When the request object refers to a role/cluster role, the non resource urls associated with the role's rules",
 			IsList: true,
+			Arg: sdk.FieldEntryArg{
+				IsRequired: false,
+				IsIndex:    true,
+			},
 		},
 		{
-			Type: "string",
-			Name: "ka.req.role.rules.verbs",
-			Desc: "When the request object refers to a role/cluster role, the verbs associated with the role's rules",
-			// ArgAllowed: true
-			// ArgIndex: true
+			Type:   "string",
+			Name:   "ka.req.role.rules.verbs",
+			Desc:   "When the request object refers to a role/cluster role, the verbs associated with the role's rules",
 			IsList: true,
+			Arg: sdk.FieldEntryArg{
+				IsRequired: false,
+				IsIndex:    true,
+			},
 		},
 		{
-			Type: "string",
-			Name: "ka.req.role.rules.resources",
-			Desc: "When the request object refers to a role/cluster role, the resources associated with the role's rules",
-			// ArgAllowed: true
-			// ArgIndex: true
+			Type:   "string",
+			Name:   "ka.req.role.rules.resources",
+			Desc:   "When the request object refers to a role/cluster role, the resources associated with the role's rules",
 			IsList: true,
+			Arg: sdk.FieldEntryArg{
+				IsRequired: false,
+				IsIndex:    true,
+			},
 		},
 		{
 			Type: "string",
@@ -310,12 +341,14 @@ func Fields() []sdk.FieldEntry {
 			IsList: true,
 		},
 		{
-			Type: "string",
-			Name: "ka.req.pod.containers.add_capabilities",
-			Desc: "When the request object refers to a pod, all capabilities to add when running the container.",
-			// ArgAllowed: true
-			// ArgIndex: true
+			Type:   "string",
+			Name:   "ka.req.pod.containers.add_capabilities",
+			Desc:   "When the request object refers to a pod, all capabilities to add when running the container.",
 			IsList: true,
+			Arg: sdk.FieldEntryArg{
+				IsRequired: false,
+				IsIndex:    true,
+			},
 		},
 		{
 			Type: "string",
@@ -323,43 +356,53 @@ func Fields() []sdk.FieldEntry {
 			Desc: "When the request object refers to a service, the service type",
 		},
 		{
-			Type: "string",
-			Name: "ka.req.service.ports",
-			Desc: "When the request object refers to a service, the service's ports",
-			// ArgAllowed: true
-			// ArgIndex: true
+			Type:   "string",
+			Name:   "ka.req.service.ports",
+			Desc:   "When the request object refers to a service, the service's ports",
 			IsList: true,
+			Arg: sdk.FieldEntryArg{
+				IsRequired: false,
+				IsIndex:    true,
+			},
+		},
+		{
+			Type:   "string",
+			Name:   "ka.req.pod.volumes.hostpath",
+			Desc:   "When the request object refers to a pod, all hostPath paths specified for all volumes",
+			IsList: true,
+			Arg: sdk.FieldEntryArg{
+				IsRequired: false,
+				IsIndex:    true,
+			},
 		},
 		{
 			Type: "string",
-			Name: "ka.req.pod.volumes.hostpath",
-			Desc: "When the request object refers to a pod, all hostPath paths specified for all volumes",
-			// ArgAllowed: true
-			// ArgIndex: true
-			IsList: true,
+			Name: "ka.req.volume.hostpath",
+			Desc: "Deprecated by ka.req.pod.volumes.hostpath. Return true if the provided (host) path prefix is used by any volume",
+			Arg: sdk.FieldEntryArg{
+				IsRequired: true,
+				IsKey:      true,
+			},
 		},
 		{
-			Type:        "string",
-			Name:        "ka.req.volume.hostpath",
-			Desc:        "Deprecated by ka.req.pod.volumes.hostpath. Return true if the provided (host) path prefix is used by any volume",
-			ArgRequired: true,
-			// ArgKey: true
+			Type:   "string",
+			Name:   "ka.req.pod.volumes.flexvolume_driver",
+			Desc:   "When the request object refers to a pod, all flexvolume drivers specified for all volumes",
+			IsList: true,
+			Arg: sdk.FieldEntryArg{
+				IsRequired: false,
+				IsIndex:    true,
+			},
 		},
 		{
-			Type: "string",
-			Name: "ka.req.pod.volumes.flexvolume_driver",
-			Desc: "When the request object refers to a pod, all flexvolume drivers specified for all volumes",
-			// ArgAllowed: true
-			// ArgIndex: true
+			Type:   "string",
+			Name:   "ka.req.pod.volumes.volume_type",
+			Desc:   "When the request object refers to a pod, all volume types for all volumes",
 			IsList: true,
-		},
-		{
-			Type: "string",
-			Name: "ka.req.pod.volumes.volume_type",
-			Desc: "When the request object refers to a pod, all volume types for all volumes",
-			// ArgAllowed: true
-			// ArgIndex: true
-			IsList: true,
+			Arg: sdk.FieldEntryArg{
+				IsRequired: false,
+				IsIndex:    true,
+			},
 		},
 		{
 			Type: "string",
