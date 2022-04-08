@@ -89,7 +89,7 @@ func (k *K8SAuditPlugin) openLocalFile(filePath string) (source.Instance, error)
 			errorChan <- err
 		}
 	}()
-	return k8saudit.OpenEventSource(context.Background(), eventChan, errorChan, k.config.TimeoutMillis, nil)
+	return k8saudit.OpenEventSource(context.Background(), eventChan, errorChan, nil)
 }
 
 // Opens parameters with "http://" and "https://" prefixes.
@@ -153,7 +153,7 @@ func (k *K8SAuditPlugin) openWebServer(port, endpoint string, ssl bool) (source.
 	}
 
 	// open the event source
-	return k8saudit.OpenEventSource(ctx, eventChan, errorChan, k.config.TimeoutMillis, onClose)
+	return k8saudit.OpenEventSource(ctx, eventChan, errorChan, onClose)
 }
 
 func (k *K8SAuditPlugin) String(in io.ReadSeeker) (string, error) {

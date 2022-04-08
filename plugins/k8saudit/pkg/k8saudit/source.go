@@ -26,6 +26,8 @@ import (
 	"github.com/valyala/fastjson"
 )
 
+var defaultEventTimeout = 10 * time.Millisecond
+
 type auditEvent struct {
 	Data      *fastjson.Value
 	Timestamp time.Time
@@ -33,12 +35,11 @@ type auditEvent struct {
 
 type eventSource struct {
 	source.BaseInstance
-	timeoutMillis uint64
-	eventChan     <-chan *auditEvent
-	errorChan     <-chan error
-	ctx           context.Context
-	cancel        func()
-	eof           bool
+	eventChan <-chan *auditEvent
+	errorChan <-chan error
+	ctx       context.Context
+	cancel    func()
+	eof       bool
 }
 
 // OpenEventSource opens the K8S Audit Logs event source returns a
@@ -52,7 +53,7 @@ type eventSource struct {
 // which a sdk.Timeout error is returned by NextBatch when no new event is
 // received during that timeframe. OnClose is a callback that is invoked when
 // the event source is closed by the plugin framework.
-func OpenEventSource(ctx context.Context, eventChan <-chan []byte, errorChan <-chan error, timeoutMillis uint64, onClose func()) (source.Instance, error) {
+func OpenEventSource(ctx context.Context, eventChan <-chan []byte, errorChan <-chan error, onClose func()) (source.Instance, error) {
 	// Launch the parsing goroutine that receives raw byte messages.
 	// One or more audit events can be extracted from each message.
 	newEventChan := make(chan *auditEvent)
@@ -89,12 +90,11 @@ func OpenEventSource(ctx context.Context, eventChan <-chan []byte, errorChan <-c
 
 	// return event source
 	return &eventSource{
-		eof:           false,
-		ctx:           ctx,
-		eventChan:     newEventChan,
-		errorChan:     newErrorChan,
-		timeoutMillis: timeoutMillis,
-		cancel:        onClose,
+		eof:       false,
+		ctx:       ctx,
+		eventChan: newEventChan,
+		errorChan: newErrorChan,
+		cancel:    onClose,
 	}, nil
 }
 
@@ -110,7 +110,7 @@ func (e *eventSource) NextBatch(pState sdk.PluginState, evts sdk.EventWriters) (
 	}
 
 	i := 0
-	timeout := time.After(time.Duration(e.timeoutMillis) * time.Millisecond)
+	timeout := time.After(defaultEventTimeout)
 	for i < evts.Len() {
 		select {
 		// an event is received, so we add it in the batch
