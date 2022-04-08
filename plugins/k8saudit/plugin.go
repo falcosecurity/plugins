@@ -29,7 +29,6 @@ import (
 
 type K8SAuditPluginConfig struct {
 	SSLCertificate string `json:"sslCertificate" jsonschema:"description=The SSL Certificate to be used with the HTTPS Webhook endpoint (Default: /etc/falco/falco.pem)"`
-	TimeoutMillis  uint64 `json:"timeoutMillis"  jsonschema:"description=Number of milliseconds after which a timeout is returned by NextBatch if no new event is sourced in a given timeframe (Default: 30)"`
 	MaxEventBytes  uint64 `json:"maxEventBytes"  jsonschema:"description=Max size in bytes for an event JSON payload (Default: 1048576)"`
 }
 
@@ -52,7 +51,6 @@ func (k *K8SAuditPlugin) Info() *plugins.Info {
 
 func (k *K8SAuditPluginConfig) reset() {
 	k.MaxEventBytes = 1048576
-	k.TimeoutMillis = 30
 	k.SSLCertificate = "/etc/falco/falco.pem"
 }
 
