@@ -35,6 +35,7 @@ import (
 const (
 	webServerParamRgxStr         = "^(localhost)?(:[0-9]+)(\\/[.\\-\\w]+)$"
 	webServerShutdownTimeoutSecs = 5
+	webServerEventChanBufSize    = 50
 )
 
 func (k *K8SAuditPlugin) Open(params string) (source.Instance, error) {
@@ -96,7 +97,7 @@ func (k *K8SAuditPlugin) openLocalFile(filePath string) (source.Instance, error)
 // Starts a webserver and listens for K8S Audit Event webhooks.
 func (k *K8SAuditPlugin) openWebServer(port, endpoint string, ssl bool) (source.Instance, error) {
 	ctx, cancelCtx := context.WithCancel(context.Background())
-	eventChan := make(chan []byte)
+	eventChan := make(chan []byte, webServerEventChanBufSize)
 	errorChan := make(chan error)
 
 	// configure server

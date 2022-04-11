@@ -58,7 +58,7 @@ var (
 // The ExtractFromEvent method can be used to easily process an ExtractRequest.
 // If the Audit Event data is nested inside another JSON object, you can use
 // a combination of the Decode/DecodeEvent and ExtractFromJSON convenience
-// methods. AuditEventExtractor relies on the fastjson package for performanct
+// methods. AuditEventExtractor relies on the fastjson package for performant
 // manipulation of JSON data.
 type AuditEventExtractor struct {
 	jparser     fastjson.Parser
@@ -115,6 +115,10 @@ func (e *AuditEventExtractor) ExtractFromEvent(req sdk.ExtractRequest, evt sdk.E
 // ExtractFromJSON processes a sdk.ExtractRequest and extracts a
 // field by reading data from a jsonValue *fastjson.Value
 func (e *AuditEventExtractor) ExtractFromJSON(req sdk.ExtractRequest, jsonValue *fastjson.Value) error {
+	// discard unrelated JSONs events
+	if jsonValue.Get("auditID") == nil {
+		return ErrExtractNotAvailable
+	}
 	switch req.Field() {
 	case "ka.auditid":
 		return e.extractFromKeys(req, jsonValue, "auditID")
