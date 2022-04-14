@@ -492,7 +492,7 @@ func (e *AuditEventExtractor) getFlatArray(arr []*fastjson.Value, allowNil bool,
 	var res []*fastjson.Value
 	for _, v := range arr {
 		value := v.Get(keys...)
-		if v == nil && !allowNil {
+		if value == nil && !allowNil {
 			return nil, ErrExtractNotAvailable
 		}
 		res = append(res, value)
