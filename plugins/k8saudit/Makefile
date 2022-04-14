@@ -13,7 +13,12 @@
 
 SHELL=/bin/bash -o pipefail
 GO ?= go
+CURL ?= curl
 
+FALCOSECURITY_FALCO_REPO ?= falcosecurity/falco
+FALCOSECURITY_FALCO_REVISION ?= 65435d4418638176f68df9017df36cd5d94ba083
+
+TEST_FILES_DIR := test_files
 NAME := k8saudit
 OUTPUT := lib$(NAME).so
 
@@ -27,6 +32,15 @@ all: $(OUTPUT)
 
 clean:
 	@rm -f *.so *.h
+
+test-files:
+	@rm -fr ${TEST_FILES_DIR}
+	@mkdir -p ${TEST_FILES_DIR}
+	@cd ${TEST_FILES_DIR} \
+		&& wget "https://github.com/${FALCOSECURITY_FALCO_REPO}/archive/${FALCOSECURITY_FALCO_REVISION}.tar.gz" -O falco.tar.gz \
+		&& tar -xvf falco.tar.gz falco-${FALCOSECURITY_FALCO_REVISION}/test/trace_files/k8s_audit \
+		&& mv falco-${FALCOSECURITY_FALCO_REVISION}/test/trace_files/k8s_audit/* ./ \
+		&& rm -fr *.tar.gz *.txt falco-${FALCOSECURITY_FALCO_REVISION}
 
 $(OUTPUT): *.go
 	@$(GODEBUGFLAGS) $(GO) build -buildmode=c-shared -o $(OUTPUT)
