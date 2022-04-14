@@ -24,6 +24,11 @@ import (
 	"github.com/valyala/fastjson"
 )
 
+// AWS CloudTrail log event reference:
+// https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-event-reference.html
+// AWS CloudTrail record contents:
+// https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-event-reference-record-contents.html
+
 var supportedFields = []sdk.FieldEntry{
 	{Type: "string", Name: "ct.id", Display: "Event ID", Desc: "the unique ID of the cloudtrail event (eventID in the json)."},
 	{Type: "string", Name: "ct.error", Display: "Error Code", Desc: "The error code from the event. Will be \"<NA>\" (e.g. the NULL/empty/none value) if there was no error."},
@@ -54,6 +59,7 @@ var supportedFields = []sdk.FieldEntry{
 	{Type: "string", Name: "ct.srcip", Display: "Source IP", Desc: "the IP address generating the event (sourceIPAddress in the json).", Properties: []string{"conversation"}},
 	{Type: "string", Name: "ct.useragent", Display: "User Agent", Desc: "the user agent generating the event (userAgent in the json)."},
 	{Type: "string", Name: "ct.info", Display: "Info", Desc: "summary information about the event. This varies depending on the event type and, for some events, it contains event-specific details.", Properties: []string{"info"}},
+	{Type: "string", Name: "ct.managementevent", Display: "Management Event", Desc: "'true' if the event is a management event (AwsApiCall, AwsConsoleAction, AwsConsoleSignIn, or AwsServiceEvent), 'false' otherwise."},
 	{Type: "string", Name: "ct.readonly", Display: "Read Only", Desc: "'true' if the event only reads information (e.g. DescribeInstances), 'false' if the event modifies the state (e.g. RunInstances, CreateLoadBalancer...)."},
 	{Type: "string", Name: "s3.uri", Display: "Key URI", Desc: "the s3 URI (s3://<bucket>/<key>).", Properties: []string{"conversation"}},
 	{Type: "string", Name: "s3.bucket", Display: "Bucket Name", Desc: "the bucket name for s3 events.", Properties: []string{"conversation"}},
@@ -376,6 +382,13 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 		}
 	case "ct.info":
 		res = getEvtInfo(jdata)
+	case "ct.managementevent":
+		ro := jdata.GetBool("managementEvent")
+		if ro {
+			res = "true"
+		} else {
+			res = "false"
+		}
 	case "ct.readonly":
 		ro := jdata.GetBool("readOnly")
 		if ro {
