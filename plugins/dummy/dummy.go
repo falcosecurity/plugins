@@ -204,9 +204,22 @@ func (m *MyPlugin) String(in io.ReadSeeker) (string, error) {
 
 func (m *MyPlugin) Fields() []sdk.FieldEntry {
 	return []sdk.FieldEntry{
-		{Type: "uint64", Name: "dummy.divisible", ArgRequired: true, Desc: "Return 1 if the value is divisible by the provided divisor, 0 otherwise"},
-		{Type: "uint64", Name: "dummy.value", Desc: "The sample value in the event"},
-		{Type: "string", Name: "dummy.strvalue", Desc: "The sample value in the event, as a string"},
+		{
+			Type: "uint64",
+			Name: "dummy.divisible",
+			Desc: "Return 1 if the value is divisible by the provided divisor, 0 otherwise",
+			Arg:  sdk.FieldEntryArg{IsRequired: true, IsKey: true},
+		},
+		{
+			Type: "uint64",
+			Name: "dummy.value",
+			Desc: "The sample value in the event",
+		},
+		{
+			Type: "string",
+			Name: "dummy.strvalue",
+			Desc: "The sample value in the event, as a string",
+		},
 	}
 }
 
@@ -223,10 +236,9 @@ func (m *MyPlugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 
 	switch req.FieldID() {
 	case 0: // dummy.divisible
-		arg := req.Arg()
-		divisor, err := strconv.Atoi(arg)
+		divisor, err := strconv.Atoi(req.ArgKey())
 		if err != nil {
-			return fmt.Errorf("argument to dummy.divisible %s could not be converted to number", arg)
+			return fmt.Errorf("argument to dummy.divisible %s could not be converted to number", req.ArgKey())
 		}
 		if evtVal%divisor == 0 {
 			req.SetValue(uint64(1))

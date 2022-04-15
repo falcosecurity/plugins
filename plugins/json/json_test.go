@@ -30,11 +30,14 @@ func (t *testEventReader) Reader() io.ReadSeeker {
 }
 
 type testExtractRequest struct {
-	fieldID   uint64
-	fieldType uint32
-	arg       string
-	field     string
-	value     interface{}
+	fieldID    uint64
+	fieldType  uint32
+	arg        string
+	argIndex   uint64
+	argPresent bool
+	field      string
+	isList     bool
+	value      interface{}
 }
 
 func (t *testExtractRequest) FieldID() uint64 {
@@ -49,8 +52,20 @@ func (t *testExtractRequest) Field() string {
 	return t.field
 }
 
-func (t *testExtractRequest) Arg() string {
+func (t *testExtractRequest) ArgKey() string {
 	return t.arg
+}
+
+func (t *testExtractRequest) ArgIndex() uint64 {
+	return t.argIndex
+}
+
+func (t *testExtractRequest) ArgPresent() bool {
+	return t.argPresent
+}
+
+func (t *testExtractRequest) IsList() bool {
+	return t.isList
 }
 
 func (t *testExtractRequest) SetValue(v interface{}) {

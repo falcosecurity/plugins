@@ -69,12 +69,38 @@ func (m *MyPlugin) Init(config string) error {
 
 func (m *MyPlugin) Fields() []sdk.FieldEntry {
 	return []sdk.FieldEntry{
-		{Type: "string", Name: "json.value", ArgRequired: true, Desc: "Extracts a value from a JSON-encoded input. Syntax is json.value[<json pointer>], where <json pointer> is a json pointer (see https://datatracker.ietf.org/doc/html/rfc6901)"},
-		{Type: "string", Name: "json.obj", Desc: "The full json message as a text string."},
-		{Type: "string", Name: "json.rawtime", Desc: "The time of the event, identical to evt.rawtime."},
-		{Type: "string", Name: "jevt.value", ArgRequired: true, Desc: "Alias for json.value, provided for backwards compatibility."},
-		{Type: "string", Name: "jevt.obj", Desc: "Alias for json.obj, provided for backwards compatibility."},
-		{Type: "string", Name: "jevt.rawtime", Desc: "Alias for json.rawtime, provided for backwards compatibility."},
+		{
+			Type: "string",
+			Name: "json.value",
+			Arg:  sdk.FieldEntryArg{IsRequired: true, IsKey: true},
+			Desc: "Extracts a value from a JSON-encoded input. Syntax is json.value[<json pointer>], where <json pointer> is a json pointer (see https://datatracker.ietf.org/doc/html/rfc6901)",
+		},
+		{
+			Type: "string",
+			Name: "json.obj",
+			Desc: "The full json message as a text string.",
+		},
+		{
+			Type: "string",
+			Name: "json.rawtime",
+			Desc: "The time of the event, identical to evt.rawtime.",
+		},
+		{
+			Type: "string",
+			Name: "jevt.value",
+			Arg:  sdk.FieldEntryArg{IsRequired: true, IsKey: true},
+			Desc: "Alias for json.value, provided for backwards compatibility.",
+		},
+		{
+			Type: "string",
+			Name: "jevt.obj",
+			Desc: "Alias for json.obj, provided for backwards compatibility.",
+		},
+		{
+			Type: "string",
+			Name: "jevt.rawtime",
+			Desc: "Alias for json.rawtime, provided for backwards compatibility.",
+		},
 	}
 }
 
@@ -116,10 +142,7 @@ func (m *MyPlugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 	case 3: // jevt.value
 		fallthrough
 	case 0: // json.value
-		arg := req.Arg()
-		if len(arg) == 0 {
-			return fmt.Errorf("value argument is required")
-		}
+		arg := req.ArgKey()
 		if arg[0] == '/' {
 			arg = arg[1:]
 		}
