@@ -29,6 +29,7 @@ import (
 
 const (
 	noIndexFilter = -1
+	noValueString = "<NA>"
 )
 
 var (
@@ -221,73 +222,43 @@ func (e *AuditEventExtractor) ExtractFromJSON(req sdk.ExtractRequest, jsonValue 
 		}
 		req.SetValue(values)
 	case "ka.req.pod.containers.privileged":
-		indexFilter := e.argIndexFilter(req)
-		arr, err := e.getArray(jsonValue, indexFilter, "requestObject", "spec", "containers")
+		arr, err := e.getValuesRecursive(jsonValue, e.argIndexFilter(req), "requestObject", "spec", "containers", "securityContext", "privileged")
 		if err != nil {
 			return err
 		}
-		arr, err = e.getFlatArray(arr, false, "securityContext", "privileged")
-		if err != nil {
-			return err
-		}
-		values, err := e.arrayAsStringsSkipNil(arr)
-		if err != nil {
-			return err
-		}
-		req.SetValue(values)
+		req.SetValue(e.arrayAsStringsWithDefault(arr, noValueString))
 	case "ka.req.container.privileged":
-		privileged, err := e.readAnyContainerPrivileged(jsonValue, noIndexFilter)
+		arr, err := e.getValuesRecursive(jsonValue, noIndexFilter, "requestObject", "spec", "containers", "securityContext", "privileged")
 		if err != nil {
 			return err
 		}
-		req.SetValue(privileged)
+		for _, priv := range arr {
+			if priv != nil && priv.GetBool() {
+				req.SetValue("true")
+				return nil
+			}
+		}
+		req.SetValue("false")
 	case "ka.req.pod.containers.allow_privilege_escalation":
-		indexFilter := e.argIndexFilter(req)
-		arr, err := e.getArray(jsonValue, indexFilter, "requestObject", "spec", "containers")
+		arr, err := e.getValuesRecursive(jsonValue, e.argIndexFilter(req), "requestObject", "spec", "containers", "securityContext", "allowPrivilegeEscalation")
 		if err != nil {
 			return err
 		}
-		arr, err = e.getFlatArray(arr, false, "securityContext", "allowPrivilegeEscalation")
-		if err != nil {
-			return err
-		}
-		values, err := e.arrayAsStrings(arr)
-		if err != nil {
-			return err
-		}
-		req.SetValue(values)
+		req.SetValue(e.arrayAsStringsWithDefault(arr, noValueString))
 	case "ka.req.pod.containers.read_only_fs":
-		indexFilter := e.argIndexFilter(req)
-		arr, err := e.getArray(jsonValue, indexFilter, "requestObject", "spec", "containers")
+		arr, err := e.getValuesRecursive(jsonValue, e.argIndexFilter(req), "requestObject", "spec", "containers", "securityContext", "readOnlyRootFilesystem")
 		if err != nil {
 			return err
 		}
-		arr, err = e.getFlatArray(arr, false, "securityContext", "readOnlyRootFilesystem")
-		if err != nil {
-			return err
-		}
-		values, err := e.arrayAsStrings(arr)
-		if err != nil {
-			return err
-		}
-		req.SetValue(values)
+		req.SetValue(e.arrayAsStringsWithDefault(arr, noValueString))
 	case "ka.req.pod.run_as_user":
 		return e.extractFromKeys(req, jsonValue, "requestObject", "spec", "securityContext", "runAsUser")
 	case "ka.req.pod.containers.run_as_user":
-		indexFilter := e.argIndexFilter(req)
-		arr, err := e.getArray(jsonValue, indexFilter, "requestObject", "spec", "containers")
+		arr, err := e.getValuesRecursive(jsonValue, e.argIndexFilter(req), "requestObject", "spec", "containers", "securityContext", "runAsUser")
 		if err != nil {
 			return err
 		}
-		arr, err = e.getFlatArray(arr, false, "securityContext", "runAsUser")
-		if err != nil {
-			return err
-		}
-		values, err := e.arrayAsStrings(arr)
-		if err != nil {
-			return err
-		}
-		req.SetValue(values)
+		req.SetValue(e.arrayAsStringsWithDefault(arr, noValueString))
 	case "ka.req.pod.containers.eff_run_as_user":
 		indexFilter := e.argIndexFilter(req)
 		values, err := e.readFromContainerEffectively(jsonValue, indexFilter, "runAsUser")
@@ -298,20 +269,11 @@ func (e *AuditEventExtractor) ExtractFromJSON(req sdk.ExtractRequest, jsonValue 
 	case "ka.req.pod.run_as_group":
 		return e.extractFromKeys(req, jsonValue, "requestObject", "spec", "securityContext", "runAsGroup")
 	case "ka.req.pod.containers.run_as_group":
-		indexFilter := e.argIndexFilter(req)
-		arr, err := e.getArray(jsonValue, indexFilter, "requestObject", "spec", "containers")
+		arr, err := e.getValuesRecursive(jsonValue, e.argIndexFilter(req), "requestObject", "spec", "containers", "securityContext", "runAsGroup")
 		if err != nil {
 			return err
 		}
-		arr, err = e.getFlatArray(arr, false, "securityContext", "runAsGroup")
-		if err != nil {
-			return err
-		}
-		values, err := e.arrayAsStrings(arr)
-		if err != nil {
-			return err
-		}
-		req.SetValue(values)
+		req.SetValue(e.arrayAsStringsWithDefault(arr, noValueString))
 	case "ka.req.pod.containers.eff_run_as_group":
 		indexFilter := e.argIndexFilter(req)
 		values, err := e.readFromContainerEffectively(jsonValue, indexFilter, "runAsGroup")
@@ -320,20 +282,11 @@ func (e *AuditEventExtractor) ExtractFromJSON(req sdk.ExtractRequest, jsonValue 
 		}
 		req.SetValue(values)
 	case "ka.req.pod.containers.proc_mount":
-		indexFilter := e.argIndexFilter(req)
-		arr, err := e.getArray(jsonValue, indexFilter, "requestObject", "spec", "containers")
+		arr, err := e.getValuesRecursive(jsonValue, e.argIndexFilter(req), "requestObject", "spec", "containers", "securityContext", "procMount")
 		if err != nil {
 			return err
 		}
-		arr, err = e.getFlatArray(arr, false, "securityContext", "procMount")
-		if err != nil {
-			return err
-		}
-		values, err := e.arrayAsStrings(arr)
-		if err != nil {
-			return err
-		}
-		req.SetValue(values)
+		req.SetValue(e.arrayAsStringsWithDefault(arr, noValueString))
 	case "ka.req.role.rules":
 		return e.extractFromKeys(req, jsonValue, "requestObject", "rules")
 	case "ka.req.role.rules.apiGroups":
@@ -349,25 +302,16 @@ func (e *AuditEventExtractor) ExtractFromJSON(req sdk.ExtractRequest, jsonValue 
 	case "ka.req.pod.supplemental_groups":
 		return e.extractFromKeys(req, jsonValue, "requestObject", "spec", "securityContext", "supplementalGroups")
 	case "ka.req.pod.containers.add_capabilities":
-		indexFilter := e.argIndexFilter(req)
-		arr, err := e.getArray(jsonValue, indexFilter, "requestObject", "spec", "containers")
+		arr, err := e.getValuesRecursive(jsonValue, e.argIndexFilter(req), "requestObject", "spec", "containers", "securityContext", "capabilities", "add")
 		if err != nil {
 			return err
 		}
-		arr, err = e.getFlatArray(arr, false, "securityContext", "capabilities", "add")
-		if err != nil {
-			return err
-		}
-		values, err := e.arrayAsStrings(arr)
-		if err != nil {
-			return err
-		}
-		req.SetValue(values)
+		req.SetValue(e.arrayAsStringsWithDefault(arr, noValueString))
 	case "ka.req.service.type":
 		return e.extractFromKeys(req, jsonValue, "requestObject", "spec", "type")
 	case "ka.req.service.ports":
 		indexFilter := e.argIndexFilter(req)
-		arr, err := e.getArray(jsonValue, indexFilter, "requestObject", "spec", "ports")
+		arr, err := e.getValuesRecursive(jsonValue, indexFilter, "requestObject", "spec", "ports")
 		if err != nil {
 			return err
 		}
@@ -377,22 +321,18 @@ func (e *AuditEventExtractor) ExtractFromJSON(req sdk.ExtractRequest, jsonValue 
 		}
 		req.SetValue(values)
 	case "ka.req.volume.hostpath":
-		arg := req.ArgKey()
-		arr, err := e.getArray(jsonValue, noIndexFilter, "requestObject", "spec", "volumes")
+		arr, err := e.getValuesRecursive(jsonValue, e.argIndexFilter(req), "requestObject", "spec", "volumes", "hostPath", "path")
 		if err != nil {
 			return err
 		}
-		arr, err = e.getFlatArray(arr, false, "hostPath", "path")
-		if err != nil {
-			return err
-		}
-		values, err := e.arrayAsStrings(arr)
+		values, err := e.arrayAsStringsSkipNil(arr)
 		if err != nil {
 			return err
 		}
 
 		// if the index key ends with a *, do a prefix match.
 		// Otherwise, compare for equality.
+		arg := req.ArgKey()
 		isPrefixSearch := strings.HasSuffix(arg, "*")
 		prefixSearch := arg[:len(arg)-1]
 		for _, v := range values {
@@ -403,38 +343,20 @@ func (e *AuditEventExtractor) ExtractFromJSON(req sdk.ExtractRequest, jsonValue 
 		}
 		req.SetValue("false")
 	case "ka.req.pod.volumes.hostpath":
-		indexFilter := e.argIndexFilter(req)
-		arr, err := e.getArray(jsonValue, indexFilter, "requestObject", "spec", "volumes")
+		arr, err := e.getValuesRecursive(jsonValue, e.argIndexFilter(req), "requestObject", "spec", "volumes", "hostPath", "path")
 		if err != nil {
 			return err
 		}
-		arr, err = e.getFlatArray(arr, false, "hostPath", "path")
-		if err != nil {
-			return err
-		}
-		values, err := e.arrayAsStrings(arr)
-		if err != nil {
-			return err
-		}
-		req.SetValue(values)
+		req.SetValue(e.arrayAsStringsWithDefault(arr, noValueString))
 	case "ka.req.pod.volumes.flexvolume_driver":
-		indexFilter := e.argIndexFilter(req)
-		arr, err := e.getArray(jsonValue, indexFilter, "requestObject", "spec", "volumes")
+		arr, err := e.getValuesRecursive(jsonValue, e.argIndexFilter(req), "requestObject", "spec", "volumes", "flexVolume", "driver")
 		if err != nil {
 			return err
 		}
-		arr, err = e.getFlatArray(arr, false, "flexVolume", "driver")
-		if err != nil {
-			return err
-		}
-		values, err := e.arrayAsStrings(arr)
-		if err != nil {
-			return err
-		}
-		req.SetValue(values)
+		req.SetValue(e.arrayAsStringsWithDefault(arr, noValueString))
 	case "ka.req.pod.volumes.volume_type":
 		indexFilter := e.argIndexFilter(req)
-		arr, err := e.getArray(jsonValue, indexFilter, "requestObject", "spec", "volumes")
+		arr, err := e.getValuesRecursive(jsonValue, indexFilter, "requestObject", "spec", "volumes")
 		if err != nil {
 			return err
 		}
@@ -532,7 +454,7 @@ func (e *AuditEventExtractor) arrayAsStringsSkipNil(values []*fastjson.Value) ([
 	return res, nil
 }
 
-func (e *AuditEventExtractor) arrayAsStringsWithDefault(values []*fastjson.Value, defaultValue string) ([]string, error) {
+func (e *AuditEventExtractor) arrayAsStringsWithDefault(values []*fastjson.Value, defaultValue string) []string {
 	var res []string
 	for _, v := range values {
 		str, err := e.jsonValueAsString(v)
@@ -541,15 +463,12 @@ func (e *AuditEventExtractor) arrayAsStringsWithDefault(values []*fastjson.Value
 		}
 		res = append(res, str)
 	}
-	return res, nil
+	return res
 }
 
+// note: this returns an error on nil values
 func (e *AuditEventExtractor) readContainerImages(jsonValue *fastjson.Value, indexFilter int) ([]string, error) {
-	arr, err := e.getArray(jsonValue, indexFilter, "requestObject", "spec", "containers")
-	if err != nil {
-		return nil, err
-	}
-	arr, err = e.getFlatArray(arr, false, "image")
+	arr, err := e.getValuesRecursive(jsonValue, indexFilter, "requestObject", "spec", "containers", "image")
 	if err != nil {
 		return nil, err
 	}
@@ -569,16 +488,15 @@ func (e *AuditEventExtractor) readContainerRepositories(jsonValue *fastjson.Valu
 }
 
 func (e *AuditEventExtractor) readContainerHostPorts(jsonValue *fastjson.Value, indexFilter int) ([]string, error) {
-	arr, err := e.getArray(jsonValue, indexFilter, "requestObject", "spec", "containers")
-	if err != nil {
-		return nil, err
-	}
-	containersPorts, err := e.getFlatArray(arr, false, "ports")
+	containersPorts, err := e.getValuesRecursive(jsonValue, indexFilter, "requestObject", "spec", "containers", "ports")
 	if err != nil {
 		return nil, err
 	}
 	var res []string
 	for _, ports := range containersPorts {
+		if ports == nil {
+			continue
+		}
 		if ports.Type() != fastjson.TypeArray {
 			return nil, ErrExtractWrongType
 		}
@@ -602,23 +520,6 @@ func (e *AuditEventExtractor) readContainerHostPorts(jsonValue *fastjson.Value, 
 	return res, nil
 }
 
-func (e *AuditEventExtractor) readAnyContainerPrivileged(jsonValue *fastjson.Value, indexFilter int) (string, error) {
-	arr, err := e.getArray(jsonValue, indexFilter, "requestObject", "spec", "containers")
-	if err != nil {
-		return "", err
-	}
-	privileged, err := e.getFlatArray(arr, false, "securityContext", "privileged")
-	if err != nil {
-		return "", err
-	}
-	for _, priv := range privileged {
-		if priv.GetBool() {
-			return "true", nil
-		}
-	}
-	return "false", nil
-}
-
 func (e *AuditEventExtractor) readFromContainerEffectively(jsonValue *fastjson.Value, indexFilter int, keys ...string) ([]string, error) {
 	podID := "0"
 	if value := jsonValue.Get(append([]string{"requestObject", "spec"}, keys...)...); value != nil {
@@ -628,24 +529,15 @@ func (e *AuditEventExtractor) readFromContainerEffectively(jsonValue *fastjson.V
 			return nil, err
 		}
 	}
-	arr, err := e.getArray(jsonValue, indexFilter, "requestObject", "spec", "containers")
+	arr, err := e.getValuesRecursive(jsonValue, indexFilter, append([]string{"requestObject", "spec", "containers"}, keys...)...)
 	if err != nil {
 		return nil, err
 	}
-	arr, err = e.getFlatArray(arr, true, keys...)
-	if err != nil {
-		return nil, err
-	}
-	return e.arrayAsStringsWithDefault(arr, podID)
+	return e.arrayAsStringsWithDefault(arr, podID), nil
 }
 
 func (e *AuditEventExtractor) extractRulesField(req sdk.ExtractRequest, jsonValue *fastjson.Value, keys ...string) error {
-	indexFilter := e.argIndexFilter(req)
-	arr, err := e.getArray(jsonValue, indexFilter, "requestObject", "rules")
-	if err != nil {
-		return err
-	}
-	arr, err = e.getFlatArray(arr, true, keys...)
+	arr, err := e.getValuesRecursive(jsonValue, e.argIndexFilter(req), append([]string{"requestObject", "rules"}, keys...)...)
 	if err != nil {
 		return err
 	}
