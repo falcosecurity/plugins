@@ -474,30 +474,36 @@ func (e *AuditEventExtractor) argIndexFilter(req sdk.ExtractRequest) int {
 	return int(req.ArgIndex())
 }
 
-func (e *AuditEventExtractor) getArray(jsonValue *fastjson.Value, indexFilter int, keys ...string) ([]*fastjson.Value, error) {
-	arr := jsonValue.GetArray(keys...)
-	if arr == nil {
-		return nil, ErrExtractNotAvailable
-	}
-	if indexFilter != noIndexFilter {
-		if indexFilter < 0 || indexFilter >= len(arr) {
-			return nil, ErrExtractNotAvailable
+func (e *AuditEventExtractor) getValuesRecursive(jsonValue *fastjson.Value, indexFilter int, keys ...string) ([]*fastjson.Value, error) {
+	for i, k := range keys {
+		if jsonValue.Type() == fastjson.TypeArray {
+			if indexFilter == noIndexFilter {
+				var res []*fastjson.Value
+				for _, v := range jsonValue.GetArray() {
+					vals, err := e.getValuesRecursive(v, indexFilter, keys[i:]...)
+					if err == nil {
+						res = append(res, vals...)
+					} else if err == ErrExtractNotAvailable {
+						res = append(res, nil)
+					} else {
+						return nil, err
+					}
+				}
+				return res, nil
+			}
+			arr := jsonValue.GetArray()
+			if arr == nil || indexFilter >= len(arr) {
+				return nil, ErrExtractNotAvailable
+			}
+			jsonValue = arr[indexFilter]
 		}
-		return []*fastjson.Value{arr[indexFilter]}, nil
-	}
-	return arr, nil
-}
 
-func (e *AuditEventExtractor) getFlatArray(arr []*fastjson.Value, allowNil bool, keys ...string) ([]*fastjson.Value, error) {
-	var res []*fastjson.Value
-	for _, v := range arr {
-		value := v.Get(keys...)
-		if value == nil && !allowNil {
+		jsonValue = jsonValue.Get(k)
+		if jsonValue == nil {
 			return nil, ErrExtractNotAvailable
 		}
-		res = append(res, value)
 	}
-	return res, nil
+	return []*fastjson.Value{jsonValue}, nil
 }
 
 func (e *AuditEventExtractor) arrayAsStrings(values []*fastjson.Value) ([]string, error) {
