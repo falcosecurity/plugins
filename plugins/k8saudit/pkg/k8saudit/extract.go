@@ -677,16 +677,6 @@ func (e *AuditEventExtractor) extractFromKeys(req sdk.ExtractRequest, jsonValue 
 				res = append(res, val)
 			}
 			req.SetValue(res)
-		case sdk.FieldTypeUint64:
-			var res []uint64
-			for _, v := range jsonValue.GetArray() {
-				val, err := e.jsonValueAsU64(v)
-				if err != nil {
-					return err
-				}
-				res = append(res, val)
-			}
-			req.SetValue(res)
 		default:
 			return ErrExtractUnsupportedType
 		}
@@ -698,13 +688,6 @@ func (e *AuditEventExtractor) extractFromKeys(req sdk.ExtractRequest, jsonValue 
 				return err
 			}
 			req.SetValue(val)
-		case sdk.FieldTypeUint64:
-			val, err := e.jsonValueAsU64(jsonValue)
-			if err != nil {
-				return err
-			}
-			req.SetValue(val)
-			return nil
 		default:
 			return ErrExtractUnsupportedType
 		}
@@ -720,18 +703,4 @@ func (e *AuditEventExtractor) jsonValueAsString(v *fastjson.Value) (string, erro
 		return string(string(v.MarshalTo(nil))), nil
 	}
 	return "", ErrExtractWrongType
-}
-
-func (e *AuditEventExtractor) jsonValueAsU64(v *fastjson.Value) (uint64, error) {
-	if v != nil && v.Type() == fastjson.TypeNumber {
-		u64, err := v.Uint64()
-		if err == nil {
-			return u64, nil
-		}
-		f64, err := v.Float64()
-		if err == nil {
-			return uint64(f64), nil
-		}
-	}
-	return 0, ErrExtractWrongType
 }
