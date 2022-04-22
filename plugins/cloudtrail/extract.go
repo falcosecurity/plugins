@@ -112,21 +112,50 @@ func getUser(jdata *fastjson.Value) (bool, string) {
 
 func getEvtInfo(jdata *fastjson.Value) string {
 	var present bool
+	var evtuser string
+	var evtsrcip string
 	var evtname string
+	var errsymbol string
+	var evtreadonly string
+	var rwsymbol string
 	var info string
-	var separator string
+
+	// Start the info field "who" (ct.user), "where" (ct.srcip), and "what" (ct.name)
+	// along with read/write and error status.
+	present, evtuser = getfieldStr(jdata, "ct.user")
+	if !present {
+		return "<invalid cloudtrail event: userIdentity field missing>"
+	}
+
+	present, evtsrcip = getfieldStr(jdata, "ct.srcip")
+	if !present {
+		return "<invalid cloudtrail event: eventSource field missing>"
+	}
+
+	errsymbol = ""
+	present, _ = getfieldStr(jdata, "ct.error")
+	if present {
+		errsymbol = "!"
+	}
+
+	rwsymbol = "←"
+	present, evtreadonly = getfieldStr(jdata, "ct.readonly")
+	if present && evtreadonly == "false" {
+		rwsymbol = "→"
+	}
 
 	present, evtname = getfieldStr(jdata, "ct.name")
 	if !present {
 		return "<invalid cloudtrail event: eventName field missing>"
 	}
 
+	info = fmt.Sprintf("%v via %v %v%v %v", evtuser, evtsrcip, errsymbol, rwsymbol, evtname)
+
 	switch evtname {
 	case "PutBucketPublicAccessBlock":
-		info = ""
 		jpac := jdata.GetObject("requestParameters", "PublicAccessBlockConfiguration")
 		if jpac != nil {
-			info += fmt.Sprintf("BlockPublicAcls=%v BlockPublicPolicy=%v IgnorePublicAcls=%v RestrictPublicBuckets=%v ",
+			info += fmt.Sprintf(" BlockPublicAcls=%v BlockPublicPolicy=%v IgnorePublicAcls=%v RestrictPublicBuckets=%v ",
 				jdata.GetBool("BlockPublicAcls"),
 				jdata.GetBool("BlockPublicPolicy"),
 				jdata.GetBool("IgnorePublicAcls"),
@@ -139,31 +168,30 @@ func getEvtInfo(jdata *fastjson.Value) string {
 
 	present, u64val := getfieldU64(jdata, "s3.bytes")
 	if present {
-		info = fmt.Sprintf("Size=%v", u64val)
-		separator = " "
+		info += fmt.Sprintf(" Size=%v", u64val)
 	}
 
 	present, val := getfieldStr(jdata, "s3.uri")
 	if present {
-		info += fmt.Sprintf("%sURI=%s", separator, val)
+		info += fmt.Sprintf(" URI=%s", val)
 		return info
 	}
 
 	present, val = getfieldStr(jdata, "s3.bucket")
 	if present {
-		info += fmt.Sprintf("%sBucket=%s", separator, val)
+		info += fmt.Sprintf(" Bucket=%s", val)
 		return info
 	}
 
 	present, val = getfieldStr(jdata, "s3.key")
 	if present {
-		info += fmt.Sprintf("%sKey=%s", separator, val)
+		info += fmt.Sprintf(" Key=%s", val)
 		return info
 	}
 
 	present, val = getfieldStr(jdata, "ct.request.host")
 	if present {
-		info += fmt.Sprintf("%sHost=%s", separator, val)
+		info += fmt.Sprintf(" Host=%s", val)
 		return info
 	}
 
