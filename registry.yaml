@@ -79,7 +79,15 @@ plugins:
       description: Okta Log Events
       authors: The Falco Authors
       contact: https://falco.org/community
-      url: https://github.com/falcosecurity/plugins/tree/master/plugins/okta 
+      url: https://github.com/falcosecurity/plugins/tree/master/plugins/okta
+      license: Apache-2.0
+    - id: 8
+      source: aws_rds
+      name: rds
+      description: Reads and process AWS RDS logs exported on Cloudwatch
+      authors: The Falco Authors
+      contact: https://falco.org/community
+      url: https://github.com/falcosecurity/plugins/tree/master/plugins/rds
       license: Apache-2.0
     - id: 999
       source: test
