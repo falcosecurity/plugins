@@ -117,7 +117,7 @@ We describe each of these below.
 
 When using `s3://<S3 Bucket Name>/[<Optional Prefix>]`, the plugin will scan the bucket a single time for all objects. Characters up to the first slash/end of string will be used as the S3 bucket name, and any remaining characters will be treated as a key prefix. After reading all objects, the plugin will return EOF.
 
-All objects below the bucket, or below the bucket + prefix, will be considered cloudtrail logs. Any object ending in .json.gz will be decompressed first.
+All objects below the bucket, or below the bucket + prefix, will be considered cloudtrail logs. Any object ending in .json.gz will be decompressed first. Notice that the plugin expects the logs to be compressed first before reading them.
 
 For example, if a bucket `my-s3-bucket` contained cloudtrail logs below a prefix `AWSLogs/411571310278/CloudTrail/us-west-1/2021/09/23/`, Using an open params of `s3://my-s3-bucket/AWSLogs/411571310278/CloudTrail/us-west-1/2021/09/23/` would configure the plugin to read all files below `AWSLogs/411571310278/CloudTrail/us-west-1/2021/09/23/` as cloudtrail logs and then return EOF. No other files in the bucket will be read.
 
@@ -144,7 +144,7 @@ plugins:
     open_params: "s3://my-s3-bucket/AWSLogs/411571310278/CloudTrail/us-west-1/2021/09/23/"
 
 # Optional. If not specified the first entry in plugins is used.
-load_plugins: [cloudtrail]
+load_plugins: [cloudtrail, json]
 ```
 
 ```yaml
