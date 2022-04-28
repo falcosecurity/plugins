@@ -180,3 +180,4 @@ The general steps involve:
 1. Creating a Cloudtrail with the events you would like to monitor: https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-create-and-update-a-trail.html
 2. Configuring SNS Notifications for Cloudtrail: https://docs.aws.amazon.com/awscloudtrail/latest/userguide/configure-sns-notifications-for-cloudtrail.html
 3. Creating a SQS Queue to receive the SNS Notifications: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-configure-subscribe-queue-sns-topic.html
+
