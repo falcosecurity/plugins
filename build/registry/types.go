@@ -22,36 +22,35 @@ import (
 	"github.com/go-yaml/yaml"
 )
 
-type Source struct {
-	ID          uint   `yaml:"id"`
-	Source      string `yaml:"source"`
-	Name        string `yaml:"name"`
-	Description string `yaml:"description"`
-	Authors     string `yaml:"authors"`
-	Contact     string `yaml:"contact"`
-	URL         string `yaml:"url"`
-	License     string `yaml:"license"`
-	Reserved    bool   `yaml:"reserved"`
+type SourcingCapability struct {
+	Supported bool   `yaml:"supported"`
+	ID        uint   `yaml:"id"`
+	Source    string `yaml:"source"`
 }
 
-type Extractor struct {
-	Sources     []string `yaml:"sources"`
-	Name        string   `yaml:"name"`
-	Description string   `yaml:"description"`
-	Authors     string   `yaml:"authors"`
-	Contact     string   `yaml:"contact"`
-	URL         string   `yaml:"url"`
-	License     string   `yaml:"license"`
-	Reserved    bool     `yaml:"reserved"`
+type ExtractionCapability struct {
+	Supported bool     `yaml:"supported"`
+	Sources   []string `yaml:"sources"`
 }
 
-type Plugins struct {
-	Source    []Source    `yaml:"source"`
-	Extractor []Extractor `yaml:"extractor"`
+type Capabilities struct {
+	Sourcing   SourcingCapability   `yaml:"sourcing"`
+	Extraction ExtractionCapability `yaml:"extraction"`
+}
+
+type Plugin struct {
+	Name         string       `yaml:"name"`
+	Description  string       `yaml:"description"`
+	Authors      string       `yaml:"authors"`
+	Contact      string       `yaml:"contact"`
+	URL          string       `yaml:"url"`
+	License      string       `yaml:"license"`
+	Reserved     bool         `yaml:"reserved"`
+	Capabilities Capabilities `yaml:"capabilities"`
 }
 
 type Registry struct {
-	Plugins         Plugins  `yaml:"plugins"`
+	Plugins         []Plugin `yaml:"plugins"`
 	ReservedSources []string `yaml:"reserved_sources"`
 }
 

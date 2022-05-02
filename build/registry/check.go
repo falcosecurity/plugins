@@ -35,68 +35,45 @@ func init() {
 	}
 }
 
-func (s *Source) Check(reserved []string) error {
-
-	if s.ID == 0 {
-		return fmt.Errorf("forbidden source ID: '%d'", s.ID)
-	}
-
-	if !rgxName.MatchString(s.Name) {
-		return fmt.Errorf("name does follow the naming convention: '%s'", s.Name)
-	}
-
-	for _, source := range reserved {
-		if s.Source == source {
-			return fmt.Errorf("forbidden source name: '%s'", s.Source)
+func (s *SourcingCapability) Check(usedIDs map[uint]bool, forbiddenSources map[string]bool) error {
+	if s.Supported {
+		if s.ID == 0 {
+			return fmt.Errorf("forbidden source ID: '%d'", s.ID)
 		}
-	}
-
-	if !rgxName.MatchString(s.Source) {
-		return fmt.Errorf("source name does follow the naming convention: '%s'", s.Source)
-	}
-
-	return nil
-}
-
-func (e *Extractor) Check() error {
-	if !rgxName.MatchString(e.Name) {
-		return fmt.Errorf("name does follow the naming convention: '%s'", e.Name)
-	}
-
-	return nil
-}
-
-func (p *Plugins) Check(reserved []string) error {
-	ids := make(map[uint]bool)
-	names := make(map[string]bool)
-
-	for _, s := range p.Source {
-		if err := s.Check(reserved); err != nil {
-			return err
-		}
-		if _, ok := names[s.Name]; ok {
-			return fmt.Errorf("plugin name is not unique: '%s'", s.Name)
-		}
-		if _, ok := ids[s.ID]; ok {
+		if _, ok := usedIDs[s.ID]; ok {
 			return fmt.Errorf("source id is not unique: '%d'", s.ID)
 		}
-		names[s.Name] = true
-		ids[s.ID] = true
-	}
-
-	for _, e := range p.Extractor {
-		if err := e.Check(); err != nil {
-			return err
+		if _, ok := forbiddenSources[s.Source]; ok {
+			return fmt.Errorf("forbidden source name: '%s'", s.Source)
 		}
-		if _, ok := names[e.Name]; ok {
-			return fmt.Errorf("plugin name is not unique: '%s'", e.Name)
+		if !rgxName.MatchString(s.Source) {
+			return fmt.Errorf("source name does follow the naming convention: '%s'", s.Source)
 		}
-		names[e.Name] = true
+		usedIDs[s.ID] = true
 	}
-
 	return nil
 }
 
 func (r *Registry) Check() error {
-	return r.Plugins.Check(r.ReservedSources)
+	forbiddenSources := make(map[string]bool)
+	for _, s := range r.ReservedSources {
+		forbiddenSources[s] = true
+	}
+
+	ids := make(map[uint]bool)
+	names := make(map[string]bool)
+	for _, p := range r.Plugins {
+		if !rgxName.MatchString(p.Name) {
+			return fmt.Errorf("plugin name does follow the naming convention: '%s'", p.Name)
+		}
+		if _, ok := names[p.Name]; ok {
+			return fmt.Errorf("plugin name is not unique: '%s'", p.Name)
+		}
+		if err := p.Capabilities.Sourcing.Check(ids, forbiddenSources); err != nil {
+			return err
+		}
+		names[p.Name] = true
+	}
+
+	return nil
 }
