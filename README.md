@@ -39,30 +39,22 @@ You can find the full registry specification here: *(coming soon...)*
 
 The tables below list all the plugins currently registered. The tables are automatically generated from the [registry.yaml](./registry.yaml) file.
 
-<!-- The text inside \<!-- REGISTRY:xxx --\> comments is auto-generated. These comments and the text between them should not be edited by hand -->
+<!-- The text inside \<!-- REGISTRY:xxx --\> comments is auto-generated.
+These comments and the text between them should not be edited by hand -->
+<!-- REGISTRY:TABLE -->
+| Name | Capabilities | Description
+| --- | --- | --- |
+| [k8saudit](https://github.com/falcosecurity/plugins/tree/master/plugins/k8saudit) | **Event Sourcing** <br/>ID: 1 <br/>`k8s_audit` <br/>**Field Extraction** <br/> `k8s_audit` | Read Kubernetes Audit Events and monitor Kubernetes Clusters  <br/><br/> Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
+| [cloudtrail](https://github.com/falcosecurity/plugins/tree/master/plugins/cloudtrail) | **Event Sourcing** <br/>ID: 2 <br/>`aws_cloudtrail` <br/>**Field Extraction** <br/> `aws_cloudtrail` | Reads Cloudtrail JSON logs from files/S3 and injects as events  <br/><br/> Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
+| [json](https://github.com/falcosecurity/plugins/tree/master/plugins/json) | **Field Extraction** <br/> *All Sources* | Extract values from any JSON payload  <br/><br/> Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
+| [dummy](https://github.com/falcosecurity/plugins/tree/master/plugins/dummy) | **Event Sourcing** <br/>ID: 3 <br/>`dummy` <br/>**Field Extraction** <br/> `dummy` | Reference plugin used to document interface  <br/><br/> Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
+| [dummy_c](https://github.com/falcosecurity/plugins/tree/master/plugins/dummy_c) | **Event Sourcing** <br/>ID: 4 <br/>`dummy_c` <br/>**Field Extraction** <br/> `dummy_c` | Like Dummy, but written in C++  <br/><br/> Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
+| [docker](https://github.com/Issif/docker-plugin) | **Event Sourcing** <br/>ID: 5 <br/>`docker` <br/>**Field Extraction** <br/> `docker` | Docker Events  <br/><br/> Authors: [Thomas Labarussias](https://github.org/Issif) <br/> License: Apache-2.0 |
+| [seccompagent](https://github.com/kinvolk/seccompagent) | **Event Sourcing** <br/>ID: 6 <br/>`seccompagent` <br/>**Field Extraction** <br/> `seccompagent` | Seccomp Agent Events  <br/><br/> Authors: [Alban Crequy](https://github.com/kinvolk/seccompagent) <br/> License: Apache-2.0 |
+| [okta](https://github.com/falcosecurity/plugins/tree/master/plugins/okta) | **Event Sourcing** <br/>ID: 7 <br/>`okta` <br/>**Field Extraction** <br/> `okta` | Okta Log Events  <br/><br/> Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
+| test | **Event Sourcing** <br/>ID: 999 <br/>`test` | This ID is reserved for source plugin development. Any plugin author can use this ID, but authors can expect events from other developers with this ID. After development is complete, the author should request an actual ID  <br/><br/> Authors: N/A <br/> License: N/A |
 
-#### Source Plugins
-<!-- REGISTRY:SOURCE-TABLE -->
-| ID | Name | Event Source | Description | Info |
-| --- | --- | --- | --- | --- |
-| 1 | [k8saudit](https://github.com/falcosecurity/plugins/tree/master/plugins/k8saudit) | `k8s_audit` | Read Kubernetes Audit Events and monitor Kubernetes Clusters | Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
-| 2 | [cloudtrail](https://github.com/falcosecurity/plugins/tree/master/plugins/cloudtrail) | `aws_cloudtrail` | Reads Cloudtrail JSON logs from files/S3 and injects as events | Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
-| 3 | [dummy](https://github.com/falcosecurity/plugins/tree/master/plugins/dummy) | `dummy` | Reference plugin used to document interface | Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
-| 4 | [dummy_c](https://github.com/falcosecurity/plugins/tree/master/plugins/dummy_c) | `dummy_c` | Like Dummy, but written in C++ | Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
-| 5 | [docker](https://github.com/Issif/docker-plugin) | `docker` | Docker Events | Authors: [Thomas Labarussias](https://github.org/Issif) <br/> License: Apache-2.0 |
-| 6 | [seccompagent](https://github.com/kinvolk/seccompagent) | `seccompagent` | Seccomp Agent Events | Authors: [Alban Crequy](https://github.com/kinvolk/seccompagent) <br/> License: Apache-2.0 |
-| 7 | [okta](https://github.com/falcosecurity/plugins/tree/master/plugins/okta) | `okta` | Okta Log Events | Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
-| 999 | test | `test` | This ID is reserved for source plugin development. Any plugin author can use this ID, but authors can expect events from other developers with this ID. After development is complete, the author should request an actual ID | Authors: N/A <br/> License: N/A |
-
-<!-- REGISTRY:SOURCE-TABLE -->
-
-#### Extractor Plugins
-<!-- REGISTRY:EXTRACTOR-TABLE -->
-| Name | Extract Event Sources | Description | Info |
-| --- | --- | --- | --- |
-| [json](https://github.com/falcosecurity/plugins/tree/master/plugins/json) | N/A | Extract values from any JSON payload | Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
-
-<!-- REGISTRY:EXTRACTOR-TABLE -->
+<!-- REGISTRY:TABLE -->
 
 ## Hosted Plugins 
 

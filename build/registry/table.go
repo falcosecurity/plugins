@@ -21,61 +21,63 @@ import (
 	"strings"
 )
 
-var (
-	sourcePluginsTableContentType    = "plugins-source"
-	extractorPluginsTableContentType = "plugins-extractor"
-)
-
-func (r *Registry) FormatMarkdownTable(contentType string) (string, error) {
+func (r *Registry) FormatMarkdownTable() (string, error) {
 	var ret strings.Builder
-	wrapNotAvailable := func(s string) string {
-		if len(s) == 0 {
-			return "N/A"
-		}
-		return s
+	ret.WriteString("| Name | Capabilities | Description\n")
+	ret.WriteString("| --- | --- | --- |\n")
+	for _, p := range r.Plugins {
+		line := fmt.Sprintf("| %s | %s | %s  <br/><br/> Authors: %s <br/> License: %s |\n",
+			r.formatMarkdownStringWithURL(p.Name, p.URL),
+			r.formatMarkdownCapabilities(&p.Capabilities),
+			r.formatMarkdownStringNotAvailable(p.Description),
+			r.formatMarkdownStringWithURL(p.Authors, p.Contact),
+			r.formatMarkdownStringNotAvailable(p.License),
+		)
+		ret.WriteString(line)
 	}
-	formatWithURL := func(s string, url string) string {
-		if len(url) == 0 {
-			return wrapNotAvailable(s)
-		}
-		return fmt.Sprintf("[%s](%s)", wrapNotAvailable(s), url)
-	}
-
-	switch contentType {
-	case sourcePluginsTableContentType:
-		ret.WriteString("| ID | Name | Event Source | Description | Info |\n")
-		ret.WriteString("| --- | --- | --- | --- | --- |\n")
-		for _, s := range r.Plugins.Source {
-			line := fmt.Sprintf("| %d | %s | `%s` | %s | Authors: %s <br/> License: %s |\n",
-				s.ID,
-				formatWithURL(s.Name, s.URL),
-				wrapNotAvailable(s.Source),
-				wrapNotAvailable(s.Description),
-				formatWithURL(s.Authors, s.Contact),
-				wrapNotAvailable(s.License),
-			)
-			ret.WriteString(line)
-		}
-	case extractorPluginsTableContentType:
-		ret.WriteString("| Name | Extract Event Sources | Description | Info |\n")
-		ret.WriteString("| --- | --- | --- | --- |\n")
-		for _, e := range r.Plugins.Extractor {
-			sources := make([]string, 0)
-			for _, s := range e.Sources {
-				sources = append(sources, fmt.Sprintf("`%s`", s))
-			}
-			line := fmt.Sprintf("| %s | %s | %s | Authors: %s <br/> License: %s |\n",
-				formatWithURL(e.Name, e.URL),
-				wrapNotAvailable(strings.Join(sources, ", ")),
-				wrapNotAvailable(e.Description),
-				formatWithURL(e.Authors, e.Contact),
-				wrapNotAvailable(e.License),
-			)
-			ret.WriteString(line)
-		}
-	default:
-		return "", fmt.Errorf("unknown table content type: %s", contentType)
-	}
-
 	return ret.String(), nil
+}
+
+func (r *Registry) formatMarkdownCapabilities(caps *Capabilities) string {
+	var ret strings.Builder
+	if caps.Sourcing.Supported {
+		ret.WriteString(fmt.Sprintf("**Event Sourcing** <br/>ID: %d <br/>`%s`",
+			caps.Sourcing.ID,
+			caps.Sourcing.Source,
+		))
+	}
+	if caps.Extraction.Supported {
+		if ret.Len() > 0 {
+			ret.WriteString(" <br/>")
+		}
+		ret.WriteString("**Field Extraction** <br/> ")
+		if len(caps.Extraction.Sources) == 0 {
+			if caps.Sourcing.Supported {
+				ret.WriteString("`" + caps.Sourcing.Source + "`")
+			} else {
+				ret.WriteString("*All Sources*")
+			}
+		} else {
+			var sources []string
+			for _, s := range caps.Extraction.Sources {
+				sources = append(sources, "`"+s+"`")
+			}
+			ret.WriteString(strings.Join(sources, ", "))
+		}
+	}
+	return ret.String()
+}
+
+func (r *Registry) formatMarkdownStringNotAvailable(s string) string {
+	if len(s) == 0 {
+		return "N/A"
+	}
+	return s
+}
+
+func (r *Registry) formatMarkdownStringWithURL(s, url string) string {
+	if len(url) == 0 {
+		return r.formatMarkdownStringNotAvailable(s)
+	}
+	return fmt.Sprintf("[%s](%s)", r.formatMarkdownStringNotAvailable(s), url)
 }

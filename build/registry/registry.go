@@ -46,7 +46,7 @@ func doCheck(fileName string) error {
 	return registry.Check()
 }
 
-func doTable(registryFile, subFile, subTag, contentType string) error {
+func doTable(registryFile, subFile, subTag string) error {
 	registry, err := loadRegistryFromFile(registryFile)
 	if err != nil {
 		return err
@@ -57,7 +57,7 @@ func doTable(registryFile, subFile, subTag, contentType string) error {
 		return err
 	}
 
-	table, err := registry.FormatMarkdownTable(contentType)
+	table, err := registry.FormatMarkdownTable()
 	if err != nil {
 		return err
 	}
@@ -97,23 +97,21 @@ func main() {
 
 	var tableSubFileName string
 	var tableSubTab string
-	var tableType string
 	tableCmd := &cobra.Command{
 		Use:   "table <filename>",
 		Short: "Format a plugin registry YAML file in a MarkDown table",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(c *cobra.Command, args []string) error {
-			return doTable(args[0], tableSubFileName, tableSubTab, tableType)
+			return doTable(args[0], tableSubFileName, tableSubTab)
 		},
 	}
 	tableFlags := tableCmd.Flags()
 	tableFlags.StringVar(&tableSubTab, "subtag", defaultTableSubTag, "A tag that delimits the start and the end of the text section to substitute with the generated table.")
 	tableFlags.StringVar(&tableSubFileName, "subfile", "", "If specified, the table will be written inside the file at this path, inserting it between the first two instances of the substitution tag.")
-	tableFlags.StringVar(&tableType, "type", sourcePluginsTableContentType, "The type of content to be included in the table")
 
 	rootCmd := &cobra.Command{
 		Use:     "registry",
-		Version: "0.1.0",
+		Version: "0.2.0",
 	}
 	rootCmd.AddCommand(checkCmd)
 	rootCmd.AddCommand(tableCmd)
