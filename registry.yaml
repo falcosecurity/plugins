@@ -24,73 +24,111 @@ reserved_sources: [ "syscall", "internal", "plugins" ]
 #
 # License IDs refer to the SPDX License List at https://spdx.org/licenses
 plugins:
-  source:
-    - id: 1
-      source: k8s_audit
-      name: k8saudit
-      description: Read Kubernetes Audit Events and monitor Kubernetes Clusters
-      authors: The Falco Authors
-      contact: https://falco.org/community
-      url: https://github.com/falcosecurity/plugins/tree/master/plugins/k8saudit
-      license: Apache-2.0
-    - id: 2
-      source: aws_cloudtrail
-      name: cloudtrail
-      description: Reads Cloudtrail JSON logs from files/S3 and injects as events
-      authors: The Falco Authors
-      contact: https://falco.org/community
-      url: https://github.com/falcosecurity/plugins/tree/master/plugins/cloudtrail
-      license: Apache-2.0
-    - id: 3
-      source: dummy
-      name: dummy
-      description: Reference plugin used to document interface
-      authors: The Falco Authors
-      contact: https://falco.org/community
-      url: https://github.com/falcosecurity/plugins/tree/master/plugins/dummy
-      license: Apache-2.0
-    - id: 4
-      source: dummy_c
-      name: dummy_c
-      description: Like Dummy, but written in C++
-      authors: The Falco Authors
-      contact: https://falco.org/community
-      url: https://github.com/falcosecurity/plugins/tree/master/plugins/dummy_c
-      license: Apache-2.0
-    - id: 5
-      source: docker
-      name: docker
-      description: Docker Events
-      authors: Thomas Labarussias
-      contact: https://github.org/Issif
-      url: https://github.com/Issif/docker-plugin
-      license: Apache-2.0
-    - id: 6
-      source: seccompagent
-      name: seccompagent
-      description: Seccomp Agent Events
-      authors: Alban Crequy
-      contact: https://github.com/kinvolk/seccompagent
-      url: https://github.com/kinvolk/seccompagent
-      license: Apache-2.0
-    - id: 7
-      source: okta
-      name: okta
-      description: Okta Log Events
-      authors: The Falco Authors
-      contact: https://falco.org/community
-      url: https://github.com/falcosecurity/plugins/tree/master/plugins/okta 
-      license: Apache-2.0
-    - id: 999
-      source: test
-      name: test
-      description: This ID is reserved for source plugin development. Any plugin author can use this ID, but authors can expect events from other developers with this ID. After development is complete, the author should request an actual ID
-      reserved: true
-
-  extractor:
-    - name: json
-      description: Extract values from any JSON payload
-      authors: The Falco Authors
-      contact: https://falco.org/community
-      url: https://github.com/falcosecurity/plugins/tree/master/plugins/json
-      license: Apache-2.0
+  - name: k8saudit
+    description: Read Kubernetes Audit Events and monitor Kubernetes Clusters
+    authors: The Falco Authors
+    contact: https://falco.org/community
+    url: https://github.com/falcosecurity/plugins/tree/master/plugins/k8saudit
+    license: Apache-2.0
+    capabilities:
+      sourcing:
+        supported: true
+        id: 1
+        source: k8s_audit
+      extraction:
+        supported: true
+  - name: cloudtrail
+    description: Reads Cloudtrail JSON logs from files/S3 and injects as events
+    authors: The Falco Authors
+    contact: https://falco.org/community
+    url: https://github.com/falcosecurity/plugins/tree/master/plugins/cloudtrail
+    license: Apache-2.0
+    capabilities:
+      sourcing:
+        supported: true
+        id: 2
+        source: aws_cloudtrail
+      extraction:
+        supported: true
+  - name: json
+    description: Extract values from any JSON payload
+    authors: The Falco Authors
+    contact: https://falco.org/community
+    url: https://github.com/falcosecurity/plugins/tree/master/plugins/json
+    license: Apache-2.0
+    capabilities:
+      extraction:
+        supported: true
+  - name: dummy
+    description: Reference plugin used to document interface
+    authors: The Falco Authors
+    contact: https://falco.org/community
+    url: https://github.com/falcosecurity/plugins/tree/master/plugins/dummy
+    license: Apache-2.0
+    capabilities:
+      sourcing:
+        supported: true
+        id: 3
+        source: dummy
+      extraction:
+        supported: true
+  - name: dummy_c
+    description: Like Dummy, but written in C++
+    authors: The Falco Authors
+    contact: https://falco.org/community
+    url: https://github.com/falcosecurity/plugins/tree/master/plugins/dummy_c
+    license: Apache-2.0
+    capabilities:
+      sourcing:
+        supported: true
+        id: 4
+        source: dummy_c
+      extraction:
+        supported: true
+  - name: docker
+    description: Docker Events
+    authors: Thomas Labarussias
+    contact: https://github.org/Issif
+    url: https://github.com/Issif/docker-plugin
+    license: Apache-2.0
+    capabilities:
+      sourcing:
+        supported: true
+        id: 5
+        source: docker
+      extraction:
+        supported: true
+  - name: seccompagent
+    description: Seccomp Agent Events
+    authors: Alban Crequy
+    contact: https://github.com/kinvolk/seccompagent
+    url: https://github.com/kinvolk/seccompagent
+    license: Apache-2.0
+    capabilities:
+      sourcing:
+        supported: true
+        id: 6
+        source: seccompagent
+      extraction:
+        supported: true
+  - name: okta
+    description: Okta Log Events
+    authors: The Falco Authors
+    contact: https://falco.org/community
+    url: https://github.com/falcosecurity/plugins/tree/master/plugins/okta 
+    license: Apache-2.0
+    capabilities:
+      sourcing:
+        supported: true
+        id: 7
+        source: okta
+      extraction:
+        supported: true
+  - name: test
+    description: This ID is reserved for source plugin development. Any plugin author can use this ID, but authors can expect events from other developers with this ID. After development is complete, the author should request an actual ID
+    reserved: true
+    capabilities:
+      sourcing:
+        supported: true
+        id: 999
+        source: test
