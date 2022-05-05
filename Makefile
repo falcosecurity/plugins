@@ -17,6 +17,7 @@ GO ?= $(shell which go)
 FALCOSECURITY_LIBS_REVISION=e25e44b3ba4cb90ba9ac75bf747978e41fb6b221
 
 DEBUG = 1
+PRE_RELEASE = --pre-release
 OUTPUT_DIR := output
 SOURCE_DIR := plugins
 ARCH ?=$(shell uname -m)
@@ -46,34 +47,25 @@ $(plugins-clean):
 	cd plugins/$(shell basename $@) && make clean
 
 .PHONY: packages
-packages: clean/packages $(plugins-clean) $(plugins-packages)
+packages: clean/packages $(plugins-packages)
 
-.PHONY: releases
-releases: $(plugins-releases)
-
-.PHONY: $(plugins-packages)
-$(plugins-packages): all build/utils/version
+package/%: clean/% % build/utils/version
 	$(eval PLUGIN_NAME := $(shell basename $@))
 	$(eval PLUGIN_PATH := plugins/$(PLUGIN_NAME)/lib$(PLUGIN_NAME).so)
-	$(eval PLUGIN_VERSION := $(shell ./build/utils/version --path $(PLUGIN_PATH) --pre-release | tail -n 1))
+	$(eval PLUGIN_VERSION := $(shell ./build/utils/version --path $(PLUGIN_PATH) $(PRE_RELEASE) | tail -n 1))
 # re-run command to stop in case of non-zero exit code 
-	@./build/utils/version --path $(PLUGIN_PATH) --pre-release
+	@./build/utils/version --path $(PLUGIN_PATH) $(PRE_RELEASE)
 	mkdir -p $(OUTPUT_DIR)/$(PLUGIN_NAME)
 	cp -r $(PLUGIN_PATH) $(OUTPUT_DIR)/$(PLUGIN_NAME)/
 	cp -r plugins/$(PLUGIN_NAME)/README.md $(OUTPUT_DIR)/$(PLUGIN_NAME)/ || :
 	tar -zcvf $(OUTPUT_DIR)/$(PLUGIN_NAME)-$(PLUGIN_VERSION)-${PLATFORM}-${ARCH}.tar.gz -C ${OUTPUT_DIR}/$(PLUGIN_NAME) $$(ls -A ${OUTPUT_DIR}/$(PLUGIN_NAME))
+	rm -rf $(OUTPUT_DIR)/$(PLUGIN_NAME)
+	@echo "$(PLUGIN_NAME) package built"
 
 release/%: DEBUG=0
-release/%: clean/% % build/utils/version
-	$(eval PLUGIN_NAME := $(shell basename $@))
-	$(eval PLUGIN_PATH := plugins/$(PLUGIN_NAME)/lib$(PLUGIN_NAME).so)
-	$(eval PLUGIN_VERSION := $(shell ./build/utils/version --path $(PLUGIN_PATH) | tail -n 1))
-# re-run command to stop in case of non-zero exit code 
-	@./build/utils/version --path $(PLUGIN_PATH)
-	mkdir -p $(OUTPUT_DIR)/$(PLUGIN_NAME)
-	cp -r $(PLUGIN_PATH) $(OUTPUT_DIR)/$(PLUGIN_NAME)/
-	cp -r plugins/$(PLUGIN_NAME)/README.md $(OUTPUT_DIR)/$(PLUGIN_NAME)/ || :
-	tar -zcvf $(OUTPUT_DIR)/$(PLUGIN_NAME)-$(PLUGIN_VERSION)-${PLATFORM}-${ARCH}.tar.gz -C ${OUTPUT_DIR}/$(PLUGIN_NAME) $$(ls -A ${OUTPUT_DIR}/$(PLUGIN_NAME))
+release/%: PRE_RELEASE=
+release/%: clean package/%
+	@echo "$(PLUGIN_NAME) released"
 
 .PHONY: check-registry
 check-registry: build/registry/registry
