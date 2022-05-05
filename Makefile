@@ -34,6 +34,8 @@ all: check-registry $(plugins)
 .PHONY: $(plugins)
 $(plugins):
 	cd plugins/$@ && make DEBUG=$(DEBUG)
+# make rules, if any
+	cd plugins/$@ && make rules || :
 
 .PHONY: clean
 clean: $(plugins-clean) clean/packages clean/build/utils/version clean/build/registry/registry
@@ -61,6 +63,13 @@ package/%: clean/% % build/utils/version
 	tar -zcvf $(OUTPUT_DIR)/$(PLUGIN_NAME)-$(PLUGIN_VERSION)-${PLATFORM}-${ARCH}.tar.gz -C ${OUTPUT_DIR}/$(PLUGIN_NAME) $$(ls -A ${OUTPUT_DIR}/$(PLUGIN_NAME))
 	rm -rf $(OUTPUT_DIR)/$(PLUGIN_NAME)
 	@echo "$(PLUGIN_NAME) package built"
+# build rules package, if any
+	mkdir -p $(OUTPUT_DIR)/$(PLUGIN_NAME)-rules
+	cp -r plugins/$(PLUGIN_NAME)/rules/* $(OUTPUT_DIR)/$(PLUGIN_NAME)-rules/ && \
+		tar -zcvf $(OUTPUT_DIR)/$(PLUGIN_NAME)-rules-$(PLUGIN_VERSION).tar.gz -C \
+		$(OUTPUT_DIR)/$(PLUGIN_NAME)-rules $$(ls -A ${OUTPUT_DIR}/$(PLUGIN_NAME)-rules) || :
+	@test $(OUTPUT_DIR)/$(PLUGIN_NAME)-rules-$(PLUGIN_VERSION).tar.gz && echo "$(PLUGIN_NAME) rules package built"
+	rm -rf $(OUTPUT_DIR)/$(PLUGIN_NAME)-rules
 
 release/%: DEBUG=0
 release/%: PRE_RELEASE=
