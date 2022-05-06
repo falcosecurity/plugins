@@ -20,7 +20,6 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -28,6 +27,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/source"
 	"github.com/falcosecurity/plugins/plugins/k8saudit/pkg/k8saudit"
 )
@@ -157,8 +157,9 @@ func (k *K8SAuditPlugin) openWebServer(port, endpoint string, ssl bool) (source.
 	return k8saudit.OpenEventSource(ctx, eventChan, errorChan, onClose)
 }
 
-func (k *K8SAuditPlugin) String(in io.ReadSeeker) (string, error) {
-	evtBytes, err := ioutil.ReadAll(in)
+// todo: optimize this to cache by event number
+func (k *K8SAuditPlugin) String(evt sdk.EventReader) (string, error) {
+	evtBytes, err := ioutil.ReadAll(evt.Reader())
 	if err != nil {
 		return "", err
 	}

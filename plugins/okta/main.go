@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -136,13 +135,12 @@ func init() {
 // Info displays information of the plugin to Falco plugin framework
 func (oktaPlugin *OktaPlugin) Info() *plugins.Info {
 	return &plugins.Info{
-		ID:                 7,
-		Name:               "okta",
-		Description:        "Okta Log Events",
-		Contact:            "github.com/falcosecurity/plugins/",
-		Version:            "0.1.0",
-		RequiredAPIVersion: "0.3.0",
-		EventSource:        "okta",
+		ID:          7,
+		Name:        "okta",
+		Description: "Okta Log Events",
+		Contact:     "github.com/falcosecurity/plugins/",
+		Version:     "0.1.0",
+		EventSource: "okta",
 	}
 }
 
@@ -388,9 +386,9 @@ func (oktaPlugin *OktaPlugin) Open(params string) (source.Instance, error) {
 }
 
 // String represents the raw value of on event
-// (not currently used by Falco plugin framework, only there for future usage)
-func (oktaPlugin *OktaPlugin) String(in io.ReadSeeker) (string, error) {
-	evtBytes, err := ioutil.ReadAll(in)
+// todo: optimize this to cache by event number
+func (oktaPlugin *OktaPlugin) String(evt sdk.EventReader) (string, error) {
+	evtBytes, err := ioutil.ReadAll(evt.Reader())
 	if err != nil {
 		return "", err
 	}

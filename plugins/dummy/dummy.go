@@ -19,7 +19,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"math/rand"
 	"strconv"
@@ -191,8 +190,9 @@ func (m *MyInstance) NextBatch(pState sdk.PluginState, evts sdk.EventWriters) (i
 	return n, nil
 }
 
-func (m *MyPlugin) String(in io.ReadSeeker) (string, error) {
-	evtBytes, err := ioutil.ReadAll(in)
+// todo: optimize this to cache by event number
+func (m *MyPlugin) String(evt sdk.EventReader) (string, error) {
+	evtBytes, err := ioutil.ReadAll(evt.Reader())
 	if err != nil {
 		return "", err
 	}
