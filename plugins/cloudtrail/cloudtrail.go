@@ -28,7 +28,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"math"
 	"sync"
@@ -224,12 +223,13 @@ func (o *openContext) Progress(pState sdk.PluginState) (float64, string) {
 	return pd, fmt.Sprintf("%.2f%% - %v/%v files", pd*100, o.curFileNum, len(o.files))
 }
 
-func (p *pluginContext) String(in io.ReadSeeker) (string, error) {
+// todo: optimize this to cache by event number
+func (p *pluginContext) String(evt sdk.EventReader) (string, error) {
 	var src string
 	var user string
 	var err error
 
-	data, err := ioutil.ReadAll(in)
+	data, err := ioutil.ReadAll(evt.Reader())
 	if err != nil {
 		return "", err
 	}
