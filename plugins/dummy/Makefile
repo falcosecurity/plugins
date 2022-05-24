@@ -26,7 +26,7 @@ endif
 all: $(OUTPUT)
 
 clean:
-	@rm -f *.so *.h
+	@rm -f *.so
 
-$(OUTPUT): *.go
-	@$(GODEBUGFLAGS) $(GO) build -buildmode=c-shared -o $(OUTPUT)
+$(OUTPUT): 
+	@$(GODEBUGFLAGS) $(GO) build -buildmode=c-shared -o $(OUTPUT) ./plugin
