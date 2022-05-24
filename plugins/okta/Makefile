@@ -28,5 +28,5 @@ all: $(OUTPUT)
 clean:
 	@rm -f *.so *.h
 
-$(OUTPUT): *.go clean
-	@$(GODEBUGFLAGS) $(GO) build -buildmode=c-shared -o $(OUTPUT)
+$(OUTPUT):
+	@$(GODEBUGFLAGS) $(GO) build -buildmode=c-shared -o $(OUTPUT) ./plugin

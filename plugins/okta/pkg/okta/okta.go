@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package okta
 
 import (
 	"context"
@@ -28,7 +28,6 @@ import (
 	"github.com/alecthomas/jsonschema"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins"
-	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/extractor"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/source"
 )
 
@@ -105,8 +104,8 @@ type LogEvent struct {
 	} `json:"securityContext,omitempty"`
 }
 
-// OktaPlugin represents our plugin
-type OktaPlugin struct {
+// Plugin represents our plugin
+type Plugin struct {
 	plugins.BasePlugin
 	APIToken     string `json:"api_token" jsonschema:"description=API Token,required"`
 	Organization string `json:"organization" jsonschema:"description=Your Okta organization,required"`
@@ -114,8 +113,8 @@ type OktaPlugin struct {
 	lastEventNum uint64
 }
 
-// OktaInstance represents a opened stream based on our Plugin
-type OktaInstance struct {
+// PluginInstance represents a opened stream based on our Plugin
+type PluginInstance struct {
 	source.BaseInstance
 	client      *http.Client
 	request     *http.Request
@@ -125,15 +124,8 @@ type OktaInstance struct {
 
 const oktaBaseURL string = "okta.com/api/v1/logs"
 
-// init function is used for referencing our plugin to the Falco plugin framework
-func init() {
-	p := &OktaPlugin{}
-	extractor.Register(p)
-	source.Register(p)
-}
-
 // Info displays information of the plugin to Falco plugin framework
-func (oktaPlugin *OktaPlugin) Info() *plugins.Info {
+func (oktaPlugin *Plugin) Info() *plugins.Info {
 	return &plugins.Info{
 		ID:          7,
 		Name:        "okta",
@@ -145,12 +137,12 @@ func (oktaPlugin *OktaPlugin) Info() *plugins.Info {
 }
 
 // InitSchema exports the json schema for parameters
-func (oktaPlugin *OktaPlugin) InitSchema() *sdk.SchemaInfo {
+func (oktaPlugin *Plugin) InitSchema() *sdk.SchemaInfo {
 	reflector := jsonschema.Reflector{
 		RequiredFromJSONSchemaTags: true, // all properties are optional by default
 		AllowAdditionalProperties:  true, // unrecognized properties don't cause a parsing failures
 	}
-	if schema, err := reflector.Reflect(&OktaPlugin{}).MarshalJSON(); err == nil {
+	if schema, err := reflector.Reflect(&Plugin{}).MarshalJSON(); err == nil {
 		return &sdk.SchemaInfo{
 			Schema: string(schema),
 		}
@@ -161,7 +153,7 @@ func (oktaPlugin *OktaPlugin) InitSchema() *sdk.SchemaInfo {
 // Init is called by the Falco plugin framework as first entry,
 // we use it for setting default configuration values and mapping
 // values from `init_config` (json format for this plugin)
-func (oktaPlugin *OktaPlugin) Init(config string) error {
+func (oktaPlugin *Plugin) Init(config string) error {
 	err := json.Unmarshal([]byte(config), &oktaPlugin)
 	if err != nil {
 		return err
@@ -170,7 +162,7 @@ func (oktaPlugin *OktaPlugin) Init(config string) error {
 }
 
 // Fields exposes to Falco plugin framework all availables fields for this plugin
-func (oktaPlugin *OktaPlugin) Fields() []sdk.FieldEntry {
+func (oktaPlugin *Plugin) Fields() []sdk.FieldEntry {
 	return []sdk.FieldEntry{
 		{Type: "string", Name: "okta.app", Desc: "Application"},
 		{Type: "string", Name: "okta.evt.type", Desc: "Event Type"},
@@ -219,7 +211,7 @@ func (oktaPlugin *OktaPlugin) Fields() []sdk.FieldEntry {
 }
 
 // Extract allows Falco plugin framework to get values for all available fields
-func (oktaPlugin *OktaPlugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
+func (oktaPlugin *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 	data := oktaPlugin.lastLogEvent
 
 	if evt.EventNum() != oktaPlugin.lastEventNum {
@@ -361,11 +353,12 @@ func (oktaPlugin *OktaPlugin) Extract(req sdk.ExtractRequest, evt sdk.EventReade
 }
 
 // Open is called by Falco plugin framework for opening a stream of events, we call that an instance
-func (oktaPlugin *OktaPlugin) Open(params string) (source.Instance, error) {
+func (oktaPlugin *Plugin) Open(params string) (source.Instance, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("https://%v.%v", oktaPlugin.Organization, oktaBaseURL), nil)
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 
@@ -378,7 +371,7 @@ func (oktaPlugin *OktaPlugin) Open(params string) (source.Instance, error) {
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Authorization", "SSWS "+oktaPlugin.APIToken)
 
-	return &OktaInstance{
+	return &PluginInstance{
 		client:  &http.Client{},
 		request: req,
 		cancel:  cancel,
@@ -387,7 +380,7 @@ func (oktaPlugin *OktaPlugin) Open(params string) (source.Instance, error) {
 
 // String represents the raw value of on event
 // todo: optimize this to cache by event number
-func (oktaPlugin *OktaPlugin) String(evt sdk.EventReader) (string, error) {
+func (oktaPlugin *Plugin) String(evt sdk.EventReader) (string, error) {
 	evtBytes, err := ioutil.ReadAll(evt.Reader())
 	if err != nil {
 		return "", err
@@ -398,7 +391,7 @@ func (oktaPlugin *OktaPlugin) String(evt sdk.EventReader) (string, error) {
 }
 
 // NextBatch is called by Falco plugin framework to get a batch of events from the instance
-func (oktaInstance *OktaInstance) NextBatch(pState sdk.PluginState, evts sdk.EventWriters) (int, error) {
+func (oktaInstance *PluginInstance) NextBatch(pState sdk.PluginState, evts sdk.EventWriters) (int, error) {
 	now := time.Now()
 	if now.Before(oktaInstance.lastReqTime.Add(5 * time.Second)) {
 		time.Sleep(oktaInstance.lastReqTime.Add(5 * time.Second).Sub(now))
@@ -442,9 +435,6 @@ func (oktaInstance *OktaInstance) NextBatch(pState sdk.PluginState, evts sdk.Eve
 	return i, nil
 }
 
-func (oktaInstance *OktaInstance) Close() {
+func (oktaInstance *PluginInstance) Close() {
 	oktaInstance.cancel()
 }
-
-// main is mandatory but empty, because the plugin will be used as C library by Falco plugin framework
-func main() {}
