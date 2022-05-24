@@ -19,10 +19,10 @@ limitations under the License.
 // remote S3 bucket. Cloudtrail events are dispatched to the engine one by one,
 // in their original json form, so the full data is retained.
 // The plugin also exports a bunch of filter fields useful for cloudtrail
-// analysis (see plugin_get_fields() for the list).
+// analysis..
 ///////////////////////////////////////////////////////////////////////////////
 
-package main
+package cloudtrail
 
 import (
 	"bytes"
@@ -30,16 +30,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math"
-	"sync"
 
 	"github.com/alecthomas/jsonschema"
-	"github.com/aws/aws-sdk-go-v2/service/sqs"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins"
-	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/extractor"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/source"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/symbols/extract"
 	_ "github.com/falcosecurity/plugin-sdk-go/pkg/sdk/symbols/progress"
@@ -56,107 +50,32 @@ const (
 	PluginEventSource        = "aws_cloudtrail"
 )
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-type fileInfo struct {
-	name         string
-	isCompressed bool
-}
-
-// This is the state that we use when reading events from an S3 bucket
-type s3State struct {
-	bucket                string
-	awsSvc                *s3.S3
-	awsSess               *session.Session
-	downloader            *s3manager.Downloader
-	DownloadWg            sync.WaitGroup
-	DownloadBufs          [][]byte
-	lastDownloadedFileNum int
-	nFilledBufs           int
-	curBuf                int
-}
-
-type snsMessage struct {
-	Bucket string   `json:"s3Bucket"`
-	Keys   []string `json:"s3ObjectKey"`
-}
-
-// Struct for plugin init config
-type pluginInitConfig struct {
-	S3DownloadConcurrency int  `json:"s3DownloadConcurrency" jsonschema:"description=Controls the number of background goroutines used to download S3 files (Default: 1)"`
-	SQSDelete             bool `json:"sqsDelete" jsonschema:"description=If true then the plugin will delete sqs messages from the queue immediately after receiving them (Default: true)"`
-	UseAsync              bool `json:"useAsync" jsonschema:"description=If true then async extraction optimization is enabled (Default: true)"`
-}
-
 // This is the global plugin state, identifying an instance of this plugin
-type pluginContext struct {
+type Plugin struct {
 	plugins.BasePlugin
 	jparser     fastjson.Parser
 	jdata       *fastjson.Value
 	jdataEvtnum uint64 // The event number jdata refers to. Used to know when we can skip the unmarshaling.
-	config      pluginInitConfig
+	Config      PluginConfig
 }
 
-type OpenMode int
-
-const (
-	fileMode OpenMode = iota
-	s3Mode
-	sqsMode
-)
-
-// This is the open state, identifying an open instance reading cloudtrail files from
-// a local directory or from a remote S3 bucket (either direct or via a SQS queue)
-type openContext struct {
-	source.BaseInstance
-	openMode           OpenMode
-	cloudTrailFilesDir string
-	files              []fileInfo
-	curFileNum         uint32
-	evtJSONStrings     [][]byte
-	evtJSONListPos     int
-	s3                 s3State
-	sqsClient          *sqs.Client
-	queueURL           string
-	nextJParser        fastjson.Parser
-}
-
-// Register the plugin
-func init() {
-	p := &pluginContext{}
-	source.Register(p)
-	extractor.Register(p)
-}
-
-func (p *pluginInitConfig) setDefault() {
-	p.SQSDelete = true
-	p.S3DownloadConcurrency = 1
-	p.UseAsync = true
-}
-
-func (p *pluginContext) Info() *plugins.Info {
+func (p *Plugin) Info() *plugins.Info {
 	return &plugins.Info{
-		ID:                  PluginID,
-		Name:                PluginName,
-		Description:         PluginDescription,
-		Contact:             PluginContact,
-		Version:             PluginVersion,
-		EventSource:         PluginEventSource,
-		ExtractEventSources: []string{"ct", "s3", "ec2"},
+		ID:          PluginID,
+		Name:        PluginName,
+		Description: PluginDescription,
+		Contact:     PluginContact,
+		Version:     PluginVersion,
+		EventSource: PluginEventSource,
 	}
 }
 
-func (p *pluginContext) InitSchema() *sdk.SchemaInfo {
+func (p *Plugin) InitSchema() *sdk.SchemaInfo {
 	reflector := jsonschema.Reflector{
 		RequiredFromJSONSchemaTags: true, // all properties are optional by default
 		AllowAdditionalProperties:  true, // unrecognized properties don't cause a parsing failures
 	}
-	if schema, err := reflector.Reflect(&pluginInitConfig{}).MarshalJSON(); err == nil {
+	if schema, err := reflector.Reflect(&PluginConfig{}).MarshalJSON(); err == nil {
 		return &sdk.SchemaInfo{
 			Schema: string(schema),
 		}
@@ -164,24 +83,24 @@ func (p *pluginContext) InitSchema() *sdk.SchemaInfo {
 	return nil
 }
 
-func (p *pluginContext) Init(cfg string) error {
+func (p *Plugin) Init(cfg string) error {
 	// initialize state
 	p.jdataEvtnum = math.MaxUint64
 
 	// Set config default values and read the passed one, if available.
 	// Since we provide a schema through InitSchema(), the framework
 	// guarantees that the config is always well-formed json.
-	p.config.setDefault()
-	json.Unmarshal([]byte(cfg), &p.config)
+	p.Config.Reset()
+	json.Unmarshal([]byte(cfg), &p.Config)
 
 	// enable/disable async extraction optimazion (enabled by default)
-	extract.SetAsync(p.config.UseAsync)
+	extract.SetAsync(p.Config.UseAsync)
 	return nil
 }
 
-func (p *pluginContext) Open(params string) (source.Instance, error) {
+func (p *Plugin) Open(params string) (source.Instance, error) {
 	// Allocate the context struct for this open instance
-	oCtx := &openContext{}
+	oCtx := &PluginInstance{}
 
 	// Perform the open
 	var err error
@@ -199,15 +118,15 @@ func (p *pluginContext) Open(params string) (source.Instance, error) {
 
 	// Create an array of download buffers that will be used to concurrently
 	// download files from s3
-	oCtx.s3.DownloadBufs = make([][]byte, p.config.S3DownloadConcurrency)
+	oCtx.s3.DownloadBufs = make([][]byte, p.Config.S3DownloadConcurrency)
 
 	return oCtx, nil
 }
 
-func (o *openContext) NextBatch(pState sdk.PluginState, evts sdk.EventWriters) (int, error) {
+func (o *PluginInstance) NextBatch(pState sdk.PluginState, evts sdk.EventWriters) (int, error) {
 	var n int
 	var err error
-	pCtx := pState.(*pluginContext)
+	pCtx := pState.(*Plugin)
 	for n = 0; n < evts.Len(); n++ {
 		err = nextEvent(pCtx, o, evts.Get(n))
 
@@ -218,13 +137,13 @@ func (o *openContext) NextBatch(pState sdk.PluginState, evts sdk.EventWriters) (
 	return n, err
 }
 
-func (o *openContext) Progress(pState sdk.PluginState) (float64, string) {
+func (o *PluginInstance) Progress(pState sdk.PluginState) (float64, string) {
 	pd := float64(o.curFileNum) / float64(len(o.files))
 	return pd, fmt.Sprintf("%.2f%% - %v/%v files", pd*100, o.curFileNum, len(o.files))
 }
 
 // todo: optimize this to cache by event number
-func (p *pluginContext) String(evt sdk.EventReader) (string, error) {
+func (p *Plugin) String(evt sdk.EventReader) (string, error) {
 	var src string
 	var user string
 	var err error
@@ -282,11 +201,11 @@ func (p *pluginContext) String(evt sdk.EventReader) (string, error) {
 	), nil
 }
 
-func (p *pluginContext) Fields() []sdk.FieldEntry {
+func (p *Plugin) Fields() []sdk.FieldEntry {
 	return supportedFields
 }
 
-func (p *pluginContext) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
+func (p *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 	// Decode the json, but only if we haven't done it yet for this event
 	if evt.EventNum() != p.jdataEvtnum {
 		// Read the event data
@@ -323,5 +242,3 @@ func (p *pluginContext) Extract(req sdk.ExtractRequest, evt sdk.EventReader) err
 
 	return nil
 }
-
-func main() {}

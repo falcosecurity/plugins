@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package cloudtrail
 
 import (
 	"bytes"
@@ -26,6 +26,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -38,14 +39,69 @@ import (
 	"github.com/valyala/fastjson"
 
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
+	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/source"
 )
+
+type OpenMode int
+
+const (
+	fileMode OpenMode = iota
+	s3Mode
+	sqsMode
+)
+
+type fileInfo struct {
+	name         string
+	isCompressed bool
+}
+
+// This is the state that we use when reading events from an S3 bucket
+type s3State struct {
+	bucket                string
+	awsSvc                *s3.S3
+	awsSess               *session.Session
+	downloader            *s3manager.Downloader
+	DownloadWg            sync.WaitGroup
+	DownloadBufs          [][]byte
+	lastDownloadedFileNum int
+	nFilledBufs           int
+	curBuf                int
+}
+
+type snsMessage struct {
+	Bucket string   `json:"s3Bucket"`
+	Keys   []string `json:"s3ObjectKey"`
+}
+
+// This is the open state, identifying an open instance reading cloudtrail files from
+// a local directory or from a remote S3 bucket (either direct or via a SQS queue)
+type PluginInstance struct {
+	source.BaseInstance
+	openMode           OpenMode
+	cloudTrailFilesDir string
+	files              []fileInfo
+	curFileNum         uint32
+	evtJSONStrings     [][]byte
+	evtJSONListPos     int
+	s3                 s3State
+	sqsClient          *sqs.Client
+	queueURL           string
+	nextJParser        fastjson.Parser
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
 
 func dirExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
 }
 
-func openLocal(pCtx *pluginContext, oCtx *openContext, params string) error {
+func openLocal(pCtx *Plugin, oCtx *PluginInstance, params string) error {
 	oCtx.openMode = fileMode
 
 	oCtx.cloudTrailFilesDir = params
@@ -82,7 +138,7 @@ func openLocal(pCtx *pluginContext, oCtx *openContext, params string) error {
 	return nil
 }
 
-func initS3(oCtx *openContext) {
+func initS3(oCtx *PluginInstance) {
 	oCtx.s3.awsSess = session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	}))
@@ -92,7 +148,7 @@ func initS3(oCtx *openContext) {
 	oCtx.s3.downloader = s3manager.NewDownloader(oCtx.s3.awsSess)
 }
 
-func openS3(pCtx *pluginContext, oCtx *openContext, input string) error {
+func openS3(pCtx *Plugin, oCtx *PluginInstance, input string) error {
 	oCtx.openMode = s3Mode
 
 	// remove the initial "s3://"
@@ -136,7 +192,7 @@ func openS3(pCtx *pluginContext, oCtx *openContext, input string) error {
 	return err
 }
 
-func getMoreSQSFiles(pCtx *pluginContext, oCtx *openContext) error {
+func getMoreSQSFiles(pCtx *Plugin, oCtx *PluginInstance) error {
 	ctx := context.Background()
 
 	input := &sqs.ReceiveMessageInput{
@@ -157,7 +213,7 @@ func getMoreSQSFiles(pCtx *pluginContext, oCtx *openContext) error {
 		return nil
 	}
 
-	if pCtx.config.SQSDelete {
+	if pCtx.Config.SQSDelete {
 		// Delete the message from the queue so it won't be read again
 		delInput := &sqs.DeleteMessageInput{
 			QueueUrl:      &oCtx.queueURL,
@@ -216,7 +272,7 @@ func getMoreSQSFiles(pCtx *pluginContext, oCtx *openContext) error {
 	return nil
 }
 
-func openSQS(pCtx *pluginContext, oCtx *openContext, input string) error {
+func openSQS(pCtx *Plugin, oCtx *PluginInstance, input string) error {
 	ctx := context.Background()
 
 	cfg, err := config.LoadDefaultConfig(ctx)
@@ -243,7 +299,7 @@ func openSQS(pCtx *pluginContext, oCtx *openContext, input string) error {
 
 var dlErrChan chan error
 
-func s3Download(oCtx *openContext, downloader *s3manager.Downloader, name string, dloadSlotNum int) {
+func s3Download(oCtx *PluginInstance, downloader *s3manager.Downloader, name string, dloadSlotNum int) {
 	defer oCtx.s3.DownloadWg.Done()
 
 	buff := &aws.WriteAtBuffer{}
@@ -260,16 +316,16 @@ func s3Download(oCtx *openContext, downloader *s3manager.Downloader, name string
 	oCtx.s3.DownloadBufs[dloadSlotNum] = buff.Bytes()
 }
 
-func readNextFileS3(pCtx *pluginContext, oCtx *openContext) ([]byte, error) {
+func readNextFileS3(pCtx *Plugin, oCtx *PluginInstance) ([]byte, error) {
 	if oCtx.s3.curBuf < oCtx.s3.nFilledBufs {
 		curBuf := oCtx.s3.curBuf
 		oCtx.s3.curBuf++
 		return oCtx.s3.DownloadBufs[curBuf], nil
 	}
 
-	dlErrChan = make(chan error, pCtx.config.S3DownloadConcurrency)
+	dlErrChan = make(chan error, pCtx.Config.S3DownloadConcurrency)
 	k := oCtx.s3.lastDownloadedFileNum
-	oCtx.s3.nFilledBufs = min(pCtx.config.S3DownloadConcurrency, len(oCtx.files)-k)
+	oCtx.s3.nFilledBufs = min(pCtx.Config.S3DownloadConcurrency, len(oCtx.files)-k)
 	for j, f := range oCtx.files[k : k+oCtx.s3.nFilledBufs] {
 		oCtx.s3.DownloadWg.Add(1)
 		go s3Download(oCtx, oCtx.s3.downloader, f.name, j)
@@ -315,7 +371,7 @@ func extractRecordStrings(jsonStr []byte, res *[][]byte) {
 }
 
 // nextEvent is the core event production function.
-func nextEvent(pCtx *pluginContext, oCtx *openContext, evt sdk.EventWriter) error {
+func nextEvent(pCtx *Plugin, oCtx *PluginInstance, evt sdk.EventWriter) error {
 	var evtData []byte
 	var tmpStr []byte
 	var err error
