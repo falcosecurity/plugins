@@ -21,7 +21,7 @@ import (
 )
 
 // Fields returns the list of extractor fields exported for K8S Audit events.
-func Fields() []sdk.FieldEntry {
+func (k *Plugin) Fields() []sdk.FieldEntry {
 	return []sdk.FieldEntry{
 		{
 			Type: "string",
