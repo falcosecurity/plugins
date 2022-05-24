@@ -347,7 +347,7 @@ func (e *Plugin) ExtractFromJSON(req sdk.ExtractRequest, jsonValue *fastjson.Val
 		req.SetValue(e.arrayAsStringsSkipNil(arr))
 	case "ka.req.pod.volumes.volume_type":
 		indexFilter := e.argIndexFilter(req)
-		arr, err := e.getValuesRecursive(jsonValue, indexFilter, "requestObject", "spec", "volumes")
+		arr, err := e.getValuesRecursive(jsonValue, indexFilter, "requestObject", "spec", "volumes", "")
 		if err != nil {
 			return err
 		}
@@ -355,15 +355,17 @@ func (e *Plugin) ExtractFromJSON(req sdk.ExtractRequest, jsonValue *fastjson.Val
 		// note(jasondellaluce): this has been implemented just like in the
 		// original K8S Audit, but I'm not sure this works as intended
 		for _, v := range arr {
-			obj, err := v.Object()
-			if err != nil {
-				return err
-			}
-			obj.Visit(func(key []byte, v *fastjson.Value) {
-				if string(key) != "name" {
-					values = append(values, string(key))
+			if v.Type() == fastjson.TypeObject {
+				obj, err := v.Object()
+				if err != nil {
+					return err
 				}
-			})
+				obj.Visit(func(key []byte, v *fastjson.Value) {
+					if string(key) != "name" {
+						values = append(values, string(key))
+					}
+				})
+			}
 		}
 		req.SetValue(values)
 	case "ka.resp.name":
@@ -411,7 +413,11 @@ func (e *Plugin) getValuesRecursive(jsonValue *fastjson.Value, indexFilter int, 
 			jsonValue = arr[indexFilter]
 		}
 
-		jsonValue = jsonValue.Get(k)
+		if len(k) > 0 {
+			jsonValue = jsonValue.Get(k)
+		} else {
+			jsonValue = jsonValue.Get()
+		}
 		if jsonValue == nil {
 			return nil, ErrExtractNotAvailable
 		}
