@@ -15,6 +15,12 @@
 # limitations under the License.
 #
 
+- required_engine_version: 11
+
+- required_plugin_versions:
+  - name: okta
+    version: 0.1.0
+
 # Example Rule on login in to OKTA. Disabled by default since it might be noisy
 #- rule: User logged in to OKTA
 #  desc: Detect the user login in to OKTA
