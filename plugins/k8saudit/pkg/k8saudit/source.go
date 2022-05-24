@@ -71,7 +71,8 @@ func (k *Plugin) Open(params string) (source.Instance, error) {
 		webServerParam = params[len("https://"):]
 		ssl = true
 	} else {
-		return nil, fmt.Errorf("invalid open parameters (supported prefixes are 'file://', 'http://', and 'https://'): %s", params)
+		// by default, fallback to opening a filepath
+		return k.OpenFilePath(params)
 	}
 	matches := webServerParamRgx.FindStringSubmatch(webServerParam)
 	if matches == nil || len(matches) != 4 {
