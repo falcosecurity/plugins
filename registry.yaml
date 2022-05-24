@@ -124,6 +124,19 @@ plugins:
         source: okta
       extraction:
         supported: true
+  - name: github
+    description: Github Webhook Events
+    authors: The Falco Authors
+    contact: https://falco.org/community
+    url: https://github.com/falcosecurity/plugins/tree/master/plugins/github 
+    license: Apache-2.0
+    capabilities:
+      sourcing:
+        supported: true
+        id: 8
+        source: github
+      extraction:
+        supported: true
   - name: test
     description: This ID is reserved for source plugin development. Any plugin author can use this ID, but authors can expect events from other developers with this ID. After development is complete, the author should request an actual ID
     reserved: true
