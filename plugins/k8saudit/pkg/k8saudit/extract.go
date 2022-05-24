@@ -52,22 +52,22 @@ var (
 	ErrExtractUnsupportedType = fmt.Errorf("type not supported")
 )
 
-// AuditEventExtractor is an helper that extract K8S Audit fields from
-// K8S Audit events. The event data is expected to be a JSON that in the form
-// that is provided by K8S Audit webhook (see https://kubernetes.io/docs/tasks/debug-application-cluster/audit/#webhook-backend).
-// The ExtractFromEvent method can be used to easily process an ExtractRequest.
-// If the Audit Event data is nested inside another JSON object, you can use
-// a combination of the Decode/DecodeEvent and ExtractFromJSON convenience
-// methods. AuditEventExtractor relies on the fastjson package for performant
-// manipulation of JSON data.
-type AuditEventExtractor struct {
-	jparser     fastjson.Parser
-	jdata       *fastjson.Value
-	jdataEvtnum uint64
+func (k *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
+	err := k.ExtractFromEvent(req, evt)
+	// We want to keep not-available errors internal. Propagating
+	// this error is useful to implement a clean extraction logic, however
+	// this kind of error would be very noisy for the framework and is not
+	// truly relevant. Plus, the plugin framework understands that a field
+	// is not present by checking that sdk.ExtractRequest.SetValue() has not
+	// being invoked.
+	if err == ErrExtractNotAvailable {
+		return nil
+	}
+	return err
 }
 
-// Decode parses a JSON value from a io.Reader
-func (e *AuditEventExtractor) Decode(evtNum uint64, reader io.ReadSeeker) (*fastjson.Value, error) {
+// Decode parses a JSON value from an io.ReadSeeker
+func (e *Plugin) DecodeReader(evtNum uint64, reader io.ReadSeeker) (*fastjson.Value, error) {
 	// as a very quick sanity check, only try to extract all if
 	// the first character is '{' or '['
 	data := []byte{0}
@@ -98,13 +98,13 @@ func (e *AuditEventExtractor) Decode(evtNum uint64, reader io.ReadSeeker) (*fast
 }
 
 // DecodeEvent parses a JSON value from a sdk.EventReader
-func (e *AuditEventExtractor) DecodeEvent(evt sdk.EventReader) (*fastjson.Value, error) {
-	return e.Decode(evt.EventNum(), evt.Reader())
+func (e *Plugin) DecodeEvent(evt sdk.EventReader) (*fastjson.Value, error) {
+	return e.DecodeReader(evt.EventNum(), evt.Reader())
 }
 
 // ExtractFromEvent processes a sdk.ExtractRequest and extracts a
 // field by reading data from a sdk.EventReader
-func (e *AuditEventExtractor) ExtractFromEvent(req sdk.ExtractRequest, evt sdk.EventReader) error {
+func (e *Plugin) ExtractFromEvent(req sdk.ExtractRequest, evt sdk.EventReader) error {
 	jsonValue, err := e.DecodeEvent(evt)
 	if err != nil {
 		return err
@@ -114,7 +114,7 @@ func (e *AuditEventExtractor) ExtractFromEvent(req sdk.ExtractRequest, evt sdk.E
 
 // ExtractFromJSON processes a sdk.ExtractRequest and extracts a
 // field by reading data from a jsonValue *fastjson.Value
-func (e *AuditEventExtractor) ExtractFromJSON(req sdk.ExtractRequest, jsonValue *fastjson.Value) error {
+func (e *Plugin) ExtractFromJSON(req sdk.ExtractRequest, jsonValue *fastjson.Value) error {
 	// discard unrelated JSONs events
 	if jsonValue.Get("auditID") == nil {
 		return ErrExtractNotAvailable
@@ -380,14 +380,14 @@ func (e *AuditEventExtractor) ExtractFromJSON(req sdk.ExtractRequest, jsonValue 
 	return nil
 }
 
-func (e *AuditEventExtractor) argIndexFilter(req sdk.ExtractRequest) int {
+func (e *Plugin) argIndexFilter(req sdk.ExtractRequest) int {
 	if !req.ArgPresent() {
 		return noIndexFilter
 	}
 	return int(req.ArgIndex())
 }
 
-func (e *AuditEventExtractor) getValuesRecursive(jsonValue *fastjson.Value, indexFilter int, keys ...string) ([]*fastjson.Value, error) {
+func (e *Plugin) getValuesRecursive(jsonValue *fastjson.Value, indexFilter int, keys ...string) ([]*fastjson.Value, error) {
 	for i, k := range keys {
 		if jsonValue.Type() == fastjson.TypeArray {
 			if indexFilter == noIndexFilter {
@@ -419,7 +419,7 @@ func (e *AuditEventExtractor) getValuesRecursive(jsonValue *fastjson.Value, inde
 	return []*fastjson.Value{jsonValue}, nil
 }
 
-func (e *AuditEventExtractor) arrayAsStrings(values []*fastjson.Value) ([]string, error) {
+func (e *Plugin) arrayAsStrings(values []*fastjson.Value) ([]string, error) {
 	var res []string
 	for _, v := range values {
 		str, err := e.jsonValueAsString(v)
@@ -431,7 +431,7 @@ func (e *AuditEventExtractor) arrayAsStrings(values []*fastjson.Value) ([]string
 	return res, nil
 }
 
-func (e *AuditEventExtractor) arrayAsStringsSkipNil(values []*fastjson.Value) []string {
+func (e *Plugin) arrayAsStringsSkipNil(values []*fastjson.Value) []string {
 	var res []string
 	for _, v := range values {
 		str, err := e.jsonValueAsString(v)
@@ -442,7 +442,7 @@ func (e *AuditEventExtractor) arrayAsStringsSkipNil(values []*fastjson.Value) []
 	return res
 }
 
-func (e *AuditEventExtractor) arrayAsStringsWithDefault(values []*fastjson.Value, defaultValue string) []string {
+func (e *Plugin) arrayAsStringsWithDefault(values []*fastjson.Value, defaultValue string) []string {
 	var res []string
 	for _, v := range values {
 		str, err := e.jsonValueAsString(v)
@@ -455,7 +455,7 @@ func (e *AuditEventExtractor) arrayAsStringsWithDefault(values []*fastjson.Value
 }
 
 // note: this returns an error on nil values
-func (e *AuditEventExtractor) readContainerImages(jsonValue *fastjson.Value, indexFilter int) ([]string, error) {
+func (e *Plugin) readContainerImages(jsonValue *fastjson.Value, indexFilter int) ([]string, error) {
 	arr, err := e.getValuesRecursive(jsonValue, indexFilter, "requestObject", "spec", "containers", "image")
 	if err != nil {
 		return nil, err
@@ -463,7 +463,7 @@ func (e *AuditEventExtractor) readContainerImages(jsonValue *fastjson.Value, ind
 	return e.arrayAsStrings(arr)
 }
 
-func (e *AuditEventExtractor) readContainerRepositories(jsonValue *fastjson.Value, indexFilter int) ([]string, error) {
+func (e *Plugin) readContainerRepositories(jsonValue *fastjson.Value, indexFilter int) ([]string, error) {
 	images, err := e.readContainerImages(jsonValue, indexFilter)
 	if err != nil {
 		return nil, err
@@ -475,7 +475,7 @@ func (e *AuditEventExtractor) readContainerRepositories(jsonValue *fastjson.Valu
 	return repos, nil
 }
 
-func (e *AuditEventExtractor) readContainerHostPorts(jsonValue *fastjson.Value, indexFilter int) ([]string, error) {
+func (e *Plugin) readContainerHostPorts(jsonValue *fastjson.Value, indexFilter int) ([]string, error) {
 	containersPorts, err := e.getValuesRecursive(jsonValue, indexFilter, "requestObject", "spec", "containers", "ports")
 	if err != nil {
 		return nil, err
@@ -508,7 +508,7 @@ func (e *AuditEventExtractor) readContainerHostPorts(jsonValue *fastjson.Value, 
 	return res, nil
 }
 
-func (e *AuditEventExtractor) readFromContainerEffectively(jsonValue *fastjson.Value, indexFilter int, keys ...string) ([]string, error) {
+func (e *Plugin) readFromContainerEffectively(jsonValue *fastjson.Value, indexFilter int, keys ...string) ([]string, error) {
 	podID := "0"
 	if value := jsonValue.Get(append([]string{"requestObject", "spec"}, keys...)...); value != nil {
 		var err error
@@ -524,7 +524,7 @@ func (e *AuditEventExtractor) readFromContainerEffectively(jsonValue *fastjson.V
 	return e.arrayAsStringsWithDefault(arr, podID), nil
 }
 
-func (e *AuditEventExtractor) extractRulesField(req sdk.ExtractRequest, jsonValue *fastjson.Value, keys ...string) error {
+func (e *Plugin) extractRulesField(req sdk.ExtractRequest, jsonValue *fastjson.Value, keys ...string) error {
 	arr, err := e.getValuesRecursive(jsonValue, e.argIndexFilter(req), append([]string{"requestObject", "rules"}, keys...)...)
 	if err != nil {
 		return err
@@ -539,7 +539,7 @@ func (e *AuditEventExtractor) extractRulesField(req sdk.ExtractRequest, jsonValu
 	return nil
 }
 
-func (e *AuditEventExtractor) extractFromKeys(req sdk.ExtractRequest, jsonValue *fastjson.Value, keys ...string) error {
+func (e *Plugin) extractFromKeys(req sdk.ExtractRequest, jsonValue *fastjson.Value, keys ...string) error {
 	jsonValue = jsonValue.Get(keys...)
 	if jsonValue == nil {
 		return ErrExtractNotAvailable
@@ -577,7 +577,7 @@ func (e *AuditEventExtractor) extractFromKeys(req sdk.ExtractRequest, jsonValue 
 	return nil
 }
 
-func (e *AuditEventExtractor) jsonValueAsString(v *fastjson.Value) (string, error) {
+func (e *Plugin) jsonValueAsString(v *fastjson.Value) (string, error) {
 	if v != nil {
 		if v.Type() == fastjson.TypeString {
 			return string(v.GetStringBytes()), nil

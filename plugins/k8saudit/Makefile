@@ -42,5 +42,5 @@ test-files:
 		&& mv falco-${FALCOSECURITY_FALCO_REVISION}/test/trace_files/k8s_audit/* ./ \
 		&& rm -fr *.tar.gz *.txt falco-${FALCOSECURITY_FALCO_REVISION}
 
-$(OUTPUT): *.go
-	@$(GODEBUGFLAGS) $(GO) build -buildmode=c-shared -o $(OUTPUT)
+$(OUTPUT):
+	@$(GODEBUGFLAGS) $(GO) build -buildmode=c-shared -o $(OUTPUT) ./plugin

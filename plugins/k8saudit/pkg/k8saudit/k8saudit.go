@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package k8saudit
 
 import (
 	"encoding/json"
@@ -22,23 +22,26 @@ import (
 	"github.com/alecthomas/jsonschema"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins"
-	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/extractor"
-	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/source"
-	"github.com/falcosecurity/plugins/plugins/k8saudit/pkg/k8saudit"
+	"github.com/valyala/fastjson"
 )
 
-type K8SAuditPluginConfig struct {
-	SSLCertificate string `json:"sslCertificate" jsonschema:"description=The SSL Certificate to be used with the HTTPS Webhook endpoint (Default: /etc/falco/falco.pem)"`
-	MaxEventBytes  uint64 `json:"maxEventBytes"  jsonschema:"description=Max size in bytes for an event JSON payload (Default: 1048576)"`
-}
-
-type K8SAuditPlugin struct {
+// Plugin implements extractor.Plugin and extracts K8S Audit fields from
+// K8S Audit events. The event data is expected to be a JSON that in the form
+// that is provided by K8S Audit webhook (see https://kubernetes.io/docs/tasks/debug-application-cluster/audit/#webhook-backend).
+// The ExtractFromEvent method can be used to easily process an ExtractRequest.
+// If the Audit Event data is nested inside another JSON object, you can use
+// a combination of the Decode/DecodeEvent and ExtractFromJSON convenience
+// methods. Plugin relies on the fastjson package for performant manipulation
+// of JSON data.
+type Plugin struct {
 	plugins.BasePlugin
-	config    K8SAuditPluginConfig
-	extractor k8saudit.AuditEventExtractor
+	config      PluginConfig
+	jparser     fastjson.Parser
+	jdata       *fastjson.Value
+	jdataEvtnum uint64
 }
 
-func (k *K8SAuditPlugin) Info() *plugins.Info {
+func (k *Plugin) Info() *plugins.Info {
 	return &plugins.Info{
 		ID:          1,
 		Name:        "k8saudit",
@@ -49,35 +52,22 @@ func (k *K8SAuditPlugin) Info() *plugins.Info {
 	}
 }
 
-func (k *K8SAuditPluginConfig) reset() {
-	k.MaxEventBytes = 1048576
-	k.SSLCertificate = "/etc/falco/falco.pem"
-}
-
-func (k *K8SAuditPlugin) Init(cfg string) error {
-	k.config.reset()
+func (k *Plugin) Init(cfg string) error {
+	k.config.Reset()
 	return json.Unmarshal([]byte(cfg), &k.config)
 }
 
-func (p *K8SAuditPlugin) InitSchema() *sdk.SchemaInfo {
+func (p *Plugin) InitSchema() *sdk.SchemaInfo {
 	reflector := jsonschema.Reflector{
 		// all properties are optional by default
 		RequiredFromJSONSchemaTags: true,
 		// unrecognized properties don't cause a parsing failures
 		AllowAdditionalProperties: true,
 	}
-	if schema, err := reflector.Reflect(&K8SAuditPlugin{}).MarshalJSON(); err == nil {
+	if schema, err := reflector.Reflect(&Plugin{}).MarshalJSON(); err == nil {
 		return &sdk.SchemaInfo{
 			Schema: string(schema),
 		}
 	}
 	return nil
 }
-
-func init() {
-	p := &K8SAuditPlugin{}
-	source.Register(p)
-	extractor.Register(p)
-}
-
-func main() {}
