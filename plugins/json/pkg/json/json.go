@@ -18,7 +18,7 @@ limitations under the License.
 // This plugin is a general json parser. It can be used to extract arbitrary
 // fields from a buffer containing json data.
 ///////////////////////////////////////////////////////////////////////////////
-package main
+package json
 
 import (
 	"bytes"
@@ -30,11 +30,9 @@ import (
 
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins"
-	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/extractor"
 	"github.com/valyala/fastjson"
 )
 
-// Plugin info
 const (
 	PluginName        = "json"
 	PluginDescription = "implements extracting arbitrary fields from inputs formatted as JSON"
@@ -42,19 +40,14 @@ const (
 	PluginVersion     = "0.2.2"
 )
 
-type MyPlugin struct {
+type Plugin struct {
 	plugins.BasePlugin
 	jparser     fastjson.Parser
 	jdata       *fastjson.Value
 	jdataEvtnum uint64 // The event number jdata refers to. Used to know when we can skip the unmarshaling.
 }
 
-func init() {
-	p := &MyPlugin{}
-	extractor.Register(p)
-}
-
-func (m *MyPlugin) Info() *plugins.Info {
+func (m *Plugin) Info() *plugins.Info {
 	return &plugins.Info{
 		Name:        PluginName,
 		Description: PluginDescription,
@@ -63,11 +56,11 @@ func (m *MyPlugin) Info() *plugins.Info {
 	}
 }
 
-func (m *MyPlugin) Init(config string) error {
+func (m *Plugin) Init(config string) error {
 	return nil
 }
 
-func (m *MyPlugin) Fields() []sdk.FieldEntry {
+func (m *Plugin) Fields() []sdk.FieldEntry {
 	return []sdk.FieldEntry{
 		{
 			Type: "string",
@@ -104,7 +97,7 @@ func (m *MyPlugin) Fields() []sdk.FieldEntry {
 	}
 }
 
-func (m *MyPlugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
+func (m *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 	reader := evt.Reader()
 
 	// As a very quick sanity check, only try to extract all if
@@ -199,7 +192,4 @@ func (m *MyPlugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 	}
 
 	return nil
-}
-
-func main() {
 }
