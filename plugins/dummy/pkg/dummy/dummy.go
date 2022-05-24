@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package dummy
 
 import (
 	"encoding/json"
@@ -27,11 +27,9 @@ import (
 	"github.com/alecthomas/jsonschema"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins"
-	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/extractor"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/source"
 )
 
-// Plugin consts
 const (
 	PluginID          uint32 = 3
 	PluginName               = "dummy"
@@ -41,23 +39,21 @@ const (
 	PluginEventSource        = "dummy"
 )
 
-///////////////////////////////////////////////////////////////////////////////
-
-type MyPluginConfig struct {
+type PluginConfig struct {
 	// This reflects potential internal state for the plugin. In
 	// this case, the plugin is configured with a jitter.
 	Jitter uint64 `json:"jitter" jsonschema:"description=A random amount added to the sample of each event (Default: 10)"`
 }
 
-type MyPlugin struct {
+type Plugin struct {
 	plugins.BasePlugin
 	// Will be used to randomize samples
 	rand *rand.Rand
 	// Contains the init configuration values
-	config MyPluginConfig
+	config PluginConfig
 }
 
-type MyInstance struct {
+type PluginInstance struct {
 	source.BaseInstance
 
 	// Copy of the init params from plugin_open()
@@ -74,17 +70,11 @@ type MyInstance struct {
 	sample uint64
 }
 
-func init() {
-	p := &MyPlugin{}
-	source.Register(p)
-	extractor.Register(p)
-}
-
-func (p *MyPluginConfig) setDefault() {
+func (p *PluginConfig) setDefault() {
 	p.Jitter = 10
 }
 
-func (m *MyPlugin) Info() *plugins.Info {
+func (m *Plugin) Info() *plugins.Info {
 	return &plugins.Info{
 		ID:          PluginID,
 		Name:        PluginName,
@@ -95,12 +85,12 @@ func (m *MyPlugin) Info() *plugins.Info {
 	}
 }
 
-func (p *MyPlugin) InitSchema() *sdk.SchemaInfo {
+func (p *Plugin) InitSchema() *sdk.SchemaInfo {
 	reflector := jsonschema.Reflector{
 		RequiredFromJSONSchemaTags: true, // all properties are optional by default
 		AllowAdditionalProperties:  true, // unrecognized properties don't cause a parsing failures
 	}
-	if schema, err := reflector.Reflect(&MyPluginConfig{}).MarshalJSON(); err == nil {
+	if schema, err := reflector.Reflect(&PluginConfig{}).MarshalJSON(); err == nil {
 		return &sdk.SchemaInfo{
 			Schema: string(schema),
 		}
@@ -108,7 +98,7 @@ func (p *MyPlugin) InitSchema() *sdk.SchemaInfo {
 	return nil
 }
 
-func (m *MyPlugin) Init(cfg string) error {
+func (m *Plugin) Init(cfg string) error {
 	// initialize state
 	m.rand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
@@ -123,11 +113,11 @@ func (m *MyPlugin) Init(cfg string) error {
 	return nil
 }
 
-func (m *MyPlugin) Destroy() {
+func (m *Plugin) Destroy() {
 	// nothing to do here
 }
 
-func (m *MyPlugin) Open(prms string) (source.Instance, error) {
+func (m *Plugin) Open(prms string) (source.Instance, error) {
 	// The format of params is a json object with two params:
 	// - "start", which denotes the initial value of sample
 	// - "maxEvents": which denotes the number of events to return before EOF.
@@ -146,7 +136,7 @@ func (m *MyPlugin) Open(prms string) (source.Instance, error) {
 		return nil, fmt.Errorf("params %s did not contain maxEvents property", prms)
 	}
 
-	return &MyInstance{
+	return &PluginInstance{
 		initParams: prms,
 		maxEvents:  obj["maxEvents"],
 		counter:    0,
@@ -154,25 +144,27 @@ func (m *MyPlugin) Open(prms string) (source.Instance, error) {
 	}, nil
 }
 
-func (m *MyInstance) Close() {
+func (m *PluginInstance) Close() {
 	// nothing to do here
 }
 
-func (m *MyInstance) NextBatch(pState sdk.PluginState, evts sdk.EventWriters) (int, error) {
+func (m *PluginInstance) NextBatch(pState sdk.PluginState, evts sdk.EventWriters) (int, error) {
 	// Return EOF if reached maxEvents
 	if m.counter >= m.maxEvents {
 		return 0, sdk.ErrEOF
 	}
 
+	// access the plugin state
+	plugin := pState.(*Plugin)
+
 	var n int
 	var evt sdk.EventWriter
-	myPlugin := pState.(*MyPlugin)
 	for n = 0; m.counter < m.maxEvents && n < evts.Len(); n++ {
 		evt = evts.Get(n)
 		m.counter++
 
 		// Increment sample by 1, also add a jitter of [0:jitter]
-		m.sample += 1 + uint64(myPlugin.rand.Int63n(int64(myPlugin.config.Jitter+1)))
+		m.sample += 1 + uint64(plugin.rand.Int63n(int64(plugin.config.Jitter+1)))
 
 		// The representation of a dummy event is the sample as a string.
 		str := strconv.Itoa(int(m.sample))
@@ -191,7 +183,7 @@ func (m *MyInstance) NextBatch(pState sdk.PluginState, evts sdk.EventWriters) (i
 }
 
 // todo: optimize this to cache by event number
-func (m *MyPlugin) String(evt sdk.EventReader) (string, error) {
+func (m *Plugin) String(evt sdk.EventReader) (string, error) {
 	evtBytes, err := ioutil.ReadAll(evt.Reader())
 	if err != nil {
 		return "", err
@@ -202,7 +194,7 @@ func (m *MyPlugin) String(evt sdk.EventReader) (string, error) {
 	return fmt.Sprintf("{\"sample\": \"%s\"}", evtStr), nil
 }
 
-func (m *MyPlugin) Fields() []sdk.FieldEntry {
+func (m *Plugin) Fields() []sdk.FieldEntry {
 	return []sdk.FieldEntry{
 		{
 			Type: "uint64",
@@ -223,7 +215,7 @@ func (m *MyPlugin) Fields() []sdk.FieldEntry {
 	}
 }
 
-func (m *MyPlugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
+func (m *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 	evtBytes, err := ioutil.ReadAll(evt.Reader())
 	if err != nil {
 		return err
@@ -255,5 +247,3 @@ func (m *MyPlugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 
 	return nil
 }
-
-func main() {}
