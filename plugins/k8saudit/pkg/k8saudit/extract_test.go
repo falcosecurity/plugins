@@ -38,6 +38,11 @@ type testExtractRequest struct {
 	argKey     string
 }
 
+type jsonData struct {
+	fileName string
+	content  string
+}
+
 func (t *testExtractRequest) FieldID() uint64 {
 	return t.fieldID
 }
@@ -93,13 +98,13 @@ func fieldEntryToRequest(id uint64, field *sdk.FieldEntry, req *testExtractReque
 	}
 }
 
-func readTestFiles(b testing.TB) []string {
+func readTestFiles(b testing.TB) []*jsonData {
 	path := "../../test_files/"
 	files, err := ioutil.ReadDir(path)
 	if err != nil {
 		b.Error(err)
 	}
-	jsons := make([]string, 0, len(files))
+	jsons := make([]*jsonData, 0, len(files))
 	for _, f := range files {
 		if strings.HasSuffix(f.Name(), ".json") {
 			file, err := os.Open(path + f.Name())
@@ -109,7 +114,10 @@ func readTestFiles(b testing.TB) []string {
 			scanner := bufio.NewScanner(file)
 			for scanner.Scan() {
 				if len(scanner.Text()) > 0 {
-					jsons = append(jsons, scanner.Text())
+					jsons = append(jsons, &jsonData{
+						fileName: f.Name(),
+						content:  scanner.Text(),
+					})
 				}
 			}
 			if err := scanner.Err(); err != nil {
@@ -134,13 +142,13 @@ func BenchmarkExtractFromJSON(b *testing.B) {
 		for ev, data := range jsons {
 			for f, field := range fields {
 				fieldEntryToRequest(uint64(f), &field, req)
-				json, err := e.DecodeReader(uint64(ev), strings.NewReader(data))
+				json, err := e.DecodeReader(uint64(ev), strings.NewReader(data.content))
 				if err != nil && err != ErrExtractNotAvailable {
-					b.Errorf("decoding field %s: %s", field.Name, err.Error())
+					b.Errorf("file '%s': decoding field %s: %s", data.fileName, field.Name, err.Error())
 				}
 				err = e.ExtractFromJSON(req, json)
 				if err != nil && err != ErrExtractNotAvailable {
-					b.Errorf("extracting field %s: %s", field.Name, err.Error())
+					b.Errorf("file '%s': extracting field %s: %s", data.fileName, field.Name, err.Error())
 				}
 				exCount++
 			}
