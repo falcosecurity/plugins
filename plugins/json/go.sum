@@ -1,4 +1,4 @@
-github.com/falcosecurity/plugin-sdk-go v0.2.1-0.20220505161551-e2cd16cfed46 h1:ftPBtYW1cdBmvC03q2sYCEmKhHITycMCROIYGRy1lVo=
-github.com/falcosecurity/plugin-sdk-go v0.2.1-0.20220505161551-e2cd16cfed46/go.mod h1:9IdFIqRwJIFDfKnwTTM6S4mLITNfdjVl+5r4RY0TmRo=
+github.com/falcosecurity/plugin-sdk-go v0.3.0 h1:UC43W98EC4xT8YuGzjQhOB9lX+RObIiPbQ3ni0mCDLs=
+github.com/falcosecurity/plugin-sdk-go v0.3.0/go.mod h1:9IdFIqRwJIFDfKnwTTM6S4mLITNfdjVl+5r4RY0TmRo=
 github.com/valyala/fastjson v1.6.3 h1:tAKFnnwmeMGPbwJ7IwxcTPCNr3uIzoIj3/Fh90ra4xc=
 github.com/valyala/fastjson v1.6.3/go.mod h1:CLCAqky6SMuOcxStkYQvblddUtoRxhYMGLrsQns1aXY=
