@@ -2,6 +2,55 @@
 
 This page summarizes some best practices and guidelines that can be useful to developers that are getting started with the [plugin system of Falco](https://falco.org/docs/plugins/). The [Developers Guide](https://falco.org/docs/plugins/developers-guide/) is mostly focused on the technical aspects of plugin development. In contrast, here we provide some guidance on more high-level points that may occur during the design and implementation phases.
 
+## Plugin Directory Structure
+
+Currently, Go is the most used language for writing plugins. So, below you can find the recommended layout for Go plugin projects. For other languages, you can adapt the layout accordingly. 
+
+### `/pkg`
+
+Reusable Go packages that other plugins or projects can use. This directory is not mandatory but is highly recommended.
+
+### `/plugin`
+
+This directory contains the plugin entry point. This directory should have only one `.go` file, named as your plugin. This file must define the `main` package (and an empty `main()` function) per CGO requirement. 
+Usually, this file also imports packages from `/pkg` and defines an `init()` function to register the plugin capabilities (that's required if you are using the [plugin-go-sdk](https://github.com/falcosecurity/plugin-sdk-go)).
+
+### `/rules`
+
+This directory is optional. If you want to distribute rules files for your plugin, you can put them in this directory.
+The building system of this repository will automatically build and publish them as a `.tar.gz` archive under [https://download.falco.org/?prefix=plugins/](https://download.falco.org/?prefix=plugins/).
+
+### `/Makefile`
+
+Providing a `Makefile` is mandatory for plugins hosted by this repository. The building system of this repository will use:
+- `make` to build the plugin binary
+- `make clean` to clean the built artifacts
+- `make rules` to build the rules files (this is optional)
+
+Below you can find an example of a typical `Makefile` for a plugin hosted by this repository.
+
+```Makefile
+SHELL=/bin/bash -o pipefail
+GO ?= go
+
+NAME := <YOUR-PLUGIN-NAME-HERE>
+OUTPUT := lib$(NAME).so
+
+ifeq ($(DEBUG), 1)
+    GODEBUGFLAGS= GODEBUG=cgocheck=2
+else
+    GODEBUGFLAGS= GODEBUG=cgocheck=0
+endif
+
+all: $(OUTPUT)
+
+clean:
+	@rm -f *.so *.h
+
+$(OUTPUT):
+	@$(GODEBUGFLAGS) $(GO) build -buildmode=c-shared -o $(OUTPUT) ./plugin
+```
+
 ## Configuration in Source Plugins
 
 One of the main differences between source and extractor plugins is the way they can accept user configurations. Extractor plugins can only be configured during the initialization phase through `plugin_init()`, whereas source plugins also accept and some parameters while opening the event stream with `plugin_open()`. This creates some ambiguity on **which** information should go inside the init configuration, and what should be part of the open parameters instead.
