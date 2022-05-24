@@ -1,0 +1,97 @@
+- rule: Webhook Connected
+  desc: Detect a webhook link
+  condition: github.type=ping
+  output: A github webhook was linked to this Falco instance (ID=%github.webhook.id type=%github.webhook.type owner=%github.owner user=%github.user) 
+  priority: DEBUG
+  source: github
+
+- rule: Webhook Disconnected
+  desc: Detect a webhook unlink
+  condition: github.type=meta and github.action=deleted
+  output: A github webhook was disconnected from Falco instance (ID=%github.webhook.id type=%github.webhook.type org=%github.org user=%github.user) 
+  priority: DEBUG
+  source: github
+
+- rule: Private Repository Becoming Public
+  desc: Detect changing the visibility of a repository to public
+  condition: github.type=repository and github.action=publicized
+  output: A repository went from private to public (repository=%github.repo repo_owner=%github.owner org=%github.org user=%github.user) 
+  priority: CRITICAL
+  source: github
+
+- rule: Public Repository Becoming Private
+  desc: Detect changing the visibility of a repository to private
+  condition: github.type=repository and github.action=privatized
+  output: A repository went from public to private (repository=%github.repo repo_owner=%github.owner org=%github.org user=%github.user) 
+  priority: WARNING
+  source: github
+
+- rule: Create Public Repository
+  desc: Detect the creation of a new public repository
+  condition: github.type=repository and github.action=created and github.repo.public=true
+  output: A new public repository was created (repository=%github.repo repo_owner=%github.owner org=%github.org user=%github.user) 
+  priority: WARNING
+  source: github
+
+- rule: Delete Public Repository
+  desc: Detect the deletion of a public repository
+  condition: github.type=repository and github.action=deleted and github.repo.public=true
+  output: A public repository was deleted (repository=%github.repo repo_owner=%github.owner org=%github.org user=%github.user) 
+  priority: WARNING
+  source: github
+
+- rule: Create Repository
+  desc: Detect the creation of a new repository
+  condition: github.type=repository and github.action=created
+  output: A new repository was created (repository=%github.repo repo_owner=%github.owner org=%github.org user=%github.user) 
+  priority: INFO
+  source: github
+
+- rule: Delete Repository
+  desc: Detect the deletion of a repository
+  condition: github.type=repository and github.action=deleted
+  output: A repository was deleted (repository=%github.repo repo_owner=%github.owner org=%github.org user=%github.user) 
+  priority: INFO
+  source: github
+
+- rule: Create Deploy Key
+  desc: Detect the creation of a new deploy key for a repository
+  condition: github.type=deploy_key and github.action=created
+  output: A new deploy key was created (repository=%github.repo repo_owner=%github.owner org=%github.org user=%github.user) 
+  priority: INFO
+  source: github
+
+- rule: Delete Deploy Key
+  desc: Detect the deletion a repository's deploy key
+  condition: github.type=deploy_key and github.action=deleted
+  output: A deploy key was deleted (repository=%github.repo repo_owner=%github.owner org=%github.org user=%github.user) 
+  priority: INFO
+  source: github
+
+- rule: Add Collaborator to Repository
+  desc: Detect the addition of a collaborator to a repository
+  condition: github.type=member and github.action=added
+  output: A collaborator was added to a repository (repository=%github.repo repo_owner=%github.owner org=%github.org user=%github.user collaborator=%github.collaborator.name role=%github.collaborator.role) 
+  priority: INFO
+  source: github
+
+- rule: Remove Collaborator from Repository
+  desc: Detect the removal of a collaborator from a repository
+  condition: github.type=member and github.action=removed
+  output: A collaborator was removed from a repository (repository=%github.repo repo_owner=%github.owner org=%github.org user=%github.user collaborator=%github.collaborator.name) 
+  priority: INFO
+  source: github
+
+- rule: Secret pushed into a public repository
+  desc: A secret (AWS keys, github token...) was committed into a public repository
+  condition: github.type=push and github.diff.has_secrets = true and github.repo.public=true
+  output: One or more secrets were pushed into a private repository (repository=%github.repo repo_owner=%github.owner org=%github.org user=%github.user secret_types=%github.diff.committed_secrets.desc file=%github.diff.committed_secrets.files line=%github.diff.committed_secrets.lines url=%github.diff.committed_secrets.links) 
+  priority: CRITICAL
+  source: github
+
+- rule: Secret pushed into a private repository
+  desc: A secret (AWS keys, github token...) was committed into a private repository
+  condition: github.type=push and github.diff.has_secrets = true and github.repo.public=false
+  output: One or more secrets were pushed into a private repository (repository=%github.repo repo_owner=%github.owner org=%github.org user=%github.user secret_types=%github.diff.committed_secrets.desc file=%github.diff.committed_secrets.files line=%github.diff.committed_secrets.lines url=%github.diff.committed_secrets.links) 
+  priority: CRITICAL
+  source: github
