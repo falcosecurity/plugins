@@ -22,8 +22,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
-	"regexp"
 	"strings"
 	"time"
 
@@ -35,7 +35,6 @@ import (
 var defaultEventTimeout = 30 * time.Millisecond
 
 const (
-	webServerParamRgxStr         = "^(localhost)?(:[0-9]+)(\\/[.\\-\\w]+)$"
 	webServerShutdownTimeoutSecs = 5
 	webServerEventChanBufSize    = 50
 )
@@ -60,25 +59,18 @@ func (k *Plugin) Open(params string) (source.Instance, error) {
 	}
 
 	ssl := false
-	webServerParam := ""
-	webServerParamRgx, err := regexp.Compile(webServerParamRgxStr)
-	if err != nil {
-		return nil, err
-	}
-	if strings.HasPrefix(params, "http://") {
-		webServerParam = params[len("http://"):]
-	} else if strings.HasPrefix(params, "https://") {
-		webServerParam = params[len("https://"):]
+	if strings.HasPrefix(params, "https://") {
 		ssl = true
-	} else {
+	} else if !strings.HasPrefix(params, "http://") {
 		// by default, fallback to opening a filepath
 		return k.OpenFilePath(params)
 	}
-	matches := webServerParamRgx.FindStringSubmatch(webServerParam)
-	if matches == nil || len(matches) != 4 {
-		return nil, fmt.Errorf("webserver parameter does not match the regex '%s': %s", webServerParamRgxStr, webServerParam)
+
+	u, err := url.Parse(params)
+	if err != nil {
+		return nil, err
 	}
-	return k.OpenWebServer(matches[2], matches[3], ssl)
+	return k.OpenWebServer(u.Host, u.Path, ssl)
 }
 
 // OpenFilePath opens parameters with "file://" prefix, which represent one
@@ -113,14 +105,14 @@ func (k *Plugin) OpenFilePath(filePath string) (source.Instance, error) {
 
 // OpenWebServer opens parameters with "http://" and "https://" prefixes.
 // Starts a webserver and listens for K8S Audit Event webhooks.
-func (k *Plugin) OpenWebServer(port, endpoint string, ssl bool) (source.Instance, error) {
+func (k *Plugin) OpenWebServer(address, endpoint string, ssl bool) (source.Instance, error) {
 	ctx, cancelCtx := context.WithCancel(context.Background())
 	eventChan := make(chan []byte, webServerEventChanBufSize)
 	errorChan := make(chan error)
 
 	// configure server
 	m := http.NewServeMux()
-	s := &http.Server{Addr: port, Handler: m}
+	s := &http.Server{Addr: address, Handler: m}
 	m.HandleFunc(endpoint, func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != "POST" {
 			http.Error(w, fmt.Sprintf("%s method not allowed", req.Method), http.StatusMethodNotAllowed)
