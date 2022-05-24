@@ -53,7 +53,7 @@ $(OUTPUT):
 
 ## Configuration in Source Plugins
 
-One of the main differences between source and extractor plugins is the way they can accept user configurations. Extractor plugins can only be configured during the initialization phase through `plugin_init()`, whereas source plugins also accept and some parameters while opening the event stream with `plugin_open()`. This creates some ambiguity on **which** information should go inside the init configuration, and what should be part of the open parameters instead.
+One peculiarity of plugins with event source capability is how they can accept user configurations. Other plugins can only be configured during the initialization phase through `plugin_init()`, whereas source plugins also take some parameters while opening the event stream with `plugin_open()`. This creates some ambiguity on **which** information should go inside the init configuration and what should be part of the open parameters instead.
 
 There's no silver bullet for this problem, and the solution strictly depends on the use cases of your plugin. However, there are some principles you can follow.
 
