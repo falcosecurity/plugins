@@ -32,7 +32,7 @@ import (
 	"github.com/valyala/fastjson"
 )
 
-var defaultEventTimeout = 10 * time.Millisecond
+var defaultEventTimeout = 30 * time.Millisecond
 
 const (
 	webServerParamRgxStr         = "^(localhost)?(:[0-9]+)(\\/[.\\-\\w]+)$"

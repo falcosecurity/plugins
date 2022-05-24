@@ -18,11 +18,11 @@ package k8saudit
 
 type PluginConfig struct {
 	SSLCertificate string `json:"sslCertificate" jsonschema:"description=The SSL Certificate to be used with the HTTPS Webhook endpoint (Default: /etc/falco/falco.pem)"`
-	MaxEventBytes  uint64 `json:"maxEventBytes"  jsonschema:"description=Max size in bytes for an event JSON payload (Default: 1048576)"`
+	MaxEventBytes  uint64 `json:"maxEventBytes"  jsonschema:"description=Max size in bytes for an event JSON payload (Default: 10485760)"`
 }
 
 // Resets sets the configuration to its default values
 func (k *PluginConfig) Reset() {
-	k.MaxEventBytes = 1048576
+	k.MaxEventBytes = 10485760 // 10 MBs
 	k.SSLCertificate = "/etc/falco/falco.pem"
 }
