@@ -57,6 +57,7 @@ These comments and the text between them should not be edited by hand -->
 | [docker](https://github.com/Issif/docker-plugin) | **Event Sourcing** <br/>ID: 5 <br/>`docker` <br/>**Field Extraction** <br/> `docker` | Docker Events  <br/><br/> Authors: [Thomas Labarussias](https://github.org/Issif) <br/> License: Apache-2.0 |
 | [seccompagent](https://github.com/kinvolk/seccompagent) | **Event Sourcing** <br/>ID: 6 <br/>`seccompagent` <br/>**Field Extraction** <br/> `seccompagent` | Seccomp Agent Events  <br/><br/> Authors: [Alban Crequy](https://github.com/kinvolk/seccompagent) <br/> License: Apache-2.0 |
 | [okta](https://github.com/falcosecurity/plugins/tree/master/plugins/okta) | **Event Sourcing** <br/>ID: 7 <br/>`okta` <br/>**Field Extraction** <br/> `okta` | Okta Log Events  <br/><br/> Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
+| [github](https://github.com/falcosecurity/plugins/tree/master/plugins/github) | **Event Sourcing** <br/>ID: 8 <br/>`github` <br/>**Field Extraction** <br/> `github` | Github Webhook Events  <br/><br/> Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
 | test | **Event Sourcing** <br/>ID: 999 <br/>`test` | This ID is reserved for source plugin development. Any plugin author can use this ID, but authors can expect events from other developers with this ID. After development is complete, the author should request an actual ID  <br/><br/> Authors: N/A <br/> License: N/A |
 
 <!-- REGISTRY:TABLE -->
