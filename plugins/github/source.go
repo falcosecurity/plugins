@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"math"
@@ -364,12 +363,12 @@ func (o *openContext) NextBatch(pState sdk.PluginState, evts sdk.EventWriters) (
 }
 
 // Provide a string representation for an event.
-func (p *pluginContext) String(in io.ReadSeeker) (string, error) {
+func (p *pluginContext) String(evt sdk.EventReader) (string, error) {
 	log.Printf("[%s] String\n", PluginName)
 	var line string
 	var err error
 
-	data, err := ioutil.ReadAll(in)
+	data, err := ioutil.ReadAll(evt.Reader())
 	if err != nil {
 		return "", err
 	}
