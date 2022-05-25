@@ -24,7 +24,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
@@ -54,26 +53,24 @@ type eventSource struct {
 }
 
 func (k *Plugin) Open(params string) (source.Instance, error) {
-	if strings.HasPrefix(params, "file://") {
-		return k.OpenFilePath(params[len("file://"):])
-	}
-
-	ssl := false
-	if strings.HasPrefix(params, "https://") {
-		ssl = true
-	} else if !strings.HasPrefix(params, "http://") {
-		// by default, fallback to opening a filepath
-		return k.OpenFilePath(params)
-	}
-
 	u, err := url.Parse(params)
 	if err != nil {
 		return nil, err
 	}
-	return k.OpenWebServer(u.Host, u.Path, ssl)
+
+	switch u.Scheme {
+	case "http":
+		return k.OpenWebServer(u.Host, u.Path, false)
+	case "https":
+		return k.OpenWebServer(u.Host, u.Path, true)
+	case "": // // by default, fallback to opening a filepath
+		return k.OpenFilePath(params)
+	}
+
+	return nil, fmt.Errorf(`scheme "%s" is not supported`, u.Scheme)
 }
 
-// OpenFilePath opens parameters with "file://" prefix, which represent one
+// OpenFilePath opens parameters with no prefix, which represent one
 // or more JSON objects encoded with JSONLine notation in a file on the
 // local filesystem. Each JSON object produces an event in the returned
 // event source.

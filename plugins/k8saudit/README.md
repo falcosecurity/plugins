@@ -113,7 +113,7 @@ load_plugins: [k8saudit, json]
 **Open Parameters**:
 - `http://<host>:<port>/<endpoint>`: Opens an event stream by listening on a HTTP webserver
 - `https://<host>:<port>/<endpoint>`: Opens an event stream by listening on a HTTPS webserver
-- `file://<path>`: Opens an event stream by reading the events from a `<path>` on the local filesystem
+- `no scheme`: Opens an event stream by reading the events from a file on the local filesystem. The params string is interpreted as a filepath
 
 
 ### Rules
