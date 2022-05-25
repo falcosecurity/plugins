@@ -47,7 +47,7 @@ var secretsChecks = []secretCheckInfo{
 	{"paypal_braintree_access_token", "access_token\\$production\\$[0-9a-z]{16}\\$[0-9a-f]{32}", "key", "Paypal"},
 	{"picatic_api_key", "sk_live_[0-9a-z]{32}", "key", "Picatic"},
 	{"sendgrid_api_key", "SG\\.[\\w_]{16,32}\\.[\\w_]{16,64}", "key", "SendGrid"},
-	{"slack_webhook", "https://hooks.slack.com/services/T[a-zA-Z0-9_]{8}/B[a-zA-Z0-9_]{8,12}/[a-zA-Z0-9_]{24}", "key", "slack"},
+	{"slack_webhook", "^https://hooks\\.slack\\.com/services/T[a-zA-Z0-9_]{8}/B[a-zA-Z0-9_]{8,12}/[a-zA-Z0-9_]{24}$", "key", "slack"},
 	{"stripe_api_key", "(?i)stripe(.{0,20})?[sr]k_live_[0-9a-zA-Z]{24}", "key", "Stripe"},
 	{"square_access_token", "sq0atp-[0-9A-Za-z\\-_]{22}", "key", "square"},
 	{"square_oauth_secret", "sq0csp-[0-9A-Za-z\\-_]{43}", "key", "square"},

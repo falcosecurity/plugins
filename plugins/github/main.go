@@ -22,14 +22,13 @@ import (
 
 // Plugin info required by the framework.
 const (
-	PluginRequiredApiVersion        = "0.2.0"
-	PluginID                 uint32 = 666
-	PluginName                      = "github"
-	PluginDescription               = "reads github webhook events, by listening on a socket or by reading events from disk"
-	PluginContact                   = "github.com/ldegio"
-	PluginVersion                   = "0.0.1"
-	PluginEventSource               = "github"
-	ExtractEventSource              = "github"
+	PluginID           uint32 = 8
+	PluginName                = "github"
+	PluginDescription         = "reads github webhook events, by listening on a socket or by reading events from disk"
+	PluginContact             = "github.com/falcosecurity/plugins"
+	PluginVersion             = "0.1.0"
+	PluginEventSource         = "github"
+	ExtractEventSource        = "github"
 )
 
 const (
