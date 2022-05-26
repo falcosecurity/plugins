@@ -19,7 +19,6 @@ package github
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
 	"github.com/valyala/fastjson"
@@ -27,8 +26,6 @@ import (
 
 // Return the fields supported for extraction.
 func (p *Plugin) Fields() []sdk.FieldEntry {
-	log.Printf("[%s] Fields\n", PluginName)
-
 	return []sdk.FieldEntry{
 		{Type: "string", Name: "github.type", Display: "Message Type", Desc: "Message type, e.g. 'star' or 'repository'."},
 		{Type: "string", Name: "github.action", Display: "Action Type", Desc: "The github event action. This field typically qualifies the github.type field. For example, a message of type 'star' can have action 'created' or 'deleted'."},
@@ -176,8 +173,6 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 
 // Extract a field value from an event.
 func (p *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
-	log.Printf("[%s] Extract\n", PluginName)
-
 	// Decode the json, but only if we haven't done it yet for this event
 	if evt.EventNum() != p.jdataEvtnum {
 		// Read the event data
