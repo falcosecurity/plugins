@@ -49,7 +49,7 @@ func usage() string {
 	return "reponame[,reponame,...] or l to list the repos"
 }
 
-func listRepos(oCtx *openContext) ([]RepoInfo, error) {
+func listRepos(oCtx *PluginInstance) ([]RepoInfo, error) {
 	var res []RepoInfo
 	perPage := 100
 	Page := 0
@@ -145,7 +145,7 @@ func GetGithubToken(secretsDir string) (string, error) {
 	return string(res), err
 }
 
-func (p *pluginContext) InitOpenContext(oCtx *openContext) error {
+func (p *Plugin) InitInstance(oCtx *PluginInstance) error {
 	oCtx.whSrv = nil
 
 	// Exract the user parameters
@@ -167,9 +167,9 @@ func (p *pluginContext) InitOpenContext(oCtx *openContext) error {
 	return nil
 }
 
-func (p *pluginContext) OpenParams() ([]sdk.OpenParam, error) {
-	oCtx := &openContext{}
-	err := p.InitOpenContext(oCtx)
+func (p *Plugin) OpenParams() ([]sdk.OpenParam, error) {
+	oCtx := &PluginInstance{}
+	err := p.InitInstance(oCtx)
 	if err != nil {
 		return nil, err
 	}
@@ -202,12 +202,12 @@ func (p *pluginContext) OpenParams() ([]sdk.OpenParam, error) {
 }
 
 // Open an event stream and return an open plugin instance.
-func (p *pluginContext) Open(params string) (source.Instance, error) {
+func (p *Plugin) Open(params string) (source.Instance, error) {
 	log.Printf("[%s] Open, params=%s\n", PluginName, params)
 
 	// Allocate the context struct for this open instance
-	oCtx := &openContext{}
-	err := p.InitOpenContext(oCtx)
+	oCtx := &PluginInstance{}
+	err := p.InitInstance(oCtx)
 	if err != nil {
 		return nil, err
 	}
@@ -318,7 +318,7 @@ func (p *pluginContext) Open(params string) (source.Instance, error) {
 }
 
 // Closing the event stream and deinitialize the open plugin instance.
-func (o *openContext) Close() {
+func (o *PluginInstance) Close() {
 	log.Printf("[%s] Close\n", PluginName)
 
 	// Shut down the webhook webserver
@@ -337,11 +337,11 @@ func (o *openContext) Close() {
 }
 
 // Produce and return a new batch of events.
-func (o *openContext) NextBatch(pState sdk.PluginState, evts sdk.EventWriters) (int, error) {
+func (o *PluginInstance) NextBatch(pState sdk.PluginState, evts sdk.EventWriters) (int, error) {
 	log.Printf("[%s] NextBatch\n", PluginName)
 
 	// Casting to our plugin type
-	pCtx := pState.(*pluginContext)
+	pCtx := pState.(*Plugin)
 
 	// Batching is not supported for now, so we only write the first entry of the batch
 	evt := evts.Get(0)
@@ -379,7 +379,7 @@ func (o *openContext) NextBatch(pState sdk.PluginState, evts sdk.EventWriters) (
 }
 
 // Provide a string representation for an event.
-func (p *pluginContext) String(evt sdk.EventReader) (string, error) {
+func (p *Plugin) String(evt sdk.EventReader) (string, error) {
 	log.Printf("[%s] String\n", PluginName)
 	var line string
 	var err error

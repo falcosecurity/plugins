@@ -34,40 +34,15 @@ import (
 	"golang.org/x/oauth2"
 )
 
-// Plugin info required by the framework.
 const (
 	PluginID           uint32 = 8
 	PluginName                = "github"
-	PluginDescription         = "reads github webhook events, by listening on a socket or by reading events from disk"
+	PluginDescription         = "Reads github webhook events, by listening on a socket or by reading events from disk"
 	PluginContact             = "github.com/falcosecurity/plugins"
 	PluginVersion             = "0.1.0"
 	PluginEventSource         = "github"
 	ExtractEventSource        = "github"
 )
-
-const (
-	// If set to true, the plugin logs debug information.
-	verbose bool = false
-
-	// If set to true, by default the plugin will use async plugin extraction.
-	defaultUseAsync bool = false
-)
-
-// Struct for plugin init config
-type pluginInitConfig struct {
-	Token              string `json:"token" jsonschema:"description=The github personal access token to use. You can create a token at this page: https://github.com/settings/tokens. The token needs full repo scope."`
-	WebsocketServerURL string `json:"websocketServerURL" jsonschema:"description=The URL of the server where the plugin will run, i.e. the plublic accessible address of this machine."`
-	SecretsDir         string `json:"secretsDir" jsonschema:"The directory where the secrets required by the plugin are stored. Unless the github token is provided by environment variable, it must be stored in a file named github.token in this directory. In addition, when the webhook server uses HTTPs, server.key and server.crt must be in this directory too. (Default: ~/.ghplugin)"`
-	UseHTTPs           bool   `json:"useHTTPs" jsonschema:"if this parameter is set to true, then the webhook webserver listening at WebsocketServerURL will use HTTPs. In that case, server.key and server.crt must be present in the SecretsDir directory, or the plugin will fail to load. If the parameter is set to false, the webhook webserver will be plain HTTP. Use HTTP only for testing or when the plugin is behind a proxy that handles encryption."`
-	UseAsync           bool   `json:"useAsync" jsonschema:"description=If true then async extraction optimization is enabled. (Default: false)"`
-}
-
-func (p *pluginInitConfig) setDefault() {
-	homeDir, _ := os.UserHomeDir()
-	p.SecretsDir = homeDir + "/.ghplugin"
-	p.UseHTTPs = true
-	p.UseAsync = false
-}
 
 type diffMatchInfo struct {
 	Line     uint64 `json:"line"`
@@ -94,18 +69,18 @@ type githubHookInfo struct {
 	id    int64
 }
 
-// This represent the plugin itself.
-type pluginContext struct {
+// Plugin represent the GithHub plugin
+type Plugin struct {
 	plugins.BasePlugin
 	jparser     fastjson.Parser
 	jdata       *fastjson.Value
 	jdataEvtnum uint64 // The event number jdata refers to. Used to know when we can skip the unmarshaling.
-	config      pluginInitConfig
+	config      PluginConfig
 }
 
-// This represents an opened instance of the plugin,
+// PluginInstance represents an opened instance of the plugin,
 // which is returned by Open() and deinitialized during Close().
-type openContext struct {
+type PluginInstance struct {
 	source.BaseInstance
 	whURL          string
 	whSrv          *http.Server
@@ -117,7 +92,7 @@ type openContext struct {
 }
 
 // Return the plugin info to the framework.
-func (p *pluginContext) Info() *plugins.Info {
+func (p *Plugin) Info() *plugins.Info {
 	log.Printf("[%s] Info\n", PluginName)
 	return &plugins.Info{
 		ID:                  PluginID,
@@ -130,13 +105,13 @@ func (p *pluginContext) Info() *plugins.Info {
 	}
 }
 
-func (p *pluginContext) InitSchema() *sdk.SchemaInfo {
+func (p *Plugin) InitSchema() *sdk.SchemaInfo {
 	reflector := jsonschema.Reflector{
 		RequiredFromJSONSchemaTags: true, // all properties are optional by default
 		AllowAdditionalProperties:  true, // unrecognized properties don't cause a parsing failures
 	}
 
-	if schema, err := reflector.Reflect(&pluginInitConfig{}).MarshalJSON(); err == nil {
+	if schema, err := reflector.Reflect(&PluginConfig{}).MarshalJSON(); err == nil {
 		return &sdk.SchemaInfo{
 			Schema: string(schema),
 		}
@@ -146,7 +121,7 @@ func (p *pluginContext) InitSchema() *sdk.SchemaInfo {
 }
 
 // Initialize the plugin state.
-func (p *pluginContext) Init(cfg string) error {
+func (p *Plugin) Init(cfg string) error {
 	log.Printf("[%s] Init, params=%s\n", PluginName, cfg)
 
 	// initialize state
@@ -155,7 +130,7 @@ func (p *pluginContext) Init(cfg string) error {
 	// Set config default values and read the passed one, if available.
 	// Since we provide a schema through InitSchema(), the framework
 	// guarantees that the config is always well-formed json.
-	p.config.setDefault()
+	p.config.Reset()
 	json.Unmarshal([]byte(cfg), &p.config)
 
 	// If there's a ~ at the beginning of the secrets directory, try to resolve it to make life easier for the user
