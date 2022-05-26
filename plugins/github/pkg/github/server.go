@@ -91,7 +91,7 @@ func scanFile(jdata *fastjson.Value, matches *[]diffMatchInfo) error {
 	return nil
 }
 
-func scanDiff(oCtx *openContext, repo string, refs string, diffFiles *[]diffFileInfo) error {
+func scanDiff(oCtx *PluginInstance, repo string, refs string, diffFiles *[]diffFileInfo) error {
 	// Issue the compare request
 	resp, err := oCtx.ghOauth.tc.Get("https://api.github.com/repos/" + repo + "/compare/" + refs)
 	if err != nil {
@@ -148,7 +148,7 @@ func scanDiff(oCtx *openContext, repo string, refs string, diffFiles *[]diffFile
 	return nil
 }
 
-func handleHook(w http.ResponseWriter, r *http.Request, oCtx *openContext) {
+func handleHook(w http.ResponseWriter, r *http.Request, oCtx *PluginInstance) {
 	payload, err := github.ValidatePayload(r, []byte(oCtx.whSecret))
 	if err != nil {
 		// oCtx.whSrvChan <- []byte("E " + err.Error())
@@ -230,7 +230,7 @@ func fileExists(fname string) bool {
 	return true
 }
 
-func notifyError(oCtx *openContext, err error) {
+func notifyError(oCtx *PluginInstance, err error) {
 	if oCtx.whSrv != nil {
 		oCtx.whSrv.Shutdown(context.Background())
 	}
@@ -239,7 +239,7 @@ func notifyError(oCtx *openContext, err error) {
 	return
 }
 
-func server(p *pluginContext, oCtx *openContext) {
+func server(p *Plugin, oCtx *PluginInstance) {
 	secretsDir := p.config.SecretsDir
 
 	crtName := secretsDir + "/server.crt"

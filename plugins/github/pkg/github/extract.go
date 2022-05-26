@@ -26,7 +26,7 @@ import (
 )
 
 // Return the fields supported for extraction.
-func (p *pluginContext) Fields() []sdk.FieldEntry {
+func (p *Plugin) Fields() []sdk.FieldEntry {
 	log.Printf("[%s] Fields\n", PluginName)
 
 	return []sdk.FieldEntry{
@@ -175,7 +175,7 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 }
 
 // Extract a field value from an event.
-func (p *pluginContext) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
+func (p *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 	log.Printf("[%s] Extract\n", PluginName)
 
 	// Decode the json, but only if we haven't done it yet for this event

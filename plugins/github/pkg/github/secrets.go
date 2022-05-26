@@ -95,7 +95,7 @@ func findSecret(text string) *secretCheckInfo {
 	return nil
 }
 
-func compileRegexes(oCtx *openContext) error {
+func compileRegexes(oCtx *PluginInstance) error {
 	for _, mi := range secretsChecks {
 		re, err := regexp.Compile(mi.regex)
 		if err != nil {
