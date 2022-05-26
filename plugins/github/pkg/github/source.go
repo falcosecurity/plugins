@@ -120,7 +120,7 @@ func GetGithubToken(secretsDir string) (string, error) {
 
 		fBody, err := ioutil.ReadFile(tfName)
 		if err != nil {
-			err = fmt.Errorf("gitHub token missing. Please provide a token either in %s or in the %s environment variable", tfName, envName)
+			err = fmt.Errorf("GitHub token missing. Please provide a token either in %s or in the %s environment variable", tfName, envName)
 			return "", err
 		}
 

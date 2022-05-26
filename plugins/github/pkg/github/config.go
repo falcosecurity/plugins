@@ -16,7 +16,10 @@ limitations under the License.
 
 package github
 
-import "os"
+import (
+	"os"
+	"path/filepath"
+)
 
 // PluginConfig represents a configuration of the GitHub plugin
 type PluginConfig struct {
@@ -30,7 +33,7 @@ type PluginConfig struct {
 // Reset sets the configuration to its default values
 func (p *PluginConfig) Reset() {
 	homeDir, _ := os.UserHomeDir()
-	p.SecretsDir = homeDir + "/.ghplugin"
+	p.SecretsDir = filepath.Join(homeDir, ".ghplugin")
 	p.UseHTTPs = true
 	p.UseAsync = false
 }
