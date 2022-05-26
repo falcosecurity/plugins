@@ -19,7 +19,6 @@ package github
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"math"
 	"net/http"
 	"os"
@@ -93,7 +92,6 @@ type PluginInstance struct {
 
 // Return the plugin info to the framework.
 func (p *Plugin) Info() *plugins.Info {
-	log.Printf("[%s] Info\n", PluginName)
 	return &plugins.Info{
 		ID:                  PluginID,
 		Name:                PluginName,
@@ -122,8 +120,6 @@ func (p *Plugin) InitSchema() *sdk.SchemaInfo {
 
 // Initialize the plugin state.
 func (p *Plugin) Init(cfg string) error {
-	log.Printf("[%s] Init, params=%s\n", PluginName, cfg)
-
 	// initialize state
 	p.jdataEvtnum = math.MaxUint64
 

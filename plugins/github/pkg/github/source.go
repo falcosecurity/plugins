@@ -21,7 +21,6 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"math"
 	"os"
 	"strconv"
@@ -203,8 +202,6 @@ func (p *Plugin) OpenParams() ([]sdk.OpenParam, error) {
 
 // Open an event stream and return an open plugin instance.
 func (p *Plugin) Open(params string) (source.Instance, error) {
-	log.Printf("[%s] Open, params=%s\n", PluginName, params)
-
 	// Allocate the context struct for this open instance
 	oCtx := &PluginInstance{}
 	err := p.InitInstance(oCtx)
@@ -319,8 +316,6 @@ func (p *Plugin) Open(params string) (source.Instance, error) {
 
 // Closing the event stream and deinitialize the open plugin instance.
 func (o *PluginInstance) Close() {
-	log.Printf("[%s] Close\n", PluginName)
-
 	// Shut down the webhook webserver
 	if o.whSrv != nil {
 		err := o.whSrv.Shutdown(context.Background())
@@ -338,8 +333,6 @@ func (o *PluginInstance) Close() {
 
 // Produce and return a new batch of events.
 func (o *PluginInstance) NextBatch(pState sdk.PluginState, evts sdk.EventWriters) (int, error) {
-	log.Printf("[%s] NextBatch\n", PluginName)
-
 	// Casting to our plugin type
 	pCtx := pState.(*Plugin)
 
@@ -380,7 +373,6 @@ func (o *PluginInstance) NextBatch(pState sdk.PluginState, evts sdk.EventWriters
 
 // Provide a string representation for an event.
 func (p *Plugin) String(evt sdk.EventReader) (string, error) {
-	log.Printf("[%s] String\n", PluginName)
 	var line string
 	var err error
 
