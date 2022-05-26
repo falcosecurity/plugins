@@ -1,9 +1,8 @@
-package main
+package github
 
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
 	"log"
 	"math"
 	"net/http"
@@ -12,7 +11,6 @@ import (
 	"github.com/alecthomas/jsonschema"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins"
-	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/extractor"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/source"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/symbols/extract"
 	"github.com/google/go-github/github"
@@ -102,17 +100,6 @@ type openContext struct {
 	ghClient       *github.Client
 }
 
-// Register the plugin to the SDK.
-func init() {
-	if !verbose {
-		log.SetOutput(ioutil.Discard)
-	}
-
-	p := &pluginContext{}
-	source.Register(p)
-	extractor.Register(p)
-}
-
 // Return the plugin info to the framework.
 func (p *pluginContext) Info() *plugins.Info {
 	log.Printf("[%s] Info\n", PluginName)
@@ -167,5 +154,3 @@ func (p *pluginContext) Init(cfg string) error {
 	extract.SetAsync(p.config.UseAsync)
 	return nil
 }
-
-func main() {}
