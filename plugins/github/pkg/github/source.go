@@ -140,7 +140,7 @@ func GetGithubToken(secretsDir string) (string, error) {
 	return string(res), err
 }
 
-func (p *Plugin) InitInstance(oCtx *PluginInstance) error {
+func (p *Plugin) initInstance(oCtx *PluginInstance) error {
 	oCtx.whSrv = nil
 
 	// Exract the user parameters
@@ -164,7 +164,7 @@ func (p *Plugin) InitInstance(oCtx *PluginInstance) error {
 
 func (p *Plugin) OpenParams() ([]sdk.OpenParam, error) {
 	oCtx := &PluginInstance{}
-	err := p.InitInstance(oCtx)
+	err := p.initInstance(oCtx)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +200,7 @@ func (p *Plugin) OpenParams() ([]sdk.OpenParam, error) {
 func (p *Plugin) Open(params string) (source.Instance, error) {
 	// Allocate the context struct for this open instance
 	oCtx := &PluginInstance{}
-	err := p.InitInstance(oCtx)
+	err := p.initInstance(oCtx)
 	if err != nil {
 		return nil, err
 	}
