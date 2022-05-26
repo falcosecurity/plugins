@@ -236,7 +236,6 @@ func notifyError(oCtx *PluginInstance, err error) {
 	}
 	oCtx.whSrv = nil
 	oCtx.whSrvChan <- []byte("E " + err.Error())
-	return
 }
 
 func server(p *Plugin, oCtx *PluginInstance) {
@@ -251,7 +250,7 @@ func server(p *Plugin, oCtx *PluginInstance) {
 
 	if isHttps {
 		if !(fileExists(crtName) && fileExists(keyName)) {
-			err := fmt.Errorf("[%s] webhook webserver is configured to use HTTPs, but either %s or %s can't be found. Either provide the secrets, or set the UseHTTPs init parameter to false.\n", PluginName, keyName, crtName)
+			err := fmt.Errorf("[%s] webhook webserver is configured to use HTTPs, but either %s or %s can't be found. Either provide the secrets, or set the UseHTTPs init parameter to false", PluginName, keyName, crtName)
 			notifyError(oCtx, err)
 		}
 	}

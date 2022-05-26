@@ -44,10 +44,6 @@ type RepoInfo struct {
 	archived      bool
 }
 
-func usage() string {
-	return "reponame[,reponame,...] or l to list the repos"
-}
-
 func listRepos(oCtx *PluginInstance) ([]RepoInfo, error) {
 	var res []RepoInfo
 	perPage := 100
@@ -123,7 +119,7 @@ func GetGithubToken(secretsDir string) (string, error) {
 
 		fBody, err := ioutil.ReadFile(tfName)
 		if err != nil {
-			err = fmt.Errorf("GitHub token missing. Please provide a token either in %s or in the %s environment variable\n", tfName, envName)
+			err = fmt.Errorf("gitHub token missing. Please provide a token either in %s or in the %s environment variable", tfName, envName)
 			return "", err
 		}
 
@@ -136,7 +132,7 @@ func GetGithubToken(secretsDir string) (string, error) {
 		}
 
 		if res == "" {
-			err = fmt.Errorf("%s doesn't contain any valid github token\n", tfName)
+			err = fmt.Errorf("%s doesn't contain any valid github token", tfName)
 			return "", err
 		}
 	}
