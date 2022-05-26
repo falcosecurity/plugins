@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"math"
 	"os"
 	"strconv"
@@ -251,7 +252,7 @@ func (p *Plugin) Open(params string) (source.Instance, error) {
 	oCtx.whURL = p.config.WebsocketServerURL
 
 	for _, repoName := range selected_repos {
-		fmt.Printf("Installing webhook in github repo %s\n", repoName)
+		log.Printf("Installing webhook in github repo %s\n", repoName)
 		rnComps := strings.Split(repoName, "/")
 		if len(rnComps) != 2 {
 			return nil, fmt.Errorf("[%s] invalid repository name %s. Expected format: owner/name, e.g. falcosecurity/falco", PluginName, repoName)
@@ -316,13 +317,13 @@ func (o *PluginInstance) Close() {
 	if o.whSrv != nil {
 		err := o.whSrv.Shutdown(context.Background())
 		if err != nil {
-			fmt.Printf("github webhook shutdown failed: %s", err)
+			log.Printf("github webhook shutdown failed: %s", err)
 		}
 	}
 
 	// Remove all the webhhoks that we installed in open()
 	for _, hook := range o.installedHooks {
-		fmt.Printf("deleting webhook from %s/%s\n", hook.owner, hook.repo)
+		log.Printf("deleting webhook from %s/%s\n", hook.owner, hook.repo)
 		o.ghClient.Repositories.DeleteHook(o.ghOauth.ctx, hook.owner, hook.repo, hook.id)
 	}
 }
