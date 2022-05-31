@@ -218,7 +218,7 @@ func (k *Plugin) openEventSource(ctx context.Context, eventChan <-chan []byte, e
 	}()
 
 	// create custom-sized evt batch
-	evts, err := sdk.NewEventWriters(int64(sdk.DefaultBatchSize), int64(k.Config.WebhookMaxEventSize))
+	evts, err := sdk.NewEventWriters(int64(sdk.DefaultBatchSize), int64(k.Config.MaxEventSize))
 	if err != nil {
 		return nil, err
 	}
@@ -246,8 +246,10 @@ func (e *eventSource) NextBatch(pState sdk.PluginState, evts sdk.EventWriters) (
 		return 0, sdk.ErrEOF
 	}
 
+	var data []byte
 	i := 0
 	timeout := time.After(defaultEventTimeout)
+	plugin := pState.(*Plugin)
 	for i < evts.Len() {
 		select {
 		// an event is received, so we add it in the batch
@@ -257,17 +259,21 @@ func (e *eventSource) NextBatch(pState sdk.PluginState, evts sdk.EventWriters) (
 				e.eof = true
 				return i, sdk.ErrEOF
 			}
-			evt := evts.Get(i)
-			evt.SetTimestamp(uint64(ev.Timestamp.UnixNano()))
 			// todo: we may want to optimize this path.
 			// First, we parse the JSON message using fastjson, then we extract
 			// the subvalues for each audit event contained in the event, then
 			// we marshal each of them in byte slices, and finally we copy those
 			// bytes in the io.Writer. In this case, we are constrained by fastjson,
 			// maybe we should consider using a different JSON package here.
-			if _, err := evt.Writer().Write(ev.Data.MarshalTo(nil)); err != nil {
+			data = ev.Data.MarshalTo(nil)
+			if len(data) > int(plugin.Config.MaxEventSize) {
+				plugin.logger.Printf("dropped event larger than maxEventSize: size=%d", len(data))
+				continue
+			}
+			if _, err := evts.Get(i).Writer().Write(data); err != nil {
 				return i, err
 			}
+			evts.Get(i).SetTimestamp(uint64(ev.Timestamp.UnixNano()))
 			i++
 		// timeout hits, so we flush a partial batch
 		case <-timeout:
