@@ -120,7 +120,7 @@ func (k *Plugin) OpenWebServer(address, endpoint string, ssl bool) (source.Insta
 			http.Error(w, "wrong Content Type", http.StatusBadRequest)
 			return
 		}
-		req.Body = http.MaxBytesReader(w, req.Body, int64(k.Config.MaxEventBytes))
+		req.Body = http.MaxBytesReader(w, req.Body, int64(k.Config.WebhookMaxBatchSize))
 		bytes, err := ioutil.ReadAll(req.Body)
 		if err != nil {
 			msg := fmt.Sprintf("bad request: %s", err.Error())
@@ -217,14 +217,22 @@ func (k *Plugin) openEventSource(ctx context.Context, eventChan <-chan []byte, e
 		}
 	}()
 
+	// create custom-sized evt batch
+	evts, err := sdk.NewEventWriters(int64(sdk.DefaultBatchSize), int64(k.Config.WebhookMaxEventSize))
+	if err != nil {
+		return nil, err
+	}
+
 	// return event source
-	return &eventSource{
+	res := &eventSource{
 		eof:       false,
 		ctx:       ctx,
 		eventChan: newEventChan,
 		errorChan: newErrorChan,
 		cancel:    onClose,
-	}, nil
+	}
+	res.SetEvents(evts)
+	return res, nil
 }
 
 func (e *eventSource) Close() {
