@@ -18,13 +18,14 @@ package k8saudit
 
 type PluginConfig struct {
 	SSLCertificate string `json:"sslCertificate" jsonschema:"description=The SSL Certificate to be used with the HTTPS Webhook endpoint (Default: /etc/falco/falco.pem)"`
-	MaxEventBytes  uint64 `json:"maxEventBytes"  jsonschema:"description=Max size in bytes for an event JSON payload (Default: 10485760)"`
+	MaxEventBytes  uint64 `json:"maxEventBytes"  jsonschema:"description=Max size in bytes for an event JSON payload (Default: 12582912)"`
 	UseAsync       bool   `json:"useAsync" jsonschema:"description=If true then async extraction optimization is enabled (Default: true)"`
 }
 
 // Resets sets the configuration to its default values
 func (k *PluginConfig) Reset() {
-	k.MaxEventBytes = 10485760 // 10 MBs
+	// based on values from: https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/
+	k.MaxEventBytes = 12 * 1024 * 1024
 	k.SSLCertificate = "/etc/falco/falco.pem"
 	k.UseAsync = true
 }
