@@ -124,9 +124,7 @@ func (k *Plugin) OpenWebServer(address, endpoint string, ssl bool) (source.Insta
 		bytes, err := ioutil.ReadAll(req.Body)
 		if err != nil {
 			msg := fmt.Sprintf("bad request: %s", err.Error())
-			// todo: use SDK Go native logging once available, see:
-			// https://github.com/falcosecurity/plugin-sdk-go/issues/24
-			println("ERROR: " + msg)
+			k.logger.Println(msg)
 			http.Error(w, msg, http.StatusBadRequest)
 			return
 		}
