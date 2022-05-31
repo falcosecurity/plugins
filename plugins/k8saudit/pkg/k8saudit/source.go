@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
@@ -115,7 +116,7 @@ func (k *Plugin) OpenWebServer(address, endpoint string, ssl bool) (source.Insta
 			http.Error(w, fmt.Sprintf("%s method not allowed", req.Method), http.StatusMethodNotAllowed)
 			return
 		}
-		if req.Header.Get("Content-Type") != "application/json" {
+		if !strings.Contains(req.Header.Get("Content-Type"), "application/json") {
 			http.Error(w, "wrong Content Type", http.StatusBadRequest)
 			return
 		}
@@ -129,9 +130,8 @@ func (k *Plugin) OpenWebServer(address, endpoint string, ssl bool) (source.Insta
 			http.Error(w, msg, http.StatusBadRequest)
 			return
 		}
+		w.WriteHeader(http.StatusOK)
 		eventChan <- bytes
-		w.Header().Set("Content-Type", "text/html")
-		w.Write([]byte("<html><body>Ok</body></html>"))
 	})
 
 	// launch server
