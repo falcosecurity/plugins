@@ -17,15 +17,24 @@ limitations under the License.
 package k8saudit
 
 type PluginConfig struct {
-	SSLCertificate string `json:"sslCertificate" jsonschema:"description=The SSL Certificate to be used with the HTTPS Webhook endpoint (Default: /etc/falco/falco.pem)"`
-	MaxEventBytes  uint64 `json:"maxEventBytes"  jsonschema:"description=Max size in bytes for an event JSON payload (Default: 12582912)"`
-	UseAsync       bool   `json:"useAsync" jsonschema:"description=If true then async extraction optimization is enabled (Default: true)"`
+	SSLCertificate      string `json:"sslCertificate"       jsonschema:"description=The SSL Certificate to be used with the HTTPS Webhook endpoint (Default: /etc/falco/falco.pem)"`
+	UseAsync            bool   `json:"useAsync"             jsonschema:"description=If true then async extraction optimization is enabled (Default: true)"`
+	WebhookMaxBatchSize uint64 `json:"webhookMaxBatchSize"  jsonschema:"description=Maximum size of incoming webhook POST request bodies (Default: 12582912)"`
+	WebhookMaxEventSize uint64 `json:"webhookMaxEventSize"  jsonschema:"description=Maximum size of single audit events (Default: 131072)"`
 }
 
 // Resets sets the configuration to its default values
 func (k *PluginConfig) Reset() {
-	// based on values from: https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/
-	k.MaxEventBytes = 12 * 1024 * 1024
 	k.SSLCertificate = "/etc/falco/falco.pem"
 	k.UseAsync = true
+
+	// See: https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/
+	// The K8S docs state states the following:
+	//   --audit-webhook-truncate-max-batch-size int     Default: 10485760
+	//   --audit-webhook-truncate-max-event-size int     Default: 102400
+	// The following values have been chosen by increasing by ~20% the default
+	// values of the K8S docs, so that WebhookMaxBatchSize is 12MB and
+	// WebhookMaxEventSize is 128KB in order to have a degree of redundancy
+	k.WebhookMaxBatchSize = 12 * 1024 * 1024
+	k.WebhookMaxEventSize = 128 * 1024
 }
