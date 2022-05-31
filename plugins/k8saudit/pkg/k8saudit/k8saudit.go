@@ -22,6 +22,7 @@ import (
 	"github.com/alecthomas/jsonschema"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins"
+	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/symbols/extract"
 	"github.com/valyala/fastjson"
 )
 
@@ -53,8 +54,15 @@ func (k *Plugin) Info() *plugins.Info {
 }
 
 func (k *Plugin) Init(cfg string) error {
-	k.config.Reset()
-	return json.Unmarshal([]byte(cfg), &k.config)
+	// read configuration
+	k.Config.Reset()
+	err := json.Unmarshal([]byte(cfg), &k.Config)
+	if err != nil {
+		return err
+	}
+
+	// setup optional async extraction optimization
+	extract.SetAsync(k.Config.UseAsync)
 }
 
 func (p *Plugin) InitSchema() *sdk.SchemaInfo {
