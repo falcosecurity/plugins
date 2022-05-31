@@ -200,13 +200,13 @@ func (k *Plugin) openEventSource(ctx context.Context, eventChan <-chan []byte, e
 				}
 				jsonValue, err := fastjson.ParseBytes(bytes)
 				if err != nil {
-					newErrorChan <- err
-					return
+					k.logger.Println(err.Error())
+					continue
 				}
 				values, err := k.parseJSONMessage(jsonValue)
 				if err != nil {
-					newErrorChan <- err
-					return
+					k.logger.Println(err.Error())
+					continue
 				}
 				for _, v := range values {
 					newEventChan <- v
