@@ -36,7 +36,7 @@ import (
 // of JSON data.
 type Plugin struct {
 	plugins.BasePlugin
-	config      PluginConfig
+	Config      PluginConfig
 	jparser     fastjson.Parser
 	jdata       *fastjson.Value
 	jdataEvtnum uint64

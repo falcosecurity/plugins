@@ -119,7 +119,7 @@ func (k *Plugin) OpenWebServer(address, endpoint string, ssl bool) (source.Insta
 			http.Error(w, "wrong Content Type", http.StatusBadRequest)
 			return
 		}
-		req.Body = http.MaxBytesReader(w, req.Body, int64(k.config.MaxEventBytes))
+		req.Body = http.MaxBytesReader(w, req.Body, int64(k.Config.MaxEventBytes))
 		bytes, err := ioutil.ReadAll(req.Body)
 		if err != nil {
 			msg := fmt.Sprintf("bad request: %s", err.Error())
@@ -143,7 +143,7 @@ func (k *Plugin) OpenWebServer(address, endpoint string, ssl bool) (source.Insta
 			// note: the legacy K8S Audit implementation concatenated the key and cert PEM
 			// files, however this seems to be unusual. Here we use the same concatenated files
 			// for both key and cert, but we may want to split them (this seems to work though).
-			err = s.ListenAndServeTLS(k.config.SSLCertificate, k.config.SSLCertificate)
+			err = s.ListenAndServeTLS(k.Config.SSLCertificate, k.Config.SSLCertificate)
 		} else {
 			err = s.ListenAndServe()
 		}
