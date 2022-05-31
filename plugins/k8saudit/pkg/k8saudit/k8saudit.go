@@ -18,6 +18,8 @@ package k8saudit
 
 import (
 	"encoding/json"
+	"log"
+	"os"
 
 	"github.com/alecthomas/jsonschema"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
@@ -25,6 +27,8 @@ import (
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/symbols/extract"
 	"github.com/valyala/fastjson"
 )
+
+const pluginName = "k8saudit"
 
 // Plugin implements extractor.Plugin and extracts K8S Audit fields from
 // K8S Audit events. The event data is expected to be a JSON that in the form
@@ -36,6 +40,7 @@ import (
 // of JSON data.
 type Plugin struct {
 	plugins.BasePlugin
+	logger      *log.Logger
 	Config      PluginConfig
 	jparser     fastjson.Parser
 	jdata       *fastjson.Value
@@ -45,7 +50,7 @@ type Plugin struct {
 func (k *Plugin) Info() *plugins.Info {
 	return &plugins.Info{
 		ID:          1,
-		Name:        "k8saudit",
+		Name:        pluginName,
 		Description: "Read Kubernetes Audit Events and monitor Kubernetes Clusters",
 		Contact:     "github.com/falcosecurity/plugins",
 		Version:     "0.1.0",
@@ -63,6 +68,10 @@ func (k *Plugin) Init(cfg string) error {
 
 	// setup optional async extraction optimization
 	extract.SetAsync(k.Config.UseAsync)
+
+	// setup internal logger
+	k.logger = log.New(os.Stderr, "["+pluginName+"] ", log.LstdFlags|log.LUTC|log.Lmsgprefix)
+	return nil
 }
 
 func (p *Plugin) InitSchema() *sdk.SchemaInfo {
