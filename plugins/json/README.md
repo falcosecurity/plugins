@@ -12,12 +12,12 @@ Here is the current set of supported fields:
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| json.value | string | Extracts a value from a json-encoded input. Syntax is json.value[<json pointer>], where `<json pointer>` is a [json pointer](https://datatracker.ietf.org/doc/html/rfc6901).
-| json.obj | string | The full json message as a text string.
-| json.rawtime | string | The time of the event, identical to evt.rawtime.
-| jevt.value | string | Alias for json.value, provided for backwards compatibility.
-| jevt.obj | string | Alias for json.obj, provided for backwards compatibility.
-| jevt.rawtime | string | Alias for json.rawtime, provided for backwards compatibility.
+| `json.value` | string | Extracts a value from a json-encoded input. Syntax is json.value[<json pointer>], where `<json pointer>` is a [json pointer](https://datatracker.ietf.org/doc/html/rfc6901).
+| `json.obj` | string | The full json message as a text string.
+| `json.rawtime` | string | The time of the event, identical to evt.rawtime.
+| `jevt.value` | string | Alias for json.value, provided for backwards compatibility.
+| `jevt.obj` | string | Alias for json.obj, provided for backwards compatibility.
+| `jevt.rawtime` | string | Alias for json.rawtime, provided for backwards compatibility.
 
 ## Configuration
 
