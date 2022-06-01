@@ -17,7 +17,7 @@ Here is the current set of supported fields:
 | json.rawtime | string | The time of the event, identical to evt.rawtime.
 | jevt.value | string | Alias for json.value, provided for backwards compatibility.
 | jevt.obj | string | Alias for json.obj, provided for backwards compatibility.
-| jevt.rawtime" | string | Alias for json.rawtime, provided for backwards compatibility.
+| jevt.rawtime | string | Alias for json.rawtime, provided for backwards compatibility.
 
 ## Configuration
 
