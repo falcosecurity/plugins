@@ -96,7 +96,6 @@ plugins:
   - name: k8saudit
     library_path: libk8saudit.so
     init_config:
-      maxEventBytes: 10485760
       sslCertificate: /etc/falco/falco.pem
     open_params: "http://:9765/k8s-audit"
   - name: json
@@ -108,7 +107,9 @@ load_plugins: [k8saudit, json]
 
 **Initialization Config**:
 - `sslCertificate`: The SSL Certificate to be used with the HTTPS Webhook endpoint (Default: /etc/falco/falco.pem)
-- `maxEventBytes`: Max size in bytes for an event JSON payload (Default: 10485760)
+- `maxEventSize`: Maximum size of single audit event (Default: 262144)
+- `webhookMaxBatchSize`: Maximum size of incoming webhook POST request bodies (Default: 12582912)
+- `useAsync`: If true then async extraction optimization is enabled (Default: true)
 
 **Open Parameters**:
 - `http://<host>:<port>/<endpoint>`: Opens an event stream by listening on a HTTP webserver
