@@ -17,15 +17,19 @@ limitations under the License.
 package main
 
 import (
+	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/extractor"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/source"
 	"github.com/falcosecurity/plugins/plugins/okta/pkg/okta"
 )
 
 func init() {
-	p := &okta.Plugin{}
-	extractor.Register(p)
-	source.Register(p)
+	plugins.SetFactory(func() plugins.Plugin {
+		p := &okta.Plugin{}
+		extractor.Register(p)
+		source.Register(p)
+		return p
+	})
 }
 
 func main() {}
