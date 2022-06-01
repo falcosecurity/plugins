@@ -180,7 +180,7 @@ func openS3(pCtx *Plugin, oCtx *PluginInstance, input string) error {
 				continue
 			}
 
-			var fi fileInfo = fileInfo{name: *path, isCompressed: true}
+			var fi fileInfo = fileInfo{name: *path, isCompressed: isCompressed}
 			oCtx.files = append(oCtx.files, fi)
 		}
 		return true
