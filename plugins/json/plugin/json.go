@@ -17,13 +17,17 @@ limitations under the License.
 package main
 
 import (
+	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/extractor"
 	"github.com/falcosecurity/plugins/plugins/json/pkg/json"
 )
 
 func init() {
-	p := &json.Plugin{}
-	extractor.Register(p)
+	plugins.SetFactory(func() plugins.Plugin {
+		p := &json.Plugin{}
+		extractor.Register(p)
+		return p
+	})
 }
 
 func main() {}
