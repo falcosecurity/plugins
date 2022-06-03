@@ -13,18 +13,166 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+#define MAX_KEY_LEN     4096
 
 #include <string>
+#include <string.h>
 #include <vector>
 #include "deps/plugin_info.h"
-#include "deps/simdjson.h"
+#include "deps/zzzjson.h"
 
 struct json_plugin
 {
+	uint32_t m_last_evt_num;
+	zj::Value *m_last_doc;
+	bool m_valid_doc;
 	std::vector<const char*> m_buf;
 	std::vector<std::string> m_values;
 	std::string m_last_err;
 };
+
+static bool json_ptr_str(zj::Value *node, const char* ptr, std::string& out)
+{
+	char c;
+	char key[MAX_KEY_LEN];
+	bool key_num;
+	size_t key_len;
+
+	if (!ptr)
+	{
+		return false;
+	}
+
+	while (*ptr)
+	{
+		auto type = zj::Type(node);
+		if (!type)
+		{
+			return false;
+		}
+
+		// extract pointer key
+		key_len = 0;
+		key_num = true;
+		if (*ptr == '/')
+		{
+			ptr++;
+		}
+		while (key_len < MAX_KEY_LEN && *ptr && *ptr != '/')
+		{
+			c = *ptr++;
+			if (c == '~')
+			{
+				switch (*ptr)
+				{
+					case '0':
+						c = '~';
+						break;
+					case '1':
+						c = '/';
+						break;
+					default:
+						// todo: return an error too
+						return false;
+				}
+				ptr++;
+			}
+			if (!isdigit(c))
+			{
+				key_num = false;
+			}
+			key[key_len++] = c;
+		}
+		key[key_len] = '\0';
+
+		// extract next node
+		if (key_len > 0)
+		{
+			zj::Value *key_node = node;
+			switch (*type)
+			{
+				case zj::JSONTypeArray:
+				{
+					if (key_num)
+					{
+						auto idx = atoi(key);
+						zj::Value *next = zj::Begin(node);
+						while (next != 0)
+						{
+							if (--idx == 0)
+							{
+								key_node = next;
+								break;
+							}
+							next = zj::Next(next);
+						}
+					}
+					break;
+				}
+				case zj::JSONTypeObject:
+				{
+					zj::Size len;
+					zj::Value *next = zj::Begin(node);
+					while (next != 0)
+					{
+						auto k = zj::GetKeyFast(next, &len);
+						if (len == key_len && !strncmp(key, k, len))
+						{
+							key_node = next;
+							break;
+						}
+						next = zj::Next(next);
+					}
+					break;
+				}
+				case zj::JSONTypeBool:
+				case zj::JSONTypeNumber:	
+				case zj::JSONTypeString:
+				case zj::JSONTypeNull:
+					break;
+			}
+
+			if (node == key_node)
+			{
+				return false;
+			}
+			node = key_node;
+		}
+	}
+
+	auto type = zj::Type(node);
+	if (type)
+	{
+		switch (*type)
+		{
+			case zj::JSONTypeBool:
+			{
+				out = std::to_string(*zj::GetBool(node));
+				return true;
+			}
+			case zj::JSONTypeNumber:
+			{
+				zj::Size len;
+				const char* str = zj::GetNumFast(node, &len);
+				out = std::string(str, len);
+				return true;
+			}
+			case zj::JSONTypeString:
+			{
+				zj::Size len;
+				const char* str = zj::GetStrFast(node, &len);
+				out = std::string(str, len);
+				return true;
+			}
+			case zj::JSONTypeArray:
+			case zj::JSONTypeObject:
+			case zj::JSONTypeNull:
+				break;
+		}
+	}
+
+	return false;
+}
 
 extern "C"
 const char* plugin_get_required_api_version()
@@ -79,7 +227,10 @@ extern "C"
 ss_plugin_t* plugin_init(const char* config, int32_t* rc)
 {
 	*rc = SS_PLUGIN_SUCCESS;
-	return (ss_plugin_t*) new json_plugin();
+	auto ret = new json_plugin();
+	ret->m_last_doc = nullptr;
+	ret->m_last_evt_num = 0;
+	return (ss_plugin_t*) ret;
 }
 
 extern "C"
@@ -87,66 +238,66 @@ void plugin_destroy(ss_plugin_t* s)
 {
 	if (s)
 	{
-		delete ((json_plugin*) s);
+		auto p = ((json_plugin*) s);
+		if (p->m_last_doc)
+		{
+			zj::ReleaseAllocator(p->m_last_doc->A);
+		}
+		delete p;
 	}
 }
 
 extern "C"
 int32_t plugin_extract_fields(
-	ss_plugin_t *s,
-	const ss_plugin_event *evt,
-	uint32_t num_fields,
-	ss_plugin_extract_field *fields)
+		ss_plugin_t *s,
+		const ss_plugin_event *evt,
+		uint32_t num_fields,
+		ss_plugin_extract_field *fields)
 {
 	auto p = ((json_plugin*) s);
-    std::string_view sview;
-	simdjson::error_code err;
-	simdjson::ondemand::document doc;
-	simdjson::ondemand::parser parser;
-    simdjson::padded_string data((const char*) evt->data, evt->datalen);
-	err = parser.iterate(data).get(doc);
-	if (err != simdjson::SUCCESS)
+	if (evt->evtnum != p->m_last_evt_num)
 	{
-        p->m_last_err = simdjson::error_message(err);
-        return SS_PLUGIN_FAILURE;
+		if (p->m_last_doc)
+		{
+			zj::ReleaseAllocator(p->m_last_doc->A);
+		}
+		p->m_last_doc = zj::NewValue(zj::NewAllocator());
+		p->m_valid_doc = zj::ParseFast(p->m_last_doc, (const char*) evt->data);
+		p->m_last_evt_num = evt->evtnum;
 	}
-
     p->m_buf.resize(num_fields);
 	p->m_values.resize(num_fields);
 	for (uint32_t i = 0; i < num_fields; i++)
 	{
-		doc.rewind();
         fields[i].res_len = 0;
-		switch(fields[i].field_id)
+		if (p->m_valid_doc )
 		{
-			case 3: // jevt.value
-			case 0: // json.value
-				err = doc.at_pointer(fields[i].arg_key).get_string().get(sview);
-                if (err != simdjson::SUCCESS)
-                {
-                    // json pointer is not valid or not present in data
-                    p->m_last_err = simdjson::error_message(err);
-                    // printf("err %s\n",p->m_last_err.c_str());
-                    continue;
-                }
-				p->m_values[i] = {sview.data(), sview.size()};
-                // printf("hey %s\n", p->m_values[i].c_str());
-                break;
-			case 4: // jevt.obj
-			case 1: // json.obj
-				p->m_values[i] = (const char*) evt->data;
-				break;
-			case 5: // jevt.rawtime
-			case 2: // json.rawtime
-				p->m_values[i] = std::to_string(evt->ts);
-				break;
-			default:
-				p->m_last_err = "unknown field: " + std::string(fields[i].field);
-				return SS_PLUGIN_FAILURE;
+			switch(fields[i].field_id)
+			{
+				case 3: // jevt.value
+				case 0: // json.value
+					if (!json_ptr_str(p->m_last_doc, fields[i].arg_key, p->m_values[i]))
+					{
+						continue;
+					}
+					break;
+				case 4: // jevt.obj
+				case 1: // json.obj
+					p->m_values[i] = (const char*) evt->data;
+					break;
+				case 5: // jevt.rawtime
+				case 2: // json.rawtime
+					p->m_values[i] = std::to_string(evt->ts);
+					break;
+				default:
+					p->m_last_err = "unknown field: " + std::string(fields[i].field);
+					return SS_PLUGIN_FAILURE;
+			}
+			p->m_buf[i] = p->m_values[i].c_str();
+			fields[i].res.str = &p->m_buf[i];
+			fields[i].res_len = 1;
 		}
-		p->m_buf[i] = p->m_values[i].c_str();
-		fields[i].res.str = &p->m_buf[i];
-		fields[i].res_len = 1;
 	}
+
 	return SS_PLUGIN_SUCCESS;
 }
