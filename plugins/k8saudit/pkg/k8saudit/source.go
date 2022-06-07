@@ -211,7 +211,10 @@ func (k *Plugin) openEventSource(ctx context.Context, eventChan <-chan []byte, e
 				}
 			case <-ctx.Done():
 				return
-			case err := <-errorChan:
+			case err, ok := <-errorChan:
+				if !ok {
+					return
+				}
 				newErrorChan <- err
 			}
 		}
