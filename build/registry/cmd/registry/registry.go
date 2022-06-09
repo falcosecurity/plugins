@@ -22,6 +22,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/falcosecurity/plugins/build/registry/pkg/registry"
 	"github.com/spf13/cobra"
 )
 
@@ -29,13 +30,13 @@ const (
 	defaultTableSubTag = "<!-- REGISTRY -->"
 )
 
-func loadRegistryFromFile(fname string) (*Registry, error) {
+func loadRegistryFromFile(fname string) (*registry.Registry, error) {
 	file, err := os.Open(fname)
 	if err != nil {
 		return nil, err
 	}
 	defer file.Close()
-	return LoadRegistry(file)
+	return registry.LoadRegistry(file)
 }
 
 func doCheck(fileName string) error {
@@ -47,17 +48,17 @@ func doCheck(fileName string) error {
 }
 
 func doTable(registryFile, subFile, subTag string) error {
-	registry, err := loadRegistryFromFile(registryFile)
+	r, err := loadRegistryFromFile(registryFile)
 	if err != nil {
 		return err
 	}
 
-	err = registry.Check()
+	err = r.Check()
 	if err != nil {
 		return err
 	}
 
-	table, err := registry.FormatMarkdownTable()
+	table, err := FormatMarkdownTable(r)
 	if err != nil {
 		return err
 	}

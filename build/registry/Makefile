@@ -18,7 +18,8 @@ GO ?= go
 all: registry
 
 clean:
-	@rm -f registry
+	@rm -f bin
 
-registry: *.go
-	@$(GO) build -o registry *.go
+registry:
+	@mkdir -p bin
+	@$(GO) build -o bin/registry ./cmd/registry/...

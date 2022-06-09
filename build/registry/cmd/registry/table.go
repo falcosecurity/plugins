@@ -19,26 +19,28 @@ package main
 import (
 	"fmt"
 	"strings"
+
+	"github.com/falcosecurity/plugins/build/registry/pkg/registry"
 )
 
-func (r *Registry) FormatMarkdownTable() (string, error) {
+func FormatMarkdownTable(r *registry.Registry) (string, error) {
 	var ret strings.Builder
 	ret.WriteString("| Name | Capabilities | Description\n")
 	ret.WriteString("| --- | --- | --- |\n")
 	for _, p := range r.Plugins {
 		line := fmt.Sprintf("| %s | %s | %s  <br/><br/> Authors: %s <br/> License: %s |\n",
-			r.formatMarkdownStringWithURL(p.Name, p.URL),
-			r.formatMarkdownCapabilities(&p.Capabilities),
-			r.formatMarkdownStringNotAvailable(p.Description),
-			r.formatMarkdownStringWithURL(p.Authors, p.Contact),
-			r.formatMarkdownStringNotAvailable(p.License),
+			formatMarkdownStringWithURL(r, p.Name, p.URL),
+			formatMarkdownCapabilities(r, &p.Capabilities),
+			formatMarkdownStringNotAvailable(r, p.Description),
+			formatMarkdownStringWithURL(r, p.Authors, p.Contact),
+			formatMarkdownStringNotAvailable(r, p.License),
 		)
 		ret.WriteString(line)
 	}
 	return ret.String(), nil
 }
 
-func (r *Registry) formatMarkdownCapabilities(caps *Capabilities) string {
+func formatMarkdownCapabilities(r *registry.Registry, caps *registry.Capabilities) string {
 	var ret strings.Builder
 	if caps.Sourcing.Supported {
 		ret.WriteString(fmt.Sprintf("**Event Sourcing** <br/>ID: %d <br/>`%s`",
@@ -68,16 +70,16 @@ func (r *Registry) formatMarkdownCapabilities(caps *Capabilities) string {
 	return ret.String()
 }
 
-func (r *Registry) formatMarkdownStringNotAvailable(s string) string {
+func formatMarkdownStringNotAvailable(r *registry.Registry, s string) string {
 	if len(s) == 0 {
 		return "N/A"
 	}
 	return s
 }
 
-func (r *Registry) formatMarkdownStringWithURL(s, url string) string {
+func formatMarkdownStringWithURL(r *registry.Registry, s, url string) string {
 	if len(url) == 0 {
-		return r.formatMarkdownStringNotAvailable(s)
+		return formatMarkdownStringNotAvailable(r, s)
 	}
-	return fmt.Sprintf("[%s](%s)", r.formatMarkdownStringNotAvailable(s), url)
+	return fmt.Sprintf("[%s](%s)", formatMarkdownStringNotAvailable(r, s), url)
 }
