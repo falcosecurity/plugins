@@ -35,7 +35,7 @@ func init() {
 	}
 }
 
-func (s *SourcingCapability) Check(usedIDs map[uint]bool, forbiddenSources map[string]bool) error {
+func (s *SourcingCapability) validate(usedIDs map[uint]bool, forbiddenSources map[string]bool) error {
 	if s.Supported {
 		if s.ID == 0 {
 			return fmt.Errorf("forbidden source ID: '%d'", s.ID)
@@ -54,7 +54,10 @@ func (s *SourcingCapability) Check(usedIDs map[uint]bool, forbiddenSources map[s
 	return nil
 }
 
-func (r *Registry) Check() error {
+// Validates returns nil if the Registry is valid, and an error otherwise.
+// For more details regarding which constraints are checked for validation,
+// refer to: https://github.com/falcosecurity/plugins#registering-a-new-plugin
+func (r *Registry) Validate() error {
 	forbiddenSources := make(map[string]bool)
 	for _, s := range r.ReservedSources {
 		forbiddenSources[s] = true
@@ -69,7 +72,7 @@ func (r *Registry) Check() error {
 		if _, ok := names[p.Name]; ok {
 			return fmt.Errorf("plugin name is not unique: '%s'", p.Name)
 		}
-		if err := p.Capabilities.Sourcing.Check(ids, forbiddenSources); err != nil {
+		if err := p.Capabilities.Sourcing.validate(ids, forbiddenSources); err != nil {
 			return err
 		}
 		names[p.Name] = true
