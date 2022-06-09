@@ -36,7 +36,7 @@ func loadRegistryFromFile(fname string) (*registry.Registry, error) {
 		return nil, err
 	}
 	defer file.Close()
-	return registry.LoadRegistry(file)
+	return registry.Load(file)
 }
 
 func doCheck(fileName string) error {
@@ -44,7 +44,7 @@ func doCheck(fileName string) error {
 	if err != nil {
 		return err
 	}
-	return registry.Check()
+	return registry.Validate()
 }
 
 func doTable(registryFile, subFile, subTag string) error {
@@ -53,7 +53,7 @@ func doTable(registryFile, subFile, subTag string) error {
 		return err
 	}
 
-	err = r.Check()
+	err = r.Validate()
 	if err != nil {
 		return err
 	}

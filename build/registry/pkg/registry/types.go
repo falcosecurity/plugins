@@ -16,12 +16,6 @@ limitations under the License.
 
 package registry
 
-import (
-	"io"
-
-	"github.com/go-yaml/yaml"
-)
-
 type SourcingCapability struct {
 	Supported bool   `yaml:"supported"`
 	ID        uint   `yaml:"id"`
@@ -52,13 +46,4 @@ type Plugin struct {
 type Registry struct {
 	Plugins         []Plugin `yaml:"plugins"`
 	ReservedSources []string `yaml:"reserved_sources"`
-}
-
-func LoadRegistry(r io.Reader) (*Registry, error) {
-	decoder := yaml.NewDecoder(r)
-	registry := &Registry{}
-	if err := decoder.Decode(registry); err != nil {
-		return nil, err
-	}
-	return registry, nil
 }
