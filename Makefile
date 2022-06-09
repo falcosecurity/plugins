@@ -76,12 +76,12 @@ release/%: clean package/%
 
 .PHONY: check-registry
 check-registry: build/registry/registry
-	@build/registry/registry check ./registry.yaml
+	@build/registry/bin/registry check ./registry.yaml
 	@echo The plugin registry is OK
 
 .PHONY: update-readme
 update-readme: build/registry/registry
-	@build/registry/registry table ./registry.yaml \
+	@build/registry/bin/registry table ./registry.yaml \
 		--subfile=./README.md \
 		--subtag="<!-- REGISTRY:TABLE -->"
 	@echo Readme has been updated successfully
