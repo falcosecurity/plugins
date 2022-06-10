@@ -18,7 +18,7 @@ GO ?= go
 all: registry
 
 clean:
-	@rm -f bin
+	@rm -fr bin
 
 registry:
 	@mkdir -p bin
