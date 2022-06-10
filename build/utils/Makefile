@@ -12,14 +12,27 @@
 #
 
 SHELL=/bin/bash -o pipefail
+GO ?= $(shell which go)
+CURL ?= $(shell which curl)
 
-GO ?= go
+FALCOSECURITY_LIBS_REPO ?= falcosecurity/libs
+FALCOSECURITY_LIBS_REVISION ?= a188028bbaa759636cc46a7c59bcb805195ae974
 
+PLUGIN_INFO_DIR=pkg/loader
+PLUGIN_INFO_URL=https://raw.githubusercontent.com/${FALCOSECURITY_LIBS_REPO}/${FALCOSECURITY_LIBS_REVISION}/userspace/libscap/plugin_info.h
+
+.PHONY: all
 all: version
 
-clean:
-	@rm -fr bin
+$(PLUGIN_INFO_DIR)/plugin_info.h:
+	@echo Downloading $(PLUGIN_INFO_URL)...
+	$(CURL) -Lso $(PLUGIN_INFO_DIR)/plugin_info.h $(PLUGIN_INFO_URL)
 
-version:
+.PHONY: clean
+clean:
+	@rm -fr bin $(PLUGIN_INFO_DIR)/plugin_info.h
+
+.PHONY: version
+version: $(PLUGIN_INFO_DIR)/plugin_info.h
 	@mkdir -p bin
 	@$(GO) build -o bin/version ./cmd/version/...
