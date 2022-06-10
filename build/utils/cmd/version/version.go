@@ -29,50 +29,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/falcosecurity/plugins/build/utils/pkg/loader"
 	"github.com/spf13/pflag"
 )
-
-/*
-#cgo linux LDFLAGS: -ldl
-#include <dlfcn.h>
-#include <limits.h>
-#include <stdlib.h>
-#include <stdint.h>
-
-#include <stdio.h>
-
-static uintptr_t pluginOpen(const char* path, char** err) {
-	void* h = dlopen(path, RTLD_NOW|RTLD_GLOBAL);
-	if (h == NULL) {
-		*err = (char*)dlerror();
-	}
-	return (uintptr_t)h;
-}
-
-static char* get_name(uintptr_t h, char** err) {
-	void* s = dlsym((void*)h, "plugin_get_name");
-	if (s == NULL) {
-		*err = (char*)dlerror();
-        return NULL;
-	}
-	typedef char* (*fptr)();
-    fptr f = (fptr)s;
-    return f();
-}
-
-static char* get_version(uintptr_t h, char** err) {
-	void* s = dlsym((void*)h, "plugin_get_version");
-	if (s == NULL) {
-		*err = (char*)dlerror();
-        return NULL;
-	}
-	typedef char* (*fptr)();
-    fptr f = (fptr)s;
-    return f();
-}
-
-*/
-import "C"
 
 var rgxVersion *regexp.Regexp
 var rgxHash *regexp.Regexp
@@ -100,29 +59,11 @@ func pluginInfo(path string) (name, version string, err error) {
 	if err != nil {
 		return
 	}
-
-	cPath := C.CString(path)
-	var cErr *C.char
-
-	h := C.pluginOpen(cPath, &cErr)
-	if h == 0 {
-		err = errors.New("cannot open " + path + ": " + C.GoString(cErr))
-		return
+	p, err := loader.NewPlugin(path)
+	if err != nil {
+		return "", "", err
 	}
-
-	cName := C.get_name(h, &cErr)
-	if cName == nil {
-		err = errors.New("cannot get name of " + path + ": " + C.GoString(cErr))
-		return
-	}
-
-	cVer := C.get_version(h, &cErr)
-	if cVer == nil {
-		err = errors.New("cannot get version of " + path + ": " + C.GoString(cErr))
-		return
-	}
-
-	return C.GoString(cName), C.GoString(cVer), nil
+	return p.Info().Name, p.Info().Version, nil
 }
 
 func git(args ...string) (output []string, err error) {
@@ -151,6 +92,9 @@ func main() {
 	pflag.BoolVar(&pre, "pre-release", false, "if set, output a pre-release version")
 	pflag.Parse()
 
+	if len(path) == 0 {
+		fail(errors.New("a path needs to be specified"))
+	}
 	name, version, err := pluginInfo(path)
 	if err != nil {
 		fail(err)
