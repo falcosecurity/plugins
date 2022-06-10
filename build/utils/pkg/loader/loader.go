@@ -51,9 +51,12 @@ static const char* pl_get_static_str(const char *(*f)())
     return f();
 }
 
-static const char* pl_call_void(void *(*f)())
+static void pl_destroy(plugin_api* p, ss_plugin_t* s)
 {
-    return f();
+	if (p->destroy != NULL && s != NULL)
+	{
+		p->destroy(s);
+	}
 }
 
 static ss_plugin_t* pl_init(plugin_api* p, const char *cfg, ss_plugin_rc *rc)
@@ -118,4 +121,17 @@ func (p *Plugin) Info() *plugins.Info {
 
 func (p *Plugin) InitSchema() *sdk.SchemaInfo {
 	return &p.initSchema
+}
+
+func (p *Plugin) Init(config string) error {
+	rc := int32(0)
+	p.state = (*C.ss_plugin_t)(C.pl_init(&p.lib.api, C.CString(config), (*C.ss_plugin_rc)(&rc)))
+	if rc != 0 {
+		return errors.New(ptr.GoString(unsafe.Pointer(C.pl_get_static_str(p.lib.api.get_last_error))))
+	}
+	return nil
+}
+
+func (p *Plugin) Destroy() {
+	C.pl_destroy(&p.lib.api, unsafe.Pointer(p.state))
 }
