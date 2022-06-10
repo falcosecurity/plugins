@@ -18,7 +18,8 @@ GO ?= go
 all: version
 
 clean:
-	@rm -f version
+	@rm -fr bin
 
-version: version.go
-	@$(GO) build -o version version.go
+version:
+	@mkdir -p bin
+	@$(GO) build -o bin/version ./cmd/version/...

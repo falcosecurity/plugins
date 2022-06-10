@@ -36,7 +36,7 @@ $(plugins):
 	cd plugins/$@ && make rules || :
 
 .PHONY: clean
-clean: $(plugins-clean) clean/packages clean/build/utils/version clean/build/registry/registry
+clean: $(plugins-clean) clean/packages clean/build/utils clean/build/registry/registry
 
 .PHONY: clean/packages
 clean/packages:
@@ -49,12 +49,12 @@ $(plugins-clean):
 .PHONY: packages
 packages: clean/packages $(plugins-packages)
 
-package/%: clean/% % build/utils/version
+package/%: clean/% % build/utils
 	$(eval PLUGIN_NAME := $(shell basename $@))
 	$(eval PLUGIN_PATH := plugins/$(PLUGIN_NAME)/lib$(PLUGIN_NAME).so)
-	$(eval PLUGIN_VERSION := $(shell ./build/utils/version --path $(PLUGIN_PATH) $(PRE_RELEASE) | tail -n 1))
+	$(eval PLUGIN_VERSION := $(shell ./build/utils/bin/version --path $(PLUGIN_PATH) $(PRE_RELEASE) | tail -n 1))
 # re-run command to stop in case of non-zero exit code 
-	@./build/utils/version --path $(PLUGIN_PATH) $(PRE_RELEASE)
+	@./build/utils/bin/version --path $(PLUGIN_PATH) $(PRE_RELEASE)
 	mkdir -p $(OUTPUT_DIR)/$(PLUGIN_NAME)
 	cp -r $(PLUGIN_PATH) $(OUTPUT_DIR)/$(PLUGIN_NAME)/
 	cp -r plugins/$(PLUGIN_NAME)/README.md $(OUTPUT_DIR)/$(PLUGIN_NAME)/ || :
@@ -86,12 +86,12 @@ update-readme: build/registry/registry
 		--subtag="<!-- REGISTRY:TABLE -->"
 	@echo Readme has been updated successfully
 
-.PHONY: build/utils/version
-build/utils/version:
+.PHONY: build/utils
+build/utils:
 	@cd build/utils && make
 
-.PHONY: clean/build/utils/version
-clean/build/utils/version:
+.PHONY: clean/build/utils
+clean/build/utils:
 	@cd build/utils && make clean
 
 .PHONY: build/registry/registry
