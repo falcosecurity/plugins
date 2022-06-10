@@ -28,11 +28,20 @@ $(PLUGIN_INFO_DIR)/plugin_info.h:
 	@echo Downloading $(PLUGIN_INFO_URL)...
 	$(CURL) -Lso $(PLUGIN_INFO_DIR)/plugin_info.h $(PLUGIN_INFO_URL)
 
+
+test/sample/libsample.so:
+	@$(GO) build -buildmode=c-shared -o test/sample/libsample.so ./test/sample/...
+
 .PHONY: clean
 clean:
 	@rm -fr bin $(PLUGIN_INFO_DIR)/plugin_info.h
+
+.PHONY: test
+test: test/sample/libsample.so
+	@$(GO) test ./...
 
 .PHONY: version
 version: $(PLUGIN_INFO_DIR)/plugin_info.h
 	@mkdir -p bin
 	@$(GO) build -o bin/version ./cmd/version/...
+

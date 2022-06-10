@@ -51,6 +51,11 @@ static const char* pl_get_static_str(const char *(*f)())
     return f();
 }
 
+static const char* pl_get_last_err(plugin_api* p, ss_plugin_t* s)
+{
+    return p->get_last_error(s);
+}
+
 static void pl_destroy(plugin_api* p, ss_plugin_t* s)
 {
 	if (p->destroy != NULL && s != NULL)
@@ -115,6 +120,17 @@ func NewPlugin(path string) (*Plugin, error) {
 	return p, nil
 }
 
+func (p *Plugin) LastError() error {
+	if p.state != nil {
+		str := C.GoString(C.pl_get_last_err(&p.lib.api, unsafe.Pointer(p.state)))
+		if len(str) == 0 {
+			return nil
+		}
+		return errors.New(str)
+	}
+	return errors.New("LastError: plugin_get_last_error is not implemented")
+}
+
 func (p *Plugin) Info() *plugins.Info {
 	return &p.info
 }
@@ -127,7 +143,7 @@ func (p *Plugin) Init(config string) error {
 	rc := int32(0)
 	p.state = (*C.ss_plugin_t)(C.pl_init(&p.lib.api, C.CString(config), (*C.ss_plugin_rc)(&rc)))
 	if rc != 0 {
-		return errors.New(ptr.GoString(unsafe.Pointer(C.pl_get_static_str(p.lib.api.get_last_error))))
+		return p.LastError()
 	}
 	return nil
 }
