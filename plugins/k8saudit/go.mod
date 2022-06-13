@@ -4,6 +4,6 @@ go 1.15
 
 require (
 	github.com/alecthomas/jsonschema v0.0.0-20220216202328-9eeeec9d044b
-	github.com/falcosecurity/plugin-sdk-go v0.4.0
+	github.com/falcosecurity/plugin-sdk-go v0.4.1-0.20220613161145-42bf90c6de7f
 	github.com/valyala/fastjson v1.6.3
 )

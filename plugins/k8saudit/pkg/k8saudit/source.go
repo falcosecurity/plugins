@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -32,26 +33,10 @@ import (
 	"github.com/valyala/fastjson"
 )
 
-var defaultEventTimeout = 30 * time.Millisecond
-
 const (
 	webServerShutdownTimeoutSecs = 5
 	webServerEventChanBufSize    = 50
 )
-
-type auditEvent struct {
-	Data      *fastjson.Value
-	Timestamp time.Time
-}
-
-type eventSource struct {
-	source.BaseInstance
-	eventChan <-chan *auditEvent
-	errorChan <-chan error
-	ctx       context.Context
-	cancel    func()
-	eof       bool
-}
 
 func (k *Plugin) Open(params string) (source.Instance, error) {
 	u, err := url.Parse(params)
@@ -64,51 +49,60 @@ func (k *Plugin) Open(params string) (source.Instance, error) {
 		return k.OpenWebServer(u.Host, u.Path, false)
 	case "https":
 		return k.OpenWebServer(u.Host, u.Path, true)
-	case "": // // by default, fallback to opening a filepath
-		return k.OpenFilePath(params)
+	case "": // by default, fallback to opening a filepath
+		file, err := os.Open(params)
+		if err != nil {
+			return nil, err
+		}
+		return k.OpenReader(file)
 	}
 
 	return nil, fmt.Errorf(`scheme "%s" is not supported`, u.Scheme)
 }
 
-// OpenFilePath opens parameters with no prefix, which represent one
-// or more JSON objects encoded with JSONLine notation in a file on the
-// local filesystem. Each JSON object produces an event in the returned
-// event source.
-func (k *Plugin) OpenFilePath(filePath string) (source.Instance, error) {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return nil, err
-	}
-	eventChan := make(chan []byte)
-	errorChan := make(chan error)
+// OpenReader opens a source.Instance event stream that reads K8S Audit
+// Events from a io.ReadCloser. Each Event is a JSON object encoded with
+// JSONL notation (see: https://jsonlines.org/).
+func (k *Plugin) OpenReader(r io.ReadCloser) (source.Instance, error) {
+	evtC := make(chan source.PushEvent)
+
 	go func() {
-		defer file.Close()
-		defer close(eventChan)
-		defer close(errorChan)
-		scanner := bufio.NewScanner(file)
+		defer close(evtC)
+		var parser fastjson.Parser
+		scanner := bufio.NewScanner(r)
 		scanner.Split(bufio.ScanLines)
 		for scanner.Scan() {
 			line := scanner.Text()
 			if len(line) > 0 {
-				eventChan <- ([]byte)(line)
+				k.parseAuditEventsAndPush(&parser, ([]byte)(line), evtC)
 			}
 		}
-		if scanner.Err() != nil {
-			errorChan <- err
+		err := scanner.Err()
+		if err != nil {
+			evtC <- source.PushEvent{Err: err}
 		}
 	}()
-	return k.openEventSource(context.Background(), eventChan, errorChan, nil)
+
+	return source.NewPushInstance(
+		evtC,
+		source.WithInstanceClose(func() { r.Close() }),
+		source.WithInstanceEventSize(uint32(k.Config.MaxEventSize)))
 }
 
-// OpenWebServer opens parameters with "http://" and "https://" prefixes.
-// Starts a webserver and listens for K8S Audit Event webhooks.
+// OpenWebServer opens a source.Instance event stream that receives K8S Audit
+// Events by starting a server and listening for JSON webhooks. The expected
+// JSON format is the one of K8S API Server webhook backend
+// (see: https://kubernetes.io/docs/tasks/debug/debug-cluster/audit/#webhook-backend).
 func (k *Plugin) OpenWebServer(address, endpoint string, ssl bool) (source.Instance, error) {
 	ctx, cancelCtx := context.WithCancel(context.Background())
-	eventChan := make(chan []byte, webServerEventChanBufSize)
-	errorChan := make(chan error)
+	serverEvtChan := make(chan []byte, webServerEventChanBufSize)
+	evtChan := make(chan source.PushEvent)
 
-	// configure server
+	// launch webserver gorountine. This listens for webhooks coming from
+	// the k8s api server and sends every valid payload to serverEvtChan so
+	// that an HTTP response can be sent as soon as possible. Each payload is
+	// then parsed to extract the list of audit events contained by the
+	// event-parser goroutine
 	m := http.NewServeMux()
 	s := &http.Server{Addr: address, Handler: m}
 	m.HandleFunc(endpoint, func(w http.ResponseWriter, req *http.Request) {
@@ -129,13 +123,10 @@ func (k *Plugin) OpenWebServer(address, endpoint string, ssl bool) (source.Insta
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		eventChan <- bytes
+		serverEvtChan <- bytes
 	})
-
-	// launch server
 	go func() {
-		//defer close(eventChan)
-		defer close(errorChan)
+		defer close(serverEvtChan)
 		var err error
 		if ssl {
 			// note: the legacy K8S Audit implementation concatenated the key and cert PEM
@@ -146,20 +137,42 @@ func (k *Plugin) OpenWebServer(address, endpoint string, ssl bool) (source.Insta
 			err = s.ListenAndServe()
 		}
 		if err != nil && err != http.ErrServerClosed {
-			errorChan <- err
+			evtChan <- source.PushEvent{Err: err}
 		}
 	}()
 
-	// on close, shutdown the webserver gracefully with, and wait for it with a timeout
-	onClose := func() {
-		timedCtx, cancelTimeoutCtx := context.WithTimeout(ctx, time.Second*webServerShutdownTimeoutSecs)
-		defer cancelTimeoutCtx()
-		s.Shutdown(timedCtx)
-		cancelCtx()
-	}
+	// launch event-parser gorountine. This received webhook payloads
+	// and parses their content to extract the list of audit events contained.
+	// Then, events are sent to the Push-mode event source instance channel.
+	go func() {
+		defer close(evtChan)
+		var parser fastjson.Parser
+		for {
+			select {
+			case bytes, ok := <-serverEvtChan:
+				if !ok {
+					return
+				}
+				k.parseAuditEventsAndPush(&parser, bytes, evtChan)
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
 
-	// open the event source
-	return k.openEventSource(ctx, eventChan, errorChan, onClose)
+	// open new instance in with "push" prebuilt
+	return source.NewPushInstance(
+		evtChan,
+		source.WithInstanceContext(ctx),
+		source.WithInstanceClose(func() {
+			// on close, attempt shutting down the webserver gracefully
+			timedCtx, cancelTimeoutCtx := context.WithTimeout(ctx, time.Second*webServerShutdownTimeoutSecs)
+			defer cancelTimeoutCtx()
+			s.Shutdown(timedCtx)
+			cancelCtx()
+		}),
+		source.WithInstanceEventSize(uint32(k.Config.MaxEventSize)),
+	)
 }
 
 // todo: optimize this to cache by event number
@@ -171,140 +184,58 @@ func (k *Plugin) String(evt sdk.EventReader) (string, error) {
 	return fmt.Sprintf("%v", string(evtBytes)), nil
 }
 
-// openEventSource opens the K8S Audit Logs event source returns a
-// source.Instance. ctx is the context of the event source, so cancelling
-// it will result in an EOF. EventChan is the channel from which the K8S
-// Audit digests are received as raw bytes. For reference, this is the body
-// of K8S Audit webhooks or dump files. ErrorChan is a channel that can be
-// used to propagate errors in the event source. The event source returns the
-// errors it receives, so any error would cause it to be closed by the
-// framwork. TimeoutMillis is the time interval (in milliseconds) after
-// which a sdk.Timeout error is returned by NextBatch when no new event is
-// received during that timeframe. OnClose is a callback that is invoked when
-// the event source is closed by the plugin framework.
-func (k *Plugin) openEventSource(ctx context.Context, eventChan <-chan []byte, errorChan <-chan error, onClose func()) (source.Instance, error) {
-	// Launch the parsing goroutine that receives raw byte messages.
-	// One or more audit events can be extracted from each message.
-	newEventChan := make(chan *auditEvent)
-	newErrorChan := make(chan error)
-	go func() {
-		defer close(newEventChan)
-		defer close(newErrorChan)
-		for {
-			select {
-			case bytes, ok := <-eventChan:
-				if !ok {
-					return
-				}
-				jsonValue, err := fastjson.ParseBytes(bytes)
-				if err != nil {
-					k.logger.Println(err.Error())
-					continue
-				}
-				values, err := k.parseJSONMessage(jsonValue)
-				if err != nil {
-					k.logger.Println(err.Error())
-					continue
-				}
-				for _, v := range values {
-					newEventChan <- v
-				}
-			case <-ctx.Done():
-				return
-			case err, ok := <-errorChan:
-				if !ok {
-					return
-				}
-				newErrorChan <- err
-			}
+// here we make all errors non-blocking for single events by
+// simply logging them, to ensure consumers don't close the
+// event source with bad or malicious payloads
+func (k *Plugin) parseAuditEventsAndPush(parser *fastjson.Parser, payload []byte, c chan<- source.PushEvent) {
+	data, err := parser.ParseBytes(payload)
+	if err != nil {
+		k.logger.Println(err.Error())
+		return
+	}
+	values, err := k.ParseAuditEventsJSON(data)
+	if err != nil {
+		k.logger.Println(err.Error())
+		return
+	}
+	for _, v := range values {
+		if v.Err != nil {
+			k.logger.Println(v.Err.Error())
+			continue
+		} else {
+			c <- *v
 		}
-	}()
+	}
+}
 
-	// create custom-sized evt batch
-	evts, err := sdk.NewEventWriters(int64(sdk.DefaultBatchSize), int64(k.Config.MaxEventSize))
+// ParseAuditEventsPayload parses a byte slice representing a JSON payload
+// that contains one or more K8S Audit Events. If the payload is parsed
+// correctly, returns the slice containing all the events parsed and a nil error.
+// A nil slice and a non-nil error is returned in case the parsing fails.
+//
+// Even if a nil error is returned, each of the events of the returned slice can
+// still contain an error (source.PushEvent.Err is non-nil). The reason is that
+// if a single event is corrupted, this function still attempts to parse the
+// rest of the events in the payload.
+func (k *Plugin) ParseAuditEventsPayload(payload []byte) ([]*source.PushEvent, error) {
+	value, err := fastjson.ParseBytes(payload)
 	if err != nil {
 		return nil, err
 	}
-
-	// return event source
-	res := &eventSource{
-		eof:       false,
-		ctx:       ctx,
-		eventChan: newEventChan,
-		errorChan: newErrorChan,
-		cancel:    onClose,
-	}
-	res.SetEvents(evts)
-	return res, nil
+	return k.ParseAuditEventsJSON(value)
 }
 
-func (e *eventSource) Close() {
-	if e.cancel != nil {
-		e.cancel()
-	}
-}
-
-func (e *eventSource) NextBatch(pState sdk.PluginState, evts sdk.EventWriters) (int, error) {
-	if e.eof {
-		return 0, sdk.ErrEOF
-	}
-
-	var data []byte
-	i := 0
-	timeout := time.After(defaultEventTimeout)
-	plugin := pState.(*Plugin)
-	for i < evts.Len() {
-		select {
-		// an event is received, so we add it in the batch
-		case ev, ok := <-e.eventChan:
-			if !ok {
-				// event channel is closed, we reached EOF
-				e.eof = true
-				return i, sdk.ErrEOF
-			}
-			// todo: we may want to optimize this path.
-			// First, we parse the JSON message using fastjson, then we extract
-			// the subvalues for each audit event contained in the event, then
-			// we marshal each of them in byte slices, and finally we copy those
-			// bytes in the io.Writer. In this case, we are constrained by fastjson,
-			// maybe we should consider using a different JSON package here.
-			data = ev.Data.MarshalTo(nil)
-			if len(data) > int(plugin.Config.MaxEventSize) {
-				plugin.logger.Printf("dropped event larger than maxEventSize: size=%d", len(data))
-				continue
-			}
-			if _, err := evts.Get(i).Writer().Write(data); err != nil {
-				return i, err
-			}
-			evts.Get(i).SetTimestamp(uint64(ev.Timestamp.UnixNano()))
-			i++
-		// timeout hits, so we flush a partial batch
-		case <-timeout:
-			return i, sdk.ErrTimeout
-		// context has been canceled, so we exit
-		case <-e.ctx.Done():
-			e.eof = true
-			return i, sdk.ErrEOF
-		// an error occurs, so we exit
-		case err, ok := <-e.errorChan:
-			if !ok {
-				err = sdk.ErrEOF
-			}
-			e.eof = true
-			return i, err
-		}
-	}
-	return i, nil
-}
-
-func (k *Plugin) parseJSONMessage(value *fastjson.Value) ([]*auditEvent, error) {
+// ParseAuditEventsJSON is the same as ParseAuditEventsPayload, but takes
+// a pre-parsed JSON as input. The JSON representation is the one of the
+// fastjson library.
+func (k *Plugin) ParseAuditEventsJSON(value *fastjson.Value) ([]*source.PushEvent, error) {
 	if value == nil {
 		return nil, fmt.Errorf("can't parse nil JSON message")
 	}
 	if value.Type() == fastjson.TypeArray {
-		var res []*auditEvent
+		var res []*source.PushEvent
 		for _, v := range value.GetArray() {
-			values, err := k.parseJSONMessage(v)
+			values, err := k.ParseAuditEventsJSON(v)
 			if err != nil {
 				return res, err
 			}
@@ -316,38 +247,37 @@ func (k *Plugin) parseJSONMessage(value *fastjson.Value) ([]*auditEvent, error) 
 		case "EventList":
 			items := value.Get("items").GetArray()
 			if items != nil {
-				var res []*auditEvent
+				var res []*source.PushEvent
 				for _, item := range items {
-					event, err := k.parseJSONAuditEvent(item)
-					if err != nil {
-						return nil, err
-					}
-					res = append(res, event)
+					res = append(res, k.parseSingleAuditEventJSON(item))
 				}
 				return res, nil
 			}
 		case "Event":
-			event, err := k.parseJSONAuditEvent(value)
-			if err != nil {
-				return nil, err
-			}
-			return []*auditEvent{event}, nil
+			return []*source.PushEvent{k.parseSingleAuditEventJSON(value)}, nil
 		}
 	}
 	return nil, fmt.Errorf("data not recognized as a k8s audit event")
 }
 
-func (k *Plugin) parseJSONAuditEvent(value *fastjson.Value) (*auditEvent, error) {
+func (k *Plugin) parseSingleAuditEventJSON(value *fastjson.Value) *source.PushEvent {
+	res := &source.PushEvent{}
 	stageTimestamp := value.Get("stageTimestamp")
 	if stageTimestamp == nil {
-		return nil, fmt.Errorf("can't read stageTimestamp")
+		res.Err = fmt.Errorf("can't read stageTimestamp")
+		return res
 	}
 	timestamp, err := time.Parse(time.RFC3339Nano, string(stageTimestamp.GetStringBytes()))
 	if err != nil {
-		return nil, err
+		res.Err = err
+		return res
 	}
-	return &auditEvent{
-		Timestamp: timestamp,
-		Data:      value,
-	}, nil
+	res.Data = value.MarshalTo(nil)
+	if len(res.Data) > int(k.Config.MaxEventSize) {
+		res.Err = fmt.Errorf("event larger than maxEventSize: size=%d", len(res.Data))
+		res.Data = nil
+		return res
+	}
+	res.Timestamp = timestamp
+	return res
 }
