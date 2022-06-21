@@ -28,8 +28,10 @@ import (
 	"io/ioutil"
 	"strings"
 
+	"github.com/alecthomas/jsonschema"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins"
+	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/symbols/extract"
 	"github.com/valyala/fastjson"
 )
 
@@ -45,6 +47,7 @@ type Plugin struct {
 	jparser     fastjson.Parser
 	jdata       *fastjson.Value
 	jdataEvtnum uint64 // The event number jdata refers to. Used to know when we can skip the unmarshaling.
+	Config      PluginConfig
 }
 
 func (m *Plugin) Info() *plugins.Info {
@@ -56,7 +59,28 @@ func (m *Plugin) Info() *plugins.Info {
 	}
 }
 
+func (p *Plugin) InitSchema() *sdk.SchemaInfo {
+	reflector := jsonschema.Reflector{
+		// all properties are optional by default
+		RequiredFromJSONSchemaTags: true,
+		// unrecognized properties don't cause a parsing failures
+		AllowAdditionalProperties: true,
+	}
+	if schema, err := reflector.Reflect(&Plugin{}).MarshalJSON(); err == nil {
+		return &sdk.SchemaInfo{
+			Schema: string(schema),
+		}
+	}
+	return nil
+}
+
 func (m *Plugin) Init(config string) error {
+	// read configuration
+	m.Config.Reset()
+	json.Unmarshal([]byte(config), &m.Config)
+
+	// setup optional async extraction optimization
+	extract.SetAsync(m.Config.UseAsync)
 	return nil
 }
 
