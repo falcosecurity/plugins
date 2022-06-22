@@ -81,7 +81,7 @@ func (p *Plugin) InitSchema() *sdk.SchemaInfo {
 		// unrecognized properties don't cause a parsing failures
 		AllowAdditionalProperties: true,
 	}
-	if schema, err := reflector.Reflect(&Plugin{}).MarshalJSON(); err == nil {
+	if schema, err := reflector.Reflect(&PluginConfig{}).MarshalJSON(); err == nil {
 		return &sdk.SchemaInfo{
 			Schema: string(schema),
 		}
