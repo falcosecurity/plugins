@@ -94,7 +94,7 @@ func formatCommitLine(c string) string {
 		message = message[:commitMsgMaxLen-3] + "..."
 	}
 	commitLink := fmt.Sprintf(commitLinkFmt, hash)
-	return fmt.Sprintf("[`%s`](%s) %s", hash[:commitHashMaxLen], commitLink, message)
+	return fmt.Sprintf("* [`%s`](%s) %s", hash[:commitHashMaxLen], commitLink, message)
 }
 
 func main() {
