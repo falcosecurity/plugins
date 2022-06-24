@@ -27,6 +27,12 @@ import (
 	"github.com/spf13/pflag"
 )
 
+const (
+	commitHashMaxLen = 7
+	commitLinkFmt    = "https://github.com/falcosecurity/plugins/commit/%s"
+	commitMsgMaxLen  = 80
+)
+
 func git(args ...string) (output []string, err error) {
 	fmt.Fprintln(os.Stderr, "git ", strings.Join(args, " "))
 	stdout, err := exec.Command("git", args...).Output()
@@ -79,6 +85,18 @@ func fail(err error) {
 	os.Exit(1)
 }
 
+// formats the line with markdown syntax and decorates it
+func formatCommitLine(c string) string {
+	firstSpace := strings.Index(c, " ")
+	hash := strings.Trim(c[:firstSpace], " ")    // hash is before the first space
+	message := strings.Trim(c[firstSpace:], " ") // message is after the first space
+	if len(message) > commitMsgMaxLen {
+		message = message[:commitMsgMaxLen-3] + "..."
+	}
+	commitLink := fmt.Sprintf(commitLinkFmt, hash)
+	return fmt.Sprintf("[`%s`](%s) %s", hash[:commitHashMaxLen], commitLink, message)
+}
+
 func main() {
 	var plugin string
 	var from string
@@ -112,12 +130,12 @@ func main() {
 	if len(plugin) > 0 {
 		// craft a regex to filter all plugin-related commits that follow
 		// the conventional commit format
-		rgx, _ = regexp.Compile("^[a-f0-9]{7} [a-zA-Z]+\\(([a-zA-Z\\/]+\\/)?" + plugin + "(\\/[a-zA-Z\\/]+)?\\):.*")
+		rgx, _ = regexp.Compile("^[a-f0-9]+ [a-zA-Z]+\\(([a-zA-Z\\/]+\\/)?" + plugin + "(\\/[a-zA-Z\\/]+)?\\):.*")
 	}
 
 	for _, c := range commits {
 		if len(c) > 0 && (rgx == nil || rgx.MatchString(c)) {
-			fmt.Println("*", c)
+			fmt.Println(formatCommitLine(c) + "\n")
 		}
 	}
 }
