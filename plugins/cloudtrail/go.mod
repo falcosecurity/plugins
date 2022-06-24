@@ -8,6 +8,6 @@ require (
 	github.com/alecthomas/jsonschema v0.0.0-20220216202328-9eeeec9d044b
 	github.com/aws/aws-sdk-go-v2/config v1.15.7
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.18.5
-	github.com/falcosecurity/plugin-sdk-go v0.4.0
+	github.com/falcosecurity/plugin-sdk-go v0.5.0
 	github.com/valyala/fastjson v1.6.3
 )
