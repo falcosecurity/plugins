@@ -17,6 +17,7 @@ limitations under the License.
 package dummy
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -53,23 +54,6 @@ type Plugin struct {
 	config PluginConfig
 }
 
-type PluginInstance struct {
-	source.BaseInstance
-
-	// Copy of the init params from plugin_open()
-	initParams string
-
-	// The number of events to return before EOF
-	maxEvents uint64
-
-	// A count of events returned. Used to count against maxEvents.
-	counter uint64
-
-	// A semi-random numeric value, derived from this value and
-	// jitter. This is put in every event as the data property.
-	sample uint64
-}
-
 func (p *PluginConfig) setDefault() {
 	p.Jitter = 10
 }
@@ -98,76 +82,64 @@ func (p *Plugin) InitSchema() *sdk.SchemaInfo {
 	return nil
 }
 
-func (m *Plugin) Init(cfg string) error {
+func (p *Plugin) OpenParams() ([]sdk.OpenParam, error) {
+	var res []sdk.OpenParam
+	min := 10
+	max := int(1e6)
+	for min <= max {
+		res = append(res, sdk.OpenParam{
+			Value: fmt.Sprintf("%d", min),
+			Desc:  fmt.Sprintf("Generates a maximum of %d events", min),
+		})
+		min *= 10
+	}
+	return res, nil
+}
+
+func (p *Plugin) Init(cfg string) error {
 	// initialize state
-	m.rand = rand.New(rand.NewSource(time.Now().UnixNano()))
+	p.rand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	// The format of cfg is a json object with a single param
 	// "jitter", e.g. {"jitter": 10}
 	// Empty configs are allowed, in which case the default is used.
 	// Since we provide a schema through InitSchema(), the framework
 	// guarantees that the config is always well-formed json.
-	m.config.setDefault()
-	json.Unmarshal([]byte(cfg), &m.config)
+	p.config.setDefault()
+	json.Unmarshal([]byte(cfg), &p.config)
 
 	return nil
 }
 
-func (m *Plugin) Destroy() {
+func (p *Plugin) Destroy() {
 	// nothing to do here
 }
 
-func (m *Plugin) Open(prms string) (source.Instance, error) {
-	// The format of params is a json object with two params:
-	// - "start", which denotes the initial value of sample
-	// - "maxEvents": which denotes the number of events to return before EOF.
-	// Example:
-	// {"start": 1, "maxEvents": 1000}
-	var obj map[string]uint64
-	err := json.Unmarshal([]byte(prms), &obj)
+func (p *Plugin) Open(prms string) (source.Instance, error) {
+	// The open parameters is a positive integer which denotes the number of
+	// samples to generate before returning EOF. A list of example values
+	// is provided through OpenParams()
+	maxEvents, err := strconv.Atoi(prms)
 	if err != nil {
-		return nil, fmt.Errorf("params %s could not be parsed: %v", prms, err)
+		return nil, fmt.Errorf("can't read max events from open params: %s", err.Error())
 	}
-	if _, ok := obj["start"]; !ok {
-		return nil, fmt.Errorf("params %s did not contain start property", prms)
-	}
-
-	if _, ok := obj["maxEvents"]; !ok {
-		return nil, fmt.Errorf("params %s did not contain maxEvents property", prms)
+	if maxEvents <= 0 {
+		return nil, fmt.Errorf("invalid max events value: %d", maxEvents)
 	}
 
-	return &PluginInstance{
-		initParams: prms,
-		maxEvents:  obj["maxEvents"],
-		counter:    0,
-		sample:     obj["start"],
-	}, nil
-}
-
-func (m *PluginInstance) Close() {
-	// nothing to do here
-}
-
-func (m *PluginInstance) NextBatch(pState sdk.PluginState, evts sdk.EventWriters) (int, error) {
-	// Return EOF if reached maxEvents
-	if m.counter >= m.maxEvents {
-		return 0, sdk.ErrEOF
-	}
-
-	// access the plugin state
-	plugin := pState.(*Plugin)
-
-	var n int
-	var evt sdk.EventWriter
-	for n = 0; m.counter < m.maxEvents && n < evts.Len(); n++ {
-		evt = evts.Get(n)
-		m.counter++
+	counter := uint64(0)
+	sample := uint64(p.rand.Int63n(int64(p.config.Jitter + 1)))
+	pull := func(ctx context.Context, evt sdk.EventWriter) error {
+		counter++
+		if counter > uint64(maxEvents) {
+			return sdk.ErrEOF
+		}
 
 		// Increment sample by 1, also add a jitter of [0:jitter]
-		m.sample += 1 + uint64(plugin.rand.Int63n(int64(plugin.config.Jitter+1)))
+		sample += 1 + uint64(p.rand.Int63n(int64(p.config.Jitter+1)))
 
 		// The representation of a dummy event is the sample as a string.
-		str := strconv.Itoa(int(m.sample))
+		str := fmt.Sprintf("%d", sample)
 
 		// It is not mandatory to set the Timestamp of the event (it
 		// would be filled in by the framework if set to uint_max),
@@ -175,11 +147,9 @@ func (m *PluginInstance) NextBatch(pState sdk.PluginState, evts sdk.EventWriters
 		evt.SetTimestamp(uint64(time.Now().UnixNano()))
 
 		_, err := evt.Writer().Write([]byte(str))
-		if err != nil {
-			return 0, err
-		}
+		return err
 	}
-	return n, nil
+	return source.NewPullInstance(pull)
 }
 
 // todo: optimize this to cache by event number
