@@ -23,6 +23,7 @@ PLATFORM ?=$(shell uname -s | tr '[:upper:]' '[:lower:]')
 
 plugins = $(shell ls -d ${SOURCE_DIR}/*/ | cut -f2 -d'/' | xargs)
 plugins-clean = $(addprefix clean/,$(plugins))
+plugins-changelogs = $(addprefix changelog/,$(plugins))
 plugins-packages = $(addprefix package/,$(plugins))
 plugins-releases = $(addprefix release/,$(plugins))
 
@@ -74,6 +75,15 @@ release/%: PRE_RELEASE=
 release/%: clean package/%
 	@echo "$(PLUGIN_NAME) released"
 
+.PHONY: changelogs
+changelogs: $(plugins-changelogs)
+
+changelog/%: build/changelog/changelog
+	$(eval PLUGIN_NAME := $(shell basename $@))
+	$(eval CHANGELOG_PATH := plugins/$(PLUGIN_NAME)/CHANGELOG.md)
+	@./changelog-gen.sh $(PLUGIN_NAME) > $(CHANGELOG_PATH)
+	@echo "$(CHANGELOG_PATH) generated"
+
 .PHONY: check-registry
 check-registry: build/registry/registry
 	@build/registry/bin/registry check ./registry.yaml
@@ -101,3 +111,11 @@ build/registry/registry:
 .PHONY: clean/build/registry/registry
 clean/build/registry/registry:
 	@cd build/registry && make clean
+
+.PHONY: build/changelog/changelog
+build/changelog/changelog:
+	@cd build/changelog && make
+
+.PHONY: clean/build/changelog/changelog
+clean/build/changelog/changelog:
+	@cd build/changelog && make clean
