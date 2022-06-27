@@ -1,10 +1,8 @@
 # Falcosecurity Dummy Plugin
 
-This directory contains the dummy plugin, which is an example plugin written in Go. It's referenced in the [developer's guide](https://falco.org/docs/plugins/developers_guide/) to walk through the implementation of a source plugin.
+This directory contains the dummy plugin, which is an example plugin written in Go. It's referenced in the [Plugins Go SDK Walkthrough](https://falco.org/docs/plugins/go-sdk-walkthrough/#example-go-plugin-dummy) as an implementation example of a plugin with both event sourcing and field extraction capabilities.
 
 It generates synthetic events and doesn't serve any purpose other than for documentation.
-
-It is a companion to the `dummy_c` plugin which is written in C++ but supports the same fields, event source, and configuration.
 
 ## Event Source
 
@@ -38,17 +36,9 @@ The init string can be the empty string, which is treated identically to `{}`.
 
 ### Plugin Open Params
 
-The format of the open params string is a json object. Here's an example:
+The open parameters is a positive integer which denotes the number of samples to generate before returning EOF.
 
-```json
-{"start": 1, "maxEvents": 100}
-```
-
-The json object has the following properties:
-* `start`: denotes the initial value of the sample
-* `maxEvents`: denotes the number of events to return before returning EOF.
-
-The open params string can be the empty string, which is treated identically to `{}`.
+The plugin is capable of suggesting a list of simple valid open parameters.
 
 ### `falco.yaml` Example
 
@@ -58,9 +48,9 @@ Here is a complete `falco.yaml` snippet showing valid configurations for the dum
 plugins:
   - name: dummy
     library_path: libdummy.so
-    init_config: '{"jitter": 10}'
-    open_params: '{"start": 1, "maxEvents": 100}'
+    init_config:
+      jitter: 10
+    open_params: 100  # generate 100 events
 
-# Optional. If not specified the first entry in plugins is used.
 load_plugins: [dummy]
 ```
