@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.6.0
+
+* [`ae6e3ed`](https://github.com/falcosecurity/plugins/commit/ae6e3ed) docs(plugins/dummy): update readme according to new plugin version
+
+* [`9563397`](https://github.com/falcosecurity/plugins/commit/9563397) update(plugins/dummy): bump plugin version to 0.6.0
+
+* [`aa9a20d`](https://github.com/falcosecurity/plugins/commit/aa9a20d) refactor(plugins/dummy): modify plugin open parameters for modern SDK approaches
+
+
 ## v0.5.0
 
 * [`30f4fac`](https://github.com/falcosecurity/plugins/commit/30f4fac) update(plugins/dummy): bump version to 0.5.0
