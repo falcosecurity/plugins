@@ -1,7 +1,4 @@
 approvers:
-  - ldegio
-  - leodido
-  - fntlnz
   - mstemm
   - leogr
   - jasondellaluce
@@ -12,3 +9,7 @@ reviewers:
   - mstemm
   - leogr
   - jasondellaluce
+emeritus_approvers:
+  - ldegio
+  - leodido
+  - fntlnz
