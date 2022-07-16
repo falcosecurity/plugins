@@ -25,6 +25,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -34,61 +35,50 @@ import (
 
 const apiDownloadBufSize = 16 * 1024 * 1024
 
-func scanFile(jdata *fastjson.Value, matches *[]diffMatchInfo) error {
-	patch := string(jdata.Get("patch").GetStringBytes())
-	lineNum := -1
+var (
+	rgxHunkShort = regexp.MustCompile(`^@@ -(?:\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@.*`)
+	rgxHunkLong  = regexp.MustCompile(`^@@@ -(?:\d+)(?:,\d+)? -(?:\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@@.*`)
+)
 
-	scannerp := bufio.NewScanner(strings.NewReader(patch))
-	for scannerp.Scan() {
-		if err := scannerp.Err(); err != nil {
-			return err
-		}
+// scanning a git diff line by line, looking for line additions
+// containing secrets or sensitive information
+func scanDiffPatch(patch string, onAddition func(lineNum uint64, line string)) error {
+	var err error
+	var line string
+	var match []string
+	hunkLineNum := -1
 
-		line := scannerp.Text()
-
-		if line[0] == '+' {
-			cinfo := findSecret(line)
-			if cinfo != nil {
-				var di diffMatchInfo
-				di.Type = cinfo.secretType
-				di.Desc = cinfo.desc
-				di.Platform = cinfo.platform
-				di.Line = uint64(lineNum) - 1
-
-				*matches = append(*matches, di)
-			}
-		} else if len(line) >= 2 && line[0:2] == "@@" {
-			// Example of line format:
-			//  @@ -17,3 +17,10 @@ assumed_role = False @@
-			// We need to parse the '+17,10' part to extract the start line we're tied to
-			ls := strings.Split(line, " ")
-			if len(ls) < 3 {
-				return fmt.Errorf("cannot understand diff line %s (1)", line)
-			}
-			al := ls[2]
-			if len(al) < 4 || al[0] != '+' {
-				return fmt.Errorf("cannot understand diff line %s (2)", line)
-			}
-
-			al = al[1:]
-			linesStr := strings.Split(al, ",")
-			addstart, err := strconv.Atoi(linesStr[0])
-			if err != nil {
-				return fmt.Errorf("cannot understand diff line %s (3)", line)
-			}
-
-			lineNum = addstart
-		} else if line[0] == '-' {
+	scan := bufio.NewScanner(strings.NewReader(patch))
+	for scan.Scan() {
+		line = scan.Text()
+		if strings.HasPrefix(line, "+") {
+			onAddition(uint64(hunkLineNum)-1, line[1:])
+		} else if strings.HasPrefix(line, "-") {
+			// ignore deletions
 			continue
+		} else if strings.HasPrefix(line, "@@") {
+			match = rgxHunkShort.FindStringSubmatch(line)
+			if len(match) != 2 {
+				match = rgxHunkLong.FindStringSubmatch(line)
+			}
+			if len(match) == 2 {
+				hunkLineNum, err = strconv.Atoi(match[1])
+				if err != nil {
+					return fmt.Errorf("cannot parse diff hunk line %s: %s", line, err.Error())
+				}
+			}
 		}
 
-		if lineNum == -1 {
+		// note: this assume that a hunk header is the first line of the diff
+		// this would not work in generic git diffs, but it's what we want
+		// for our API calls
+		if hunkLineNum == -1 {
 			return fmt.Errorf("missed unified diff header from file")
 		}
-		lineNum++
+		hunkLineNum++
 	}
 
-	return nil
+	return scan.Err()
 }
 
 func scanDiff(oCtx *PluginInstance, repo string, refs string, diffFiles *[]diffFileInfo) error {
@@ -134,10 +124,20 @@ func scanDiff(oCtx *PluginInstance, repo string, refs string, diffFiles *[]diffF
 	}
 
 	for _, file := range flist {
-		var fmi diffFileInfo
-		fmi.FileName = string(file.Get("filename").GetStringBytes())
-
-		err := scanFile(file, &fmi.Matches)
+		fmi := diffFileInfo{
+			FileName: string(file.Get("filename").GetStringBytes()),
+		}
+		err := scanDiffPatch(string(file.Get("patch").GetStringBytes()), func(n uint64, l string) {
+			cinfo := findSecret(l)
+			if cinfo != nil {
+				fmi.Matches = append(fmi.Matches, diffMatchInfo{
+					Type:     cinfo.secretType,
+					Desc:     cinfo.desc,
+					Platform: cinfo.platform,
+					Line:     n,
+				})
+			}
+		})
 		if err != nil {
 			return err
 		}
