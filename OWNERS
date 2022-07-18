@@ -1,14 +1,9 @@
 approvers:
-  - ldegio
-  - leodido
-  - fntlnz
   - mstemm
   - leogr
   - jasondellaluce
-reviewers:
+emeritus_approvers:
   - ldegio
   - leodido
   - fntlnz
-  - mstemm
-  - leogr
-  - jasondellaluce
+  
