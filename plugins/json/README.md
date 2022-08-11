@@ -11,14 +11,14 @@ The Json plugin is an extractor plugin, and as a result does not have an event s
 Here is the current set of supported fields:
 
 <!-- README-PLUGIN-FIELDS -->
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| `json.value` | string | Extracts a value from a json-encoded input. Syntax is json.value[<json pointer>], where `<json pointer>` is a [json pointer](https://datatracker.ietf.org/doc/html/rfc6901).
-| `json.obj` | string | The full json message as a text string.
-| `json.rawtime` | string | The time of the event, identical to evt.rawtime.
-| `jevt.value` | string | Alias for json.value, provided for backwards compatibility.
-| `jevt.obj` | string | Alias for json.obj, provided for backwards compatibility.
-| `jevt.rawtime` | string | Alias for json.rawtime, provided for backwards compatibility.
+|      NAME      |   TYPE   | LIST |                                                                                 DESCRIPTION                                                                                  |
+|----------------|----------|------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `json.value`   | `string` | No   | Extracts a value from a JSON-encoded input. Syntax is json.value[<json pointer>], where <json pointer> is a json pointer (see https://datatracker.ietf.org/doc/html/rfc6901) |
+| `json.obj`     | `string` | No   | The full json message as a text string.                                                                                                                                      |
+| `json.rawtime` | `string` | No   | The time of the event, identical to evt.rawtime.                                                                                                                             |
+| `jevt.value`   | `string` | No   | Alias for json.value, provided for backwards compatibility.                                                                                                                  |
+| `jevt.obj`     | `string` | No   | Alias for json.obj, provided for backwards compatibility.                                                                                                                    |
+| `jevt.rawtime` | `string` | No   | Alias for json.rawtime, provided for backwards compatibility.                                                                                                                |
 <!-- /README-PLUGIN-FIELDS -->
 
 ## Configuration

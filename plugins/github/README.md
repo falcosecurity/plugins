@@ -58,24 +58,25 @@ All of the webhooks are deleted when the plugin is unloaded (i.e. when Falco or 
 ## Available fields
 
 <!-- README-PLUGIN-FIELDS -->
-These are the fields you can use to craft Falco conditions when this plugin is loaded:
-- `github.type`: Message type, e.g. 'star' or 'repository'.
-- `github.action`: The github event action. This field typically qualifies the github.type field. For example, a message of type 'star' can have action 'created' or 'deleted'.
-- `github.user`: Name of the user that triggered the event.
-- `github.repo`: Name of the git repository where the event occurred. Github Webhook payloads contain the repository property when the event occurs from activity in a repository.
-- `github.org`: Name of the organization the git repository belongs to.
-- `github.owner`: Name of the repository's owner.
-- `github.repo.public`: 'true' if the repository affected by the action is public. 'false' otherwise.
-- `github.collaborator.name`: The member name for message that add or remove users.
-- `github.collaborator.role`: The member name for message that add or remove users.
-- `github.webhook.id`: When a new webhook has been created, the webhook id.
-- `github.webhook.type`: When a new webhook has been created, the webhook type, e.g. 'repository'.
-- `github.commit.modified`: Comma separated list of files that have been modified.
-- `github.diff.has_secrets: For push messages, 'true' if the diff of one of the commits contains a secret.
-- `github.diff.committed_secrets.desc`: For push messages, if one of the commits includes one or more secrets (AWS keys, github tokens...), this field contains the description of each of the committed secrets, as a comma separated list.
-- `github.diff.committed_secrets.files`: For push messages, if one of the commits includes one or more secrets (AWS keys, github tokens...), this field contains the names of the files in which each of the secrets was committed, as a comma separated list.
-- `github.diff.committed_secrets.lines`: For push messages, if one of the commits includes one or more secrets (AWS keys, github tokens...), this field contains the file line positions of the committed secrets, as a comma separated list.
-- `github.diff.committed_secrets.links`: For push messages, if one of the commits includes one or more secrets (AWS keys, github tokens...), this field contains the github source code link for each of the committed secrets, as a comma separated list.
+|                 NAME                  |   TYPE   | LIST |                                                                                                      DESCRIPTION                                                                                                      |
+|---------------------------------------|----------|------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `github.type`                         | `string` | No   | Message type, e.g. 'star' or 'repository'.                                                                                                                                                                            |
+| `github.action`                       | `string` | No   | The github event action. This field typically qualifies the github.type field. For example, a message of type 'star' can have action 'created' or 'deleted'.                                                          |
+| `github.user`                         | `string` | No   | Name of the user that triggered the event.                                                                                                                                                                            |
+| `github.repo`                         | `string` | No   | Name of the git repository where the event occurred. Github Webhook payloads contain the repository property when the event occurs from activity in a repository.                                                     |
+| `github.org`                          | `string` | No   | Name of the organization the git repository belongs to.                                                                                                                                                               |
+| `github.owner`                        | `string` | No   | Name of the repository's owner.                                                                                                                                                                                       |
+| `github.repo.public`                  | `string` | No   | 'true' if the repository affected by the action is public. 'false' otherwise.                                                                                                                                         |
+| `github.collaborator.name`            | `string` | No   | The member name for message that add or remove users.                                                                                                                                                                 |
+| `github.collaborator.role`            | `string` | No   | The member name for message that add or remove users.                                                                                                                                                                 |
+| `github.webhook.id`                   | `string` | No   | When a new webhook has been created, the webhook id.                                                                                                                                                                  |
+| `github.webhook.type`                 | `string` | No   | When a new webhook has been created, the webhook type, e.g. 'repository'.                                                                                                                                             |
+| `github.commit.modified`              | `string` | No   | Comma separated list of files that have been modified.                                                                                                                                                                |
+| `github.diff.has_secrets`             | `string` | No   | For push messages, 'true' if the diff of one of the commits contains a secret.                                                                                                                                        |
+| `github.diff.committed_secrets.desc`  | `string` | No   | For push messages, if one of the commits includes one or more secrets (AWS keys, github tokens...), this field contains the description of each of the committed secrets, as a comma separated list.                  |
+| `github.diff.committed_secrets.files` | `string` | No   | For push messages, if one of the commits includes one or more secrets (AWS keys, github tokens...), this field contains the names of the files in which each of the secrets was committed, as a comma separated list. |
+| `github.diff.committed_secrets.lines` | `string` | No   | For push messages, if one of the commits includes one or more secrets (AWS keys, github tokens...), this field contains the file line positions of the committed secrets, as a comma separated list.                  |
+| `github.diff.committed_secrets.links` | `string` | No   | For push messages, if one of the commits includes one or more secrets (AWS keys, github tokens...), this field contains the github source code link for each of the committed secrets, as a comma separated list.     |
 <!-- /README-PLUGIN-FIELDS -->
 
 ## Types of detected secrets
