@@ -26,65 +26,65 @@ The event source for Kubernetes Audit Events is `k8s_audit`.
 ### Supported Fields
 
 <!-- README-PLUGIN-FIELDS -->
-Name | Type | Description
-:----|:-----|:-----------
-`ka.auditid` | string | The unique id of the audit event
-`ka.stage` | string | Stage of the request (e.g. RequestReceived, ResponseComplete, etc.)
-`ka.auth.decision` | string | The authorization decision
-`ka.auth.reason` | string | The authorization reason
-`ka.user.name` | string | The user name performing the request
-`ka.user.groups` | string | The groups to which the user belongs
-`ka.impuser.name` | string | The impersonated user name
-`ka.verb` | string | The action being performed
-`ka.uri` | string | The request URI as sent from client to server
-`ka.uri.param` | string | The value of a given query parameter in the uri (e.g. when uri=/foo?key=val, ka.uri.param[key] is val).
-`ka.target.name` | string | The target object name
-`ka.target.namespace` | string | The target object namespace
-`ka.target.resource` | string | The target object resource
-`ka.target.subresource` | string | The target object subresource
-`ka.req.binding.subjects` | string | When the request object refers to a cluster role binding, the subject (e.g. account/users) being linked by the binding
-`ka.req.binding.role` | string | When the request object refers to a cluster role binding, the role being linked by the binding
-`ka.req.binding.subject.has_name` | string | Deprecated, always returns "N/A". Only provided for backwards compatibility
-`ka.req.configmap.name` | string | If the request object refers to a configmap, the configmap name
-`ka.req.configmap.obj` | string | If the request object refers to a configmap, the entire configmap object
-`ka.req.pod.containers.image` | string | When the request object refers to a pod, the container's images.
-`ka.req.container.image` | string | Deprecated by ka.req.pod.containers.image. Returns the image of the first container only
-`ka.req.pod.containers.image.repository` | string | The same as req.container.image, but only the repository part (e.g. falcosecurity/falco).
-`ka.req.container.image.repository` | string | Deprecated by ka.req.pod.containers.image.repository. Returns the repository of the first container only
-`ka.req.pod.host_ipc` | string | When the request object refers to a pod, the value of the hostIPC flag.
-`ka.req.pod.host_network` | string | When the request object refers to a pod, the value of the hostNetwork flag.
-`ka.req.container.host_network` | string | Deprecated alias for ka.req.pod.host_network
-`ka.req.pod.host_pid` | string | When the request object refers to a pod, the value of the hostPID flag.
-`ka.req.pod.containers.host_port` | string | When the request object refers to a pod, all container's hostPort values.
-`ka.req.pod.containers.privileged` | string | When the request object refers to a pod, the value of the privileged flag for all containers.
-`ka.req.container.privileged` | string | Deprecated by ka.req.pod.containers.privileged. Returns true if any container has privileged=true
-`ka.req.pod.containers.allow_privilege_escalation` | string | When the request object refers to a pod, the value of the allowPrivilegeEscalation flag for all containers
-`ka.req.pod.containers.read_only_fs` | string | When the request object refers to a pod, the value of the readOnlyRootFilesystem flag for all containers
-`ka.req.pod.run_as_user` | string | When the request object refers to a pod, the runAsUser uid specified in the security context for the pod. See ....containers.run_as_user for the runAsUser for individual containers
-`ka.req.pod.containers.run_as_user` | string | When the request object refers to a pod, the runAsUser uid for all containers
-`ka.req.pod.containers.eff_run_as_user` | string | When the request object refers to a pod, the initial uid that will be used for all containers. This combines information from both the pod and container security contexts and uses 0 if no uid is specified
-`ka.req.pod.run_as_group` | string | When the request object refers to a pod, the runAsGroup gid specified in the security context for the pod. See ....containers.run_as_group for the runAsGroup for individual containers
-`ka.req.pod.containers.run_as_group` | string | When the request object refers to a pod, the runAsGroup gid for all containers
-`ka.req.pod.containers.eff_run_as_group` | string | When the request object refers to a pod, the initial gid that will be used for all containers. This combines information from both the pod and container security contexts and uses 0 if no gid is specified
-`ka.req.pod.containers.proc_mount` | string | When the request object refers to a pod, the procMount types for all containers
-`ka.req.role.rules` | string | When the request object refers to a role/cluster role, the rules associated with the role
-`ka.req.role.rules.apiGroups` | string | When the request object refers to a role/cluster role, the api groups associated with the role's rules
-`ka.req.role.rules.nonResourceURLs` | string | When the request object refers to a role/cluster role, the non resource urls associated with the role's rules
-`ka.req.role.rules.verbs` | string | When the request object refers to a role/cluster role, the verbs associated with the role's rules
-`ka.req.role.rules.resources` | string | When the request object refers to a role/cluster role, the resources associated with the role's rules
-`ka.req.pod.fs_group` | string | When the request object refers to a pod, the fsGroup gid specified by the security context.
-`ka.req.pod.supplemental_groups` | string | When the request object refers to a pod, the supplementalGroup gids specified by the security context.
-`ka.req.pod.containers.add_capabilities` | string | When the request object refers to a pod, all capabilities to add when running the container.
-`ka.req.service.type` | string | When the request object refers to a service, the service type
-`ka.req.service.ports` | string | When the request object refers to a service, the service's ports
-`ka.req.pod.volumes.hostpath` | string | When the request object refers to a pod, all hostPath paths specified for all volumes
-`ka.req.volume.hostpath` | string | Deprecated by ka.req.pod.volumes.hostpath. Return true if the provided (host) path prefix is used by any volume
-`ka.req.pod.volumes.flexvolume_driver` | string | When the request object refers to a pod, all flexvolume drivers specified for all volumes
-`ka.req.pod.volumes.volume_type` | string | When the request object refers to a pod, all volume types for all volumes
-`ka.resp.name` | string | The response object name
-`ka.response.code` | string | The response code
-`ka.response.reason` | string | The response reason (usually present only for failures)
-`ka.useragent` | string | The useragent of the client who made the request to the apiserver
+|                        NAME                        |   TYPE   | LIST |                                                                                                 DESCRIPTION                                                                                                  |
+|----------------------------------------------------|----------|------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `ka.auditid`                                       | `string` | No   | The unique id of the audit event                                                                                                                                                                             |
+| `ka.stage`                                         | `string` | No   | Stage of the request (e.g. RequestReceived, ResponseComplete, etc.)                                                                                                                                          |
+| `ka.auth.decision`                                 | `string` | No   | The authorization decision                                                                                                                                                                                   |
+| `ka.auth.reason`                                   | `string` | No   | The authorization reason                                                                                                                                                                                     |
+| `ka.user.name`                                     | `string` | No   | The user name performing the request                                                                                                                                                                         |
+| `ka.user.groups`                                   | `string` | Yes  | The groups to which the user belongs                                                                                                                                                                         |
+| `ka.impuser.name`                                  | `string` | No   | The impersonated user name                                                                                                                                                                                   |
+| `ka.verb`                                          | `string` | No   | The action being performed                                                                                                                                                                                   |
+| `ka.uri`                                           | `string` | No   | The request URI as sent from client to server                                                                                                                                                                |
+| `ka.uri.param`                                     | `string` | No   | The value of a given query parameter in the uri (e.g. when uri=/foo?key=val, ka.uri.param[key] is val).                                                                                                      |
+| `ka.target.name`                                   | `string` | No   | The target object name                                                                                                                                                                                       |
+| `ka.target.namespace`                              | `string` | No   | The target object namespace                                                                                                                                                                                  |
+| `ka.target.resource`                               | `string` | No   | The target object resource                                                                                                                                                                                   |
+| `ka.target.subresource`                            | `string` | No   | The target object subresource                                                                                                                                                                                |
+| `ka.req.binding.subjects`                          | `string` | Yes  | When the request object refers to a cluster role binding, the subject (e.g. account/users) being linked by the binding                                                                                       |
+| `ka.req.binding.role`                              | `string` | No   | When the request object refers to a cluster role binding, the role being linked by the binding                                                                                                               |
+| `ka.req.binding.subject.has_name`                  | `string` | No   | Deprecated, always returns "N/A". Only provided for backwards compatibility                                                                                                                                  |
+| `ka.req.configmap.name`                            | `string` | No   | If the request object refers to a configmap, the configmap name                                                                                                                                              |
+| `ka.req.configmap.obj`                             | `string` | No   | If the request object refers to a configmap, the entire configmap object                                                                                                                                     |
+| `ka.req.pod.containers.image`                      | `string` | Yes  | When the request object refers to a pod, the container's images.                                                                                                                                             |
+| `ka.req.container.image`                           | `string` | No   | Deprecated by ka.req.pod.containers.image. Returns the image of the first container only                                                                                                                     |
+| `ka.req.pod.containers.image.repository`           | `string` | Yes  | The same as req.container.image, but only the repository part (e.g. falcosecurity/falco).                                                                                                                    |
+| `ka.req.container.image.repository`                | `string` | No   | Deprecated by ka.req.pod.containers.image.repository. Returns the repository of the first container only                                                                                                     |
+| `ka.req.pod.host_ipc`                              | `string` | No   | When the request object refers to a pod, the value of the hostIPC flag.                                                                                                                                      |
+| `ka.req.pod.host_network`                          | `string` | No   | When the request object refers to a pod, the value of the hostNetwork flag.                                                                                                                                  |
+| `ka.req.container.host_network`                    | `string` | No   | Deprecated alias for ka.req.pod.host_network                                                                                                                                                                 |
+| `ka.req.pod.host_pid`                              | `string` | No   | When the request object refers to a pod, the value of the hostPID flag.                                                                                                                                      |
+| `ka.req.pod.containers.host_port`                  | `string` | Yes  | When the request object refers to a pod, all container's hostPort values.                                                                                                                                    |
+| `ka.req.pod.containers.privileged`                 | `string` | Yes  | When the request object refers to a pod, the value of the privileged flag for all containers.                                                                                                                |
+| `ka.req.container.privileged`                      | `string` | No   | Deprecated by ka.req.pod.containers.privileged. Returns true if any container has privileged=true                                                                                                            |
+| `ka.req.pod.containers.allow_privilege_escalation` | `string` | Yes  | When the request object refers to a pod, the value of the allowPrivilegeEscalation flag for all containers                                                                                                   |
+| `ka.req.pod.containers.read_only_fs`               | `string` | Yes  | When the request object refers to a pod, the value of the readOnlyRootFilesystem flag for all containers                                                                                                     |
+| `ka.req.pod.run_as_user`                           | `string` | No   | When the request object refers to a pod, the runAsUser uid specified in the security context for the pod. See ....containers.run_as_user for the runAsUser for individual containers                         |
+| `ka.req.pod.containers.run_as_user`                | `string` | Yes  | When the request object refers to a pod, the runAsUser uid for all containers                                                                                                                                |
+| `ka.req.pod.containers.eff_run_as_user`            | `string` | Yes  | When the request object refers to a pod, the initial uid that will be used for all containers. This combines information from both the pod and container security contexts and uses 0 if no uid is specified |
+| `ka.req.pod.run_as_group`                          | `string` | No   | When the request object refers to a pod, the runAsGroup gid specified in the security context for the pod. See ....containers.run_as_group for the runAsGroup for individual containers                      |
+| `ka.req.pod.containers.run_as_group`               | `string` | Yes  | When the request object refers to a pod, the runAsGroup gid for all containers                                                                                                                               |
+| `ka.req.pod.containers.eff_run_as_group`           | `string` | Yes  | When the request object refers to a pod, the initial gid that will be used for all containers. This combines information from both the pod and container security contexts and uses 0 if no gid is specified |
+| `ka.req.pod.containers.proc_mount`                 | `string` | Yes  | When the request object refers to a pod, the procMount types for all containers                                                                                                                              |
+| `ka.req.role.rules`                                | `string` | Yes  | When the request object refers to a role/cluster role, the rules associated with the role                                                                                                                    |
+| `ka.req.role.rules.apiGroups`                      | `string` | Yes  | When the request object refers to a role/cluster role, the api groups associated with the role's rules                                                                                                       |
+| `ka.req.role.rules.nonResourceURLs`                | `string` | Yes  | When the request object refers to a role/cluster role, the non resource urls associated with the role's rules                                                                                                |
+| `ka.req.role.rules.verbs`                          | `string` | Yes  | When the request object refers to a role/cluster role, the verbs associated with the role's rules                                                                                                            |
+| `ka.req.role.rules.resources`                      | `string` | Yes  | When the request object refers to a role/cluster role, the resources associated with the role's rules                                                                                                        |
+| `ka.req.pod.fs_group`                              | `string` | No   | When the request object refers to a pod, the fsGroup gid specified by the security context.                                                                                                                  |
+| `ka.req.pod.supplemental_groups`                   | `string` | Yes  | When the request object refers to a pod, the supplementalGroup gids specified by the security context.                                                                                                       |
+| `ka.req.pod.containers.add_capabilities`           | `string` | Yes  | When the request object refers to a pod, all capabilities to add when running the container.                                                                                                                 |
+| `ka.req.service.type`                              | `string` | No   | When the request object refers to a service, the service type                                                                                                                                                |
+| `ka.req.service.ports`                             | `string` | Yes  | When the request object refers to a service, the service's ports                                                                                                                                             |
+| `ka.req.pod.volumes.hostpath`                      | `string` | Yes  | When the request object refers to a pod, all hostPath paths specified for all volumes                                                                                                                        |
+| `ka.req.volume.hostpath`                           | `string` | No   | Deprecated by ka.req.pod.volumes.hostpath. Return true if the provided (host) path prefix is used by any volume                                                                                              |
+| `ka.req.pod.volumes.flexvolume_driver`             | `string` | Yes  | When the request object refers to a pod, all flexvolume drivers specified for all volumes                                                                                                                    |
+| `ka.req.pod.volumes.volume_type`                   | `string` | Yes  | When the request object refers to a pod, all volume types for all volumes                                                                                                                                    |
+| `ka.resp.name`                                     | `string` | No   | The response object name                                                                                                                                                                                     |
+| `ka.response.code`                                 | `string` | No   | The response code                                                                                                                                                                                            |
+| `ka.response.reason`                               | `string` | No   | The response reason (usually present only for failures)                                                                                                                                                      |
+| `ka.useragent`                                     | `string` | No   | The useragent of the client who made the request to the apiserver                                                                                                                                            |
 <!-- /README-PLUGIN-FIELDS -->
 
 ## Usage
