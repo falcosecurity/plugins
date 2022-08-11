@@ -32,9 +32,9 @@ all: check-registry $(plugins)
 
 .PHONY: $(plugins)
 $(plugins):
-	cd plugins/$@ && make DEBUG=$(DEBUG)
+	+cd plugins/$@ && make DEBUG=$(DEBUG)
 # make rules, if any
-	cd plugins/$@ && make rules || :
+	+cd plugins/$@ && make rules || :
 
 .PHONY: clean
 clean: $(plugins-clean) clean/packages clean/build/utils/version clean/build/registry/registry
@@ -45,7 +45,7 @@ clean/packages:
 
 .PHONY: $(plugins-clean)
 $(plugins-clean):
-	cd plugins/$(shell basename $@) && make clean
+	+cd plugins/$(shell basename $@) && make clean
 
 .PHONY: packages
 packages: clean/packages $(plugins-packages)
@@ -98,24 +98,24 @@ update-readme: build/registry/registry
 
 .PHONY: build/utils/version
 build/utils/version:
-	@cd build/utils && make
+	+@cd build/utils && make
 
 .PHONY: clean/build/utils/version
 clean/build/utils/version:
-	@cd build/utils && make clean
+	+@cd build/utils && make clean
 
 .PHONY: build/registry/registry
 build/registry/registry:
-	@cd build/registry && make
+	+@cd build/registry && make
 
 .PHONY: clean/build/registry/registry
 clean/build/registry/registry:
-	@cd build/registry && make clean
+	+@cd build/registry && make clean
 
 .PHONY: build/changelog/changelog
 build/changelog/changelog:
-	@cd build/changelog && make
+	+@cd build/changelog && make
 
 .PHONY: clean/build/changelog/changelog
 clean/build/changelog/changelog:
-	@cd build/changelog && make clean
+	+@cd build/changelog && make clean
