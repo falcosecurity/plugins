@@ -40,3 +40,6 @@ sdk/falcosecurity_plugin.h:
 
 $(OUTPUT): sdk nlohmann/json.hpp dummy.cpp
 	g++ -std=c++0x -fPIC -I$(FALCOSECURITY_PLUGIN_H_DIR) -I$(PLUGIN_INFO_H_DIR) -shared -o $(OUTPUT) dummy.cpp
+
+readme:
+	@$(READMETOOL) -p ./$(OUTPUT) -f README.md
