@@ -10,6 +10,7 @@ The Json plugin is an extractor plugin, and as a result does not have an event s
 
 Here is the current set of supported fields:
 
+<!-- README-PLUGIN-FIELDS -->
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | `json.value` | string | Extracts a value from a json-encoded input. Syntax is json.value[<json pointer>], where `<json pointer>` is a [json pointer](https://datatracker.ietf.org/doc/html/rfc6901).
@@ -18,6 +19,7 @@ Here is the current set of supported fields:
 | `jevt.value` | string | Alias for json.value, provided for backwards compatibility.
 | `jevt.obj` | string | Alias for json.obj, provided for backwards compatibility.
 | `jevt.rawtime` | string | Alias for json.rawtime, provided for backwards compatibility.
+<!-- /README-PLUGIN-FIELDS -->
 
 ## Configuration
 

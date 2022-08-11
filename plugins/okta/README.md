@@ -22,6 +22,7 @@ The event source for `okta` events is `okta`.
 
 # Supported Fields
 
+<!-- README-PLUGIN-FIELDS -->
 | Name                            | Type   | Description                     |
 | ------------------------------- | ------ | ------------------------------- |
 | `okta.app`                      | string | Application                     |
@@ -67,6 +68,7 @@ The event source for `okta` events is `okta`.
 | `okta.target.group.id`          | string | Target Group ID                 |
 | `okta.target.group.alternateid` | string | Target Group Alternate ID       |
 | `okta.target.group.name`        | string | Target Group Name               |
+<!-- /README-PLUGIN-FIELDS -->
 
 # Development
 ## Requirements
