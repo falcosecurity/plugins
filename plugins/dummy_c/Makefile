@@ -19,7 +19,7 @@ PLUGIN_SDK_CPP_GIT_REF=52296e3a46d328791f61459e7be85ef00e44e786
 NAME := dummy_c
 OUTPUT := lib$(NAME).so
 
-all: sdk nlohmann/json.hpp $(OUTPUT)
+all: $(OUTPUT)
 
 clean:
 	rm -rf nlohmann sdk $(OUTPUT)
@@ -38,5 +38,5 @@ sdk/plugin_info.h:
 sdk/falcosecurity_plugin.h:
 	$(CURL) -sLo sdk/falcosecurity_plugin.h https://raw.githubusercontent.com/falcosecurity/plugin-sdk-cpp/$(PLUGIN_SDK_CPP_GIT_REF)/include/falcosecurity_plugin.h
 
-$(OUTPUT): dummy.cpp
+$(OUTPUT): sdk nlohmann/json.hpp dummy.cpp
 	g++ -std=c++0x -fPIC -I$(FALCOSECURITY_PLUGIN_H_DIR) -I$(PLUGIN_INFO_H_DIR) -shared -o $(OUTPUT) dummy.cpp
