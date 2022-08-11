@@ -31,13 +31,19 @@ plugins-releases = $(addprefix release/,$(plugins))
 all: check-registry $(plugins)
 
 .PHONY: $(plugins)
-$(plugins):
+$(plugins): build/readme/readme
 	+cd plugins/$@ && make DEBUG=$(DEBUG)
 # make rules, if any
-	+cd plugins/$@ && make rules || :
+	+@cd plugins/$@ \
+		&& make rules \
+		&& echo "$@ rules generated" || :
+# make readme, if any
+	+@cd plugins/$@ \
+		&& make readme READMETOOL=../../build/readme/bin/readme \
+		&& echo "$@ readme generated" || :
 
 .PHONY: clean
-clean: $(plugins-clean) clean/packages clean/build/utils/version clean/build/registry/registry
+clean: $(plugins-clean) clean/packages clean/build/utils/version clean/build/registry/registry clean/build/changelog/changelog clean/build/readme/readme
 
 .PHONY: clean/packages
 clean/packages:
@@ -119,3 +125,11 @@ build/changelog/changelog:
 .PHONY: clean/build/changelog/changelog
 clean/build/changelog/changelog:
 	+@cd build/changelog && make clean
+
+.PHONY: build/readme/readme
+build/readme/readme:
+	+@cd build/readme && make
+
+.PHONY: clean/build/readme/readme
+clean/build/readme/readme:
+	+@cd build/readme && make clean
