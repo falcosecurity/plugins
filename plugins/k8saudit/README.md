@@ -25,6 +25,7 @@ The event source for Kubernetes Audit Events is `k8s_audit`.
 
 ### Supported Fields
 
+<!-- README-PLUGIN-FIELDS -->
 Name | Type | Description
 :----|:-----|:-----------
 `ka.auditid` | string | The unique id of the audit event
@@ -84,6 +85,7 @@ Name | Type | Description
 `ka.response.code` | string | The response code
 `ka.response.reason` | string | The response reason (usually present only for failures)
 `ka.useragent` | string | The useragent of the client who made the request to the apiserver
+<!-- /README-PLUGIN-FIELDS -->
 
 ## Usage
 

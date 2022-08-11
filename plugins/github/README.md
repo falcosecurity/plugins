@@ -57,6 +57,7 @@ All of the webhooks are deleted when the plugin is unloaded (i.e. when Falco or 
 
 ## Available fields
 
+<!-- README-PLUGIN-FIELDS -->
 These are the fields you can use to craft Falco conditions when this plugin is loaded:
 - `github.type`: Message type, e.g. 'star' or 'repository'.
 - `github.action`: The github event action. This field typically qualifies the github.type field. For example, a message of type 'star' can have action 'created' or 'deleted'.
@@ -75,6 +76,7 @@ These are the fields you can use to craft Falco conditions when this plugin is l
 - `github.diff.committed_secrets.files`: For push messages, if one of the commits includes one or more secrets (AWS keys, github tokens...), this field contains the names of the files in which each of the secrets was committed, as a comma separated list.
 - `github.diff.committed_secrets.lines`: For push messages, if one of the commits includes one or more secrets (AWS keys, github tokens...), this field contains the file line positions of the committed secrets, as a comma separated list.
 - `github.diff.committed_secrets.links`: For push messages, if one of the commits includes one or more secrets (AWS keys, github tokens...), this field contains the github source code link for each of the committed secrets, as a comma separated list.
+<!-- /README-PLUGIN-FIELDS -->
 
 ## Types of detected secrets
 

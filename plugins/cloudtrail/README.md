@@ -18,6 +18,7 @@ The event source for cloudtrail events is `aws_cloudtrail`.
 
 Here is the current set of supported fields:
 
+<!-- README-PLUGIN-FIELDS -->
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | `ct.id` | string | the unique ID of the cloudtrail event (eventID in the json).
@@ -60,6 +61,7 @@ Here is the current set of supported fields:
 | `s3.cnt.put` | string | the number of put operations. This field is 1 for PutObject events, 0 otherwise.
 | `s3.cnt.other` | string | the number of non I/O operations. This field is 0 for GetObject and PutObject events, 1 for all the other events.
 | `ec2.name` | string | the name of the ec2 instances, typically stored in the instance tags.
+<!-- /README-PLUGIN-FIELDS -->
 
 ## Handling AWS Authentication
 
