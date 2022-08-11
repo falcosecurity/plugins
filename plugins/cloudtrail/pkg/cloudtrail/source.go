@@ -29,6 +29,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
@@ -246,6 +247,42 @@ func getMoreSQSFiles(pCtx *Plugin, oCtx *PluginInstance) error {
 
 	if messageType.(string) != "Notification" {
 		return fmt.Errorf("received SQS message that was not a SNS Notification")
+	}
+
+	if pCtx.Config.UseS3SNS {
+		// Process SNS message coming from S3
+		var (
+			s3Event    events.S3Event
+			s3Init     bool
+			lastBucket string
+		)
+
+		err = json.Unmarshal([]byte(sqsMsg["Message"].(string)), &s3Event)
+
+		if err != nil {
+			return err
+		}
+
+		for _, record := range s3Event.Records {
+
+			// init s3 and only re-init if bucket changes
+			if !s3Init || record.S3.Bucket.Name != lastBucket {
+				oCtx.s3.bucket = record.S3.Bucket.Name
+
+				initS3(oCtx)
+
+				s3Init = true
+			}
+
+			isCompressed := strings.HasSuffix(record.S3.Object.Key, ".json.gz")
+
+			oCtx.files = append(oCtx.files, fileInfo{name: record.S3.Object.Key, isCompressed: isCompressed})
+
+			lastBucket = record.S3.Bucket.Name
+		}
+
+		return nil
+
 	}
 
 	var notification snsMessage

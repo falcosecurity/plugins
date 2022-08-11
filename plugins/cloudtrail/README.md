@@ -96,13 +96,14 @@ aws_secret_access_key=<YOUR-AWS-SECRET-ACCESS-KEY-HERE>
 The format of the initialization string is a json object. Here's an example:
 
 ```json
-{"sqsDelete": false, "s3DownloadConcurrency": 64}
+{"sqsDelete": false, "s3DownloadConcurrency": 64, "useS3SNS": true}
 ```
 
 The json object has the following properties:
 
 * `sqsDelete`: value is boolean. If true, then the plugin will delete sqs messages from the queue immediately after receiving them. (Default: true)
 * `s3DownloadConcurrency`: value is numeric. Controls the number of background goroutines used to download S3 files. (Default: 1)
+* `useS3SNS`: value is boolean. If true, then the plugin will expect SNS messages to originate from S3 instead of directly from Cloudtrail (Default: false)
 
 The init string can be the empty string, which is treated identically to `{}`.
 
