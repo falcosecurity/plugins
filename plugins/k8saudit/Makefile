@@ -31,7 +31,7 @@ endif
 all: $(OUTPUT)
 
 clean:
-	@rm -f *.so *.h
+	@rm -fr $(OUTPUT) test_files
 
 test-files:
 	@rm -fr ${TEST_FILES_DIR}
