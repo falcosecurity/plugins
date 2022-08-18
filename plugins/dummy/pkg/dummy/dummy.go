@@ -43,7 +43,7 @@ const (
 type PluginConfig struct {
 	// This reflects potential internal state for the plugin. In
 	// this case, the plugin is configured with a jitter.
-	Jitter uint64 `json:"jitter" jsonschema:"description=A random amount added to the sample of each event (Default: 10)"`
+	Jitter uint64 `json:"jitter" jsonschema:"title=Sample jitter,description=A random amount added to the sample of each event (Default: 10),default=10"`
 }
 
 type Plugin struct {

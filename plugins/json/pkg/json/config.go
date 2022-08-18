@@ -17,7 +17,7 @@ limitations under the License.
 package json
 
 type PluginConfig struct {
-	UseAsync bool `json:"useAsync" jsonschema:"description=If true then async extraction optimization is enabled (Default: true)"`
+	UseAsync bool `json:"useAsync" jsonschema:"title=Use async extraction,description=If true then async extraction optimization is enabled (Default: true),default=true"`
 }
 
 // Resets sets the configuration to its default values

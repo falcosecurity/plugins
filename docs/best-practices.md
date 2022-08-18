@@ -59,6 +59,12 @@ There's no silver bullet for this problem, and the solution strictly depends on 
 
 - The [init configuration](https://falco.org/docs/configuration/#plugins) should contain information that is used during the whole plugin lifecycle and that is used across both field extraction and event generation
 - The init configuration is the right place for structured data. In fact, in most cases, plugins accept JSON strings as a configuration and also expose a schema describing/documenting the expected data format (see [`plugin_get_init_schema`](https://falco.org/docs/plugins/plugin-api-reference/#get-init-schema) for more details)
+- Init configuration parameters should have the following annotations. See the [JSON Schema Validation specification](https://json-schema.org/draft/2020-12/json-schema-validation.html#name-a-vocabulary-for-basic-meta) for more details:
+    - `title`, which provides a short user-facing name for the parameter.
+    - `description`, which describes the parameter using a sentence or a short paragraph.
+    - `default` (optional), which provides the default value of the parameter.
+    - `required` (optional), which notes that the parameter value is required.
+    - `examples` (optional), which provides example values for the parameter.
 - The open parameters should contain information that is only relevant for opening a specific event source, and their lifecycle ends at the invocation of `plugin_close()`
 - The open parameters should contain minimal and non-structured information, such as a URI or a resource descriptor string. This is the reason why the framework does not support any schema definition for open parameters and treats them as an opaque string. Ideally, if more than one parameter is required to open a data source, comma-separated string concatenation is preferable to structured data formats such as JSON
 

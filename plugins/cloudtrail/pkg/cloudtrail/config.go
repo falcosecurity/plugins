@@ -18,9 +18,9 @@ package cloudtrail
 
 // Struct for plugin init config
 type PluginConfig struct {
-	S3DownloadConcurrency int  `json:"s3DownloadConcurrency" jsonschema:"description=Controls the number of background goroutines used to download S3 files (Default: 1)"`
-	SQSDelete             bool `json:"sqsDelete" jsonschema:"description=If true then the plugin will delete sqs messages from the queue immediately after receiving them (Default: true)"`
-	UseAsync              bool `json:"useAsync" jsonschema:"description=If true then async extraction optimization is enabled (Default: true)"`
+	S3DownloadConcurrency int  `json:"s3DownloadConcurrency" jsonschema:"title=S3 download concurrency,description=Controls the number of background goroutines used to download S3 files (Default: 1),default=1"`
+	SQSDelete             bool `json:"sqsDelete" jsonschema:"title=Delete SQS messages,description=If true then the plugin will delete SQS messages from the queue immediately after receiving them (Default: true),default=true"`
+	UseAsync              bool `json:"useAsync" jsonschema:"title=Use async extraction,description=If true then async extraction optimization is enabled (Default: true),default=true"`
 }
 
 // Reset sets the configuration to its default values
