@@ -107,8 +107,8 @@ type LogEvent struct {
 // Plugin represents our plugin
 type Plugin struct {
 	plugins.BasePlugin
-	APIToken     string `json:"api_token" jsonschema:"description=API Token,required"`
-	Organization string `json:"organization" jsonschema:"description=Your Okta organization,required"`
+	APIToken     string `json:"api_token" jsonschema:"title=API token,description=API Token,required"`
+	Organization string `json:"organization" jsonschema:"title=Organization,description=Your Okta organization,required"`
 	lastLogEvent LogEvent
 	lastEventNum uint64
 }
