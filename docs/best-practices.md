@@ -58,7 +58,7 @@ One peculiarity of plugins with event source capability is how they can accept u
 There's no silver bullet for this problem, and the solution strictly depends on the use cases of your plugin. However, there are some principles you can follow.
 
 - The [init configuration](https://falco.org/docs/configuration/#plugins) should contain information that is used during the whole plugin lifecycle and that is used across both field extraction and event generation
-- The init configuration is the right place for structured data. In fact, in most cases, plugins accept JSON strings as a configuration and also expose a schema describing/documenting the expected data format (see [`plugin_get_init_schema`](https://falco.org/docs/plugins/plugin-api-reference/#const-char-plugin-get-init-schema-ss-plugin-schema-type-schema-type-required-no) for more details)
+- The init configuration is the right place for structured data. In fact, in most cases, plugins accept JSON strings as a configuration and also expose a schema describing/documenting the expected data format (see [`plugin_get_init_schema`](https://falco.org/docs/plugins/plugin-api-reference/#get-init-schema) for more details)
 - The open parameters should contain information that is only relevant for opening a specific event source, and their lifecycle ends at the invocation of `plugin_close()`
 - The open parameters should contain minimal and non-structured information, such as a URI or a resource descriptor string. This is the reason why the framework does not support any schema definition for open parameters and treats them as an opaque string. Ideally, if more than one parameter is required to open a data source, comma-separated string concatenation is preferable to structured data formats such as JSON
 
