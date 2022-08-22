@@ -13,11 +13,11 @@ The event source for dummy events is `dummy`.
 Here is the current set of supported fields:
 
 <!-- README-PLUGIN-FIELDS -->
-|       NAME        |   TYPE   | LIST |                               DESCRIPTION                               |
-|-------------------|----------|------|-------------------------------------------------------------------------|
-| `dummy.divisible` | `uint64` | No   | Return 1 if the value is divisible by the provided divisor, 0 otherwise |
-| `dummy.value`     | `uint64` | No   | The sample value in the event                                           |
-| `dummy.strvalue`  | `string` | No   | The sample value in the event, as a string                              |
+|       NAME        |   TYPE   |      ARG      |                               DESCRIPTION                               |
+|-------------------|----------|---------------|-------------------------------------------------------------------------|
+| `dummy.divisible` | `uint64` | Key, Required | Return 1 if the value is divisible by the provided divisor, 0 otherwise |
+| `dummy.value`     | `uint64` | None          | The sample value in the event                                           |
+| `dummy.strvalue`  | `string` | None          | The sample value in the event, as a string                              |
 <!-- /README-PLUGIN-FIELDS -->
 
 ## Configuration

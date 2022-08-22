@@ -23,51 +23,51 @@ The event source for `okta` events is `okta`.
 # Supported Fields
 
 <!-- README-PLUGIN-FIELDS -->
-|              NAME               |   TYPE   | LIST |           DESCRIPTION           |
+|              NAME               |   TYPE   | ARG  |           DESCRIPTION           |
 |---------------------------------|----------|------|---------------------------------|
-| `okta.app`                      | `string` | No   | Application                     |
-| `okta.evt.type`                 | `string` | No   | Event Type                      |
-| `okta.evt.legacytype`           | `string` | No   | Event Legacy Type               |
-| `okta.severity`                 | `string` | No   | Severity                        |
-| `okta.message`                  | `string` | No   | Message                         |
-| `okta.actor.id`                 | `string` | No   | Actor ID                        |
-| `okta.actor.Type`               | `string` | No   | Actor Type                      |
-| `okta.actor.alternateid`        | `string` | No   | Actor Alternate ID              |
-| `okta.actor.name`               | `string` | No   | Actor Display Name              |
-| `okta.client.zone`              | `string` | No   | Client Zone                     |
-| `okta.client.ip`                | `string` | No   | Client IP Address               |
-| `okta.client.device`            | `string` | No   | Client Device                   |
-| `okta.client.id`                | `string` | No   | Client ID                       |
-| `okta.client.geo.city`          | `string` | No   | Client Geographical City        |
-| `okta.client.geo.state`         | `string` | No   | Client Geographical State       |
-| `okta.client.geo.country`       | `string` | No   | Client Geographical Country     |
-| `okta.client.geo.postalcode`    | `string` | No   | Client Geographical Postal Code |
-| `okta.client.geo.lat`           | `string` | No   | Client Geographical Latitude    |
-| `okta.client.geo.lon`           | `string` | No   | Client Geographical Longitude   |
-| `okta.useragent.os`             | `string` | No   | Useragent OS                    |
-| `okta.useragent.browser`        | `string` | No   | Useragent Browser               |
-| `okta.useragent.raw`            | `string` | No   | Raw Useragent                   |
-| `okta.result`                   | `string` | No   | Outcome Result                  |
-| `okta.reason`                   | `string` | No   | Outcome Reason                  |
-| `okta.transaction.id`           | `string` | No   | Transaction ID                  |
-| `okta.transaction.type`         | `string` | No   | Transaction Type                |
-| `okta.requesturi`               | `string` | No   | Request URI                     |
-| `okta.principal.id`             | `string` | No   | Principal ID                    |
-| `okta.principal.alternateid`    | `string` | No   | Principal Alternate ID          |
-| `okta.principal.type`           | `string` | No   | Principal Type                  |
-| `okta.principal.name`           | `string` | No   | Principal Name                  |
-| `okta.authentication.step`      | `string` | No   | Authentication Step             |
-| `okta.authentication.sessionid` | `string` | No   | External Session ID             |
-| `okta.security.asnumber`        | `uint64` | No   | Security AS Number              |
-| `okta.security.asorg`           | `string` | No   | Security AS Org                 |
-| `okta.security.isp`             | `string` | No   | Security ISP                    |
-| `okta.security.domain`          | `string` | No   | Security Domain                 |
-| `okta.target.user.id`           | `string` | No   | Target User ID                  |
-| `okta.target.user.aternateid`   | `string` | No   | Target User Alternate ID        |
-| `okta.target.user.name`         | `string` | No   | Target User Name                |
-| `okta.target.group.id`          | `string` | No   | Target Group ID                 |
-| `okta.target.group.aternateid`  | `string` | No   | Target Group Alternate ID       |
-| `okta.target.group.name`        | `string` | No   | Target Group Name               |
+| `okta.app`                      | `string` | None | Application                     |
+| `okta.evt.type`                 | `string` | None | Event Type                      |
+| `okta.evt.legacytype`           | `string` | None | Event Legacy Type               |
+| `okta.severity`                 | `string` | None | Severity                        |
+| `okta.message`                  | `string` | None | Message                         |
+| `okta.actor.id`                 | `string` | None | Actor ID                        |
+| `okta.actor.Type`               | `string` | None | Actor Type                      |
+| `okta.actor.alternateid`        | `string` | None | Actor Alternate ID              |
+| `okta.actor.name`               | `string` | None | Actor Display Name              |
+| `okta.client.zone`              | `string` | None | Client Zone                     |
+| `okta.client.ip`                | `string` | None | Client IP Address               |
+| `okta.client.device`            | `string` | None | Client Device                   |
+| `okta.client.id`                | `string` | None | Client ID                       |
+| `okta.client.geo.city`          | `string` | None | Client Geographical City        |
+| `okta.client.geo.state`         | `string` | None | Client Geographical State       |
+| `okta.client.geo.country`       | `string` | None | Client Geographical Country     |
+| `okta.client.geo.postalcode`    | `string` | None | Client Geographical Postal Code |
+| `okta.client.geo.lat`           | `string` | None | Client Geographical Latitude    |
+| `okta.client.geo.lon`           | `string` | None | Client Geographical Longitude   |
+| `okta.useragent.os`             | `string` | None | Useragent OS                    |
+| `okta.useragent.browser`        | `string` | None | Useragent Browser               |
+| `okta.useragent.raw`            | `string` | None | Raw Useragent                   |
+| `okta.result`                   | `string` | None | Outcome Result                  |
+| `okta.reason`                   | `string` | None | Outcome Reason                  |
+| `okta.transaction.id`           | `string` | None | Transaction ID                  |
+| `okta.transaction.type`         | `string` | None | Transaction Type                |
+| `okta.requesturi`               | `string` | None | Request URI                     |
+| `okta.principal.id`             | `string` | None | Principal ID                    |
+| `okta.principal.alternateid`    | `string` | None | Principal Alternate ID          |
+| `okta.principal.type`           | `string` | None | Principal Type                  |
+| `okta.principal.name`           | `string` | None | Principal Name                  |
+| `okta.authentication.step`      | `string` | None | Authentication Step             |
+| `okta.authentication.sessionid` | `string` | None | External Session ID             |
+| `okta.security.asnumber`        | `uint64` | None | Security AS Number              |
+| `okta.security.asorg`           | `string` | None | Security AS Org                 |
+| `okta.security.isp`             | `string` | None | Security ISP                    |
+| `okta.security.domain`          | `string` | None | Security Domain                 |
+| `okta.target.user.id`           | `string` | None | Target User ID                  |
+| `okta.target.user.aternateid`   | `string` | None | Target User Alternate ID        |
+| `okta.target.user.name`         | `string` | None | Target User Name                |
+| `okta.target.group.id`          | `string` | None | Target Group ID                 |
+| `okta.target.group.aternateid`  | `string` | None | Target Group Alternate ID       |
+| `okta.target.group.name`        | `string` | None | Target Group Name               |
 <!-- /README-PLUGIN-FIELDS -->
 
 # Development

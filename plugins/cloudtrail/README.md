@@ -19,49 +19,49 @@ The event source for cloudtrail events is `aws_cloudtrail`.
 Here is the current set of supported fields:
 
 <!-- README-PLUGIN-FIELDS -->
-|             NAME              |   TYPE   | LIST |                                                                       DESCRIPTION                                                                        |
+|             NAME              |   TYPE   | ARG  |                                                                       DESCRIPTION                                                                        |
 |-------------------------------|----------|------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `ct.id`                       | `string` | No   | the unique ID of the cloudtrail event (eventID in the json).                                                                                             |
-| `ct.error`                    | `string` | No   | The error code from the event. Will be "<NA>" (e.g. the NULL/empty/none value) if there was no error.                                                    |
-| `ct.time`                     | `string` | No   | the timestamp of the cloudtrail event (eventTime in the json).                                                                                           |
-| `ct.src`                      | `string` | No   | the source of the cloudtrail event (eventSource in the json).                                                                                            |
-| `ct.shortsrc`                 | `string` | No   | the source of the cloudtrail event (eventSource in the json, without the '.amazonaws.com' trailer).                                                      |
-| `ct.name`                     | `string` | No   | the name of the cloudtrail event (eventName in the json).                                                                                                |
-| `ct.user`                     | `string` | No   | the user of the cloudtrail event (userIdentity.userName in the json).                                                                                    |
-| `ct.user.accountid`           | `string` | No   | the account id of the user of the cloudtrail event.                                                                                                      |
-| `ct.user.identitytype`        | `string` | No   | the kind of user identity (e.g. Root, IAMUser,AWSService, etc.)                                                                                          |
-| `ct.user.principalid`         | `string` | No   | A unique identifier for the user that made the request.                                                                                                  |
-| `ct.user.arn`                 | `string` | No   | the Amazon Resource Name (ARN) of the user that made the request.                                                                                        |
-| `ct.region`                   | `string` | No   | the region of the cloudtrail event (awsRegion in the json).                                                                                              |
-| `ct.response.subnetid`        | `string` | No   | the subnet ID included in the response.                                                                                                                  |
-| `ct.response.reservationid`   | `string` | No   | the reservation ID included in the response.                                                                                                             |
-| `ct.request.availabilityzone` | `string` | No   | the availability zone included in the request.                                                                                                           |
-| `ct.request.cluster`          | `string` | No   | the cluster included in the request.                                                                                                                     |
-| `ct.request.functionname`     | `string` | No   | the function name included in the request.                                                                                                               |
-| `ct.request.groupname`        | `string` | No   | the group name included in the request.                                                                                                                  |
-| `ct.request.host`             | `string` | No   | the host included in the request                                                                                                                         |
-| `ct.request.name`             | `string` | No   | the name of the entity being acted on in the request.                                                                                                    |
-| `ct.request.policy`           | `string` | No   | the policy included in the request                                                                                                                       |
-| `ct.request.serialnumber`     | `string` | No   | the serial number provided in the request.                                                                                                               |
-| `ct.request.servicename`      | `string` | No   | the service name provided in the request.                                                                                                                |
-| `ct.request.subnetid`         | `string` | No   | the subnet ID provided in the request.                                                                                                                   |
-| `ct.request.taskdefinition`   | `string` | No   | the task definition prrovided in the request.                                                                                                            |
-| `ct.request.username`         | `string` | No   | the username provided in the request.                                                                                                                    |
-| `ct.srcip`                    | `string` | No   | the IP address generating the event (sourceIPAddress in the json).                                                                                       |
-| `ct.useragent`                | `string` | No   | the user agent generating the event (userAgent in the json).                                                                                             |
-| `ct.info`                     | `string` | No   | summary information about the event. This varies depending on the event type and, for some events, it contains event-specific details.                   |
-| `ct.managementevent`          | `string` | No   | 'true' if the event is a management event (AwsApiCall, AwsConsoleAction, AwsConsoleSignIn, or AwsServiceEvent), 'false' otherwise.                       |
-| `ct.readonly`                 | `string` | No   | 'true' if the event only reads information (e.g. DescribeInstances), 'false' if the event modifies the state (e.g. RunInstances, CreateLoadBalancer...). |
-| `s3.uri`                      | `string` | No   | the s3 URI (s3://<bucket>/<key>).                                                                                                                        |
-| `s3.bucket`                   | `string` | No   | the bucket name for s3 events.                                                                                                                           |
-| `s3.key`                      | `string` | No   | the S3 key name.                                                                                                                                         |
-| `s3.bytes`                    | `uint64` | No   | the size of an s3 download or upload, in bytes.                                                                                                          |
-| `s3.bytes.in`                 | `uint64` | No   | the size of an s3 upload, in bytes.                                                                                                                      |
-| `s3.bytes.out`                | `uint64` | No   | the size of an s3 download, in bytes.                                                                                                                    |
-| `s3.cnt.get`                  | `uint64` | No   | the number of get operations. This field is 1 for GetObject events, 0 otherwise.                                                                         |
-| `s3.cnt.put`                  | `uint64` | No   | the number of put operations. This field is 1 for PutObject events, 0 otherwise.                                                                         |
-| `s3.cnt.other`                | `uint64` | No   | the number of non I/O operations. This field is 0 for GetObject and PutObject events, 1 for all the other events.                                        |
-| `ec2.name`                    | `string` | No   | the name of the ec2 instances, typically stored in the instance tags.                                                                                    |
+| `ct.id`                       | `string` | None | the unique ID of the cloudtrail event (eventID in the json).                                                                                             |
+| `ct.error`                    | `string` | None | The error code from the event. Will be "<NA>" (e.g. the NULL/empty/none value) if there was no error.                                                    |
+| `ct.time`                     | `string` | None | the timestamp of the cloudtrail event (eventTime in the json).                                                                                           |
+| `ct.src`                      | `string` | None | the source of the cloudtrail event (eventSource in the json).                                                                                            |
+| `ct.shortsrc`                 | `string` | None | the source of the cloudtrail event (eventSource in the json, without the '.amazonaws.com' trailer).                                                      |
+| `ct.name`                     | `string` | None | the name of the cloudtrail event (eventName in the json).                                                                                                |
+| `ct.user`                     | `string` | None | the user of the cloudtrail event (userIdentity.userName in the json).                                                                                    |
+| `ct.user.accountid`           | `string` | None | the account id of the user of the cloudtrail event.                                                                                                      |
+| `ct.user.identitytype`        | `string` | None | the kind of user identity (e.g. Root, IAMUser,AWSService, etc.)                                                                                          |
+| `ct.user.principalid`         | `string` | None | A unique identifier for the user that made the request.                                                                                                  |
+| `ct.user.arn`                 | `string` | None | the Amazon Resource Name (ARN) of the user that made the request.                                                                                        |
+| `ct.region`                   | `string` | None | the region of the cloudtrail event (awsRegion in the json).                                                                                              |
+| `ct.response.subnetid`        | `string` | None | the subnet ID included in the response.                                                                                                                  |
+| `ct.response.reservationid`   | `string` | None | the reservation ID included in the response.                                                                                                             |
+| `ct.request.availabilityzone` | `string` | None | the availability zone included in the request.                                                                                                           |
+| `ct.request.cluster`          | `string` | None | the cluster included in the request.                                                                                                                     |
+| `ct.request.functionname`     | `string` | None | the function name included in the request.                                                                                                               |
+| `ct.request.groupname`        | `string` | None | the group name included in the request.                                                                                                                  |
+| `ct.request.host`             | `string` | None | the host included in the request                                                                                                                         |
+| `ct.request.name`             | `string` | None | the name of the entity being acted on in the request.                                                                                                    |
+| `ct.request.policy`           | `string` | None | the policy included in the request                                                                                                                       |
+| `ct.request.serialnumber`     | `string` | None | the serial number provided in the request.                                                                                                               |
+| `ct.request.servicename`      | `string` | None | the service name provided in the request.                                                                                                                |
+| `ct.request.subnetid`         | `string` | None | the subnet ID provided in the request.                                                                                                                   |
+| `ct.request.taskdefinition`   | `string` | None | the task definition prrovided in the request.                                                                                                            |
+| `ct.request.username`         | `string` | None | the username provided in the request.                                                                                                                    |
+| `ct.srcip`                    | `string` | None | the IP address generating the event (sourceIPAddress in the json).                                                                                       |
+| `ct.useragent`                | `string` | None | the user agent generating the event (userAgent in the json).                                                                                             |
+| `ct.info`                     | `string` | None | summary information about the event. This varies depending on the event type and, for some events, it contains event-specific details.                   |
+| `ct.managementevent`          | `string` | None | 'true' if the event is a management event (AwsApiCall, AwsConsoleAction, AwsConsoleSignIn, or AwsServiceEvent), 'false' otherwise.                       |
+| `ct.readonly`                 | `string` | None | 'true' if the event only reads information (e.g. DescribeInstances), 'false' if the event modifies the state (e.g. RunInstances, CreateLoadBalancer...). |
+| `s3.uri`                      | `string` | None | the s3 URI (s3://<bucket>/<key>).                                                                                                                        |
+| `s3.bucket`                   | `string` | None | the bucket name for s3 events.                                                                                                                           |
+| `s3.key`                      | `string` | None | the S3 key name.                                                                                                                                         |
+| `s3.bytes`                    | `uint64` | None | the size of an s3 download or upload, in bytes.                                                                                                          |
+| `s3.bytes.in`                 | `uint64` | None | the size of an s3 upload, in bytes.                                                                                                                      |
+| `s3.bytes.out`                | `uint64` | None | the size of an s3 download, in bytes.                                                                                                                    |
+| `s3.cnt.get`                  | `uint64` | None | the number of get operations. This field is 1 for GetObject events, 0 otherwise.                                                                         |
+| `s3.cnt.put`                  | `uint64` | None | the number of put operations. This field is 1 for PutObject events, 0 otherwise.                                                                         |
+| `s3.cnt.other`                | `uint64` | None | the number of non I/O operations. This field is 0 for GetObject and PutObject events, 1 for all the other events.                                        |
+| `ec2.name`                    | `string` | None | the name of the ec2 instances, typically stored in the instance tags.                                                                                    |
 <!-- /README-PLUGIN-FIELDS -->
 
 ## Handling AWS Authentication
