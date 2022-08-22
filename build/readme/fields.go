@@ -18,14 +18,34 @@ package main
 
 import (
 	"bytes"
+	"strings"
 
 	"github.com/falcosecurity/plugin-sdk-go/pkg/loader"
+	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
 	"github.com/olekukonko/tablewriter"
 )
 
 const (
 	defaultFieldsTag = "README-PLUGIN-FIELDS"
 )
+
+func fieldsRenderArgRow(a *sdk.FieldEntryArg) string {
+	if !a.IsIndex && !a.IsKey {
+		return "None"
+	}
+
+	var res []string
+	if a.IsIndex {
+		res = append(res, "Index")
+	}
+	if a.IsKey {
+		res = append(res, "Key")
+	}
+	if a.IsRequired {
+		res = append(res, "Required")
+	}
+	return strings.Join(res, ", ")
+}
 
 func fieldsEditor(p *loader.Plugin, s string) (string, error) {
 	if !p.HasCapExtraction() {
@@ -39,7 +59,7 @@ func fieldsEditor(p *loader.Plugin, s string) (string, error) {
 
 	var buf bytes.Buffer
 	table := tablewriter.NewWriter(&buf)
-	table.SetHeader([]string{"Name", "Type", "List", "Description"})
+	table.SetHeader([]string{"Name", "Type", "Arg", "Description"})
 	table.SetBorders(tablewriter.Border{Left: true, Top: false, Right: true, Bottom: false})
 	table.SetCenterSeparator("|")
 	table.SetRowSeparator("-")
@@ -47,12 +67,12 @@ func fieldsEditor(p *loader.Plugin, s string) (string, error) {
 	for _, f := range fields {
 		row := []string{}
 		row = append(row, "`"+f.Name+"`")
-		row = append(row, "`"+f.Type+"`")
 		if f.IsList {
-			row = append(row, "Yes")
+			row = append(row, "`"+f.Type+" (list)`")
 		} else {
-			row = append(row, "No")
+			row = append(row, "`"+f.Type+"`")
 		}
+		row = append(row, fieldsRenderArgRow(&f.Arg))
 		row = append(row, f.Desc)
 		table.Append(row)
 	}
