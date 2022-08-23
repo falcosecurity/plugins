@@ -265,13 +265,15 @@ func getMoreSQSFiles(pCtx *Plugin, oCtx *PluginInstance) error {
 
 		for _, record := range s3Event.Records {
 
-			// init s3 and only re-init if bucket changes
+			// init s3 and set bucket changes
 			if !s3Init || record.S3.Bucket.Name != lastBucket {
 				oCtx.s3.bucket = record.S3.Bucket.Name
 
-				initS3(oCtx)
-
-				s3Init = true
+				// only init s3 once
+				if !s3Init {
+					initS3(oCtx)
+					s3Init = true
+				}
 			}
 
 			isCompressed := strings.HasSuffix(record.S3.Object.Key, ".json.gz")
