@@ -1,4 +1,4 @@
-# A GitHub plugin for Falco/sysdig
+# GitHub Plugin for Falco
 
 This plugin exports several fields that can be used to analyze GitHub activity. The plugin comes with a default set of rules that detect common GitHub-related threats/issues, for example:
 
@@ -53,7 +53,7 @@ Instrument all of the user's repositores:
 ## Webhook lifecycle
 The plugin creates a webhook for each of the instrumented repository using the token specified as the first open argument. Each webhook is configured with a unique, automatically generated secret. This allows the plugin to reject messages that don't come from the righful github webhooks.
 
-All of the webhooks are deleted when the plugin is unloaded (i.e. when Falco or Sysdig stop).
+All of the webhooks are deleted when the plugin event source gets closed (i.e. when Falco reloads or stops).
 
 ## Available fields
 
@@ -118,4 +118,4 @@ The plugin can currently detect when the following types of secrets are committe
 - shopify_private_app_access_token
 - pypi_upload_token
 
-Adding a new secret detection is simply a matter of adding a new entry in the secretsChecks array in [secrets.go](https://github.com/draios/plugin-github/blob/main/secrets.go).
+Adding a new secret detection is simply a matter of adding a new entry in the secretsChecks array in [secrets.go](https://github.com/falcosecurity/plugins/blob/master/plugins/github/pkg/github/secrets.go).
