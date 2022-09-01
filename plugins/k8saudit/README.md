@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This plugin extends Falco to support [Kubernetes Audit Events](https://kubernetes.io/docs/tasks/debug-application-cluster/audit/#audit-backends) as a new data source. 
+This plugin extends Falco to support [Kubernetes Audit Events](https://kubernetes.io/docs/tasks/debug-application-cluster/audit/#audit-backends) as a new data source.
 Audit events are logged by the API server when almost every cluster management task is performed. By monitoring the audit logs, this plugins provides high visibility over the activity in your cluster allows detecting malicious behavior.
 
 Support for Kubernetes Audit Events was previously introduced in Falco v0.13 as a parallel independent stream of events that was read separately from system calls, and was matched separately against its own sets of rules.
@@ -85,6 +85,7 @@ The event source for Kubernetes Audit Events is `k8s_audit`.
 | `ka.response.code`                                 | `string`        | None          | The response code                                                                                                                                                                                            |
 | `ka.response.reason`                               | `string`        | None          | The response reason (usually present only for failures)                                                                                                                                                      |
 | `ka.useragent`                                     | `string`        | None          | The useragent of the client who made the request to the apiserver                                                                                                                                            |
+| `ka.sourceips`                                     | `string (list)` | None          | The IP addresses of the client who made the request to the apiserver                                                                                                                                         |
 <!-- /README-PLUGIN-FIELDS -->
 
 ## Usage
