@@ -424,5 +424,15 @@ func (k *Plugin) Fields() []sdk.FieldEntry {
 			Name: "ka.useragent",
 			Desc: "The useragent of the client who made the request to the apiserver",
 		},
+		{
+			Type:   "string",
+			Name:   "ka.sourceips",
+			Desc:   "The IP addresses of the client who made the request to the apiserver",
+			IsList: true,
+			Arg: sdk.FieldEntryArg{
+				IsRequired: false,
+				IsIndex:    true,
+			},
+		},
 	}
 }
