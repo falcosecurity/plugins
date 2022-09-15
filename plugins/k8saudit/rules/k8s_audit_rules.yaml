@@ -741,3 +741,31 @@
   priority: WARNING
   source: k8s_audit
   tags: [k8s]
+
+- list: excessively_capable_list
+  items: [
+    CAP_SYS_ADMIN,
+    CAP_SYS_MODULE,
+    CAP_SYS_RAWIO,
+    CAP_SYS_PTRACE,
+    CAP_SYS_BOOT,
+    CAP_SYSLOG,
+    CAP_DAC_READ_SEARCH,
+    CAP_NET_ADMIN,
+    CAP_BPF
+    ]
+
+- list: falco_capable_images
+  items: []
+
+- rule: Launch Excessively Capable Pod
+  desc: >
+    Detect an attempt to start a pod with an excessively capable
+  condition: >
+    kevt and pod and kcreate and ka.req.pod.containers.add_capabilities intersects (excessively_capable_list)
+    and not ka.req.pod.containers.image.repository in (falco_privileged_images)
+    and not ka.req.pod.containers.image.repository in (falco_capable_images)
+  output: Pod started with an excessively capable (user=%ka.user.name pod=%ka.resp.name resource=%ka.target.resource ns=%ka.target.namespace images=%ka.req.pod.containers.image)
+  priority: WARNING
+  source: k8s_audit
+  tags: [k8s]
