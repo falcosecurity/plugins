@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/alecthomas/jsonschema"
+	"github.com/bluele/gcache"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/source"
@@ -107,10 +108,13 @@ type LogEvent struct {
 // Plugin represents our plugin
 type Plugin struct {
 	plugins.BasePlugin
-	APIToken     string `json:"api_token" jsonschema:"title=API token,description=API Token,required"`
-	Organization string `json:"organization" jsonschema:"title=Organization,description=Your Okta organization,required"`
-	lastLogEvent LogEvent
-	lastEventNum uint64
+	APIToken         string `json:"api_token" jsonschema:"title=API token,description=API Token,required"`
+	Organization     string `json:"organization" jsonschema:"title=Organization,description=Your Okta organization,required"`
+	CacheExpiration  uint64 `json:"cache_expiration" jsonschema:"title=Cache Expiration,description=TTL in seconds for keys in cache for MFA events (default: 600)"`
+	CacheUserMaxSize uint64 `json:"cache_usermaxsize" jsonschema:"title=Cache User Max Size,description=Max size by user for the cache (default: 200)"`
+	lastLogEvent     LogEvent
+	lastEventNum     uint64
+	cache            gcache.Cache
 }
 
 // PluginInstance represents a opened stream based on our Plugin
@@ -131,7 +135,7 @@ func (oktaPlugin *Plugin) Info() *plugins.Info {
 		Name:        "okta",
 		Description: "Okta Log Events",
 		Contact:     "github.com/falcosecurity/plugins/",
-		Version:     "0.4.0",
+		Version:     "0.5.0",
 		EventSource: "okta",
 	}
 }
@@ -154,10 +158,13 @@ func (oktaPlugin *Plugin) InitSchema() *sdk.SchemaInfo {
 // we use it for setting default configuration values and mapping
 // values from `init_config` (json format for this plugin)
 func (oktaPlugin *Plugin) Init(config string) error {
+	oktaPlugin.CacheExpiration = 84600
+	oktaPlugin.CacheUserMaxSize = 200
 	err := json.Unmarshal([]byte(config), &oktaPlugin)
 	if err != nil {
 		return err
 	}
+	oktaPlugin.cache = gcache.New(10000).LFU().Build()
 	return nil
 }
 
@@ -207,6 +214,8 @@ func (oktaPlugin *Plugin) Fields() []sdk.FieldEntry {
 		{Type: "string", Name: "okta.target.group.id", Desc: "Target Group ID"},
 		{Type: "string", Name: "okta.target.group.aternateid", Desc: "Target Group Alternate ID"},
 		{Type: "string", Name: "okta.target.group.name", Desc: "Target Group Name"},
+		{Type: "uint64", Name: "okta.mfa.failure.countlast", Desc: "Count of MFA failures in last seconds", Arg: sdk.FieldEntryArg{IsRequired: true, IsIndex: true}},
+		{Type: "uint64", Name: "okta.mfa.deny.countlast", Desc: "Count of MFA denies in last seconds", Arg: sdk.FieldEntryArg{IsRequired: true, IsIndex: true}},
 	}
 }
 
@@ -227,6 +236,25 @@ func (oktaPlugin *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) e
 
 		oktaPlugin.lastLogEvent = data
 		oktaPlugin.lastEventNum = evt.EventNum()
+
+		if data.EventType == "user.mfa.okta_verify.deny_push" || (data.EventType == "user.authentication.auth_via_mfa" && data.Outcome.Result == "FAILURE") {
+			key := data.EventType + ":" + data.Actor.ID
+			valueList := []uint64{}
+			value, err := oktaPlugin.cache.Get(key)
+			if err == nil {
+				if value != nil {
+					valueList = value.([]uint64)
+				}
+			}
+			valueList = append(valueList, evt.Timestamp())
+			if uint64(len(valueList)) > oktaPlugin.CacheUserMaxSize {
+				valueList = valueList[1:]
+			}
+			err = oktaPlugin.cache.SetWithExpire(key, valueList, time.Duration(oktaPlugin.CacheExpiration)*time.Second)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	switch req.Field() {
@@ -341,6 +369,25 @@ func (oktaPlugin *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) e
 		for _, i := range data.Target {
 			if i.Type == "UserGroup" {
 				req.SetValue(i.DisplayName)
+			}
+		}
+	case "okta.mfa.failure.countlast", "okta.mfa.deny.countlast":
+		if data.EventType == "user.mfa.okta_verify.deny_push" || (data.EventType == "user.authentication.auth_via_mfa" && data.Outcome.Result == "FAILURE") {
+			key := data.EventType + ":" + data.Actor.ID
+			shift := req.ArgIndex()
+			getvalue, err := oktaPlugin.cache.Get(key)
+			if err == nil {
+				if getvalue != nil {
+					var count uint64
+					values := getvalue.([]uint64)
+					oldest := evt.Timestamp() - uint64(shift*1e9)
+					for _, i := range values {
+						if i > uint64(oldest) {
+							count++
+						}
+					}
+					req.SetValue(count)
+				}
 			}
 		}
 	// case "okta.security.isproxy":

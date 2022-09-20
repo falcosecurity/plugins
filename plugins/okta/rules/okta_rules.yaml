@@ -19,7 +19,7 @@
 
 - required_plugin_versions:
   - name: okta
-    version: 0.1.0
+    version: 0.5.0
 
 # Example Rule on login in to OKTA. Disabled by default since it might be noisy
 #- rule: User logged in to OKTA
@@ -198,3 +198,19 @@
   source: okta
   tags: [okta]
   enabled: false
+
+- rule: Too many failed MFA in last 5min
+  desc: An user failed MFA too many times in the last 5min
+  condition: okta.mfa.failure.countlast[300]>=3
+  output: "A user has failed MFA too many times in last 5min (user='%okta.actor.name' last_reason='%okta.reason' countLast300=%okta.mfa.failure.countlast[300])"
+  priority: WARNING
+  source: okta
+  tags: [okta]
+
+- rule: Too many denied MFA Pushes in last 5min
+  desc: A user denied too many MFA Pushes in the last 5min
+  condition: okta.mfa.deny.countlast[300]>=3
+  output: "A user has denied too many MFA pushes in last 5min (user='%okta.actor.name' reason='%okta.reason' countLast300=%okta.mfa.deny.countlast[300])"
+  priority: WARNING
+  source: okta
+  tags: [okta]
