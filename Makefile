@@ -64,7 +64,6 @@ package/%: clean/% % build/utils/version
 	@./build/utils/version --path $(PLUGIN_PATH) $(PRE_RELEASE)
 	mkdir -p $(OUTPUT_DIR)/$(PLUGIN_NAME)
 	cp -r $(PLUGIN_PATH) $(OUTPUT_DIR)/$(PLUGIN_NAME)/
-	cp -r plugins/$(PLUGIN_NAME)/README.md $(OUTPUT_DIR)/$(PLUGIN_NAME)/ || :
 	tar -zcvf $(OUTPUT_DIR)/$(PLUGIN_NAME)-$(PLUGIN_VERSION)-${PLATFORM}-${ARCH}.tar.gz -C ${OUTPUT_DIR}/$(PLUGIN_NAME) $$(ls -A ${OUTPUT_DIR}/$(PLUGIN_NAME))
 	rm -rf $(OUTPUT_DIR)/$(PLUGIN_NAME)
 	@echo "$(PLUGIN_NAME) package built"
