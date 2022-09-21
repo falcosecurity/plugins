@@ -107,11 +107,11 @@ func (p *Plugin) Open(params string) (source.Instance, error) {
 	// Perform the open
 	var err error
 	if len(params) >= 5 && params[:5] == "s3://" {
-		err = openS3(oCtx, params)
+		err = oCtx.openS3(params)
 	} else if len(params) >= 6 && params[:6] == "sqs://" {
-		err = openSQS(oCtx, params)
+		err = oCtx.openSQS(params)
 	} else {
-		err = openLocal(oCtx, params)
+		err = oCtx.openLocal(params)
 	}
 
 	if err != nil {
@@ -125,7 +125,7 @@ func (o *PluginInstance) NextBatch(pState sdk.PluginState, evts sdk.EventWriters
 	var n int
 	var err error
 	for n = 0; n < evts.Len(); n++ {
-		err = nextEvent(o, evts.Get(n))
+		err = o.nextEvent(evts.Get(n))
 		if err != nil {
 			break
 		}
