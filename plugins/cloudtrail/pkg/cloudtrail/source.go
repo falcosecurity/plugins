@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-lambda-go/events"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -76,6 +77,7 @@ type snsMessage struct {
 type PluginInstance struct {
 	source.BaseInstance
 	openMode           OpenMode
+	config             PluginConfig
 	cloudTrailFilesDir string
 	files              []fileInfo
 	curFileNum         uint32
@@ -99,7 +101,7 @@ func dirExists(path string) bool {
 	return err == nil
 }
 
-func openLocal(pCtx *Plugin, oCtx *PluginInstance, params string) error {
+func openLocal(oCtx *PluginInstance, params string) error {
 	oCtx.openMode = fileMode
 
 	oCtx.cloudTrailFilesDir = params
@@ -136,19 +138,40 @@ func openLocal(pCtx *Plugin, oCtx *PluginInstance, params string) error {
 	return nil
 }
 
-func initS3(oCtx *PluginInstance) {
-
+func loadConfig(p *PluginInstance) (aws.Config, error) {
 	ctx := context.Background()
-	cfg, err := config.LoadDefaultConfig(ctx)
-	if err != nil {
-		panic(err) // todo: fix this
+	var opts []func(*config.LoadOptions) error
+
+	if len(p.config.AWS.Profile) > 0 {
+		opts = append(opts, config.WithSharedConfigProfile(p.config.AWS.Profile))
+	}
+	if len(p.config.AWS.Config) > 0 {
+		opts = append(opts, config.WithSharedConfigFiles([]string{p.config.AWS.Config}))
+	}
+	if len(p.config.AWS.Credentials) > 0 {
+		opts = append(opts, config.WithSharedCredentialsFiles([]string{p.config.AWS.Credentials}))
 	}
 
-	oCtx.s3.client = s3.NewFromConfig(cfg)
-	oCtx.s3.downloader = manager.NewDownloader(oCtx.s3.client)
+	return config.LoadDefaultConfig(ctx, opts...)
 }
 
-func openS3(pCtx *Plugin, oCtx *PluginInstance, input string) error {
+func initS3(p *PluginInstance) error {
+	if p.s3.client == nil {
+		cfg, err := loadConfig(p)
+		if err != nil {
+			return err
+		}
+
+		// Create an array of download buffers that will be used to concurrently
+		// download files from s3
+		p.s3.DownloadBufs = make([][]byte, p.config.S3DownloadConcurrency)
+		p.s3.client = s3.NewFromConfig(cfg)
+		p.s3.downloader = manager.NewDownloader(p.s3.client)
+	}
+	return nil
+}
+
+func openS3(oCtx *PluginInstance, input string) error {
 	oCtx.openMode = s3Mode
 
 	// remove the initial "s3://"
@@ -165,16 +188,19 @@ func openS3(pCtx *Plugin, oCtx *PluginInstance, input string) error {
 		prefix = input[slashindex+1:]
 	}
 
-	initS3(oCtx)
+	if err := initS3(oCtx); err != nil {
+		return err
+	}
 
 	// Fetch the list of keys
+	ctx := context.Background()
 	paginator := s3.NewListObjectsV2Paginator(oCtx.s3.client, &s3.ListObjectsV2Input{
 		Bucket: &oCtx.s3.bucket,
 		Prefix: &prefix,
 	})
 
 	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(context.TODO())
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
 			if err != nil {
 				return fmt.Errorf(PluginName + " plugin error: failed to list objects: " + err.Error())
@@ -195,7 +221,7 @@ func openS3(pCtx *Plugin, oCtx *PluginInstance, input string) error {
 	return nil
 }
 
-func getMoreSQSFiles(pCtx *Plugin, oCtx *PluginInstance) error {
+func getMoreSQSFiles(oCtx *PluginInstance) error {
 	ctx := context.Background()
 
 	input := &sqs.ReceiveMessageInput{
@@ -216,7 +242,7 @@ func getMoreSQSFiles(pCtx *Plugin, oCtx *PluginInstance) error {
 		return nil
 	}
 
-	if pCtx.Config.SQSDelete {
+	if oCtx.config.SQSDelete {
 		// Delete the message from the queue so it won't be read again
 		delInput := &sqs.DeleteMessageInput{
 			QueueUrl:      &oCtx.queueURL,
@@ -251,7 +277,7 @@ func getMoreSQSFiles(pCtx *Plugin, oCtx *PluginInstance) error {
 		return fmt.Errorf("received SQS message that was not a SNS Notification")
 	}
 
-	if pCtx.Config.UseS3SNS {
+	if oCtx.config.UseS3SNS {
 		// Process SNS message coming from S3
 		var (
 			s3Event    events.S3Event
@@ -273,7 +299,9 @@ func getMoreSQSFiles(pCtx *Plugin, oCtx *PluginInstance) error {
 
 				// only init s3 once
 				if !s3Init {
-					initS3(oCtx)
+					if err := initS3(oCtx); err != nil {
+						return err
+					}
 					s3Init = true
 				}
 			}
@@ -286,7 +314,6 @@ func getMoreSQSFiles(pCtx *Plugin, oCtx *PluginInstance) error {
 		}
 
 		return nil
-
 	}
 
 	var notification snsMessage
@@ -301,7 +328,9 @@ func getMoreSQSFiles(pCtx *Plugin, oCtx *PluginInstance) error {
 	// contain new cloudtrail files.
 	oCtx.s3.bucket = notification.Bucket
 
-	initS3(oCtx)
+	if err := initS3(oCtx); err != nil {
+		return err
+	}
 
 	for _, key := range notification.Keys {
 
@@ -313,10 +342,10 @@ func getMoreSQSFiles(pCtx *Plugin, oCtx *PluginInstance) error {
 	return nil
 }
 
-func openSQS(pCtx *Plugin, oCtx *PluginInstance, input string) error {
+func openSQS(oCtx *PluginInstance, input string) error {
 	ctx := context.Background()
 
-	cfg, err := config.LoadDefaultConfig(ctx)
+	cfg, err := loadConfig(oCtx)
 	if err != nil {
 		return err
 	}
@@ -335,7 +364,7 @@ func openSQS(pCtx *Plugin, oCtx *PluginInstance, input string) error {
 
 	oCtx.queueURL = *urlResult.QueueUrl
 
-	return getMoreSQSFiles(pCtx, oCtx)
+	return getMoreSQSFiles(oCtx)
 }
 
 var dlErrChan chan error
@@ -358,16 +387,16 @@ func s3Download(oCtx *PluginInstance, downloader *manager.Downloader, name strin
 	oCtx.s3.DownloadBufs[dloadSlotNum] = buff.Bytes()
 }
 
-func readNextFileS3(pCtx *Plugin, oCtx *PluginInstance) ([]byte, error) {
+func readNextFileS3(oCtx *PluginInstance) ([]byte, error) {
 	if oCtx.s3.curBuf < oCtx.s3.nFilledBufs {
 		curBuf := oCtx.s3.curBuf
 		oCtx.s3.curBuf++
 		return oCtx.s3.DownloadBufs[curBuf], nil
 	}
 
-	dlErrChan = make(chan error, pCtx.Config.S3DownloadConcurrency)
+	dlErrChan = make(chan error, oCtx.config.S3DownloadConcurrency)
 	k := oCtx.s3.lastDownloadedFileNum
-	oCtx.s3.nFilledBufs = min(pCtx.Config.S3DownloadConcurrency, len(oCtx.files)-k)
+	oCtx.s3.nFilledBufs = min(oCtx.config.S3DownloadConcurrency, len(oCtx.files)-k)
 	for j, f := range oCtx.files[k : k+oCtx.s3.nFilledBufs] {
 		oCtx.s3.DownloadWg.Add(1)
 		go s3Download(oCtx, oCtx.s3.downloader, f.name, j)
@@ -413,7 +442,7 @@ func extractRecordStrings(jsonStr []byte, res *[][]byte) {
 }
 
 // nextEvent is the core event production function.
-func nextEvent(pCtx *Plugin, oCtx *PluginInstance, evt sdk.EventWriter) error {
+func nextEvent(oCtx *PluginInstance, evt sdk.EventWriter) error {
 	var evtData []byte
 	var tmpStr []byte
 	var err error
@@ -426,7 +455,7 @@ func nextEvent(pCtx *Plugin, oCtx *PluginInstance, evt sdk.EventWriter) error {
 			// If reading file names from a queue, try to
 			// get more files first. Otherwise, return EOF.
 			if oCtx.openMode == sqsMode {
-				err = getMoreSQSFiles(pCtx, oCtx)
+				err = getMoreSQSFiles(oCtx)
 				if err != nil {
 					return err
 				}
@@ -446,7 +475,7 @@ func nextEvent(pCtx *Plugin, oCtx *PluginInstance, evt sdk.EventWriter) error {
 
 		switch oCtx.openMode {
 		case s3Mode, sqsMode:
-			tmpStr, err = readNextFileS3(pCtx, oCtx)
+			tmpStr, err = readNextFileS3(oCtx)
 		case fileMode:
 			tmpStr, err = readFileLocal(file.name)
 		}
