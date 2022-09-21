@@ -17,7 +17,7 @@
 
 # The list of the data sources not allowed in plugins, since they are already
 # used in Falco.
-reserved_sources: [ "syscall", "internal", "plugins" ]
+reserved_sources: ["syscall", "internal", "plugins"]
 
 # The list of plugins officially recognized by the Falcosecurity organization.
 # Registering your plugin here is required to reserve a given name, source, or id.
@@ -28,7 +28,16 @@ plugins:
     description: Read Kubernetes Audit Events and monitor Kubernetes Clusters
     authors: The Falco Authors
     contact: https://falco.org/community
+    maintainers:
+      - name: The Falco Authors
+        email: cncf-falco-dev@lists.cncf.io
+    keywords:
+      - audit
+      - audit-log
+      - audit-events
+      - kubernetes
     url: https://github.com/falcosecurity/plugins/tree/master/plugins/k8saudit
+    rules_url: https://github.com/falcosecurity/plugins/tree/master/plugins/k8saudit/rules
     license: Apache-2.0
     capabilities:
       sourcing:
@@ -41,7 +50,16 @@ plugins:
     description: Reads Cloudtrail JSON logs from files/S3 and injects as events
     authors: The Falco Authors
     contact: https://falco.org/community
+    maintainers:
+      - name: The Falco Authors
+        email: cncf-falco-dev@lists.cncf.io
+    keywords:
+      - audit
+      - user-activity
+      - api-usage
+      - aws
     url: https://github.com/falcosecurity/plugins/tree/master/plugins/cloudtrail
+    rules_url: https://github.com/falcosecurity/plugins/tree/master/plugins/cloudtrail/rules
     license: Apache-2.0
     capabilities:
       sourcing:
@@ -54,6 +72,13 @@ plugins:
     description: Extract values from any JSON payload
     authors: The Falco Authors
     contact: https://falco.org/community
+    maintainers:
+      - name: The Falco Authors
+        email: cncf-falco-dev@lists.cncf.io
+    keywords:
+      - json-events
+      - json-payload
+      - extractor
     url: https://github.com/falcosecurity/plugins/tree/master/plugins/json
     license: Apache-2.0
     capabilities:
@@ -63,6 +88,9 @@ plugins:
     description: Reference plugin used to document interface
     authors: The Falco Authors
     contact: https://falco.org/community
+    maintainers:
+      - name: The Falco Authors
+        email: cncf-falco-dev@lists.cncf.io
     url: https://github.com/falcosecurity/plugins/tree/master/plugins/dummy
     license: Apache-2.0
     capabilities:
@@ -76,6 +104,9 @@ plugins:
     description: Like Dummy, but written in C++
     authors: The Falco Authors
     contact: https://falco.org/community
+    maintainers:
+      - name: The Falco Authors
+        email: cncf-falco-dev@lists.cncf.io
     url: https://github.com/falcosecurity/plugins/tree/master/plugins/dummy_c
     license: Apache-2.0
     capabilities:
@@ -88,8 +119,14 @@ plugins:
   - name: docker
     description: Docker Events
     authors: Thomas Labarussias
-    contact: https://github.org/Issif
+    contact: https://github.com/Issif
+    maintainers:
+      - name: Thomas Labarussias
+        email: issif_github@gadz.org
+    keywords:
+      - docker-events
     url: https://github.com/Issif/docker-plugin
+    rules_url: https://github.com/Issif/docker-plugin/tree/main/rules
     license: Apache-2.0
     capabilities:
       sourcing:
@@ -103,6 +140,9 @@ plugins:
     authors: Alban Crequy
     contact: https://github.com/kinvolk/seccompagent
     url: https://github.com/kinvolk/seccompagent
+    keywords:
+      - seccomp
+      - kinvolk
     license: Apache-2.0
     capabilities:
       sourcing:
@@ -115,7 +155,15 @@ plugins:
     description: Okta Log Events
     authors: The Falco Authors
     contact: https://falco.org/community
-    url: https://github.com/falcosecurity/plugins/tree/master/plugins/okta 
+    maintainers:
+      - name: The Falco Authors
+        email: cncf-falco-dev@lists.cncf.io
+    keywords:
+      - audit
+      - log-events
+      - okta
+    url: https://github.com/falcosecurity/plugins/tree/master/plugins/okta
+    rules_url: https://github.com/falcosecurity/plugins/tree/master/plugins/okta/rules
     license: Apache-2.0
     capabilities:
       sourcing:
@@ -128,7 +176,17 @@ plugins:
     description: Github Webhook Events
     authors: The Falco Authors
     contact: https://falco.org/community
-    url: https://github.com/falcosecurity/plugins/tree/master/plugins/github 
+    maintainers:
+      - name: The Falco Authors
+        email: cncf-falco-dev@lists.cncf.io
+    keywords:
+      - audit
+      - log-events
+      - webhook
+      - github-activity
+      - github
+    url: https://github.com/falcosecurity/plugins/tree/master/plugins/github
+    rules_url: https://github.com/falcosecurity/plugins/tree/master/plugins/github/rules
     license: Apache-2.0
     capabilities:
       sourcing:
