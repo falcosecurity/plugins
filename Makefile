@@ -101,6 +101,11 @@ update-readme: build/registry/registry
 		--subtag="<!-- REGISTRY:TABLE -->"
 	@echo Readme has been updated successfully
 
+.PHONY: update-index
+update-index: build/registry/registry
+	@build/registry/bin/registry update-index ./registry.yaml ${DIST_INDEX}
+	@echo Distribution index has been updated successfully
+
 .PHONY: build/utils/version
 build/utils/version:
 	+@cd build/utils && make
