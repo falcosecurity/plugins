@@ -100,25 +100,23 @@ func (p *Plugin) Init(cfg string) error {
 
 func (p *Plugin) Open(params string) (source.Instance, error) {
 	// Allocate the context struct for this open instance
-	oCtx := &PluginInstance{}
+	oCtx := &PluginInstance{
+		config: p.Config,
+	}
 
 	// Perform the open
 	var err error
 	if len(params) >= 5 && params[:5] == "s3://" {
-		err = openS3(p, oCtx, params)
+		err = openS3(oCtx, params)
 	} else if len(params) >= 6 && params[:6] == "sqs://" {
-		err = openSQS(p, oCtx, params)
+		err = openSQS(oCtx, params)
 	} else {
-		err = openLocal(p, oCtx, params)
+		err = openLocal(oCtx, params)
 	}
 
 	if err != nil {
 		return nil, err
 	}
-
-	// Create an array of download buffers that will be used to concurrently
-	// download files from s3
-	oCtx.s3.DownloadBufs = make([][]byte, p.Config.S3DownloadConcurrency)
 
 	return oCtx, nil
 }
@@ -126,10 +124,8 @@ func (p *Plugin) Open(params string) (source.Instance, error) {
 func (o *PluginInstance) NextBatch(pState sdk.PluginState, evts sdk.EventWriters) (int, error) {
 	var n int
 	var err error
-	pCtx := pState.(*Plugin)
 	for n = 0; n < evts.Len(); n++ {
-		err = nextEvent(pCtx, o, evts.Get(n))
-
+		err = nextEvent(o, evts.Get(n))
 		if err != nil {
 			break
 		}
