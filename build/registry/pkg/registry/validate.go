@@ -18,22 +18,13 @@ package registry
 
 import (
 	"fmt"
-	"os"
 	"regexp"
 )
 
 var (
-	rgxName *regexp.Regexp
+	rgxName   = regexp.MustCompile(`^[a-z]+[a-z0-9-_]*$`)
+	rgxSource = regexp.MustCompile(`^[a-z]+[a-z0-9_]*$`)
 )
-
-func init() {
-	var err error
-	rgxName, err = regexp.Compile(`^[a-z]+[a-z0-9_]*$`)
-	if err != nil {
-		println(err.Error())
-		os.Exit(1)
-	}
-}
 
 func (s *SourcingCapability) validate(usedIDs map[uint]bool, forbiddenSources map[string]bool) error {
 	if s.Supported {
@@ -46,7 +37,7 @@ func (s *SourcingCapability) validate(usedIDs map[uint]bool, forbiddenSources ma
 		if _, ok := forbiddenSources[s.Source]; ok {
 			return fmt.Errorf("forbidden source name: '%s'", s.Source)
 		}
-		if !rgxName.MatchString(s.Source) {
+		if !rgxSource.MatchString(s.Source) {
 			return fmt.Errorf("source name does follow the naming convention: '%s'", s.Source)
 		}
 		usedIDs[s.ID] = true
