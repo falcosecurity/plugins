@@ -295,7 +295,7 @@
 - rule: EphemeralContainers Created
   desc: >
     Detect any ephemeral container created
-  condition: kevt and pod_subresource and kmodify and ka.target.subresource in (ephemeralcontainers) and not user_known_pod_debug_activities
+  condition: kevt and pod_subresource and ka.target.subresource in (ephemeralcontainers) and not user_known_pod_debug_activities
   output: Ephemeral container is created in pod (user=%ka.user.name pod=%ka.target.name resource=%ka.target.resource ns=%ka.target.namespace ephemeral_container_name=%jevt.value[/requestObject/ephemeralContainers/0/name] ephemeral_container_image=%jevt.value[/requestObject/ephemeralContainers/0/image])
   priority: NOTICE
   source: k8s_audit
