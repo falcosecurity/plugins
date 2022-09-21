@@ -31,12 +31,10 @@ import (
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/valyala/fastjson"
 
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
@@ -59,9 +57,8 @@ type fileInfo struct {
 // This is the state that we use when reading events from an S3 bucket
 type s3State struct {
 	bucket                string
-	awsSvc                *s3.S3
-	awsSess               *session.Session
-	downloader            *s3manager.Downloader
+	client                *s3.Client
+	downloader            *manager.Downloader
 	DownloadWg            sync.WaitGroup
 	DownloadBufs          [][]byte
 	lastDownloadedFileNum int
@@ -140,13 +137,15 @@ func openLocal(pCtx *Plugin, oCtx *PluginInstance, params string) error {
 }
 
 func initS3(oCtx *PluginInstance) {
-	oCtx.s3.awsSess = session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
 
-	oCtx.s3.awsSvc = s3.New(oCtx.s3.awsSess)
+	ctx := context.Background()
+	cfg, err := config.LoadDefaultConfig(ctx)
+	if err != nil {
+		panic(err) // todo: fix this
+	}
 
-	oCtx.s3.downloader = s3manager.NewDownloader(oCtx.s3.awsSess)
+	oCtx.s3.client = s3.NewFromConfig(cfg)
+	oCtx.s3.downloader = manager.NewDownloader(oCtx.s3.client)
 }
 
 func openS3(pCtx *Plugin, oCtx *PluginInstance, input string) error {
@@ -169,12 +168,19 @@ func openS3(pCtx *Plugin, oCtx *PluginInstance, input string) error {
 	initS3(oCtx)
 
 	// Fetch the list of keys
-
-	err := oCtx.s3.awsSvc.ListObjectsPages(&s3.ListObjectsInput{
+	paginator := s3.NewListObjectsV2Paginator(oCtx.s3.client, &s3.ListObjectsV2Input{
 		Bucket: &oCtx.s3.bucket,
 		Prefix: &prefix,
-	}, func(p *s3.ListObjectsOutput, last bool) (shouldContinue bool) {
-		for _, obj := range p.Contents {
+	})
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(context.TODO())
+		if err != nil {
+			if err != nil {
+				return fmt.Errorf(PluginName + " plugin error: failed to list objects: " + err.Error())
+			}
+		}
+		for _, obj := range page.Contents {
 			path := obj.Key
 			isCompressed := strings.HasSuffix(*path, ".json.gz")
 			if filepath.Ext(*path) != ".json" && !isCompressed {
@@ -184,13 +190,9 @@ func openS3(pCtx *Plugin, oCtx *PluginInstance, input string) error {
 			var fi fileInfo = fileInfo{name: *path, isCompressed: isCompressed}
 			oCtx.files = append(oCtx.files, fi)
 		}
-		return true
-	})
-	if err != nil {
-		err = fmt.Errorf(PluginName + " plugin error: failed to list objects: " + err.Error())
 	}
 
-	return err
+	return nil
 }
 
 func getMoreSQSFiles(pCtx *Plugin, oCtx *PluginInstance) error {
@@ -338,11 +340,12 @@ func openSQS(pCtx *Plugin, oCtx *PluginInstance, input string) error {
 
 var dlErrChan chan error
 
-func s3Download(oCtx *PluginInstance, downloader *s3manager.Downloader, name string, dloadSlotNum int) {
+func s3Download(oCtx *PluginInstance, downloader *manager.Downloader, name string, dloadSlotNum int) {
 	defer oCtx.s3.DownloadWg.Done()
 
-	buff := &aws.WriteAtBuffer{}
-	_, err := downloader.Download(buff,
+	ctx := context.Background()
+	buff := manager.NewWriteAtBuffer(nil)
+	_, err := downloader.Download(ctx, buff,
 		&s3.GetObjectInput{
 			Bucket: &oCtx.s3.bucket,
 			Key:    &name,
