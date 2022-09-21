@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/falcosecurity/plugins/build/registry/pkg/registry"
+	"github.com/falcosecurity/plugins/build/registry/pkg/registry/distribution"
 	"github.com/spf13/cobra"
 )
 
@@ -85,6 +86,17 @@ func doTable(registryFile, subFile, subTag string) error {
 	return nil
 }
 
+func doUpdateIndex(registryFile, indexFile string) error {
+	registry, err := loadRegistryFromFile(registryFile)
+	if err != nil {
+		return err
+	}
+	if err := registry.Validate(); err != nil {
+		return err
+	}
+	return distribution.UpsertIndex(registry, indexFile)
+}
+
 func main() {
 	checkCmd := &cobra.Command{
 		Use:                   "check <filename>",
@@ -110,12 +122,23 @@ func main() {
 	tableFlags.StringVar(&tableSubTab, "subtag", defaultTableSubTag, "A tag that delimits the start and the end of the text section to substitute with the generated table.")
 	tableFlags.StringVar(&tableSubFileName, "subfile", "", "If specified, the table will be written inside the file at this path, inserting it between the first two instances of the substitution tag.")
 
+	updateIndexCmd := &cobra.Command{
+		Use:                   "update-index <registryFilename> <indexFilename>",
+		Short:                 "Update an index file for artifacts distribution using registry data",
+		Args:                  cobra.ExactArgs(2),
+		DisableFlagsInUseLine: true,
+		RunE: func(c *cobra.Command, args []string) error {
+			return doUpdateIndex(args[0], args[1])
+		},
+	}
+
 	rootCmd := &cobra.Command{
 		Use:     "registry",
 		Version: "0.2.0",
 	}
 	rootCmd.AddCommand(checkCmd)
 	rootCmd.AddCommand(tableCmd)
+	rootCmd.AddCommand(updateIndexCmd)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Printf("error: %s\n", err)
