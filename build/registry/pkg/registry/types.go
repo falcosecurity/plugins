@@ -33,11 +33,17 @@ type Capabilities struct {
 }
 
 type Plugin struct {
-	Name         string       `yaml:"name"`
-	Description  string       `yaml:"description"`
-	Authors      string       `yaml:"authors"`
-	Contact      string       `yaml:"contact"`
+	Name        string `yaml:"name"`
+	Description string `yaml:"description"`
+	Authors     string `yaml:"authors"`
+	Contact     string `yaml:"contact"`
+	Maintainers []struct {
+		Email string `yaml:"email"`
+		Name  string `yaml:"name"`
+	} `yaml:"maintainers"`
+	Keywords     []string     `yaml:"keywords"`
 	URL          string       `yaml:"url"`
+	RulesURL     string       `yaml:"rules_url"`
 	License      string       `yaml:"license"`
 	Reserved     bool         `yaml:"reserved"`
 	Capabilities Capabilities `yaml:"capabilities"`
