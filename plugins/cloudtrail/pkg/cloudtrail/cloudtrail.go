@@ -32,6 +32,7 @@ import (
 	"math"
 
 	"github.com/alecthomas/jsonschema"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/source"
@@ -57,6 +58,7 @@ type Plugin struct {
 	jdata       *fastjson.Value
 	jdataEvtnum uint64 // The event number jdata refers to. Used to know when we can skip the unmarshaling.
 	Config      PluginConfig
+	ConfigAWS   aws.Config
 }
 
 func (p *Plugin) Info() *plugins.Info {
@@ -93,6 +95,13 @@ func (p *Plugin) Init(cfg string) error {
 	p.Config.Reset()
 	json.Unmarshal([]byte(cfg), &p.Config)
 
+	// create an AWS config from the given plugin config
+	awsCfg, err := p.Config.AWS.ConfigAWS()
+	if err != nil {
+		return err
+	}
+	p.ConfigAWS = awsCfg.Copy()
+
 	// enable/disable async extraction optimazion (enabled by default)
 	extract.SetAsync(p.Config.UseAsync)
 	return nil
@@ -101,7 +110,8 @@ func (p *Plugin) Init(cfg string) error {
 func (p *Plugin) Open(params string) (source.Instance, error) {
 	// Allocate the context struct for this open instance
 	oCtx := &PluginInstance{
-		config: p.Config,
+		config:    p.Config,
+		awsConfig: p.ConfigAWS.Copy(),
 	}
 
 	// Perform the open

@@ -31,7 +31,6 @@ import (
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
@@ -77,6 +76,7 @@ type snsMessage struct {
 type PluginInstance struct {
 	source.BaseInstance
 	openMode           OpenMode
+	awsConfig          aws.Config
 	config             PluginConfig
 	cloudTrailFilesDir string
 	files              []fileInfo
@@ -138,34 +138,12 @@ func (oCtx *PluginInstance) openLocal(params string) error {
 	return nil
 }
 
-func (p *PluginInstance) loadConfig() (aws.Config, error) {
-	ctx := context.Background()
-	var opts []func(*config.LoadOptions) error
-
-	if len(p.config.AWS.Profile) > 0 {
-		opts = append(opts, config.WithSharedConfigProfile(p.config.AWS.Profile))
-	}
-	if len(p.config.AWS.Config) > 0 {
-		opts = append(opts, config.WithSharedConfigFiles([]string{p.config.AWS.Config}))
-	}
-	if len(p.config.AWS.Credentials) > 0 {
-		opts = append(opts, config.WithSharedCredentialsFiles([]string{p.config.AWS.Credentials}))
-	}
-
-	return config.LoadDefaultConfig(ctx, opts...)
-}
-
 func (p *PluginInstance) initS3() error {
 	if p.s3.client == nil {
-		cfg, err := p.loadConfig()
-		if err != nil {
-			return err
-		}
-
 		// Create an array of download buffers that will be used to concurrently
 		// download files from s3
 		p.s3.DownloadBufs = make([][]byte, p.config.S3DownloadConcurrency)
-		p.s3.client = s3.NewFromConfig(cfg)
+		p.s3.client = s3.NewFromConfig(p.awsConfig)
 		p.s3.downloader = manager.NewDownloader(p.s3.client)
 	}
 	return nil
@@ -345,14 +323,9 @@ func (oCtx *PluginInstance) getMoreSQSFiles() error {
 func (oCtx *PluginInstance) openSQS(input string) error {
 	ctx := context.Background()
 
-	cfg, err := oCtx.loadConfig()
-	if err != nil {
-		return err
-	}
-
 	oCtx.openMode = sqsMode
 
-	oCtx.sqsClient = sqs.NewFromConfig(cfg)
+	oCtx.sqsClient = sqs.NewFromConfig(oCtx.awsConfig)
 
 	queueName := input[6:]
 
