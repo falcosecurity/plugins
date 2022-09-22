@@ -122,7 +122,7 @@ A string which contains the name of your EKS Cluster (required).
 
 ### Rules
 
-The `k8saudit-eks` plugin ships with a default rule (see `rules/` directory) for test purpose. The same rules than those for `k8saudit` plugin can work, just add an `alternative` field:
+The `k8saudit-eks` plugin ships with a no default rule for test purpose, the same rules than those for `k8saudit` plugin can work, just add an `alternative` field:
 ```
 - required_engine_version: 15
 - required_plugin_versions:
@@ -131,6 +131,25 @@ The `k8saudit-eks` plugin ships with a default rule (see `rules/` directory) for
     alternatives:
       - name: k8saudit-eks
         version: 0.1.0
+```
+
+To test if it works, you can still use this one for example:
+
+```yaml
+- required_engine_version: 15
+- required_plugin_versions:
+  - name: k8saudit-eks
+    version: 0.1.0
+
+- rule: Dummy rule
+  desc: >
+    Dummy rule
+  condition: >
+    ka.verb in (get,create,delete,update)
+  output: user=%ka.user.name verb=%ka.verb target=%ka.target.name target.namespace=%ka.target.namespace resource=%ka.target.resource
+  priority: WARNING
+  source: k8s_audit
+  tags: [k8s]
 ```
 
 ### Running
