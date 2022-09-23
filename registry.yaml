@@ -195,6 +195,19 @@ plugins:
         source: github
       extraction:
         supported: true
+  - name: k8saudit_eks
+    description: Read Kubernetes Audit Events from AWS EKS Clusters
+    authors: The Falco Authors
+    contact: https://falco.org/community
+    url: https://github.com/falcosecurity/plugins/tree/master/plugins/k8saudit_eks
+    license: Apache-2.0
+    capabilities:
+      sourcing:
+        supported: true
+        id: 9
+        source: k8s_audit
+      extraction:
+        supported: true
   - name: test
     description: This ID is reserved for source plugin development. Any plugin author can use this ID, but authors can expect events from other developers with this ID. After development is complete, the author should request an actual ID
     reserved: true
