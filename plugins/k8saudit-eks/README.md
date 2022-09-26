@@ -11,7 +11,7 @@ This plugin supports consuming Kubernetes Audit Events stored in Cloudwatch Logs
 
 ## Capabilities
 
-The `k8saudit_eks` uses the field extraction methods of the [`k8saudit`](https://github.com/falcosecurity/plugins/tree/master/plugins/k8saudit) plugin as the format for the Audit Logs is same.
+The `k8saudit-eks` uses the field extraction methods of the [`k8saudit`](https://github.com/falcosecurity/plugins/tree/master/plugins/k8saudit) plugin as the format for the Audit Logs is same.
 
 ### Event Source
 
@@ -91,8 +91,8 @@ Here's an example of configuration of `falco.yaml`:
 
 ```yaml
 plugins:
-  - name: k8saudit_eks
-    library_path: libk8saudit_eks.so
+  - name: k8saudit-eks
+    library_path: libk8saudit-eks.so
     init_config:
       region: "us-east-1"
       profile: "default"
@@ -105,7 +105,7 @@ plugins:
     library_path: libjson.so
     init_config: ""
 
-load_plugins: [k8saudit_eks, json]
+load_plugins: [k8saudit-eks, json]
 ```
 
 **Initialization Config**:
@@ -122,14 +122,14 @@ A string which contains the name of your EKS Cluster (required).
 
 ### Rules
 
-The `k8saudit_eks` plugin ships with a no default rule for test purpose, the same rules than those for `k8saudit` plugin can work, just add an `alternative` field:
+The `k8saudit-eks` plugin ships with a no default rule for test purpose, the same rules than those for `k8saudit` plugin can work, just add an `alternative` field:
 ```
 - required_engine_version: 15
 - required_plugin_versions:
   - name: k8saudit
     version: 0.1.0
     alternatives:
-      - name: k8saudit_eks
+      - name: k8saudit-eks
         version: 0.1.0
 ```
 
@@ -138,7 +138,7 @@ To test if it works, you can still use this one for example:
 ```yaml
 - required_engine_version: 15
 - required_plugin_versions:
-  - name: k8saudit_eks
+  - name: k8saudit-eks
     version: 0.1.0
 
 - rule: Dummy rule

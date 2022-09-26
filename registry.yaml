@@ -195,11 +195,11 @@ plugins:
         source: github
       extraction:
         supported: true
-  - name: k8saudit_eks
+  - name: k8saudit-eks
     description: Read Kubernetes Audit Events from AWS EKS Clusters
     authors: The Falco Authors
     contact: https://falco.org/community
-    url: https://github.com/falcosecurity/plugins/tree/master/plugins/k8saudit_eks
+    url: https://github.com/falcosecurity/plugins/tree/master/plugins/k8saudit-eks
     license: Apache-2.0
     capabilities:
       sourcing:

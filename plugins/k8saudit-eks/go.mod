@@ -1,4 +1,4 @@
-module github.com/falcosecurity/plugins/plugins/k8saudit_eks
+module github.com/falcosecurity/plugins/plugins/k8saudit-eks
 
 go 1.19
 
