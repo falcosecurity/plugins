@@ -34,7 +34,7 @@ import (
 	"github.com/invopop/jsonschema"
 )
 
-const pluginName = "k8saudit_eks"
+const pluginName = "k8saudit-eks"
 
 type Plugin struct {
 	k8saudit.Plugin

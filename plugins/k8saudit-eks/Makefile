@@ -14,7 +14,7 @@
 SHELL=/bin/bash -o pipefail
 GO ?= go
 
-NAME := k8saudit_eks
+NAME := k8saudit-eks
 OUTPUT := lib$(NAME).so
 
 ifeq ($(DEBUG), 1)
