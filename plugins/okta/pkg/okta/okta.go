@@ -135,7 +135,7 @@ func (oktaPlugin *Plugin) Info() *plugins.Info {
 		Name:        "okta",
 		Description: "Okta Log Events",
 		Contact:     "github.com/falcosecurity/plugins/",
-		Version:     "0.5.0",
+		Version:     "0.5.0-rc2",
 		EventSource: "okta",
 	}
 }
