@@ -1,4 +1,4 @@
 test_files
-libk8sauditeks.so
+libk8saudit-eks.so
 .vscode
 falco.yaml
