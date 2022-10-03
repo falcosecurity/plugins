@@ -120,24 +120,29 @@ func (client *Client) Open(context context.Context, filter *Filter, options *Opt
 		defer close(eventC)
 		defer close(errC)
 		for {
-			logs, err := client.CloudWatchLogs.FilterLogEventsWithContext(aws.Context(context), filters)
+			var lastEventTime int64
+			err := client.CloudWatchLogs.FilterLogEventsPagesWithContext(aws.Context(context), filters,
+				func(page *cloudwatchlogs.FilterLogEventsOutput, lastPage bool) bool {
+					if len(page.Events) == 0 {
+						return false
+					}
+					for _, i := range page.Events {
+						eventC <- i
+						if lastEventTime < *i.Timestamp {
+							lastEventTime = *i.Timestamp
+						}
+					}
+					return true
+				})
 			if err != nil {
 				errC <- err
 				return
 			}
-			if len(logs.Events) == 0 {
-				time.Sleep(options.PollingInterval)
-				continue
+
+			time.Sleep(options.PollingInterval)
+			if lastEventTime > 0 {
+				filters.SetStartTime(lastEventTime + 1)
 			}
-			for _, i := range logs.Events {
-				eventC <- i
-			}
-			if logs.NextToken != nil {
-				filters.SetNextToken(*logs.NextToken)
-				continue
-			}
-			filters.SetNextToken("")
-			filters.SetStartTime(*logs.Events[len(logs.Events)-1].Timestamp + 1)
 		}
 	}()
 	return eventC, errC
