@@ -197,10 +197,9 @@ func scanWorkFlowYaml(oCtx *PluginInstance, fileName string, repoName string, wo
 			for scanner.Scan() {
 				ln += 1
 				minfo := findMiner(scanner.Text())
-				if minfo != nil {
-					fmt.Printf("@@@ %v %s\n", ln, scanner.Text())
+				if minfo != "" {
 					workflowInfo.MinerMatches = append(workflowInfo.MinerMatches, minerDetectionInfo{
-						Type: minfo.desc,
+						Type: minfo,
 						Line: ln,
 					})
 				}
