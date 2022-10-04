@@ -44,6 +44,10 @@ func (p *Plugin) Fields() []sdk.FieldEntry {
 		{Type: "string", Name: "github.diff.committed_secrets.files", Display: "Secret Files", Desc: "For push messages, if one of the commits includes one or more secrets (AWS keys, github tokens...), this field contains the names of the files in which each of the secrets was committed, as a comma separated list."},
 		{Type: "string", Name: "github.diff.committed_secrets.lines", Display: "Secret Lines", Desc: "For push messages, if one of the commits includes one or more secrets (AWS keys, github tokens...), this field contains the file line positions of the committed secrets, as a comma separated list."},
 		{Type: "string", Name: "github.diff.committed_secrets.links", Display: "Secret Links", Desc: "For push messages, if one of the commits includes one or more secrets (AWS keys, github tokens...), this field contains the github source code link for each of the committed secrets, as a comma separated list."},
+		{Type: "string", Name: "github.workflow.has_miners", Display: "Has Miners", Desc: "For workflow_run messages, 'true' if the a miner has been detected in the workflow definition file."},
+		{Type: "string", Name: "github.workflow.miners.types", Display: "Miners Types", Desc: "For workflow_run messages, if one or more miners is detected in the workflow definition file, this field contains the type of each of the detected miners (e.g. xmrig), as a comma separated list."},
+		{Type: "string", Name: "github.workflow.miners.file", Display: "Miners File", Desc: "For workflow_run messages, if one or more miners is detected, this field contains the name of the workflow definition file containing the miners."},
+		{Type: "string", Name: "github.workflow.miners.lines", Display: "Miners Lines", Desc: "For workflow_run messages, if one or more miners is detected in the workflow definition file, this field contains the line position of each of the miner detections, as a comma separated list."},
 	}
 }
 
@@ -71,6 +75,32 @@ func getMatchField(jdata *fastjson.Value, matchField string, fType string) (bool
 		if res[len(res)-1] == ',' {
 			res = res[0 : len(res)-1]
 		}
+	}
+
+	return true, res
+}
+
+func getMinerField(jdata *fastjson.Value, matchField string, fType string) (bool, string) {
+	res := ""
+
+	mlist := jdata.GetArray("workflow_miner_detections", "matches")
+	if mlist == nil {
+		return false, ""
+	}
+
+	for _, cinfo := range mlist {
+		if fType == "string" {
+			res += string(cinfo.Get(matchField).GetStringBytes())
+		} else if fType == "uint64" {
+			res += fmt.Sprintf("%v", cinfo.GetUint64(matchField))
+		} else if fType == "file" {
+			res += string(jdata.Get("workflow_miner_detections", "name").GetStringBytes())
+		}
+
+		res += ","
+	}
+	if res[len(res)-1] == ',' {
+		res = res[0 : len(res)-1]
 	}
 
 	return true, res
@@ -164,6 +194,23 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 				res = res[0 : len(res)-1]
 			}
 		}
+	case "github.workflow.has_miners":
+		wi := jdata.GetArray("workflow_miner_detections", "matches")
+		if wi == nil {
+			return false, ""
+		}
+
+		if len(wi) == 0 {
+			res = "false"
+		} else {
+			res = "true"
+		}
+	case "github.workflow.miners.types":
+		return getMinerField(jdata, "type", "string")
+	case "github.workflow.miners.lines":
+		return getMinerField(jdata, "line", "uint64")
+	case "github.workflow.miners.file":
+		return getMinerField(jdata, "", "file")
 	default:
 		return false, ""
 	}

@@ -19,6 +19,7 @@ package github
 import (
 	"bufio"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -148,6 +149,68 @@ func scanDiff(oCtx *PluginInstance, repo string, refs string, diffFiles *[]diffF
 	return nil
 }
 
+func scanWorkFlowYaml(oCtx *PluginInstance, fileName string, repoName string, workflowInfo *workflowFileInfo) error {
+	fileUrl := "https://api.github.com/repos/" + repoName + "/contents/" + fileName
+
+	// Issue the compare request
+	resp, err := oCtx.ghOauth.tc.Get(fileUrl)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("unable to fetch data from the github API, status: %s", resp.Status)
+	}
+
+	jsonStr := ""
+	scanner := bufio.NewScanner(resp.Body)
+
+	// The request can fail if the diff is bigger than the scanner buffer.
+	// Make sure there is ample space for it.
+	buf := make([]byte, apiDownloadBufSize)
+	scanner.Buffer(buf, apiDownloadBufSize)
+
+	// Consume the whole response
+	for scanner.Scan() {
+		jsonStr += scanner.Text()
+	}
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+
+	// Parse the response as json
+	var jparser fastjson.Parser
+	jdata, err := jparser.Parse(jsonStr)
+	if err != nil {
+		return err
+	}
+
+	workflowInfo.FileName = fileName
+
+	content_b64 := string(jdata.GetStringBytes("content"))
+	if content_b64 != "" {
+		content, err := base64.StdEncoding.DecodeString(content_b64)
+		if err == nil {
+			scanner := bufio.NewScanner(strings.NewReader(string(content)))
+			var ln uint64
+			for scanner.Scan() {
+				ln += 1
+				minfo := findMiner(scanner.Text())
+				if minfo != nil {
+					fmt.Printf("@@@ %v %s\n", ln, scanner.Text())
+					workflowInfo.MinerMatches = append(workflowInfo.MinerMatches, minerDetectionInfo{
+						Type: minfo.desc,
+						Line: ln,
+					})
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 func handleHook(w http.ResponseWriter, r *http.Request, oCtx *PluginInstance) {
 	payload, err := github.ValidatePayload(r, []byte(oCtx.whSecret))
 	if err != nil {
@@ -208,6 +271,27 @@ func handleHook(w http.ResponseWriter, r *http.Request, oCtx *PluginInstance) {
 
 					// Add the results to the webhook json
 					jmap["files"] = diffFiles
+				}
+			}
+		}
+	} else if whType == "workflow_run" {
+		jrepo := jmap["repository"]
+		if jrepo != nil {
+			jreponame := jrepo.(map[string]interface{})["full_name"]
+			if jreponame != nil {
+				reponame := jreponame.(string)
+
+				// extract the diff parameters (refs and repo name) from the webhook json
+				wr := jmap["workflow"]
+				if wr != nil {
+					wurl := wr.(map[string]interface{})["path"]
+					if wurl != nil {
+						var winfo workflowFileInfo
+						scanWorkFlowYaml(oCtx, wurl.(string), reponame, &winfo)
+
+						// Add the results to the webhook json
+						jmap["workflow_miner_detections"] = winfo
+					}
 				}
 			}
 		}
