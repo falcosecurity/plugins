@@ -31,30 +31,53 @@ import (
 // https://github.com/zricethezav/gitleaks/blob/f338bc584fbebcecb5dc372b40e2be86634f2143/config/gitleaks.toml
 // https://github.com/zricethezav/gitleaks/blob/f62617d7a6ddcb81ca72ee293a3d0c72bb738a67/examples/leaky-repo.toml
 ///////////////////////////////////////////////////////////////////////////////
-type minerRegexInfo struct {
-	desc  string
-	regex string
-}
-
-var minersChecks = []minerRegexInfo{
-	{"xmrig", "\\./xmrig."},
+var minersChecks = []string{
+	"xmrig",
+	"ccminer",
+	"t-rex",
+	"stratum",
+	"pool",
+	"hashrate",
+	"cryptonight",
+	"wallet",
+	"gminer",
+	"gpuminer",
+	"cpuminer",
+	"nanominer",
+	"nicehash",
+	"xmr-stak",
+	"nbminer",
+	"srbminer",
+	"hiveos",
+	"ethermine",
+	"kryptex",
+	"2miners",
+	"betterhash",
+	"minerstat",
+	"raveos",
+	"f2pool",
+	"unmineable",
+	"minergate",
+	"cryptotab",
+	"lolminer",
+	"phoenixminer",
 }
 
 var minerRegexList = []*regexp.Regexp{}
 
-func findMiner(text string) *minerRegexInfo {
+func findMiner(text string) string {
 	for j, re := range minerRegexList {
 		if re.MatchString(text) {
-			return &minersChecks[j]
+			return minersChecks[j]
 		}
 	}
 
-	return nil
+	return ""
 }
 
 func compileMinerRegexes(oCtx *PluginInstance) error {
 	for _, mi := range minersChecks {
-		re, err := regexp.Compile(mi.regex)
+		re, err := regexp.Compile(mi)
 		if err != nil {
 			return err
 		}

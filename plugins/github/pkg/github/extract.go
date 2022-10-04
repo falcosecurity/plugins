@@ -44,10 +44,9 @@ func (p *Plugin) Fields() []sdk.FieldEntry {
 		{Type: "string", Name: "github.diff.committed_secrets.files", Display: "Secret Files", Desc: "For push messages, if one of the commits includes one or more secrets (AWS keys, github tokens...), this field contains the names of the files in which each of the secrets was committed, as a comma separated list."},
 		{Type: "string", Name: "github.diff.committed_secrets.lines", Display: "Secret Lines", Desc: "For push messages, if one of the commits includes one or more secrets (AWS keys, github tokens...), this field contains the file line positions of the committed secrets, as a comma separated list."},
 		{Type: "string", Name: "github.diff.committed_secrets.links", Display: "Secret Links", Desc: "For push messages, if one of the commits includes one or more secrets (AWS keys, github tokens...), this field contains the github source code link for each of the committed secrets, as a comma separated list."},
-		{Type: "string", Name: "github.workflow.has_miners", Display: "Has Miners", Desc: "For workflow_run messages, 'true' if the a miner has been detected in the workflow definition file."},
-		{Type: "string", Name: "github.workflow.miners.types", Display: "Miners Types", Desc: "For workflow_run messages, if one or more miners is detected in the workflow definition file, this field contains the type of each of the detected miners (e.g. xmrig), as a comma separated list."},
-		{Type: "string", Name: "github.workflow.miners.file", Display: "Miners File", Desc: "For workflow_run messages, if one or more miners is detected, this field contains the name of the workflow definition file containing the miners."},
-		{Type: "string", Name: "github.workflow.miners.lines", Display: "Miners Lines", Desc: "For workflow_run messages, if one or more miners is detected in the workflow definition file, this field contains the line position of each of the miner detections, as a comma separated list."},
+		{Type: "string", Name: "github.workflow.has_miners", Display: "Workflow Has Miner", Desc: "For workflow_run messages, 'true' if the a miner has been detected in the workflow definition file."},
+		{Type: "string", Name: "github.workflow.miners.type", Display: "Workflow Miner Type", Desc: "For workflow_run messages, if one or more miners is detected in the workflow definition file, this field contains the type of each of the detected miner, as a comma separated list (e.g. xmrig, stratum)."},
+		{Type: "string", Name: "github.workflow.filename", Display: "Workflow File", Desc: "For workflow_run messages, the name of the workflow definition file."},
 	}
 }
 
@@ -80,7 +79,7 @@ func getMatchField(jdata *fastjson.Value, matchField string, fType string) (bool
 	return true, res
 }
 
-func getMinerField(jdata *fastjson.Value, matchField string, fType string) (bool, string) {
+func getMinerTypes(jdata *fastjson.Value) (bool, string) {
 	res := ""
 
 	mlist := jdata.GetArray("workflow_miner_detections", "matches")
@@ -88,15 +87,13 @@ func getMinerField(jdata *fastjson.Value, matchField string, fType string) (bool
 		return false, ""
 	}
 
-	for _, cinfo := range mlist {
-		if fType == "string" {
-			res += string(cinfo.Get(matchField).GetStringBytes())
-		} else if fType == "uint64" {
-			res += fmt.Sprintf("%v", cinfo.GetUint64(matchField))
-		} else if fType == "file" {
-			res += string(jdata.Get("workflow_miner_detections", "name").GetStringBytes())
-		}
+	tlist := map[string]bool{}
 
+	for _, cinfo := range mlist {
+		tlist[string(cinfo.Get("type").GetStringBytes())] = true
+	}
+	for t, _ := range tlist {
+		res += fmt.Sprintf("%s", t)
 		res += ","
 	}
 	if res[len(res)-1] == ',' {
@@ -205,12 +202,10 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 		} else {
 			res = "true"
 		}
-	case "github.workflow.miners.types":
-		return getMinerField(jdata, "type", "string")
-	case "github.workflow.miners.lines":
-		return getMinerField(jdata, "line", "uint64")
-	case "github.workflow.miners.file":
-		return getMinerField(jdata, "", "file")
+	case "github.workflow.miners.type":
+		return getMinerTypes(jdata)
+	case "github.workflow.filename":
+		res = string(jdata.Get("workflow", "path").GetStringBytes())
 	default:
 		return false, ""
 	}
