@@ -242,6 +242,12 @@ func (p *Plugin) Open(params string) (source.Instance, error) {
 		fmt.Println(err)
 	}
 
+	// Compile the regular expressions used to find miners in github actions
+	err = compileMinerRegexes(oCtx)
+	if err != nil {
+		fmt.Println(err)
+	}
+
 	// Create the channel that we'll use to collect the messages from the webserver
 	oCtx.whSrvChan = make(chan []byte, 128)
 

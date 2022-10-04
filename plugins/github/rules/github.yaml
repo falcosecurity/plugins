@@ -118,3 +118,10 @@
   output: One or more secrets were pushed into a private repository (repository=%github.repo repo_owner=%github.owner org=%github.org user=%github.user secret_types=%github.diff.committed_secrets.desc file=%github.diff.committed_secrets.files line=%github.diff.committed_secrets.lines url=%github.diff.committed_secrets.links) 
   priority: CRITICAL
   source: github
+
+- rule: Github action with miners
+  desc: a github action containing crypto miners was executed
+  condition: github.type=workflow_run and github.workflow.has_miners=true
+  output: a github action containing crypto miners was executed (repository=%github.repo repo_owner=%github.owner org=%github.org user=%github.user miner_type=%github.workflow.miners.types file=%github.workflow.miners.file line=%github.workflow.miners.lines)
+  priority: CRITICAL
+  source: github

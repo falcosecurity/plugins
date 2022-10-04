@@ -55,6 +55,16 @@ type diffFileInfo struct {
 	Matches  []diffMatchInfo `json:"matches"`
 }
 
+type workflowFileInfo struct {
+	FileName     string               `json:"name"`
+	MinerMatches []minerDetectionInfo `json:"matches"`
+}
+
+type minerDetectionInfo struct {
+	Line uint64 `json:"line"`
+	Type string `json:"type"`
+}
+
 type oauthContext struct {
 	token string
 	ctx   context.Context
