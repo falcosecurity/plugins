@@ -1,7 +1,7 @@
 github.com/davecgh/go-spew v1.1.0 h1:ZDRjVQ15GmhC3fiQ8ni8+OwkZQO4DARzQgrnXU1Liz8=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/falcosecurity/plugin-sdk-go v0.6.0-rc2 h1:mwLygQKXu3594M08H6mZg8Ty1kEySJM7vwt5z/QU1aI=
-github.com/falcosecurity/plugin-sdk-go v0.6.0-rc2/go.mod h1:YNeijGR1gojfv1CV17WoQMGeCheTJdCwTgShPpPpgFA=
+github.com/falcosecurity/plugin-sdk-go v0.6.0 h1:HCxgxQ9qYn+G6qhimovpxoMiDe38ojT6O4QDl5r6uJY=
+github.com/falcosecurity/plugin-sdk-go v0.6.0/go.mod h1:YNeijGR1gojfv1CV17WoQMGeCheTJdCwTgShPpPpgFA=
 github.com/mattn/go-runewidth v0.0.9 h1:Lm995f3rfxdpd6TSmuVCHVb/QhupuXlYr8sCI/QdE+0=
 github.com/mattn/go-runewidth v0.0.9/go.mod h1:H031xJmbD/WCDINGzjvQ9THkh0rPKHF+m2gUSrubnMI=
 github.com/olekukonko/tablewriter v0.0.5 h1:P2Ga83D34wi1o9J6Wh1mRuqd4mF/x/lgBS7N7AbDhec=
