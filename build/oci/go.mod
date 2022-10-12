@@ -9,6 +9,7 @@ require (
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/falcosecurity/falcoctl v0.1.1-0.20221011073045-96a4ee5ad6ee
 	github.com/falcosecurity/plugins/build/registry v0.0.0-20221004205118-1db426496417
+	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/klog/v2 v2.60.1
 	oras.land/oras-go/v2 v2.0.0-rc.3
 )
