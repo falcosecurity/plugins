@@ -54,7 +54,8 @@ func (e *Entries) EntryByName(name string) *Entry {
 func (e *Entries) Upsert(entry *Entry) {
 	for k, en := range e.Entries {
 		if en.Name == entry.Name {
-			e.Entries[k] = en
+			e.Entries[k] = entry
+			e.entryByName[entry.Name] = entry
 			return
 		}
 	}
