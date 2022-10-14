@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.7.0
+
+* [`2e161d7`](https://github.com/falcosecurity/plugins/commit/2e161d7) update(plugins/dummy): bump plugin version to v0.7.0
+
+* [`fb20ebe`](https://github.com/falcosecurity/plugins/commit/fb20ebe) update(plugins/dummy): fix makefile cleanup
+
+* [`4c84fdf`](https://github.com/falcosecurity/plugins/commit/4c84fdf) update(plugins/dummy): update changelog
+
+
 ## v0.6.0
 
 * [`ae6e3ed`](https://github.com/falcosecurity/plugins/commit/ae6e3ed) docs(plugins/dummy): update readme according to new plugin version

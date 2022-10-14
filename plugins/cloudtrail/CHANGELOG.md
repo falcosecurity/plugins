@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.6.0
+
+* [`0571948`](https://github.com/falcosecurity/plugins/commit/0571948) update(plugins/cloudtrail): bump plugin version to v0.6.0
+
+* [`1db4264`](https://github.com/falcosecurity/plugins/commit/1db4264) update(plugins/cloudtrail): Add a region setting.
+
+* [`b986695`](https://github.com/falcosecurity/plugins/commit/b986695) refactor(plugins/cloudtrail): isolate AWS sdk config code logic
+
+* [`fa8e957`](https://github.com/falcosecurity/plugins/commit/fa8e957) chore(plugins/cloudtrail): use oop method declarations
+
+* [`4df7a05`](https://github.com/falcosecurity/plugins/commit/4df7a05) update(plugins/cloudtrail): use custom sdk config files and profiles
+
+* [`3032fd1`](https://github.com/falcosecurity/plugins/commit/3032fd1) update(plugins/cloudtrail): add aws client config overrides
+
+* [`3a6b9ec`](https://github.com/falcosecurity/plugins/commit/3a6b9ec) update(plugins/cloudtrail): bumo plugin version to 0.6.0-rc1
+
+* [`fe2defa`](https://github.com/falcosecurity/plugins/commit/fe2defa) update(plugins/cloudtrail): fix makefile cleanup
+
+
 ## v0.5.0
 
 * [`f32982d`](https://github.com/falcosecurity/plugins/commit/f32982d) update(plugins/cloudtrail): bump version to 0.5.0

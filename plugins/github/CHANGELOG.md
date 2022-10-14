@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.4.0
+
+* [`9654722`](https://github.com/falcosecurity/plugins/commit/9654722) update(plugins/github): bump plugin version to v0.4.0
+
+* [`9f3a5e0`](https://github.com/falcosecurity/plugins/commit/9f3a5e0) chore(plugins/github): update readme
+
+* [`0b7468a`](https://github.com/falcosecurity/plugins/commit/0b7468a) update(plugins/github): fix makefile cleanup
+
+
+## v0.3.1
+
+* [`1bf3df4`](https://github.com/falcosecurity/plugins/commit/1bf3df4) update(plugin/github): bump version to 0.3.1
+
+* [`cf809fa`](https://github.com/falcosecurity/plugins/commit/cf809fa) fix(plugins/github): correctly parse git diffs
+
+
 ## v0.3.0
 
 * [`c2412cf`](https://github.com/falcosecurity/plugins/commit/c2412cf) update(plugins/github): bump version to 0.3.0
