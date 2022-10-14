@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.5.0
+
+* [`4ea1faf`](https://github.com/falcosecurity/plugins/commit/4ea1faf) update(plugins/okta): update readme
+
+* [`543a657`](https://github.com/falcosecurity/plugins/commit/543a657) update(plugins/okta): bump plugin version to v0.5.0
+
+* [`e47f23b`](https://github.com/falcosecurity/plugins/commit/e47f23b) fix(okta): correct version (release candidate)
+
+* [`f6c48e3`](https://github.com/falcosecurity/plugins/commit/f6c48e3) update(plugins/okta): fix makefile cleanup
+
+
 ## v0.4.0
 
 * [`60f151d`](https://github.com/falcosecurity/plugins/commit/60f151d) update(plugins/okta): bump version to 0.4.0

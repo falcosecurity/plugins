@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.4.0
+
+* [`f4315ff`](https://github.com/falcosecurity/plugins/commit/f4315ff) update(plugins/k8saudit): bump plugin version to v0.4.0
+
+* [`256c669`](https://github.com/falcosecurity/plugins/commit/256c669) docs(k8saudit): update README.md
+
+* [`3ff5e94`](https://github.com/falcosecurity/plugins/commit/3ff5e94) update(plugins/k8saudit): bumo plugin version to 0.4.0-rc1
+
+* [`84f3061`](https://github.com/falcosecurity/plugins/commit/84f3061) feature(plugins/k8saudit/rules): Add ka.target.resource to each rule as defau...
+
+* [`f90c4f6`](https://github.com/falcosecurity/plugins/commit/f90c4f6) update(plugins/k8saudit): fix makefile cleanup
+
+
 ## v0.3.0
 
 * [`df79bbf`](https://github.com/falcosecurity/plugins/commit/df79bbf) update(plugins/k8saudit): bump version to 0.3.0

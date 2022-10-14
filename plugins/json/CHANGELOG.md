@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.6.0
+
+* [`cb30978`](https://github.com/falcosecurity/plugins/commit/cb30978) update(plugins/json): bump plugin version to v0.6.0
+
+* [`6c38f20`](https://github.com/falcosecurity/plugins/commit/6c38f20) update(plugins/json): bumo plugin version to 0.6.0-rc1
+
+* [`51f7376`](https://github.com/falcosecurity/plugins/commit/51f7376) update(plugins/json): fix makefile cleanup
+
+
 ## v0.5.0
 
 * [`d4f1a4c`](https://github.com/falcosecurity/plugins/commit/d4f1a4c) update(plugins/json): bump version to 0.5.0
