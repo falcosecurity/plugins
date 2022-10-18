@@ -17,8 +17,8 @@ limitations under the License.
 package registry
 
 const (
-	PluginNamespace    = "plugins"
-	RulesfileNamespace = "ruleset"
+	PluginNamespace    = "plugins/plugin"
+	RulesfileNamespace = "plugins/ruleset"
 	RegistryToken      = "REGISTRY_TOKEN"
 	RegistryUser       = "REGISTRY_USER"
 	RegistryOCI        = "REGISTRY"
