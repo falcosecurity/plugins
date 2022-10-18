@@ -74,17 +74,16 @@ func UpsertIndex(r *registry.Registry, ociArtifacts map[string]string, indexPath
 		}
 
 		// We only publish falcosecurity artifacts that have been uploaded to the repo.
-		ref, ociPluginFound := ociArtifacts[p.Name]
-		ref, ociRulesFound := ociArtifacts[p.Name+RulesArtifactSuffix]
-
-		// Build registry and repo starting from the reference.
-		tokens := strings.Split(ref, "/")
-		ociRegistry := tokens[0]
-		ociRepo := filepath.Join(tokens[1:]...)
-		if ociPluginFound {
+		if refPlugin, ok := ociArtifacts[p.Name]; ok {
+			tokens := strings.Split(refPlugin, "/")
+			ociRegistry := tokens[0]
+			ociRepo := filepath.Join(tokens[1:]...)
 			i.Upsert(pluginToIndexEntry(p, ociRegistry, ociRepo))
 		}
-		if ociRulesFound {
+		if refRulesfile, ok := ociArtifacts[p.Name+RulesArtifactSuffix]; ok {
+			tokens := strings.Split(refRulesfile, "/")
+			ociRegistry := tokens[0]
+			ociRepo := filepath.Join(tokens[1:]...)
 			i.Upsert(pluginRulesToIndexEntry(p, ociRegistry, ociRepo))
 		}
 	}
