@@ -101,7 +101,7 @@ plugins:
       extraction:
         supported: true
   - name: dummy_c
-    description: like dummy, but written in C++
+    description: Like dummy, but written in C++
     authors: The Falco Authors
     contact: https://falco.org/community
     maintainers:
