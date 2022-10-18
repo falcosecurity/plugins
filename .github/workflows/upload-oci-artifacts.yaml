@@ -1,6 +1,8 @@
 name: Update OCI Artifacts
 on:
-  workflow_dispatch # to be set to cron
+  schedule:
+    - cron: '0 * * * *'  # every hour
+  workflow_dispatch:
 
 jobs:
   publish-oci-artifacts:
@@ -24,24 +26,6 @@ jobs:
           REGISTRY: ghcr.io
           REGISTRY_USER: ${{ github.actor }}
           REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO_GITHUB: https://github.com/loresuso/plugins.git # change this
+          REPO_GITHUB: https://github.com/${{ github.actor }}/plugins.git
         working-directory: build/registry
         run: ./bin/registry update-oci-registry ../../registry.yaml
-
-      # THIS NEED TO BE IMPLEMENTED IN PROW
-      # - name: Generate index
-      #   env: 
-      #     REGISTRY: ghcr.io
-      #     REGISTRY_USER: ${{ github.actor }}
-      #   working-directory: build/registry
-      #   run: | 
-      #       ./bin/registry update-index ../../registry.yaml newIndex.yaml && 
-      #       cat newIndex.yaml && 
-      #       mkdir /tmp/index &&
-      #       mv newIndex.yaml /tmp/index/index.yaml 
-      
-      # - name: Publish on GitHub Pages
-      #   uses: ftnext/action-push-ghpages@v1.0.0
-      #   with:
-      #     build_dir: /tmp/index
-      #     github_token: ${{ secrets.GITHUB_TOKEN }}
