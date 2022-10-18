@@ -24,8 +24,8 @@ jobs:
       - name: Upload OCI artifacts to GitHub packages
         env:
           REGISTRY: ghcr.io
-          REGISTRY_USER: ${{ github.actor }}
+          REGISTRY_USER: ${{ github.repository_owner }}
           REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO_GITHUB: https://github.com/${{ github.actor }}/plugins.git
+          REPO_GITHUB: https://github.com/${{ github.repository_owner }}/plugins.git
         working-directory: build/registry
         run: ./bin/registry update-oci-registry ../../registry.yaml
