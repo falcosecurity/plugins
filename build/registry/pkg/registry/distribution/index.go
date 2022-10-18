@@ -68,6 +68,11 @@ func UpsertIndex(r *registry.Registry, ociArtifacts map[string]string, indexPath
 	}
 
 	for _, p := range r.Plugins {
+		// If the plugins is reserved than we just skip it.
+		if p.Reserved {
+			continue
+		}
+
 		// We only publish falcosecurity artifacts that have been uploaded to the repo.
 		ref, ociPluginFound := ociArtifacts[p.Name]
 		ref, ociRulesFound := ociArtifacts[p.Name+RulesArtifactSuffix]
