@@ -121,7 +121,7 @@
 
 - rule: Github action with miners
   desc: a github action containing crypto miners was executed
-  condition: github.type=workflow_run and github.workflow.has_miners=true
+  condition: github.type=workflow_run and github.action=requested and github.workflow.has_miners=true
   output: a github action containing crypto miners was executed (repository=%github.repo repo_owner=%github.owner org=%github.org user=%github.user file=%github.workflow.filename)
   priority: CRITICAL
   source: github
