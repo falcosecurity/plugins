@@ -50,11 +50,22 @@ func (k *Plugin) Open(params string) (source.Instance, error) {
 	case "https":
 		return k.OpenWebServer(u.Host, u.Path, true)
 	case "": // by default, fallback to opening a filepath
-		file, err := os.Open(params)
-		if err != nil {
-			return nil, err
+		// string contains a file extension => it is a single file
+		if strings.Contains(params, ".") {
+			file, err := os.Open(params)
+			if err != nil {
+				return nil, err
+			}
+			return k.OpenReader(file)
+		} else {
+			filepath.Walk(params, func(path string, info os.FileInfo, err error) error {
+				if ! info.IsDir() {
+					// auditFile := info.Name()
+					k.OpenReader(info)
+				}
+				return nil, err
+			})
 		}
-		return k.OpenReader(file)
 	}
 
 	return nil, fmt.Errorf(`scheme "%s" is not supported`, u.Scheme)
