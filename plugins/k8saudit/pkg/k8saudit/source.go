@@ -27,6 +27,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"path/filepath"
 
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/source"
