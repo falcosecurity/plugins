@@ -52,26 +52,17 @@ func (k *Plugin) Open(params string) (source.Instance, error) {
 		return k.OpenWebServer(u.Host, u.Path, true)
 	case "": // by default, fallback to opening a filepath
 		trimmed := strings.TrimSpace(params)
-		// string contains a file extension => it is a single file
-		if strings.Contains(trimmed, ".") {
-			file, err := os.Open(trimmed)
-			if err != nil {
-				return nil, err
-			}
-			return k.OpenReader(file)
-		} else {
-			filepath.Walk(trimmed, func(path string, info os.FileInfo, err error) error {
-				if ! info.IsDir() {
-					auditFile := filepath.Join(trimmed, info.Name())
-					file, err := os.Open(auditFile)
-					if err != nil {
-						return nil, err
-					}
-					k.OpenReader(file)
+		filepath.Walk(trimmed, func(path string, info os.FileInfo, err error) error {
+			if ! info.IsDir() {
+				auditFile := filepath.Join(trimmed, info.Name())
+				file, err := os.Open(auditFile)
+				if err != nil {
+					return nil, err
 				}
-				return nil, err
-			})
-		}
+				k.OpenReader(file)
+			}
+			return nil, err
+		})
 	}
 
 	return nil, fmt.Errorf(`scheme "%s" is not supported`, u.Scheme)
