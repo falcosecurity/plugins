@@ -27,7 +27,6 @@ import (
 	"os"
 	"strings"
 	"time"
-	"path/filepath"
 
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/source"
@@ -38,6 +37,12 @@ const (
 	webServerShutdownTimeoutSecs = 5
 	webServerEventChanBufSize    = 50
 )
+
+type AuditMap struct {
+	fileName string
+	modified time.Time // TODO - sort by date, oldest first?
+	pointer io.Reader
+}
 
 func (k *Plugin) Open(params string) (source.Instance, error) {
 	u, err := url.Parse(params)
@@ -52,17 +57,42 @@ func (k *Plugin) Open(params string) (source.Instance, error) {
 		return k.OpenWebServer(u.Host, u.Path, true)
 	case "": // by default, fallback to opening a filepath
 		trimmed := strings.TrimSpace(params)
-		filepath.Walk(trimmed, func(path string, info os.FileInfo, err error) error {
-			if ! info.IsDir() {
-				auditFile := filepath.Join(trimmed, info.Name())
-				file, err := os.Open(auditFile)
+
+		if strings.HasSuffix(trimmed, ".log") {
+			return k.OpenReader(trimmed)
+		}
+
+		files, err := ioutil.ReadDir(trimmed)
+		if err != nil {
+			return nil, err
+		}
+
+		// pointer to the struct to be able to modify it afterwards
+		k8saudit := make(map[int]*AuditMap)
+		numFiles := 0
+
+		for _, f := range files {
+			fmt.Println(f.Name())
+			if !f.IsDir() && strings.HasSuffix(f.Name(), ".log") {
+				var auditFile io.Reader
+				auditFile, err := os.Open(f.Name())
 				if err != nil {
 					return nil, err
 				}
-				k.OpenReader(file)
+				logFile := &AuditMap{fileName: f.Name(), modified: f.ModTime(), pointer: auditFile}
+				k8saudit[numFiles] = logFile
+				numFiles += 1
 			}
-			return nil, err
-		})
+		}
+
+		results := []io.Reader
+		for i := 0; i < len(k8saudit); i++ {
+			results = append(results, k8saudit[i].pointer)
+		}
+		// results... = type []any
+		AllAuditFiles := io.MultiReader(results...)
+		return k.OpenReader(AllAuditFiles)
+
 	}
 
 	return nil, fmt.Errorf(`scheme "%s" is not supported`, u.Scheme)
