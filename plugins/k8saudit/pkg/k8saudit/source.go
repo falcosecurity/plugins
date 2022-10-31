@@ -59,7 +59,11 @@ func (k *Plugin) Open(params string) (source.Instance, error) {
 		trimmed := strings.TrimSpace(params)
 
 		if strings.HasSuffix(trimmed, ".log") {
-			return k.OpenReader(trimmed)
+			file, err := os.Open(trimmed)
+			if err != nil {
+				return nil, err
+			}
+			return k.OpenReader(file)
 		}
 
 		files, err := ioutil.ReadDir(trimmed)
