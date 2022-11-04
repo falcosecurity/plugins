@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.4.1
+
+* [`be1a8fe`](https://github.com/falcosecurity/plugins/commit/be1a8fe) update(plugins/k8saudit): bump version to 0.4.1 for patched ruleset
+
+* [`a941160`](https://github.com/falcosecurity/plugins/commit/a941160) update(plugins/k8saudit): update ruleset to support k8saudit-eks alternative ...
+
+
 ## v0.4.0
 
 * [`f4315ff`](https://github.com/falcosecurity/plugins/commit/f4315ff) update(plugins/k8saudit): bump plugin version to v0.4.0
