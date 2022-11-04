@@ -77,6 +77,9 @@ All of the webhooks are deleted when the plugin event source gets closed (i.e. w
 | `github.diff.committed_secrets.files` | `string` | None | For push messages, if one of the commits includes one or more secrets (AWS keys, github tokens...), this field contains the names of the files in which each of the secrets was committed, as a comma separated list. |
 | `github.diff.committed_secrets.lines` | `string` | None | For push messages, if one of the commits includes one or more secrets (AWS keys, github tokens...), this field contains the file line positions of the committed secrets, as a comma separated list.                  |
 | `github.diff.committed_secrets.links` | `string` | None | For push messages, if one of the commits includes one or more secrets (AWS keys, github tokens...), this field contains the github source code link for each of the committed secrets, as a comma separated list.     |
+| `github.workflow.has_miners`          | `string` | None | For workflow_run messages, 'true' if the a miner has been detected in the workflow definition file.                                                                                                                   |
+| `github.workflow.miners.type`         | `string` | None | For workflow_run messages, if one or more miners is detected in the workflow definition file, this field contains the type of each of the detected miner, as a comma separated list (e.g. xmrig, stratum).            |
+| `github.workflow.filename`            | `string` | None | For workflow_run messages, the name of the workflow definition file.                                                                                                                                                  |
 <!-- /README-PLUGIN-FIELDS -->
 
 ## Types of detected secrets

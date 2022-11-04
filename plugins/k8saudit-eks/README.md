@@ -81,6 +81,7 @@ Here is the current set of supported fields (from `k8saudit` plugin's extractor)
 | `ka.response.code`                                 | `string`        | None          | The response code                                                                                                                                                                                            |
 | `ka.response.reason`                               | `string`        | None          | The response reason (usually present only for failures)                                                                                                                                                      |
 | `ka.useragent`                                     | `string`        | None          | The useragent of the client who made the request to the apiserver                                                                                                                                            |
+| `ka.sourceips`                                     | `string (list)` | Index         | The IP addresses of the client who made the request to the apiserver                                                                                                                                         |
 <!-- /README-PLUGIN-FIELDS -->
 
 ## Usage
