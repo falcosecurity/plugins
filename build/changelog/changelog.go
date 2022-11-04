@@ -45,11 +45,11 @@ func git(args ...string) (output []string, err error) {
 	return strings.Split(string(stdout), "\n"), nil
 }
 
-// an empty prefix matches the last tag with no match filtering
-func gitGetLatestTagWithPrefix(prefix string) (string, error) {
+// an empty string matches the last tag with no match filtering
+func gitGetLatestTagWithMatch(match string) (string, error) {
 	args := []string{"describe", "--tags", "--abbrev=0"}
-	if len(prefix) > 0 {
-		args = append(args, "--match", prefix+"*")
+	if len(match) > 0 {
+		args = append(args, "--match", match)
 	}
 	tags, err := git(args...)
 	if err != nil {
@@ -108,13 +108,13 @@ func main() {
 
 	// if from is not specified, we use the latest tag matching the plugin name
 	if len(from) == 0 {
-		prefix := ""
+		match := ""
 		if len(plugin) > 0 {
-			prefix = plugin + "-"
+			match = plugin + "-[0-9].[0-9].[0-9]*"
 		}
-		tag, err := gitGetLatestTagWithPrefix(prefix)
+		tag, err := gitGetLatestTagWithMatch(match)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "not tag with prefix '"+prefix+"' not found, using commits from whole history:", err.Error())
+			fmt.Fprintln(os.Stderr, "not tag with match '"+match+"' not found, using commits from whole history:", err.Error())
 		} else {
 			from = tag
 		}

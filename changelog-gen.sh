@@ -16,7 +16,7 @@
 plugin=$1
 
 if [ -z "$plugin" ]; then
-    echo "Usage plugin-gen.sh <plugin_name>"
+    echo "Usage changelog-gen.sh <plugin_name>"
     exit 1
 fi
 
@@ -24,7 +24,7 @@ tool=./build/changelog/bin/changelog
 
 to=""
 from=""
-tags="$(git tag -l | grep ${plugin}- | grep -v '\-rc' | sort -r)"
+tags="$(git tag -l | grep ${plugin}-[0-9].[0-9].[0-9] | grep -v ${plugin}-[0-9].[0-9].[0-9]-rc | sort -r)"
 
 # print title
 echo "# Changelog"
@@ -45,7 +45,7 @@ do
 done
 
 # generate last entry for first tag, starting from the first commit
-if [ ${to} != "" ]; then
+if [ -n "$to" ]; then
     from="$(git rev-list --max-parents=0 HEAD)"
     ver="$(echo ${to} | sed -e s/^${plugin}-// -e s/^/v/)"
     echo "## ${ver}" 
