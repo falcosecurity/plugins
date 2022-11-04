@@ -15,11 +15,14 @@
 # limitations under the License.
 #
 
-- required_engine_version: 12
+- required_engine_version: 15
 
 - required_plugin_versions:
   - name: k8saudit
     version: 0.1.0
+    alternatives:
+      - name: k8saudit-eks
+        version: 0.1.0
   - name: json
     version: 0.3.0
 
