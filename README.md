@@ -19,7 +19,7 @@ The registration process involves adding an entry about your plugin inside the [
 
 - The `name` field is mandatory and must be **unique** across all the plugins in the registry
 - *(Sourcing Capability Only)* The `id` field is mandatory and must be **unique** in the registry across all the plugins with event source capability
-- The plugin `name` must match this [regular expression](https://en.wikipedia.org/wiki/Regular_expression): `^[a-z]+[a-z0-9-_]*$` (however, its not reccomended to use `_` in the name, unless you are trying to match the name of a source or for particular reasons)
+- The plugin `name` must match this [regular expression](https://en.wikipedia.org/wiki/Regular_expression): `^[a-z]+[a-z0-9-_\-]*$` (however, its not reccomended to use `_` in the name, unless you are trying to match the name of a source or for particular reasons)
 - The `source` *(Sourcing Capability Only)* and `sources` *(Extraction Capability Only)* must match this [regular expression](https://en.wikipedia.org/wiki/Regular_expression): `^[a-z]+[a-z0-9_]*$`
 - The `url` field should point to the plugin source code
 - The `rules_url` field should point to the default ruleset, if any
