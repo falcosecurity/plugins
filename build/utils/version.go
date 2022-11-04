@@ -74,26 +74,9 @@ static char* get_version(uintptr_t h, char** err) {
 */
 import "C"
 
-var rgxVersion *regexp.Regexp
-var rgxHash *regexp.Regexp
-var rgxName *regexp.Regexp
-
-func init() {
-	var err error
-	// see: https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
-	rgxVersion, err = regexp.Compile(`^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?$`)
-	if err != nil {
-		panic(err.Error())
-	}
-	rgxHash, err = regexp.Compile(`^[0-9a-z]+$`)
-	if err != nil {
-		panic(err.Error())
-	}
-	rgxName, err = regexp.Compile(`^[a-z]+[a-z0-9_]*$`)
-	if err != nil {
-		panic(err.Error())
-	}
-}
+var rgxVersion = regexp.MustCompile(`^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?$`)
+var rgxHash = regexp.MustCompile(`^[0-9a-z]+$`)
+var rgxName = regexp.MustCompile(`^[a-z]+[a-z0-9_\-]*$`)
 
 func pluginInfo(path string) (name, version string, err error) {
 	path, err = filepath.Abs(path)
@@ -174,7 +157,7 @@ func main() {
 		var hash string
 
 		// get last tag
-		tags, err := git("describe", "--tags", "--abbrev=0", "--match", name+`-*`)
+		tags, err := git("describe", "--tags", "--abbrev=0", "--match", name+`-[0-9].[0-9].[0-9]*`)
 		if err == nil {
 			if len(tags) == 0 {
 				fail(errors.New("no git tag found for: " + name))
@@ -215,6 +198,9 @@ func main() {
 		tags, err := git("--no-pager", "tag", "--points-at", "HEAD")
 		if err != nil {
 			fail(err)
+		}
+		if len(tags) == 0 || len(tags[0]) == 0 {
+			fail(errors.New("there are no tags pointing at HEAD"))
 		}
 		for _, tag := range tags {
 			if tag == expectedTag {
