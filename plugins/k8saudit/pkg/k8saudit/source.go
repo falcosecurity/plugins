@@ -38,12 +38,6 @@ const (
 	webServerEventChanBufSize    = 50
 )
 
-type AuditMap struct {
-	fileName string
-	modified time.Time // TODO - sort by date, oldest first?
-	pointer io.Reader
-}
-
 func (k *Plugin) Open(params string) (source.Instance, error) {
 	u, err := url.Parse(params)
 	if err != nil {
@@ -58,8 +52,12 @@ func (k *Plugin) Open(params string) (source.Instance, error) {
 	case "": // by default, fallback to opening a filepath
 		trimmed := strings.TrimSpace(params)
 
-		if strings.HasSuffix(trimmed, ".log") {
-			file, err := os.Open(trimmed)
+		fileInfo, err := os.Stat(trimmed)
+		if err != nil {
+			return nil, err
+		}
+		if !fileInfo.IsDir() {
+			file, err += os.Open(trimmed)
 			if err != nil {
 				return nil, err
 			}
@@ -71,32 +69,25 @@ func (k *Plugin) Open(params string) (source.Instance, error) {
 			return nil, err
 		}
 
-		// pointer to the struct to be able to modify it afterwards
-		k8saudit := make(map[int]*AuditMap)
-		numFiles := 0
+		sort.Slice(files, func(i, j int) bool {
+			return files[i].ModTime().Before(files[j].ModTime())
+		})
 
+		// open all files as reader
+		results := []io.Reader
 		for _, f := range files {
-			fmt.Println(f.Name())
-			if !f.IsDir() && strings.HasSuffix(f.Name(), ".log") {
-				var auditFile io.Reader
+			if !f.IsDir() {
 				auditFile, err := os.Open(f.Name())
 				if err != nil {
 					return nil, err
 				}
-				logFile := &AuditMap{fileName: f.Name(), modified: f.ModTime(), pointer: auditFile}
-				k8saudit[numFiles] = logFile
-				numFiles += 1
+				results = append(results, auditFile)
 			}
 		}
 
-		results := []io.Reader
-		for i := 0; i < len(k8saudit); i++ {
-			results = append(results, k8saudit[i].pointer)
-		}
-		// results... = type []any
-		AllAuditFiles := io.MultiReader(results...)
+		// concat the readers and wrap with a no-op Close method
+		AllAuditFiles := io.NopCloser(io.MultiReader(results...))
 		return k.OpenReader(AllAuditFiles)
-
 	}
 
 	return nil, fmt.Errorf(`scheme "%s" is not supported`, u.Scheme)
