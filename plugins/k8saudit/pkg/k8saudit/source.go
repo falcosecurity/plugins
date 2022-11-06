@@ -27,6 +27,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"sort"
 
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/source"
@@ -74,7 +75,7 @@ func (k *Plugin) Open(params string) (source.Instance, error) {
 		})
 
 		// open all files as reader
-		results := []io.Reader
+		results := []io.Reader{}
 		for _, f := range files {
 			if !f.IsDir() {
 				auditFile, err := os.Open(f.Name())
