@@ -140,6 +140,14 @@ func (k *Plugin) OpenWebServer(address, endpoint string, ssl bool) (source.Insta
 	// event-parser goroutine
 	m := http.NewServeMux()
 	s := &http.Server{Addr: address, Handler: m}
+	sendBody := func(b []byte) {
+		defer func() {
+			if r := recover(); r != nil {
+				k.logger.Println("request dropped while shutting down server ")
+			}
+		}()
+		serverEvtChan <- b
+	}
 	m.HandleFunc(endpoint, func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != "POST" {
 			http.Error(w, fmt.Sprintf("%s method not allowed", req.Method), http.StatusMethodNotAllowed)
@@ -158,7 +166,7 @@ func (k *Plugin) OpenWebServer(address, endpoint string, ssl bool) (source.Insta
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		serverEvtChan <- bytes
+		sendBody(bytes)
 	})
 	go func() {
 		defer close(serverEvtChan)
