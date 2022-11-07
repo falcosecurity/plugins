@@ -58,7 +58,7 @@ func (k *Plugin) Open(params string) (source.Instance, error) {
 			return nil, err
 		}
 		if !fileInfo.IsDir() {
-			file, err += os.Open(trimmed)
+			file, err := os.Open(trimmed)
 			if err != nil {
 				return nil, err
 			}
@@ -78,11 +78,12 @@ func (k *Plugin) Open(params string) (source.Instance, error) {
 		results := []io.Reader{}
 		for _, f := range files {
 			if !f.IsDir() {
-				auditFile, err := os.Open(f.Name())
+				auditFile, err := os.Open(trimmed + "/" + f.Name())
 				if err != nil {
 					return nil, err
 				}
 				results = append(results, auditFile)
+				results = append(results, strings.NewReader("\n"))
 			}
 		}
 
