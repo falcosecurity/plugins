@@ -23,6 +23,7 @@ import (
 	"github.com/falcosecurity/falcoctl/pkg/oci/authn"
 	"github.com/falcosecurity/plugins/build/registry/pkg/registry"
 	"github.com/falcosecurity/plugins/build/registry/pkg/registry/distribution"
+	"github.com/falcosecurity/plugins/build/registry/pkg/registry/oci"
 	"github.com/spf13/cobra"
 	"io/ioutil"
 	"oras.land/oras-go/v2/errdef"
@@ -95,12 +96,12 @@ func doTable(registryFile, subFile, subTag string) error {
 func doUpdateIndex(registryFile, indexFile string) error {
 	var user, reg string
 	var found bool
-	if user, found = os.LookupEnv(registry.RegistryUser); !found {
-		return fmt.Errorf("environment variable with key %q not found, please set it before running this tool", registry.RegistryUser)
+	if user, found = os.LookupEnv(oci.RegistryUser); !found {
+		return fmt.Errorf("environment variable with key %q not found, please set it before running this tool", oci.RegistryUser)
 	}
 
-	if reg, found = os.LookupEnv(registry.RegistryOCI); !found {
-		return fmt.Errorf("environment variable with key %q not found, please set it before running this tool", registry.RegistryOCI)
+	if reg, found = os.LookupEnv(oci.RegistryOCI); !found {
+		return fmt.Errorf("environment variable with key %q not found, please set it before running this tool", oci.RegistryOCI)
 	}
 
 	registryEntries, err := loadRegistryFromFile(registryFile)
@@ -123,12 +124,12 @@ func ociRepos(registryEntries *registry.Registry, reg, user string) (map[string]
 	ociEntries := make(map[string]string)
 
 	for _, entry := range registryEntries.Plugins {
-		if err := ociRepo(ociEntries, ociClient, registry.PluginNamespace, reg, user, entry.Name); err != nil {
+		if err := ociRepo(ociEntries, ociClient, oci.PluginNamespace, reg, user, entry.Name); err != nil {
 			return nil, err
 		}
 
 		if entry.RulesURL != "" {
-			if err := ociRepo(ociEntries, ociClient, registry.RulesfileNamespace, reg, user, entry.Name); err != nil {
+			if err := ociRepo(ociEntries, ociClient, oci.RulesfileNamespace, reg, user, entry.Name); err != nil {
 				return nil, err
 			}
 		}
@@ -140,7 +141,7 @@ func ociRepos(registryEntries *registry.Registry, reg, user string) (map[string]
 func ociRepo(ociEntries map[string]string, client *auth.Client, ociRepoNamespace, reg, user, artifactName string) error {
 	ref := filepath.Join(reg, user, ociRepoNamespace, artifactName)
 
-	if ociRepoNamespace == registry.RulesfileNamespace {
+	if ociRepoNamespace == oci.RulesfileNamespace {
 		artifactName = artifactName + distribution.RulesArtifactSuffix
 	}
 
@@ -204,7 +205,7 @@ func main() {
 		Args:                  cobra.ExactArgs(1),
 		DisableFlagsInUseLine: true,
 		RunE: func(c *cobra.Command, args []string) error {
-			return doUpdateOCIRegistry(args[0])
+			return oci.doUpdateOCIRegistry(args[0])
 		},
 	}
 
