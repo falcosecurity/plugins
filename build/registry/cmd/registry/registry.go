@@ -205,7 +205,7 @@ func main() {
 		Args:                  cobra.ExactArgs(1),
 		DisableFlagsInUseLine: true,
 		RunE: func(c *cobra.Command, args []string) error {
-			return oci.doUpdateOCIRegistry(args[0])
+			return oci.DoUpdateOCIRegistry(context.Background(), args[0])
 		},
 	}
 
