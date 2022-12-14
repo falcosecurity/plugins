@@ -14,12 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package oci
 
 import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/falcosecurity/plugins/build/registry/cmd/registry"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -32,8 +33,6 @@ import (
 	"github.com/falcosecurity/falcoctl/pkg/oci"
 	"github.com/falcosecurity/falcoctl/pkg/oci/authn"
 	ocipusher "github.com/falcosecurity/falcoctl/pkg/oci/pusher"
-	reg "github.com/falcosecurity/plugins/build/registry/pkg/registry"
-
 	"oras.land/oras-go/v2/registry/remote/auth"
 
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
@@ -58,20 +57,20 @@ func doUpdateOCIRegistry(registryFile string) error {
 
 	ctx := context.Background()
 
-	if token, found = os.LookupEnv(reg.RegistryToken); !found {
-		return fmt.Errorf("environment variable with key %q not found, please set it before running this tool", reg.RegistryToken)
+	if token, found = os.LookupEnv(RegistryToken); !found {
+		return fmt.Errorf("environment variable with key %q not found, please set it before running this tool", RegistryToken)
 	}
 
-	if user, found = os.LookupEnv(reg.RegistryUser); !found {
-		return fmt.Errorf("environment variable with key %q not found, please set it before running this tool", reg.RegistryUser)
+	if user, found = os.LookupEnv(RegistryUser); !found {
+		return fmt.Errorf("environment variable with key %q not found, please set it before running this tool", RegistryUser)
 	}
 
-	if registry, found = os.LookupEnv(reg.RegistryOCI); !found {
-		return fmt.Errorf("environment variable with key %q not found, please set it before running this tool", reg.RegistryOCI)
+	if registry, found = os.LookupEnv(RegistryOCI); !found {
+		return fmt.Errorf("environment variable with key %q not found, please set it before running this tool", RegistryOCI)
 	}
 
-	if repoGit, found = os.LookupEnv(reg.RepoGithub); !found {
-		return fmt.Errorf("environment variable with key %q not found, please set it before running this tool", reg.RepoGithub)
+	if repoGit, found = os.LookupEnv(RepoGithub); !found {
+		return fmt.Errorf("environment variable with key %q not found, please set it before running this tool", RepoGithub)
 	}
 
 	cfg := aws.Config{
@@ -82,7 +81,7 @@ func doUpdateOCIRegistry(registryFile string) error {
 	s3Client := s3.NewFromConfig(cfg)
 	ociClient := OCIClient(user, token)
 
-	reg, err := loadRegistryFromFile(registryFile)
+	reg, err := main.loadRegistryFromFile(registryFile)
 	if err != nil {
 		return fmt.Errorf("an error occurred while loading registry entries from file %q: %v", registryFile, err)
 	}
@@ -192,7 +191,7 @@ func handlePlugins(ctx context.Context, s3client *s3.Client, ociClient *auth.Cli
 
 	klog.Infof("latest version found in s3 bucket for plugin %q: %q", pluginName, latest)
 
-	ref := filepath.Join(registry, registryUser, reg.PluginNamespace, pluginName)
+	ref := filepath.Join(registry, registryUser, PluginNamespace, pluginName)
 	registryTags, err := oci.Tags(ctx, ref, ociClient)
 	klog.Infof("plugin versions found in the OCI registry: %s", registryTags)
 	// TODO: better handling errors.
@@ -289,7 +288,7 @@ func handleRules(ctx context.Context, s3Client *s3.Client, ociClient *auth.Clien
 
 	klog.Infof("latest version found in s3 bucket for ruleset %q: %q", rulesetName, latest)
 
-	ref := filepath.Join(registry, registryUser, reg.RulesfileNamespace, rulesetName)
+	ref := filepath.Join(registry, registryUser, RulesfileNamespace, rulesetName)
 	registryTags, err := oci.Tags(ctx, ref, ociClient)
 	klog.Infof("ruleset versions found in the OCI registry: %s", registryTags)
 	if err == nil {
