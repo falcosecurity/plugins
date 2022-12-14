@@ -18,12 +18,11 @@ package oci
 
 import (
 	"context"
-	"flag"
 	"fmt"
-	"github.com/falcosecurity/plugins/build/registry/cmd/registry"
+	"github.com/falcosecurity/plugins/build/registry/pkg/registry"
 	"os"
+	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"k8s.io/klog/v2"
@@ -40,77 +39,256 @@ import (
 )
 
 var (
-	region        = "eu-west-1" // TODO: make it discoverable
-	bucketName    = "falco-distribution"
-	pluginPrefix  = "plugins/stable/"
-	maxKeys       = 128
-	versionRegexp = regexp.MustCompile(`([0-9]+(\.[0-9]+){2})(-rc[0-9]+)?`)
-	falcoAuthors  = "The Falco Authors"
+	bucketName = "falco-distribution"
 )
 
-// Check the
-func doUpdateOCIRegistry(registryFile string) error {
-	var registry, repoGit, user, token string
+type config struct {
+	// registryToken authentication token for the OCI registry.
+	registryToken string
+	// registryUser user used to interact with the OCI registry.
+	registryUser string
+	// registryHost hostname of the OCI registry.
+	registryHost string
+	// pluginsRepo the URL of the git repository associated with the OCI artifacts.
+	pluginsRepo string
+}
+
+func lookupConfig() (*config, error) {
 	var found bool
-	klog.InitFlags(nil)
-	flag.Parse()
+	cfg := &config{}
 
-	ctx := context.Background()
-
-	if token, found = os.LookupEnv(RegistryToken); !found {
-		return fmt.Errorf("environment variable with key %q not found, please set it before running this tool", RegistryToken)
+	if cfg.registryToken, found = os.LookupEnv(RegistryToken); !found {
+		return nil, fmt.Errorf("environment variable with key %q not found, please set it before running this tool", RegistryToken)
 	}
 
-	if user, found = os.LookupEnv(RegistryUser); !found {
-		return fmt.Errorf("environment variable with key %q not found, please set it before running this tool", RegistryUser)
+	if cfg.registryUser, found = os.LookupEnv(RegistryUser); !found {
+		return nil, fmt.Errorf("environment variable with key %q not found, please set it before running this tool", RegistryUser)
 	}
 
-	if registry, found = os.LookupEnv(RegistryOCI); !found {
-		return fmt.Errorf("environment variable with key %q not found, please set it before running this tool", RegistryOCI)
+	if cfg.registryHost, found = os.LookupEnv(RegistryOCI); !found {
+		return nil, fmt.Errorf("environment variable with key %q not found, please set it before running this tool", RegistryOCI)
 	}
 
-	if repoGit, found = os.LookupEnv(RepoGithub); !found {
-		return fmt.Errorf("environment variable with key %q not found, please set it before running this tool", RepoGithub)
+	if cfg.pluginsRepo, found = os.LookupEnv(RepoGithub); !found {
+		return nil, fmt.Errorf("environment variable with key %q not found, please set it before running this tool", RepoGithub)
 	}
 
-	cfg := aws.Config{
+	return cfg, nil
+}
+
+// TODO(alacuku): Duplicated code, need to refactor some code that exists in the main package.
+func loadRegistryFromFile(fname string) (*registry.Registry, error) {
+	file, err := os.Open(fname)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	return registry.Load(file)
+}
+
+// refFromPluginEntry returns an OCI reference for a plugin entry in the registry.yaml file.
+func refFromPluginEntry(cfg *config, plugin *registry.Plugin, rulesFile bool) string {
+	var namespace string
+
+	// If the RulesURL field is set then the artifact is a rulesfile, otherwise a plugin.
+	if rulesFile {
+		namespace = RulesfileNamespace
+	} else {
+		namespace = PluginNamespace
+	}
+
+	// Build and return the artifact reference.
+	return filepath.Join(cfg.registryHost, cfg.registryUser, namespace, plugin.Name)
+}
+
+// s3ArtifactName returns the prefix name of the archive uploaded in the s3 bucket.
+// It uses the same logic used by the makefile used to upload the artifacts in the s3 bucket.
+func s3ArtifactNamePrefix(plugin *registry.Plugin, version string, rulesFile bool) string {
+	if rulesFile {
+		return fmt.Sprintf("%s-rules-%s%s", plugin.Name, version, archive_suffix)
+	}
+	return fmt.Sprintf("%s-%s-linux", plugin.Name, version)
+}
+
+func platformFromS3Key(key string) string {
+	if strings.Contains(key, x86_arch_s3) {
+		// Instead of "x86_64" we return "amd64" the one to be used in the oci artifact.
+		return "linux/amd64"
+	}
+
+	if strings.Contains(key, arm_aarch64_s3) {
+		return "linux/aarch64"
+	}
+
+	// Return empty string if it does not contain one of the expected architectures.
+	return ""
+}
+
+// latestVersionArtifact returns the latest version of the artifact that exists in the remote repository pointed by the reference.
+func latestVersionArtifact(ctx context.Context, ref string, ociClient *auth.Client) (string, error) {
+	var versions []semver.Version
+	// Get all the tags for the given artifact in the remote repository.
+	remoteTags, err := oci.Tags(ctx, ref, ociClient)
+	// Only way to know if the repo does not exist is to check the content of the error.
+	if err != nil && !strings.Contains(err.Error(), "unexpected status code 404") {
+		return "", err
+	}
+
+	// If no tags found it means that the artifact does not exist in the OCI registry or
+	// that it does not have tags.
+	if len(remoteTags) == 0 {
+		return "", nil
+	}
+
+	// We parse the tags in semVer and then sort and get the latest one.
+	for _, tag := range remoteTags {
+		// Ignore the "latest" tag.
+		if tag == "latest" {
+			continue
+		}
+		parsedVersion, err := semver.ParseTolerant(tag)
+		if err != nil {
+			return "", fmt.Errorf("cannot parse tag %q to semVer: %v", tag, err)
+		}
+
+		versions = append(versions, parsedVersion)
+	}
+
+	// Sort the versions.
+	semver.Sort(versions)
+
+	// Return the latest version.
+	// It should never happen that versions is empty. Since the artifacts are pushed by the CI if
+	// it has been pushed then it must have a tag assigned to it.
+	return versions[len(versions)-1].String(), nil
+}
+
+// TODO(alacuku): duplicated code, in common with the "version" tool
+func git(args ...string) (output []string, err error) {
+	// fmt.Println("git ", strings.Join(args, " "))
+	stdout, err := exec.Command("git", args...).Output()
+	// fmt.Println(string(stdout))
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return nil, fmt.Errorf("unable to list tags %q: %v", exitErr.Stderr, err)
+		}
+		return nil, err
+	}
+
+	lines := strings.Split(string(stdout), "\n")
+
+	return lines[0 : len(lines)-1], nil
+}
+
+// localLatestVersion returns the latest version of the artifact in the local git repository based on the tags.
+func localLatestVersion(artifactName string) (*semver.Version, error) {
+	// List only the tags that have a prefix "artifactname-[0-9].*"
+	tagPrefix := fmt.Sprintf("%s-[0-9].*", artifactName)
+	tags, err := git("--no-pager", "tag", "-l", tagPrefix, "--sort", "-authordate")
+	if err != nil {
+		return nil, err
+	}
+
+	if len(tags) == 0 {
+		return nil, fmt.Errorf("no tags found for prefix %q", tagPrefix)
+	}
+
+	// Trim tag's prefix.
+	tag := strings.TrimPrefix(tags[0], artifactName+"-")
+	version, err := semver.Parse(tag)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse tag %q to semver: %v", tags[0], err)
+	}
+
+	return &version, err
+}
+
+// newReleases returns the new released versions since the latest version fetched from the remote repository.
+// It could happen that the artifact does not exist in the remote repository, in that case we return the latest
+// version found in the local git repository.
+func newReleases(artifactName, remoteVersion string) ([]semver.Version, error) {
+	var versions []semver.Version
+
+	// List only the tags that have a prefix "artifactname-[0-9].*"
+	tagPrefix := fmt.Sprintf("%s-[0-9].*", artifactName)
+	remoteTag := fmt.Sprintf("%s-%s", artifactName, remoteVersion)
+
+	// If the artifact does not exist in the OCI repo, then we just get the latest version in the
+	// local git repo.
+	if remoteVersion == "" {
+		v, err := localLatestVersion(artifactName)
+		if err != nil {
+			return nil, err
+		}
+		return append(versions, *v), nil
+	}
+
+	tags, err := git("--no-pager", "tag", "--list", tagPrefix, "--contains", remoteTag)
+	if err != nil {
+		return nil, err
+	}
+
+	// Since the remoteTag is always self-contained, we remove it.
+	tags = tags[1:]
+
+	// If not new versions are found then return.
+	if len(tags) == 0 {
+		return nil, nil
+	}
+
+	for _, tag := range tags {
+
+		if tag == "" {
+			continue
+		}
+		// Trim tag's prefix.
+		t := strings.TrimPrefix(tag, artifactName+"-")
+
+		parsedVersion, err := semver.Parse(t)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse tag %q to semVer: %v", t, err)
+		}
+
+		versions = append(versions, parsedVersion)
+	}
+
+	// Sort and return the versions.
+	semver.Sort(versions)
+	return versions, nil
+}
+
+func DoUpdateOCIRegistry(ctx context.Context, registryFile string) error {
+	var (
+		cfg *config
+		err error
+	)
+
+	// Load the configuration from env variables.
+	if cfg, err = lookupConfig(); err != nil {
+		return err
+	}
+
+	s3Client := s3.NewFromConfig(aws.Config{
 		Region:      region,
 		Credentials: aws.AnonymousCredentials{},
-	}
+	})
 
-	s3Client := s3.NewFromConfig(cfg)
-	ociClient := OCIClient(user, token)
+	ociClient := authn.NewClient(auth.Credential{
+		Username: cfg.registryUser,
+		Password: cfg.registryToken,
+	})
 
-	reg, err := main.loadRegistryFromFile(registryFile)
+	reg, err := loadRegistryFromFile(registryFile)
 	if err != nil {
 		return fmt.Errorf("an error occurred while loading registry entries from file %q: %v", registryFile, err)
 	}
 
-	sepString := strings.Repeat("#", 15)
 	for _, plugin := range reg.Plugins {
-		// Filter out plugins that are not owned by falcosecurity
-		if plugin.Authors != falcoAuthors {
-			klog.V(4).Infof("skipping plugin %q with authors %q: it is not maintained by %q",
-				plugin.Name, plugin.Authors, falcoAuthors)
-			continue
+		if err := handleArtifact(ctx, cfg, &plugin, s3Client, ociClient); err != nil {
+			return err
 		}
 
-		klog.Infof("%s %s %s", sepString, plugin.Name, sepString)
-
-		keys, err := listObjects(ctx, s3Client, plugin.Name)
-		if err != nil {
-			return fmt.Errorf("unable to list objects from s3 bucket: %v", err)
-		}
-
-		if err = handlePlugins(ctx, s3Client, ociClient, registry, registryFile, user, repoGit, plugin.Name, keys); err != nil {
-			return fmt.Errorf("error handle plugins: %w", err)
-		}
-
-		if err = handleRules(ctx, s3Client, ociClient, registry, registryFile, user, repoGit, plugin.Name, keys); err != nil {
-			return fmt.Errorf("error handle rules: %w", err)
-		}
-
-		// Remove the folders and files downloaded from s3 bucket.
+		// Clean up
 		if err := os.RemoveAll(plugin.Name); err != nil {
 			return fmt.Errorf("unable to remove folder %q: %v", plugin.Name, err)
 		}
@@ -119,14 +297,14 @@ func doUpdateOCIRegistry(registryFile string) error {
 	return nil
 }
 
-func listObjects(ctx context.Context, client *s3.Client, name string) ([]string, error) {
-	prefix := filepath.Join(pluginPrefix, name)
+func listObjects(ctx context.Context, client *s3.Client, prefix string) ([]string, error) {
+	prefix = filepath.Join(pluginPrefix, prefix)
 	params := &s3.ListObjectsV2Input{
 		Bucket: &bucketName,
 		Prefix: &prefix,
 	}
 
-	klog.Infof("listing objects for plugin %q from s3 bucket with prefix %q", name, prefix)
+	klog.Infof("listing objects for plugin from s3 bucket with prefix %q", prefix)
 
 	// Create the Paginator for the ListObjectsV2 operation.
 	p := s3.NewListObjectsV2Paginator(client, params, func(o *s3.ListObjectsV2PaginatorOptions) {
@@ -146,7 +324,7 @@ func listObjects(ctx context.Context, client *s3.Client, name string) ([]string,
 		// you could add timeouts or deadlines.
 		page, err := p.NextPage(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("an error occurred while getting next page from s3 bucket while handling plugin %q: %w", name, err)
+			return nil, fmt.Errorf("an error occurred while getting next page from s3 bucket while handling prefix %q: %w", prefix, err)
 		}
 
 		// Add keys to the slice.
@@ -155,181 +333,8 @@ func listObjects(ctx context.Context, client *s3.Client, name string) ([]string,
 		}
 	}
 
-	klog.V(5).Infof("objects found for plugin %q: %s", name, keys)
+	klog.V(5).Infof("objects found for prefix %q: %s", prefix, keys)
 	return keys, nil
-}
-
-func handlePlugins(ctx context.Context, s3client *s3.Client, ociClient *auth.Client, registry, registryFile, registryUser, repoGit, pluginName string, keys []string) error {
-	klog.Infof("Handling plugin %q...", pluginName)
-	pluginVersions := make(map[string][]string)
-	var allPluginVersions []string
-	for _, key := range keys {
-		if strings.Contains(key, "rules") {
-			continue
-		}
-
-		version, err := version(key)
-		if err != nil {
-			return fmt.Errorf("an error occurred while getting version from plugin %q: %w", pluginName, err)
-		}
-		pluginVersions[version] = append(pluginVersions[version], key)
-		allPluginVersions = append(allPluginVersions, version)
-	}
-
-	klog.Infof("plugin versions found in the s3 bucket: %s", allPluginVersions)
-
-	// there exists plugins that are not stored in s3 yet (e.g "k8saudit-eks")
-	if len(allPluginVersions) == 0 {
-		klog.Warningf("plugin %q found in %q but not in the s3 bucket: nothing to be done", pluginName, registryFile)
-		return nil
-	}
-
-	latest, err := latestVersion(allPluginVersions)
-	if err != nil {
-		return fmt.Errorf("a error occurred while getting latest version for plugin %q: %w", pluginName, err)
-	}
-
-	klog.Infof("latest version found in s3 bucket for plugin %q: %q", pluginName, latest)
-
-	ref := filepath.Join(registry, registryUser, PluginNamespace, pluginName)
-	registryTags, err := oci.Tags(ctx, ref, ociClient)
-	klog.Infof("plugin versions found in the OCI registry: %s", registryTags)
-	// TODO: better handling errors.
-	if err == nil {
-		for _, tag := range registryTags {
-			// check that all platform on s3 are also in oci
-			taggedRef := ref + ":" + tag
-			ociPlatforms, err := oci.Platforms(context.Background(), taggedRef, ociClient)
-			if err != nil {
-				return err
-			}
-
-			s3Platforms, ok := pluginVersions[tag]
-			if !ok && tag != "latest" {
-				return fmt.Errorf("fatal error: expected to find %q in pluginVersions", tag)
-			}
-
-			if len(ociPlatforms) == len(s3Platforms) {
-				klog.V(4).Infof("skipping version %q for plugin %q: found in both oci registry and s3 bucket", tag, pluginName)
-				delete(pluginVersions, tag)
-			}
-		}
-	}
-
-	// add :latest logic
-	for tag, s3key := range pluginVersions {
-		var filepaths, platforms, tags []string
-		downloader := manager.NewDownloader(s3client)
-		for _, pluginKey := range s3key {
-			klog.Infof("downloading plugin with key %q", pluginKey)
-			if err := downloadToFile(downloader, pluginName, bucketName, pluginKey); err != nil {
-				return fmt.Errorf("an error occurred while downloading plugin %q from bucket %q with key %q: %w",
-					pluginName, bucketName, pluginKey, err)
-			}
-			filepaths = append(filepaths, filepath.Join(pluginName, pluginKey))
-			version, err := version(pluginKey)
-			if err != nil {
-				return fmt.Errorf("an error occurred while getting version from plugin %q: %w", pluginName, err)
-			}
-			platforms = append(platforms, platform(pluginKey, version))
-		}
-
-		// push
-		tags = append(tags, tag)
-		if tag == latest {
-			tags = append(tags, "latest")
-		}
-		klog.Infof("pushing plugin to remote repo with ref %q and tags %q", ref, tags)
-		pusher := ocipusher.NewPusher(ociClient, false, nil)
-		_, err := pusher.Push(context.Background(), oci.Plugin, ref+":"+tag,
-			ocipusher.WithTags(tags...),
-			ocipusher.WithFilepathsAndPlatforms(filepaths, platforms),
-			ocipusher.WithAnnotationSource(repoGit))
-		if err != nil {
-			return fmt.Errorf("an error occurred while pushing plugin %q: %w", pluginName, err)
-		}
-	}
-
-	if len(pluginVersions) == 0 {
-		klog.Infof("nothing to be done for plugin %q, already present in the OCI registry", pluginName)
-	}
-	return nil
-}
-
-func handleRules(ctx context.Context, s3Client *s3.Client, ociClient *auth.Client, registry, registryFile, registryUser, repoGit, rulesetName string, keys []string) error {
-	klog.Infof("Handling ruleset %q...", rulesetName)
-	ruleVersions := make(map[string]string)
-	var allRuleVersions []string
-	for _, key := range keys {
-		if !strings.Contains(key, "rules") {
-			continue
-		}
-
-		version, err := version(key)
-		if err != nil {
-			return fmt.Errorf("an error occurred while getting version from ruleset %q: %w", rulesetName, err)
-		}
-		ruleVersions[version] = key
-		allRuleVersions = append(allRuleVersions, version)
-	}
-
-	// there exists plugin that do not have rules
-	if len(allRuleVersions) == 0 {
-		klog.Warningf("ruleset %q found in %q but not in the s3 bucket: nothing to be done", rulesetName, registryFile)
-		return nil
-	}
-
-	klog.Infof("ruleset versions found in the s3 bucket: %s", allRuleVersions)
-
-	latest, err := latestVersion(allRuleVersions)
-	if err != nil {
-		return fmt.Errorf("a error occurred while getting latest version for ruleset %q: %w", rulesetName, err)
-	}
-
-	klog.Infof("latest version found in s3 bucket for ruleset %q: %q", rulesetName, latest)
-
-	ref := filepath.Join(registry, registryUser, RulesfileNamespace, rulesetName)
-	registryTags, err := oci.Tags(ctx, ref, ociClient)
-	klog.Infof("ruleset versions found in the OCI registry: %s", registryTags)
-	if err == nil {
-		for _, tag := range registryTags {
-			klog.V(4).Infof("skipping version %q for ruleset %q: found in both oci registry and s3 bucket", tag, rulesetName)
-			delete(ruleVersions, tag)
-		}
-	}
-
-	for tag, s3key := range ruleVersions {
-		var filepaths, tags []string
-		downloader := manager.NewDownloader(s3Client)
-
-		klog.Infof("downloading ruleset with key %q", s3key)
-		if err := downloadToFile(downloader, rulesetName, bucketName, s3key); err != nil {
-			return fmt.Errorf("an error occurred while downloading ruleset %q from bucket %q with key %q: %w",
-				rulesetName, bucketName, s3key, err)
-		}
-		filepaths = append(filepaths, filepath.Join(rulesetName, s3key))
-
-		// push
-		tags = append(tags, tag)
-		if tag == latest {
-			tags = append(tags, "latest")
-		}
-		klog.Infof("pushing ruleset to remote repo with ref %q and tags %q", ref, tags)
-		pusher := ocipusher.NewPusher(ociClient, false, nil)
-		_, err := pusher.Push(context.Background(), oci.Rulesfile, ref+":"+tag,
-			ocipusher.WithTags(tags...),
-			ocipusher.WithFilepaths(filepaths),
-			ocipusher.WithAnnotationSource(repoGit))
-		if err != nil {
-			return fmt.Errorf("an error occurred while pushing ruleset %q: %w", rulesetName, err)
-		}
-	}
-
-	if len(ruleVersions) == 0 {
-		klog.Infof("nothing to be done for ruleset %q, already present in the OCI registry", rulesetName)
-	}
-
-	return nil
 }
 
 func latestVersion(versions []string) (string, error) {
@@ -360,14 +365,6 @@ func OCIClient(username, token string) *auth.Client {
 	}
 
 	return authn.NewClient(cred)
-}
-
-func version(key string) (string, error) {
-	matches := versionRegexp.FindStringSubmatch(key)
-	if len(matches) == 0 {
-		return "", fmt.Errorf("regexp %q not match found in string %q while extracting the version", versionRegexp.String(), key)
-	}
-	return matches[0], nil
 }
 
 func platform(key, version string) string {
@@ -405,4 +402,191 @@ func downloadToFile(downloader *manager.Downloader, targetDirectory, bucket, key
 	_, err = downloader.Download(context.Background(), fd, &s3.GetObjectInput{Bucket: &bucket, Key: &key})
 
 	return err
+}
+
+func tagsFromVersion(version *semver.Version) []string {
+	var tags []string
+
+	// If we are not handling a release candidate then add floating tags.
+	if len(version.Pre) == 0 {
+		majorVer := fmt.Sprintf("%d", version.Major)
+		minorVer := fmt.Sprintf("%d.%d", version.Major, version.Minor)
+		fullVer := version.String()
+
+		tags = append(tags, fullVer, minorVer, majorVer, "latest")
+	} else {
+		tags = append(tags, version.String())
+	}
+
+	return tags
+}
+
+func handleArtifact(ctx context.Context, cfg *config, plugin *registry.Plugin, s3Client *s3.Client, ociClient *auth.Client) error {
+	// Filter out plugins that are not owned by falcosecurity.
+	if plugin.Authors != falcoAuthors {
+		sepString := strings.Repeat("#", 15)
+		klog.Infof("%s %s %s", sepString, plugin.Name, sepString)
+		klog.Infof("skipping plugin %q with authors %q: it is not maintained by %q",
+			plugin.Name, plugin.Authors, falcoAuthors)
+		return nil
+	}
+
+	// Build the OCI reference.
+
+	if err := handlePlugin(ctx, cfg, plugin, s3Client, ociClient); err != nil {
+		return err
+	}
+
+	if plugin.RulesURL != "" {
+		if err := handleRule(ctx, cfg, plugin, s3Client, ociClient); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func handlePlugin(ctx context.Context, cfg *config, plugin *registry.Plugin, s3Client *s3.Client, ociClient *auth.Client) error {
+	var s3Keys []string
+	var err error
+
+	sepString := strings.Repeat("#", 15)
+	klog.Infof("%s %s %s", sepString, plugin.Name, sepString)
+
+	ref := refFromPluginEntry(cfg, plugin, false)
+	// Get all the tags for the given artifact in the remote repository.
+	remoteVersion, err := latestVersionArtifact(ctx, ref, ociClient)
+	if err != nil {
+		return err
+	}
+
+	if remoteVersion != "" {
+		klog.Infof("latest version found in the OCI registry is: %q", remoteVersion)
+	} else {
+		klog.Info("no versions found in the OCI registry")
+	}
+
+	releases, err := newReleases(plugin.Name, remoteVersion)
+	if err != nil {
+		return err
+	}
+
+	// If there are no new releases then return.
+	if len(releases) == 0 {
+		klog.Info("no new releases found in the local git repo. Nothing to be done")
+		return nil
+	} else {
+		klog.Infof("new releases found in local git repo: %q", releases)
+	}
+
+	// Create s3 downloader.
+	downloader := manager.NewDownloader(s3Client)
+
+	// For each new release we download the tarballs from s3 bucket.
+	for _, v := range releases {
+		prefixKey := s3ArtifactNamePrefix(plugin, v.String(), false)
+		// Get the s3 keys.
+		if s3Keys, err = listObjects(ctx, s3Client, prefixKey); err != nil {
+			return fmt.Errorf("an error occurred while listing objects for prefix %q: %v", prefixKey, err)
+		}
+		var filepaths, platforms []string
+
+		// Download the tarballs for each key.
+		for _, key := range s3Keys {
+			klog.Infof("downloading tarball with key %q", key)
+			if err := downloadToFile(downloader, plugin.Name, bucketName, key); err != nil {
+				return fmt.Errorf("an error occurred while downloading tarball %q from bucket %q: %w",
+					key, bucketName, err)
+			}
+
+			filepaths = append(filepaths, filepath.Join(plugin.Name, key))
+			platforms = append(platforms, platformFromS3Key(key))
+		}
+
+		tags := tagsFromVersion(&v)
+
+		klog.Infof("pushing plugin to remote repo with ref %q and tags %q", ref, tags)
+		pusher := ocipusher.NewPusher(ociClient, false, nil)
+		_, err = pusher.Push(context.Background(), oci.Plugin, ref,
+			ocipusher.WithTags(tags...),
+			ocipusher.WithFilepathsAndPlatforms(filepaths, platforms),
+			ocipusher.WithAnnotationSource(cfg.pluginsRepo))
+		if err != nil {
+			return fmt.Errorf("an error occurred while pushing plugin %q: %w", plugin.Name, err)
+		}
+	}
+
+	return nil
+}
+
+func handleRule(ctx context.Context, cfg *config, plugin *registry.Plugin, s3Client *s3.Client, ociClient *auth.Client) error {
+	var s3Keys []string
+	var err error
+
+	sepString := strings.Repeat("#", 15)
+	klog.Infof("%s %s-rules %s", sepString, plugin.Name, sepString)
+
+	ref := refFromPluginEntry(cfg, plugin, true)
+	// Get all the tags for the given artifact in the remote repository.
+	remoteVersion, err := latestVersionArtifact(ctx, ref, ociClient)
+	if err != nil {
+		return err
+	}
+
+	if remoteVersion != "" {
+		klog.Infof("latest version found in the OCI registry is: %q", remoteVersion)
+	} else {
+		klog.Info("no versions found in the OCI registry")
+	}
+
+	releases, err := newReleases(plugin.Name, remoteVersion)
+	if err != nil {
+		return err
+	}
+
+	// If there are no new releases then return.
+	if len(releases) == 0 {
+		klog.Info("no new releases found in the local git repo. Nothing to be done")
+		return nil
+	} else {
+		klog.Infof("new releases found in local git repo: %q", releases)
+	}
+
+	// Create s3 downloader.
+	downloader := manager.NewDownloader(s3Client)
+
+	// For each new version we download the archives from s3 bucket
+	for _, v := range releases {
+		prefixKey := s3ArtifactNamePrefix(plugin, v.String(), true)
+		// Get the s3 keys.
+		if s3Keys, err = listObjects(ctx, s3Client, prefixKey); err != nil {
+			return fmt.Errorf("an error occurred while listing objects for prefix %q: %v", prefixKey, err)
+		}
+		var filepaths []string
+
+		// Download the tarballs for each key.
+		for _, key := range s3Keys {
+			klog.Infof("downloading tarball with key %q", key)
+			if err := downloadToFile(downloader, plugin.Name, bucketName, key); err != nil {
+				return fmt.Errorf("an error occurred while downloading tarball %q from bucket %q: %w",
+					key, bucketName, err)
+			}
+
+			filepaths = append(filepaths, filepath.Join(plugin.Name, key))
+		}
+
+		tags := tagsFromVersion(&v)
+
+		klog.Infof("pushing rulesfile to remote repo with ref %q and tags %q", ref, tags)
+		pusher := ocipusher.NewPusher(ociClient, false, nil)
+		_, err = pusher.Push(context.Background(), oci.Rulesfile, ref,
+			ocipusher.WithTags(tags...),
+			ocipusher.WithFilepaths(filepaths),
+			ocipusher.WithAnnotationSource(cfg.pluginsRepo))
+		if err != nil {
+			return fmt.Errorf("an error occurred while pushing rulesfile %q: %w", plugin.Name, err)
+		}
+	}
+
+	return nil
 }
