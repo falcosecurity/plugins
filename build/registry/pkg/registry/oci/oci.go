@@ -489,6 +489,14 @@ func handlePlugin(ctx context.Context, cfg *config, plugin *registry.Plugin, s3C
 		if s3Keys, err = listObjects(ctx, s3Client, prefixKey); err != nil {
 			return fmt.Errorf("an error occurred while listing objects for prefix %q: %v", prefixKey, err)
 		}
+
+		// It could happen if we tagged a new version in the git repo but the CI has not processed it.
+		// It means that no binaries have been produced and uploaded in the s3 bucket.
+		if len(s3Keys) == 0 {
+			klog.Warningf("no archives found on s3 bucket for prefix %q", prefixKey)
+			continue
+		}
+
 		var filepaths, platforms []string
 
 		// Download the tarballs for each key.
@@ -562,6 +570,14 @@ func handleRule(ctx context.Context, cfg *config, plugin *registry.Plugin, s3Cli
 		if s3Keys, err = listObjects(ctx, s3Client, prefixKey); err != nil {
 			return fmt.Errorf("an error occurred while listing objects for prefix %q: %v", prefixKey, err)
 		}
+
+		// It could happen if we tagged a new version in the git repo but the CI has not processed it.
+		// It means that no binaries have been produced and uploaded in the s3 bucket.
+		if len(s3Keys) == 0 {
+			klog.Warningf("no archives found on s3 bucket for prefix %q", prefixKey)
+			continue
+		}
+
 		var filepaths []string
 
 		// Download the tarballs for each key.
