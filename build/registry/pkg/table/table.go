@@ -18,7 +18,7 @@ package table
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/falcosecurity/plugins/build/registry/pkg/registry"
@@ -45,7 +45,7 @@ func DoTable(registryFile, subFile, subTag string) error {
 		if len(subTag) == 0 {
 			return fmt.Errorf("subtag flag is required")
 		}
-		content, err := ioutil.ReadFile(subFile)
+		content, err := os.ReadFile(subFile)
 		if err != nil {
 			return err
 		}
@@ -54,7 +54,7 @@ func DoTable(registryFile, subFile, subTag string) error {
 			return fmt.Errorf("can't find two instances of subtag in text file: '%s'", subTag)
 		}
 		contentStr := fmt.Sprintf("%s%s\n%s\n%s%s", pieces[0], subTag, table, subTag, pieces[2])
-		if err = ioutil.WriteFile(subFile, []byte(contentStr), 0666); err != nil {
+		if err = os.WriteFile(subFile, []byte(contentStr), 0666); err != nil {
 			return err
 		}
 	}
