@@ -44,8 +44,7 @@ const (
 	maxKeys            = 128
 	falcoAuthors       = "The Falco Authors"
 	// Architectures as used in the names of the archives uploaded in the S3 bucket.
-	x86_arch_s3     = "x86_64"
-	arm_aarch64_s3  = "aarch64"
-	archive_suffix  = ".tar.gz"
-	operatingSystem = "linux"
+	x86_arch_s3    = "x86_64"
+	arm_aarch64_s3 = "aarch64"
+	archive_suffix = ".tar.gz"
 )
