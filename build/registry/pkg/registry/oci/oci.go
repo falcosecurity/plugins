@@ -76,16 +76,6 @@ func lookupConfig() (*config, error) {
 	return cfg, nil
 }
 
-// TODO(alacuku): Duplicated code, need to refactor some code that exists in the main package.
-func loadRegistryFromFile(fname string) (*registry.Registry, error) {
-	file, err := os.Open(fname)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-	return registry.Load(file)
-}
-
 // refFromPluginEntry returns an OCI reference for a plugin entry in the registry.yaml file.
 func refFromPluginEntry(cfg *config, plugin *registry.Plugin, rulesFile bool) string {
 	var namespace string
@@ -165,9 +155,7 @@ func latestVersionArtifact(ctx context.Context, ref string, ociClient *auth.Clie
 
 // TODO(alacuku): duplicated code, in common with the "version" tool
 func git(args ...string) (output []string, err error) {
-	// fmt.Println("git ", strings.Join(args, " "))
 	stdout, err := exec.Command("git", args...).Output()
-	// fmt.Println(string(stdout))
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			return nil, fmt.Errorf("unable to list tags %q: %v", exitErr.Stderr, err)
@@ -278,7 +266,7 @@ func DoUpdateOCIRegistry(ctx context.Context, registryFile string) error {
 		Password: cfg.registryToken,
 	})
 
-	reg, err := loadRegistryFromFile(registryFile)
+	reg, err := registry.LoadRegistryFromFile(registryFile)
 	if err != nil {
 		return fmt.Errorf("an error occurred while loading registry entries from file %q: %v", registryFile, err)
 	}
