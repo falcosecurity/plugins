@@ -19,6 +19,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/falcosecurity/plugins/build/registry/pkg/check"
 	"github.com/falcosecurity/plugins/build/registry/pkg/registry"
 	"github.com/falcosecurity/plugins/build/registry/pkg/registry/distribution"
 	"github.com/falcosecurity/plugins/build/registry/pkg/registry/oci"
@@ -31,14 +32,6 @@ import (
 const (
 	defaultTableSubTag = "<!-- REGISTRY -->"
 )
-
-func doCheck(fileName string) error {
-	registry, err := registry.LoadRegistryFromFile(fileName)
-	if err != nil {
-		return err
-	}
-	return registry.Validate()
-}
 
 func doTable(registryFile, subFile, subTag string) error {
 	r, err := registry.LoadRegistryFromFile(registryFile)
@@ -85,7 +78,7 @@ func main() {
 		Args:                  cobra.ExactArgs(1),
 		DisableFlagsInUseLine: true,
 		RunE: func(c *cobra.Command, args []string) error {
-			return doCheck(args[0])
+			return check.DoCheck(args[0])
 		},
 	}
 
