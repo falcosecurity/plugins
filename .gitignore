@@ -1,6 +1,7 @@
 *~
 .vscode
 .DS_Store
+.idea
 output/
 plugins/*/*.so
 plugins/*/lib*.h
