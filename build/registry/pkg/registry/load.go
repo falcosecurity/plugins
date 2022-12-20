@@ -18,11 +18,22 @@ package registry
 
 import (
 	"io"
+	"os"
 )
 
-// Load reads from a io.Reader and uses the content to populate and
+// LoadRegistryFromFile loads the registry from a file on disk.
+func LoadRegistryFromFile(fname string) (*Registry, error) {
+	file, err := os.Open(fname)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	return load(file)
+}
+
+// load reads from a io.Reader and uses the content to populate and
 // return a new instance of Registry
-func Load(r io.Reader) (*Registry, error) {
+func load(r io.Reader) (*Registry, error) {
 	registry := &Registry{}
 	return registry, registry.Decode(r)
 }

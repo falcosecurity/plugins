@@ -38,17 +38,8 @@ const (
 	defaultTableSubTag = "<!-- REGISTRY -->"
 )
 
-func loadRegistryFromFile(fname string) (*registry.Registry, error) {
-	file, err := os.Open(fname)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-	return registry.Load(file)
-}
-
 func doCheck(fileName string) error {
-	registry, err := loadRegistryFromFile(fileName)
+	registry, err := registry.LoadRegistryFromFile(fileName)
 	if err != nil {
 		return err
 	}
@@ -56,7 +47,7 @@ func doCheck(fileName string) error {
 }
 
 func doTable(registryFile, subFile, subTag string) error {
-	r, err := loadRegistryFromFile(registryFile)
+	r, err := registry.LoadRegistryFromFile(registryFile)
 	if err != nil {
 		return err
 	}
@@ -104,7 +95,7 @@ func doUpdateIndex(registryFile, indexFile string) error {
 		return fmt.Errorf("environment variable with key %q not found, please set it before running this tool", oci.RegistryOCI)
 	}
 
-	registryEntries, err := loadRegistryFromFile(registryFile)
+	registryEntries, err := registry.LoadRegistryFromFile(registryFile)
 	if err != nil {
 		return err
 	}
