@@ -18,12 +18,51 @@ package table
 
 import (
 	"fmt"
+	"io/ioutil"
 	"strings"
 
 	"github.com/falcosecurity/plugins/build/registry/pkg/registry"
 )
 
-func FormatMarkdownTable(r *registry.Registry) (string, error) {
+func DoTable(registryFile, subFile, subTag string) error {
+	r, err := registry.LoadRegistryFromFile(registryFile)
+	if err != nil {
+		return err
+	}
+
+	err = r.Validate()
+	if err != nil {
+		return err
+	}
+
+	table, err := formatMarkdownTable(r)
+	if err != nil {
+		return err
+	}
+	if len(subFile) == 0 {
+		fmt.Println(table)
+	} else {
+		if len(subTag) == 0 {
+			return fmt.Errorf("subtag flag is required")
+		}
+		content, err := ioutil.ReadFile(subFile)
+		if err != nil {
+			return err
+		}
+		pieces := strings.SplitN(string(content), subTag, 3)
+		if len(pieces) != 3 {
+			return fmt.Errorf("can't find two instances of subtag in text file: '%s'", subTag)
+		}
+		contentStr := fmt.Sprintf("%s%s\n%s\n%s%s", pieces[0], subTag, table, subTag, pieces[2])
+		if err = ioutil.WriteFile(subFile, []byte(contentStr), 0666); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func formatMarkdownTable(r *registry.Registry) (string, error) {
 	var ret strings.Builder
 	ret.WriteString("| Name | Capabilities | Description\n")
 	ret.WriteString("| --- | --- | --- |\n")

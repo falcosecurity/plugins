@@ -20,57 +20,16 @@ import (
 	"context"
 	"fmt"
 	"github.com/falcosecurity/plugins/build/registry/pkg/check"
-	"github.com/falcosecurity/plugins/build/registry/pkg/registry"
 	"github.com/falcosecurity/plugins/build/registry/pkg/registry/distribution"
 	"github.com/falcosecurity/plugins/build/registry/pkg/registry/oci"
-	table2 "github.com/falcosecurity/plugins/build/registry/pkg/table"
+	"github.com/falcosecurity/plugins/build/registry/pkg/table"
 	"github.com/spf13/cobra"
-	"io/ioutil"
 	"os"
-	"strings"
 )
 
 const (
 	defaultTableSubTag = "<!-- REGISTRY -->"
 )
-
-func doTable(registryFile, subFile, subTag string) error {
-	r, err := registry.LoadRegistryFromFile(registryFile)
-	if err != nil {
-		return err
-	}
-
-	err = r.Validate()
-	if err != nil {
-		return err
-	}
-
-	table, err := table2.FormatMarkdownTable(r)
-	if err != nil {
-		return err
-	}
-	if len(subFile) == 0 {
-		fmt.Println(table)
-	} else {
-		if len(subTag) == 0 {
-			return fmt.Errorf("subtag flag is required")
-		}
-		content, err := ioutil.ReadFile(subFile)
-		if err != nil {
-			return err
-		}
-		pieces := strings.SplitN(string(content), subTag, 3)
-		if len(pieces) != 3 {
-			return fmt.Errorf("can't find two instances of subtag in text file: '%s'", subTag)
-		}
-		contentStr := fmt.Sprintf("%s%s\n%s\n%s%s", pieces[0], subTag, table, subTag, pieces[2])
-		if err = ioutil.WriteFile(subFile, []byte(contentStr), 0666); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
 
 func main() {
 	checkCmd := &cobra.Command{
@@ -90,7 +49,7 @@ func main() {
 		Short: "Format a plugin registry YAML file in a MarkDown table",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(c *cobra.Command, args []string) error {
-			return doTable(args[0], tableSubFileName, tableSubTab)
+			return table.DoTable(args[0], tableSubFileName, tableSubTab)
 		},
 	}
 	tableFlags := tableCmd.Flags()
