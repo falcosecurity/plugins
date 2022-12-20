@@ -23,6 +23,7 @@ import (
 	"github.com/falcosecurity/plugins/build/registry/pkg/registry"
 	"github.com/falcosecurity/plugins/build/registry/pkg/registry/distribution"
 	"github.com/falcosecurity/plugins/build/registry/pkg/registry/oci"
+	table2 "github.com/falcosecurity/plugins/build/registry/pkg/table"
 	"github.com/spf13/cobra"
 	"io/ioutil"
 	"os"
@@ -44,7 +45,7 @@ func doTable(registryFile, subFile, subTag string) error {
 		return err
 	}
 
-	table, err := FormatMarkdownTable(r)
+	table, err := table2.FormatMarkdownTable(r)
 	if err != nil {
 		return err
 	}
