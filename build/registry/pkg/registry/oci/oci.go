@@ -337,53 +337,6 @@ func listObjects(ctx context.Context, client *s3.Client, prefix string) ([]strin
 	return keys, nil
 }
 
-func latestVersion(versions []string) (string, error) {
-	if len(versions) == 0 {
-		return "", fmt.Errorf("cannot get latest version from empty array")
-	}
-	var parsedVersions []semver.Version
-	for _, v := range versions {
-		// skip rc version since they cannot be "latest"
-		if strings.Contains(v, "rc") {
-			continue
-		}
-		parsedVersion, err := semver.Parse(v)
-		if err != nil {
-			return "", fmt.Errorf("cannot parse version %q", v)
-		}
-		parsedVersions = append(parsedVersions, parsedVersion)
-	}
-
-	semver.Sort(parsedVersions)
-	return parsedVersions[len(parsedVersions)-1].String(), nil
-}
-
-func OCIClient(username, token string) *auth.Client {
-	cred := auth.Credential{
-		Username: username,
-		Password: token,
-	}
-
-	return authn.NewClient(cred)
-}
-
-func platform(key, version string) string {
-	oldKey := key
-	index := strings.Index(key, version)
-	key = key[index+len(version)+1:]
-	key = strings.TrimSuffix(key, ".tar.gz")
-	key = strings.Replace(key, "-", "/", 1)
-
-	if !strings.Contains(key, "linux") {
-		key = "linux/" + key
-	}
-
-	key = strings.Replace(key, "x86_64", "amd64", 1)
-
-	klog.V(4).Infof("platform %q extracted from key %q", key, oldKey)
-	return key
-}
-
 func downloadToFile(downloader *manager.Downloader, targetDirectory, bucket, key string) error {
 	// Create the directories in the path
 	file := filepath.Join(targetDirectory, key)
