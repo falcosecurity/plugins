@@ -19,25 +19,23 @@ package oci
 import (
 	"context"
 	"fmt"
-	"github.com/falcosecurity/falcoctl/pkg/oci/repository"
-	"github.com/falcosecurity/plugins/build/registry/pkg/registry"
-	"oras.land/oras-go/v2/registry/remote"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
-	"k8s.io/klog/v2"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/blang/semver"
 	"github.com/falcosecurity/falcoctl/pkg/oci"
 	"github.com/falcosecurity/falcoctl/pkg/oci/authn"
 	ocipusher "github.com/falcosecurity/falcoctl/pkg/oci/pusher"
+	"github.com/falcosecurity/falcoctl/pkg/oci/repository"
+	"github.com/falcosecurity/plugins/build/registry/pkg/registry"
+	"k8s.io/klog/v2"
+	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
-
-	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 var (
@@ -367,7 +365,7 @@ func tagsFromVersion(version *semver.Version) []string {
 		minorVer := fmt.Sprintf("%d.%d", version.Major, version.Minor)
 		fullVer := version.String()
 
-		tags = append(tags, fullVer, minorVer, majorVer, "latest")
+		tags = append(tags, "latest", majorVer, minorVer, fullVer)
 	} else {
 		tags = append(tags, version.String())
 	}
