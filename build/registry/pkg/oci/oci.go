@@ -530,18 +530,22 @@ func handleRule(ctx context.Context, cfg *config, plugin *registry.Plugin, s3Cli
 			continue
 		}
 
+		// For a given release of a rulesfile there should be only one archive in the s3 bucket.
+		if len(s3Keys) > 1 {
+			err := fmt.Errorf("multiple archives found for rulesfiles with prefix %q: %s", prefixKey, s3Keys)
+			klog.Error(err)
+			return err
+		}
+
 		var filepaths []string
 
-		// Download the tarballs for each key.
-		for _, key := range s3Keys {
-			klog.Infof("downloading tarball with key %q", key)
-			if err := downloadToFile(downloader, plugin.Name, bucketName, key); err != nil {
-				return fmt.Errorf("an error occurred while downloading tarball %q from bucket %q: %w",
-					key, bucketName, err)
-			}
-
-			filepaths = append(filepaths, filepath.Join(plugin.Name, key))
+		key := s3Keys[0]
+		klog.Infof("downloading tarball with key %q", key)
+		if err := downloadToFile(downloader, plugin.Name, bucketName, key); err != nil {
+			return fmt.Errorf("an error occurred while downloading tarball %q from bucket %q: %w",
+				key, bucketName, err)
 		}
+		filepaths = append(filepaths, filepath.Join(plugin.Name, key))
 
 		tags := tagsFromVersion(&v)
 
