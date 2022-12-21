@@ -127,7 +127,7 @@ func DoUpdateIndex(registryFile, indexFile string) error {
 }
 
 func ociRepos(registryEntries *registry.Registry, reg, user string) (map[string]string, error) {
-	ociClient := authn.NewClient(auth.EmptyCredential)
+	ociClient := authn.NewClient(authn.WithCredentials(&auth.EmptyCredential))
 	ociEntries := make(map[string]string)
 
 	for _, entry := range registryEntries.Plugins {
@@ -145,7 +145,7 @@ func ociRepos(registryEntries *registry.Registry, reg, user string) (map[string]
 	return ociEntries, nil
 }
 
-func ociRepo(ociEntries map[string]string, client *auth.Client, ociRepoNamespace, reg, user, artifactName string) error {
+func ociRepo(ociEntries map[string]string, client remote.Client, ociRepoNamespace, reg, user, artifactName string) error {
 	ref := filepath.Join(reg, user, ociRepoNamespace, artifactName)
 
 	if ociRepoNamespace == oci.RulesfileNamespace {

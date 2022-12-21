@@ -19,7 +19,9 @@ package oci
 import (
 	"context"
 	"fmt"
+	"github.com/falcosecurity/falcoctl/pkg/oci/repository"
 	"github.com/falcosecurity/plugins/build/registry/pkg/registry"
+	"oras.land/oras-go/v2/registry/remote"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -115,12 +117,21 @@ func platformFromS3Key(key string) string {
 }
 
 // latestVersionArtifact returns the latest version of the artifact that exists in the remote repository pointed by the reference.
-func latestVersionArtifact(ctx context.Context, ref string, ociClient *auth.Client) (string, error) {
+func latestVersionArtifact(ctx context.Context, ref string, ociClient remote.Client) (string, error) {
 	var versions []semver.Version
+	var repo *repository.Repository
+	var err error
+
+	// Create the repository object for the ref.
+	if repo, err = repository.NewRepository(ref, repository.WithClient(ociClient)); err != nil {
+		return "", fmt.Errorf("unable to create repository for ref %q: %w", ref, err)
+	}
+
 	// Get all the tags for the given artifact in the remote repository.
-	remoteTags, err := oci.Tags(ctx, ref, ociClient)
+	remoteTags, err := repo.Tags(ctx)
 	// Only way to know if the repo does not exist is to check the content of the error.
 	if err != nil && !strings.Contains(err.Error(), "unexpected status code 404") {
+		klog.Errorf("unable to get latest version from remote repository for %q: %v", ref, err)
 		return "", err
 	}
 
@@ -261,10 +272,12 @@ func DoUpdateOCIRegistry(ctx context.Context, registryFile string) error {
 		Credentials: aws.AnonymousCredentials{},
 	})
 
-	ociClient := authn.NewClient(auth.Credential{
+	cred := &auth.Credential{
 		Username: cfg.registryUser,
 		Password: cfg.registryToken,
-	})
+	}
+
+	ociClient := authn.NewClient(authn.WithCredentials(cred))
 
 	reg, err := registry.LoadRegistryFromFile(registryFile)
 	if err != nil {
@@ -362,7 +375,7 @@ func tagsFromVersion(version *semver.Version) []string {
 	return tags
 }
 
-func handleArtifact(ctx context.Context, cfg *config, plugin *registry.Plugin, s3Client *s3.Client, ociClient *auth.Client) error {
+func handleArtifact(ctx context.Context, cfg *config, plugin *registry.Plugin, s3Client *s3.Client, ociClient remote.Client) error {
 	// Filter out plugins that are not owned by falcosecurity.
 	if plugin.Authors != falcoAuthors {
 		sepString := strings.Repeat("#", 15)
@@ -387,7 +400,7 @@ func handleArtifact(ctx context.Context, cfg *config, plugin *registry.Plugin, s
 	return nil
 }
 
-func handlePlugin(ctx context.Context, cfg *config, plugin *registry.Plugin, s3Client *s3.Client, ociClient *auth.Client) error {
+func handlePlugin(ctx context.Context, cfg *config, plugin *registry.Plugin, s3Client *s3.Client, ociClient remote.Client) error {
 	var s3Keys []string
 	var err error
 
@@ -468,7 +481,7 @@ func handlePlugin(ctx context.Context, cfg *config, plugin *registry.Plugin, s3C
 	return nil
 }
 
-func handleRule(ctx context.Context, cfg *config, plugin *registry.Plugin, s3Client *s3.Client, ociClient *auth.Client) error {
+func handleRule(ctx context.Context, cfg *config, plugin *registry.Plugin, s3Client *s3.Client, ociClient remote.Client) error {
 	var s3Keys []string
 	var err error
 
