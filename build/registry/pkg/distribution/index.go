@@ -20,6 +20,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/falcosecurity/plugins/build/registry/pkg/common"
+	"os"
+	"path/filepath"
+	"strings"
+
 	"github.com/falcosecurity/falcoctl/pkg/index"
 	falcoctloci "github.com/falcosecurity/falcoctl/pkg/oci"
 	"github.com/falcosecurity/falcoctl/pkg/oci/authn"
@@ -28,15 +33,11 @@ import (
 	"oras.land/oras-go/v2/errdef"
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
-	"os"
-	"path/filepath"
-	"strings"
 )
 
 // Define our conventions.
 const (
-	GHOrg               = "falcosecurity"
-	RulesArtifactSuffix = "-rules"
+	GHOrg = "falcosecurity"
 )
 
 func pluginToIndexEntry(p registry.Plugin, registry, repo string) *index.Entry {
@@ -56,13 +57,13 @@ func pluginToIndexEntry(p registry.Plugin, registry, repo string) *index.Entry {
 
 func pluginRulesToIndexEntry(p registry.Plugin, registry, repo string) *index.Entry {
 	return &index.Entry{
-		Name:        p.Name + RulesArtifactSuffix,
+		Name:        p.Name + common.RulesArtifactSuffix,
 		Type:        string(falcoctloci.Rulesfile),
 		Registry:    registry,
 		Repository:  repo,
 		Description: p.Description,
 		Home:        p.URL,
-		Keywords:    append(p.Keywords, p.Name+RulesArtifactSuffix),
+		Keywords:    append(p.Keywords, p.Name+common.RulesArtifactSuffix),
 		License:     p.License,
 		Maintainers: p.Maintainers,
 		Sources:     []string{p.RulesURL},
@@ -89,7 +90,7 @@ func upsertIndex(r *registry.Registry, ociArtifacts map[string]string, indexPath
 			ociRepo := filepath.Join(tokens[1:]...)
 			i.Upsert(pluginToIndexEntry(p, ociRegistry, ociRepo))
 		}
-		if refRulesfile, ok := ociArtifacts[p.Name+RulesArtifactSuffix]; ok {
+		if refRulesfile, ok := ociArtifacts[p.Name+common.RulesArtifactSuffix]; ok {
 			tokens := strings.Split(refRulesfile, "/")
 			ociRegistry := tokens[0]
 			ociRepo := filepath.Join(tokens[1:]...)
@@ -149,7 +150,7 @@ func ociRepo(ociEntries map[string]string, client remote.Client, ociRepoNamespac
 	ref := filepath.Join(reg, user, ociRepoNamespace, artifactName)
 
 	if ociRepoNamespace == oci.RulesfileNamespace {
-		artifactName = artifactName + RulesArtifactSuffix
+		artifactName = artifactName + common.RulesArtifactSuffix
 	}
 
 	repo, err := remote.NewRepository(ref)
