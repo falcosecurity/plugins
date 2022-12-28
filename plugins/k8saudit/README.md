@@ -13,6 +13,10 @@ The plugin implementation is a 1-1 porting of the legacy implementation supporte
 
 This plugin supports consuming Kubernetes Audit Events coming from the [Webhook backend](https://kubernetes.io/docs/tasks/debug/debug-cluster/audit/#webhook-backend) or from file. For webhooks, the plugin embeds a webserver that listens on a configurable port and accepts POST requests. The posted JSON object comprises one or more events. The webserver of the plugin can be configuted as part of the plugin's init configuration and open parameters. For files, the plugins expects content to be [in JSONL format](https://jsonlines.org/), where each line represents a JSON object, containing one or more audit events.
 
+The Kubernetes webhook audit backend configuration is basically a `kubeconfig`. This does not allow setting custom HTTP headers to sent along with the POST requests. However, it does allow defining authentication by username+password or certificate.
+A reverse proxy in front of the plugin embedded webserver for authentication allows for passing authentication info as 'forwarded' headers. Based on the headers passed by a reverse proxy this plugin can add custom fields to each event. For example the id/name of the originating Kubernetes cluster of the event, as the Kubernetes audit event itself does not contain cluster identification.
+The custom fields are not part of the defined supported extraction fields. To use custom fields in rules a json reference has to be used, e.g. `%json.value[/cluster_name]`
+
 The expected way of using the plugin is through Webhook. The file reading support is mostly designed for testing purposes and for development, but does not represent a concrete deployment use case.
 
 ## Capabilities
@@ -108,11 +112,46 @@ plugins:
 load_plugins: [k8saudit, json]
 ```
 
+The following example of configuration of `falco.yaml` shows how to add custom fields based of HTTP headers sent along with the HTTP request:
+
+```yaml
+plugins:
+  - name: k8saudit
+    library_path: libk8saudit.so
+    init_config:
+      sslCertificate: /etc/falco/falco.pem
+      customFieldsHeaders:
+        # Example HTTP header sent with the request:
+        # X-WebAuth-User: cheese-cluster
+        - header: "X-WebAuth-User"
+          customFields:
+            - cluster_name
+        # Example HTTP header sent with the request:\
+        # X-Forwarded-TlS-Client-Cert-Info: Subject=\"DC=org,DC=cheese,OU=CheeseFactory,OU=Packaging,CN=*.example.com\"
+        - header: "X-Forwarded-TlS-Client-Cert-Info"
+          pattern: "Subject=\"DC=[A-Za-z0-9]+,DC=[A-Za-z0-9]+,OU=([A-Za-z0-9]+),OU=([A-Za-z0-9]+),.+\""
+          customFields:
+            - division
+            - team
+    open_params: "http://:9765/k8s-audit"
+  - name: json
+    library_path: libjson.so
+    init_config: ""
+
+load_plugins: [k8saudit, json]
+```
+
 **Initialization Config**:
 - `sslCertificate`: The SSL Certificate to be used with the HTTPS Webhook endpoint (Default: /etc/falco/falco.pem)
 - `maxEventSize`: Maximum size of single audit event (Default: 262144)
 - `webhookMaxBatchSize`: Maximum size of incoming webhook POST request bodies (Default: 12582912)
 - `useAsync`: If true then async extraction optimization is enabled (Default: true)
+- `customFieldsHeaders`: List of custom fields to add to every audit event based on HTTP request headers (Optional)
+
+**HTTP Header-based custom fields Config**
+- `header`: HTTP header name to extract custom field(s) from (Required)
+- `pattern`: Regex pattern containing capture groups, in order each capture group corresponds to a custom field (Optional)
+- `customFields`: List of custom fields to add, without `pattern` only a single custom field can be defined (Required)
 
 **Open Parameters**:
 - `http://<host>:<port>/<endpoint>`: Opens an event stream by listening on a HTTP webserver

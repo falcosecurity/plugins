@@ -25,9 +25,9 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"sort"
 	"strings"
 	"time"
-	"sort"
 
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/source"
@@ -38,6 +38,11 @@ const (
 	webServerShutdownTimeoutSecs = 5
 	webServerEventChanBufSize    = 50
 )
+
+type AuditEventsRequest struct {
+	Headers map[string]string
+	Payload []byte
+}
 
 func (k *Plugin) Open(params string) (source.Instance, error) {
 	u, err := url.Parse(params)
@@ -104,12 +109,14 @@ func (k *Plugin) OpenReader(r io.ReadCloser) (source.Instance, error) {
 	go func() {
 		defer close(evtC)
 		var parser fastjson.Parser
+		var jArena fastjson.Arena
 		scanner := bufio.NewScanner(r)
 		scanner.Split(bufio.ScanLines)
 		for scanner.Scan() {
 			line := scanner.Text()
 			if len(line) > 0 {
-				k.parseAuditEventsAndPush(&parser, ([]byte)(line), evtC)
+				r := &AuditEventsRequest{Payload: ([]byte)(line)}
+				k.parseAuditEventsAndPush(&parser, &jArena, r, evtC)
 			}
 		}
 		err := scanner.Err()
@@ -130,7 +137,7 @@ func (k *Plugin) OpenReader(r io.ReadCloser) (source.Instance, error) {
 // (see: https://kubernetes.io/docs/tasks/debug/debug-cluster/audit/#webhook-backend).
 func (k *Plugin) OpenWebServer(address, endpoint string, ssl bool) (source.Instance, error) {
 	ctx, cancelCtx := context.WithCancel(context.Background())
-	serverEvtChan := make(chan []byte, webServerEventChanBufSize)
+	serverEvtChan := make(chan *AuditEventsRequest, webServerEventChanBufSize)
 	evtChan := make(chan source.PushEvent)
 
 	// launch webserver gorountine. This listens for webhooks coming from
@@ -140,13 +147,13 @@ func (k *Plugin) OpenWebServer(address, endpoint string, ssl bool) (source.Insta
 	// event-parser goroutine
 	m := http.NewServeMux()
 	s := &http.Server{Addr: address, Handler: m}
-	sendBody := func(b []byte) {
+	sendBody := func(r *AuditEventsRequest) {
 		defer func() {
 			if r := recover(); r != nil {
 				k.logger.Println("request dropped while shutting down server ")
 			}
 		}()
-		serverEvtChan <- b
+		serverEvtChan <- r
 	}
 	m.HandleFunc(endpoint, func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != "POST" {
@@ -165,8 +172,13 @@ func (k *Plugin) OpenWebServer(address, endpoint string, ssl bool) (source.Insta
 			http.Error(w, msg, http.StatusBadRequest)
 			return
 		}
+		headers := make(map[string]string, len(k.headerFields))
+		for h := range k.headerFields {
+			headers[h] = req.Header.Get(h)
+		}
+		r := &AuditEventsRequest{Headers: headers, Payload: bytes}
 		w.WriteHeader(http.StatusOK)
-		sendBody(bytes)
+		sendBody(r)
 	})
 	go func() {
 		defer close(serverEvtChan)
@@ -190,13 +202,14 @@ func (k *Plugin) OpenWebServer(address, endpoint string, ssl bool) (source.Insta
 	go func() {
 		defer close(evtChan)
 		var parser fastjson.Parser
+		var jArena fastjson.Arena
 		for {
 			select {
-			case bytes, ok := <-serverEvtChan:
+			case r, ok := <-serverEvtChan:
 				if !ok {
 					return
 				}
-				k.parseAuditEventsAndPush(&parser, bytes, evtChan)
+				k.parseAuditEventsAndPush(&parser, &jArena, r, evtChan)
 			case <-ctx.Done():
 				return
 			}
@@ -227,20 +240,54 @@ func (k *Plugin) String(evt sdk.EventReader) (string, error) {
 	return fmt.Sprintf("%v", string(evtBytes)), nil
 }
 
+func (k *Plugin) extractCustomFieldsFromHeaders(jArena *fastjson.Arena, headers map[string]string) map[string]*fastjson.Value {
+	customFields := make(map[string]*fastjson.Value, len(headers))
+	for h, hv := range headers {
+		if hf, exists := k.headerFields[h]; exists {
+			k.extractCustomFieldsFromHeader(jArena, customFields, hf, hv)
+		}
+	}
+	return customFields
+}
+
+func (k *Plugin) extractCustomFieldsFromHeader(jArena *fastjson.Arena, customFields map[string]*fastjson.Value, headerFields HeaderFields, headerValue string) {
+	if headerFields.Matcher == nil {
+		// use the header value from the request as the defined custom field
+		customFields[headerFields.CustomFields[0]] = jArena.NewString(headerValue)
+	} else {
+		// copy capture group matches from the header value as custom fields
+		matches := headerFields.Matcher.FindStringSubmatch(headerValue)
+		if matches != nil && len(headerFields.CustomFields) == len(matches)-1 {
+			for i, f := range headerFields.CustomFields {
+				customFields[f] = jArena.NewString(matches[i+1])
+			}
+		}
+	}
+}
+
 // here we make all errors non-blocking for single events by
 // simply logging them, to ensure consumers don't close the
 // event source with bad or malicious payloads
-func (k *Plugin) parseAuditEventsAndPush(parser *fastjson.Parser, payload []byte, c chan<- source.PushEvent) {
-	data, err := parser.ParseBytes(payload)
+func (k *Plugin) parseAuditEventsAndPush(parser *fastjson.Parser, jArena *fastjson.Arena, r *AuditEventsRequest, c chan<- source.PushEvent) {
+	data, err := parser.ParseBytes(r.Payload)
 	if err != nil {
 		k.logger.Println(err.Error())
 		return
 	}
-	values, err := k.ParseAuditEventsJSON(data)
+
+	// if any custom fields are defined, extract them from the request headers
+	customFields := map[string]*fastjson.Value{}
+	if len(k.headerFields) > 0 {
+		defer jArena.Reset()
+		customFields = k.extractCustomFieldsFromHeaders(jArena, r.Headers)
+	}
+
+	values, err := k.ParseAuditEventsJSONWithCustomFields(data, customFields)
 	if err != nil {
 		k.logger.Println(err.Error())
 		return
 	}
+
 	for _, v := range values {
 		if v.Err != nil {
 			k.logger.Println(v.Err.Error())
@@ -268,17 +315,17 @@ func (k *Plugin) ParseAuditEventsPayload(payload []byte) ([]*source.PushEvent, e
 	return k.ParseAuditEventsJSON(value)
 }
 
-// ParseAuditEventsJSON is the same as ParseAuditEventsPayload, but takes
-// a pre-parsed JSON as input. The JSON representation is the one of the
-// fastjson library.
-func (k *Plugin) ParseAuditEventsJSON(value *fastjson.Value) ([]*source.PushEvent, error) {
+// ParseAuditEventsJSONWithCustomFields is the same as ParseAuditEventsPayload, but takes
+// a pre-parsed JSON as input and a map of custom fields to add to each PushEvent. The JSON
+// representation is the one of the fastjson library.
+func (k *Plugin) ParseAuditEventsJSONWithCustomFields(value *fastjson.Value, customFields map[string]*fastjson.Value) ([]*source.PushEvent, error) {
 	if value == nil {
 		return nil, fmt.Errorf("can't parse nil JSON message")
 	}
 	if value.Type() == fastjson.TypeArray {
 		var res []*source.PushEvent
 		for _, v := range value.GetArray() {
-			values, err := k.ParseAuditEventsJSON(v)
+			values, err := k.ParseAuditEventsJSONWithCustomFields(v, customFields)
 			if err != nil {
 				return res, err
 			}
@@ -292,18 +339,25 @@ func (k *Plugin) ParseAuditEventsJSON(value *fastjson.Value) ([]*source.PushEven
 			if items != nil {
 				var res []*source.PushEvent
 				for _, item := range items {
-					res = append(res, k.parseSingleAuditEventJSON(item))
+					res = append(res, k.parseSingleAuditEventJSON(item, customFields))
 				}
 				return res, nil
 			}
 		case "Event":
-			return []*source.PushEvent{k.parseSingleAuditEventJSON(value)}, nil
+			return []*source.PushEvent{k.parseSingleAuditEventJSON(value, customFields)}, nil
 		}
 	}
 	return nil, fmt.Errorf("data not recognized as a k8s audit event")
 }
 
-func (k *Plugin) parseSingleAuditEventJSON(value *fastjson.Value) *source.PushEvent {
+// ParseAuditEventsJSON is the same as ParseAuditEventsPayload, but takes
+// a pre-parsed JSON as input. The JSON representation is the one of the
+// fastjson library.
+func (k *Plugin) ParseAuditEventsJSON(value *fastjson.Value) ([]*source.PushEvent, error) {
+	return k.ParseAuditEventsJSONWithCustomFields(value, map[string]*fastjson.Value{})
+}
+
+func (k *Plugin) parseSingleAuditEventJSON(value *fastjson.Value, customFields map[string]*fastjson.Value) *source.PushEvent {
 	res := &source.PushEvent{}
 	stageTimestamp := value.Get("stageTimestamp")
 	if stageTimestamp == nil {
@@ -315,6 +369,10 @@ func (k *Plugin) parseSingleAuditEventJSON(value *fastjson.Value) *source.PushEv
 		res.Err = err
 		return res
 	}
+	for key, val := range customFields {
+		value.Set(key, val)
+	}
+	k.logger.Printf(">>> field added... or not?: %v", value)
 	res.Data = value.MarshalTo(nil)
 	if len(res.Data) > int(k.Config.MaxEventSize) {
 		res.Err = fmt.Errorf("event larger than maxEventSize: size=%d", len(res.Data))

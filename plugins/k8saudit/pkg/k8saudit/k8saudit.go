@@ -18,8 +18,10 @@ package k8saudit
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
+	"regexp"
 
 	"github.com/alecthomas/jsonschema"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
@@ -40,11 +42,17 @@ const pluginName = "k8saudit"
 // of JSON data.
 type Plugin struct {
 	plugins.BasePlugin
-	logger      *log.Logger
-	Config      PluginConfig
-	jparser     fastjson.Parser
-	jdata       *fastjson.Value
-	jdataEvtnum uint64
+	logger       *log.Logger
+	Config       PluginConfig
+	jparser      fastjson.Parser
+	jdata        *fastjson.Value
+	jdataEvtnum  uint64
+	headerFields map[string]HeaderFields
+}
+
+type HeaderFields struct {
+	Matcher      *regexp.Regexp
+	CustomFields []string
 }
 
 func (k *Plugin) Info() *plugins.Info {
@@ -68,6 +76,24 @@ func (k *Plugin) Init(cfg string) error {
 
 	// setup optional async extraction optimization
 	extract.SetAsync(k.Config.UseAsync)
+
+	// setup optional custom fields derived from http headers
+	k.headerFields = make(map[string]HeaderFields, len(k.Config.CustomFieldsHeaders))
+	for _, h := range k.Config.CustomFieldsHeaders {
+		if _, exists := k.headerFields[h.Header]; exists {
+			return fmt.Errorf("duplicate header found: %s", h.Header)
+		}
+		// TODO: check for at least 1 customfield
+		f := HeaderFields{CustomFields: h.CustomFields}
+		if h.Pattern != "" {
+			r, err := regexp.Compile(h.Pattern)
+			if err != nil {
+				return err
+			}
+			f.Matcher = r
+		}
+		k.headerFields[h.Header] = f
+	}
 
 	// setup internal logger
 	k.logger = log.New(os.Stderr, "["+pluginName+"] ", log.LstdFlags|log.LUTC|log.Lmsgprefix)

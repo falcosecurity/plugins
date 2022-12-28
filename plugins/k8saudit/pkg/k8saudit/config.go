@@ -19,10 +19,17 @@ package k8saudit
 import "github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
 
 type PluginConfig struct {
-	SSLCertificate      string `json:"sslCertificate"       jsonschema:"title=SSL certificate,description=The SSL Certificate to be used with the HTTPS Webhook endpoint (Default: /etc/falco/falco.pem),default=/etc/falco/falco.pem"`
-	UseAsync            bool   `json:"useAsync"             jsonschema:"title=Use async extraction,description=If true then async extraction optimization is enabled (Default: true),default=true"`
-	MaxEventSize        uint64 `json:"maxEventSize"         jsonschema:"title=Maximum event size,description=Maximum size of single audit event (Default: 262144),default=262144"`
-	WebhookMaxBatchSize uint64 `json:"webhookMaxBatchSize"  jsonschema:"title=Maximum webhook request size,description=Maximum size of incoming webhook POST request bodies (Default: 12582912),default=12582912"`
+	SSLCertificate      string               `json:"sslCertificate"       jsonschema:"title=SSL certificate,description=The SSL Certificate to be used with the HTTPS Webhook endpoint (Default: /etc/falco/falco.pem),default=/etc/falco/falco.pem"`
+	UseAsync            bool                 `json:"useAsync"             jsonschema:"title=Use async extraction,description=If true then async extraction optimization is enabled (Default: true),default=true"`
+	MaxEventSize        uint64               `json:"maxEventSize"         jsonschema:"title=Maximum event size,description=Maximum size of single audit event (Default: 262144),default=262144"`
+	WebhookMaxBatchSize uint64               `json:"webhookMaxBatchSize"  jsonschema:"title=Maximum webhook request size,description=Maximum size of incoming webhook POST request bodies (Default: 12582912),default=12582912"`
+	CustomFieldsHeaders []CustomFieldsHeader `json:"customFieldsHeaders"`
+}
+
+type CustomFieldsHeader struct {
+	Header       string   `json:"header"`
+	Pattern      string   `json:"pattern,omitempty"`
+	CustomFields []string `json:"customFields"`
 }
 
 // Resets sets the configuration to its default values
@@ -30,6 +37,8 @@ func (k *PluginConfig) Reset() {
 	k.SSLCertificate = "/etc/falco/falco.pem"
 	k.UseAsync = true
 	k.MaxEventSize = uint64(sdk.DefaultEvtSize)
+
+	k.CustomFieldsHeaders = make([]CustomFieldsHeader, 0)
 
 	// See: https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/
 	// The K8S docs state states the following:
