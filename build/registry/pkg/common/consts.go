@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2022 The Falco Authors.
+Copyright (C) 2023 The Falco Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,4 +18,10 @@ package common
 
 const (
 	RulesArtifactSuffix = "-rules"
+	// EngineVersionKey is the name given to all the engine requirements.
+	// The same name used by Falco when outputting the engine version.
+	EngineVersionKey = "engine_version"
+	// PluginAPIVersion is the name givet to the plugin api version requirements.
+	// The same name used by Falco when outputting the plugin api version
+	PluginAPIVersion = "plugin_api_version"
 )
