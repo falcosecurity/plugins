@@ -196,6 +196,10 @@ github.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d h1:105gxyaGwC
 github.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d/go.mod h1:ZZMPRZwes7CROmyNKgQzC3XPs6L/G2EJLHddWejkmf4=
 github.com/falcosecurity/falcoctl v0.2.0-rc1.0.20221221093301-fe5e90c8061b h1:HTUm9EoVG8S5q/AUWR3ZUkaDbuf8tVcWdNLbyBObKqg=
 github.com/falcosecurity/falcoctl v0.2.0-rc1.0.20221221093301-fe5e90c8061b/go.mod h1:gfYo0lLyEYkA0D1v8pBbELIxQRRvCbnaziF8S3Ltu3A=
+github.com/falcosecurity/falcoctl v0.2.0-rc1.0.20221222151702-aa4d4ca04684 h1:i61Z8bmpX7hpP3//BtJwyU4gLihQilIm/3Iv1PpPmms=
+github.com/falcosecurity/falcoctl v0.2.0-rc1.0.20221222151702-aa4d4ca04684/go.mod h1:gfYo0lLyEYkA0D1v8pBbELIxQRRvCbnaziF8S3Ltu3A=
+github.com/falcosecurity/falcoctl v0.2.0-rc1.0.20230103133910-a8cf20acc6aa h1:nvVuSwL36H7hFglXhBy3ig+eZwRyfeIMh7eI56gMJAU=
+github.com/falcosecurity/falcoctl v0.2.0-rc1.0.20230103133910-a8cf20acc6aa/go.mod h1:gfYo0lLyEYkA0D1v8pBbELIxQRRvCbnaziF8S3Ltu3A=
 github.com/fatih/camelcase v1.0.0/go.mod h1:yN2Sb0lFhZJUdVvtELVWefmrXpuZESvPmqwoZc+/fpc=
 github.com/fatih/color v1.7.0/go.mod h1:Zm6kSWBoL9eyXnKyktHP6abPY2pDugNf5KwzbycvMj4=
 github.com/felixge/httpsnoop v1.0.1 h1:lvB5Jl89CsZtGIWuTcDM1E/vkVs49/Ml7JJe07l8SPQ=

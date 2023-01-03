@@ -19,9 +19,11 @@ package oci
 import (
 	"context"
 	"fmt"
+	"github.com/falcosecurity/plugins/build/registry/pkg/common"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -112,6 +114,10 @@ func platformFromS3Key(key string) string {
 
 	// Return empty string if it does not contain one of the expected architectures.
 	return ""
+}
+
+func currentPlatform() string {
+	return fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH)
 }
 
 // latestVersionArtifact returns the latest version of the artifact that exists in the remote repository pointed by the reference.
@@ -400,6 +406,7 @@ func handleArtifact(ctx context.Context, cfg *config, plugin *registry.Plugin, s
 
 func handlePlugin(ctx context.Context, cfg *config, plugin *registry.Plugin, s3Client *s3.Client, ociClient remote.Client) error {
 	var s3Keys []string
+	var configLayer *oci.ArtifactConfig
 	var err error
 
 	sepString := strings.Repeat("#", 15)
@@ -465,11 +472,34 @@ func handlePlugin(ctx context.Context, cfg *config, plugin *registry.Plugin, s3C
 
 		tags := tagsFromVersion(&v)
 
+		klog.Infof("generating plugin's config layer")
+
+		// current platform where the CI is running.
+		platform := currentPlatform()
+		for i, p := range platforms {
+			// We need to get the plugin that have been built for the same platform as the one where we are loading it.
+			if p == platform {
+				configLayer, err = pluginConfig(plugin.Name, v.String(), filepaths[i])
+				if err != nil {
+					klog.Errorf("unable to generate config file: %v", err)
+					return err
+				}
+				break
+			}
+			continue
+		}
+
+		if configLayer == nil {
+			klog.Warningf("no config layer generated for plugin %q: the plugins has not been build for the current platform %q", plugin.Name, platform)
+			return nil
+		}
+
 		klog.Infof("pushing plugin to remote repo with ref %q and tags %q", ref, tags)
 		pusher := ocipusher.NewPusher(ociClient, false, nil)
 		_, err = pusher.Push(context.Background(), oci.Plugin, ref,
 			ocipusher.WithTags(tags...),
 			ocipusher.WithFilepathsAndPlatforms(filepaths, platforms),
+			ocipusher.WithArtifactConfig(*configLayer),
 			ocipusher.WithAnnotationSource(cfg.pluginsRepo))
 		if err != nil {
 			return fmt.Errorf("an error occurred while pushing plugin %q: %w", plugin.Name, err)
@@ -484,7 +514,7 @@ func handleRule(ctx context.Context, cfg *config, plugin *registry.Plugin, s3Cli
 	var err error
 
 	sepString := strings.Repeat("#", 15)
-	klog.Infof("%s %s-rules %s", sepString, plugin.Name, sepString)
+	klog.Infof("%s %s %s", sepString, rulesfileNameFromPlugin(plugin.Name), sepString)
 
 	ref := refFromPluginEntry(cfg, plugin, true)
 	// Get all the tags for the given artifact in the remote repository.
@@ -549,16 +579,29 @@ func handleRule(ctx context.Context, cfg *config, plugin *registry.Plugin, s3Cli
 
 		tags := tagsFromVersion(&v)
 
+		klog.Infof("generating rulesfile's config layer")
+
+		configLayer, err := rulesfileConfig(rulesfileNameFromPlugin(plugin.Name), v.String(), filepaths[0])
+		if err != nil {
+			klog.Errorf("unable to generate config file: %v", err)
+			return err
+		}
 		klog.Infof("pushing rulesfile to remote repo with ref %q and tags %q", ref, tags)
 		pusher := ocipusher.NewPusher(ociClient, false, nil)
 		_, err = pusher.Push(context.Background(), oci.Rulesfile, ref,
 			ocipusher.WithTags(tags...),
 			ocipusher.WithFilepaths(filepaths),
+			ocipusher.WithArtifactConfig(*configLayer),
 			ocipusher.WithAnnotationSource(cfg.pluginsRepo))
+
 		if err != nil {
 			return fmt.Errorf("an error occurred while pushing rulesfile %q: %w", plugin.Name, err)
 		}
 	}
 
 	return nil
+}
+
+func rulesfileNameFromPlugin(name string) string {
+	return fmt.Sprintf("%s%s", name, common.RulesArtifactSuffix)
 }
