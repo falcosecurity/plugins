@@ -20,42 +20,14 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"github.com/blang/semver"
-	"github.com/falcosecurity/falcoctl/pkg/oci"
-	"github.com/falcosecurity/plugins/build/registry/pkg/common"
 	"os"
 	"strings"
+
+	"github.com/blang/semver"
+	"github.com/falcosecurity/falcoctl/pkg/oci"
+	"github.com/falcosecurity/plugin-sdk-go/pkg/loader"
+	"github.com/falcosecurity/plugins/build/registry/pkg/common"
 )
-
-/*
-#cgo linux LDFLAGS: -ldl
-#include <dlfcn.h>
-#include <limits.h>
-#include <stdlib.h>
-#include <stdint.h>
-
-#include <stdio.h>
-
-static uintptr_t pluginOpen(const char* path, char** err) {
-	void* h = dlopen(path, RTLD_NOW|RTLD_GLOBAL);
-	if (h == NULL) {
-		*err = (char*)dlerror();
-	}
-	return (uintptr_t)h;
-}
-
-static char * get_required_api_version(uintptr_t h, char ** err) {
-	void* s = dlsym((void*)h, "plugin_get_required_api_version");
-	if (s == NULL) {
-		*err = (char*)dlerror();
-        return NULL;
-	}
-	typedef char* (*fptr)();
-    fptr f = (fptr)s;
-    return f();
-}
-*/
-import "C"
 
 const (
 	rulesEngineAnchor = "- required_engine_version"
@@ -106,21 +78,13 @@ func rulesfileRequirement(filePath string) (*oci.ArtifactRequirement, error) {
 // pluginRequirement given a plugin as a shared library it loads it and gets the api version
 // required by the plugin.
 func pluginRequirement(filePath string) (*oci.ArtifactRequirement, error) {
-	cPath := C.CString(filePath)
-	var cErr *C.char
-
-	handler := C.pluginOpen(cPath, &cErr)
-	if handler == 0 {
-		return nil, fmt.Errorf("unable to open plugin %q: %s", filePath, C.GoString(cErr))
-	}
-
-	cAPIVer := C.get_required_api_version(handler, &cErr)
-	if cAPIVer == nil {
-		return nil, fmt.Errorf("unable to get the required api version: %s", C.GoString(cErr))
+	plugin, err := loader.NewPlugin(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("unable to open plugin %q: %w", filePath, err)
 	}
 
 	return &oci.ArtifactRequirement{
 		Name:    common.PluginAPIVersion,
-		Version: C.GoString(cAPIVer),
+		Version: plugin.Info().RequiredAPIVersion,
 	}, nil
 }
