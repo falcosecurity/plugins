@@ -21,6 +21,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -35,6 +36,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
+	"github.com/aws/smithy-go"
 	"github.com/valyala/fastjson"
 
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
@@ -180,9 +182,18 @@ func (oCtx *PluginInstance) openS3(input string) error {
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			if err != nil {
-				return fmt.Errorf(PluginName + " plugin error: failed to list objects: " + err.Error())
+			// Try friendlier error sources first.
+			var aErr smithy.APIError
+			if errors.As(err, &aErr) {
+				return fmt.Errorf(PluginName + " plugin error: %s: %s", aErr.ErrorCode(), aErr.ErrorMessage())
 			}
+
+			var oErr *smithy.OperationError
+			if errors.As(err, &oErr) {
+				return fmt.Errorf(PluginName + " plugin error: %s: %s", oErr.Service(), oErr.Unwrap())
+			}
+
+			return fmt.Errorf(PluginName + " plugin error: failed to list objects: " + err.Error())
 		}
 		for _, obj := range page.Contents {
 			path := obj.Key
