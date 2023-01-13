@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/blang/semver"
@@ -71,7 +72,7 @@ func rulesfileRequirement(filePath string) (*oci.ArtifactRequirement, error) {
 
 	return &oci.ArtifactRequirement{
 		Name:    common.EngineVersionKey,
-		Version: reqVer.String(),
+		Version: strconv.FormatUint(reqVer.Major, 10),
 	}, nil
 }
 
