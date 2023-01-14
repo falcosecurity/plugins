@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This plugin extends Falco to support [Kubernetes Audit Events](https://kubernetes.io/docs/tasks/debug-application-cluster/audit/#audit-backends) from AWS EKS clusters as a new data source. 
+This plugin extends Falco to support [Kubernetes Audit Events](https://kubernetes.io/docs/tasks/debug-application-cluster/audit/#audit-backends) from AWS EKS clusters as a new data source.
 For more details about what Audit logs are, see the [README of k8saudit plugin](https://github.com/falcosecurity/plugins/blob/master/plugins/k8saudit/README.md).
 
 ### Functionality
@@ -117,7 +117,7 @@ load_plugins: [k8saudit-eks, json]
  * `shift`: Time shift in past in seconds (default: 1s)
  * `buffer_size`: Buffer Size (default: 200)
 
-**Open Parameters** 
+**Open Parameters**
 A string which contains the name of your EKS Cluster (required).
 
 
@@ -157,7 +157,7 @@ To test if it works, you can still use this one for example:
 
 This plugin requires Falco with version >= **0.33.0**.
 ```shell
-falco -c falco.yaml -r rules/k8s_audit_rules.yaml 
+falco -c falco.yaml -r rules/k8s_audit_rules.yaml
 ```
 ```shell
 17:48:41.067076000: Warning user=eks:certificate-controller verb=get target=eks-certificates-controller target.namespace=kube-system resource=configmapsEvents detected: 1
@@ -169,3 +169,30 @@ Syscall event drop monitoring:
    - event drop detected: 0 occurrences
    - num times actions taken: 0
 ```
+
+### AWS IAM Policy Permissions
+
+This plugin retrieves Kubernetes audit events from Amazon CloudWatch and it therefore needs appropriate permissions to perform these actions. Here is a AWS IAM policy document that satisfies the requirements:
+
+```json
+{
+  "Version":"2012-10-17",
+  "Statement":[
+    {
+      "Sid":"ReadAccessToCloudWatchLogs",
+      "Effect":"Allow",
+      "Action":[
+        "logs:Describe*",
+        "logs:FilterLogEvents",
+        "logs:Get*",
+        "logs:List*"
+      ],
+      "Resource":[
+        "arn:aws:logs:${REGION}:${ACCOUNT_ID}:log-group:/aws/eks/${CLUSTER_NAME}/cluster:*"
+      ]
+    }
+  ]
+}
+```
+
+Note the three placeholders REGION, ACCOUNT_ID, and CLUSTER_NAME which must be replaced with fitting values.
