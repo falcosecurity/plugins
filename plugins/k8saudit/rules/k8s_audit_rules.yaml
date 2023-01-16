@@ -191,7 +191,7 @@
     gke.gcr.io/gke-metadata-server,
     gke.gcr.io/kube-proxy,
     gke.gcr.io/netd-amd64,
-    k8s.gcr.io/ip-masq-agent-amd64
+    k8s.gcr.io/ip-masq-agent-amd64,
     k8s.gcr.io/prometheus-to-sd,
     ]
 
