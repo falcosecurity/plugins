@@ -73,7 +73,9 @@
     "eks:authenticator",
     "eks:cluster-event-watcher",
     "eks:nodewatcher",
-    "eks:pod-identity-mutating-webhook"
+    "eks:pod-identity-mutating-webhook",
+    "eks:cloud-controller-manager",
+    "eks:vpc-resource-controller",
     ]
 -
 - rule: Disallowed K8s User
