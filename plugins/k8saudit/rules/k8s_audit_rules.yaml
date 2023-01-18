@@ -76,6 +76,7 @@
     "eks:pod-identity-mutating-webhook",
     "eks:cloud-controller-manager",
     "eks:vpc-resource-controller",
+    "eks:addon-manager",
     ]
 -
 - rule: Disallowed K8s User
