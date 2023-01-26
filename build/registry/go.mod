@@ -7,7 +7,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.34
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.27.11
 	github.com/blang/semver v3.5.1+incompatible
-	github.com/falcosecurity/falcoctl v0.3.0-rc2
+	github.com/falcosecurity/falcoctl v0.3.0-rc6
 	github.com/falcosecurity/plugin-sdk-go v0.6.0
 	github.com/spf13/cobra v1.5.0
 	gopkg.in/yaml.v2 v2.4.0
