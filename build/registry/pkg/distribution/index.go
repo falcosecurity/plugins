@@ -48,7 +48,7 @@ func pluginToIndexEntry(p registry.Plugin, registry, repo string) *index.Entry {
 		Repository:  repo,
 		Description: p.Description,
 		Home:        p.URL,
-		Keywords:    p.Keywords,
+		Keywords:    append(p.Keywords, p.Name),
 		License:     p.License,
 		Maintainers: p.Maintainers,
 		Sources:     []string{p.URL},
