@@ -1,0 +1,16 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  check-registry:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Plugins
+        uses: actions/checkout@v3
+
+      - name: Run plugins build tests
+        run: make
