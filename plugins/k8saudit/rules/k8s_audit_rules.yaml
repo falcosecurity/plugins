@@ -194,8 +194,8 @@
     gke.gcr.io/gke-metadata-server,
     gke.gcr.io/kube-proxy,
     gke.gcr.io/netd-amd64,
-    k8s.gcr.io/ip-masq-agent-amd64,
-    k8s.gcr.io/prometheus-to-sd,
+    registry.k8s.io/ip-masq-agent-amd64,
+    registry.k8s.io/prometheus-to-sd,
     ]
 
 # Corresponds to K8s CIS Benchmark 1.7.4
@@ -339,17 +339,17 @@
     gke.gcr.io/addon-resizer,
     gke.gcr.io/heapster,
     gke.gcr.io/gke-metadata-server,
-    k8s.gcr.io/ip-masq-agent-amd64,
-    k8s.gcr.io/kube-apiserver,
+    registry.k8s.io/ip-masq-agent-amd64,
+    registry.k8s.io/kube-apiserver,
     gke.gcr.io/kube-proxy,
     gke.gcr.io/netd-amd64,
     gke.gcr.io/watcher-daemonset,
-    k8s.gcr.io/addon-resizer
-    k8s.gcr.io/prometheus-to-sd,
-    k8s.gcr.io/k8s-dns-dnsmasq-nanny-amd64,
-    k8s.gcr.io/k8s-dns-kube-dns-amd64,
-    k8s.gcr.io/k8s-dns-sidecar-amd64,
-    k8s.gcr.io/metrics-server-amd64,
+    registry.k8s.io/addon-resizer
+    registry.k8s.io/prometheus-to-sd,
+    registry.k8s.io/k8s-dns-dnsmasq-nanny-amd64,
+    registry.k8s.io/k8s-dns-kube-dns-amd64,
+    registry.k8s.io/k8s-dns-sidecar-amd64,
+    registry.k8s.io/metrics-server-amd64,
     kope/kube-apiserver-healthcheck,
     k8s_image_list
     ]
