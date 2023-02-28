@@ -19,12 +19,14 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+
 	"github.com/falcosecurity/plugins/build/registry/pkg/check"
 	"github.com/falcosecurity/plugins/build/registry/pkg/distribution"
 	"github.com/falcosecurity/plugins/build/registry/pkg/oci"
+	"github.com/falcosecurity/plugins/build/registry/pkg/s3"
 	"github.com/falcosecurity/plugins/build/registry/pkg/table"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 const (
@@ -76,6 +78,16 @@ func main() {
 		},
 	}
 
+	uploadToS3 := &cobra.Command{
+		Use:                   "upload-to-s3 <buildType>",
+		Short:                 "Upload the  stable or dev builds of plugins to the S3 bucket S3_BUCKET with prefix S3_PREFIX",
+		Args:                  cobra.ExactArgs(1),
+		DisableFlagsInUseLine: true,
+		RunE: func(c *cobra.Command, args []string) error {
+			return s3.DoUploadToS3(args[0])
+		},
+	}
+
 	rootCmd := &cobra.Command{
 		Use:     "registry",
 		Version: "0.2.0",
@@ -84,6 +96,7 @@ func main() {
 	rootCmd.AddCommand(tableCmd)
 	rootCmd.AddCommand(updateIndexCmd)
 	rootCmd.AddCommand(updateOCIRegistry)
+	rootCmd.AddCommand(uploadToS3)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Printf("error: %s\n", err)
