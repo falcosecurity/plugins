@@ -1,0 +1,46 @@
+name: Update Plugins-dev
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  release-plugins-dev:
+    runs-on: ubuntu-latest
+    env:
+      AWS_S3_BUCKET: falco-distribution
+      AWS_S3_PREFIX: plugins
+      AWS_S3_REGION: eu-west-1
+
+    # These permissions are needed to interact with GitHub's OIDC Token endpoint.
+    permissions:
+      id-token: write
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout Plugins
+        uses: actions/checkout@v3
+
+      - name: Setup Golang
+        uses: actions/setup-go@v3
+        with:
+          go-version: '^1.19'
+
+      - name: Build registry artifact tool
+        working-directory: build/registry
+        run: make
+
+      - name: Build packages
+        run: make packages
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: "arn:aws:iam::292999226676:role/terraform-20230120142903096000000002"
+          aws-region: ${{ env.AWS_S3_REGION }}
+
+      - name: Upload files to S3
+        # uses AWS_S3_BUCKET, AWS_S3_PREFIX, AWS_S3_REGION environment variables
+        working-directory: build/registry
+        run: ./bin/registry upload-to-s3 dev

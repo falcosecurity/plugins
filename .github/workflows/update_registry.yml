@@ -1,0 +1,72 @@
+name: Build Plugins on registry changed
+
+on:
+  push:
+    branches: [main]
+    paths: registry.yaml
+
+jobs:
+  update-plugins-registry:
+    runs-on: ubuntu-latest
+    env:
+      AWS_S3_BUCKET: falco-distribution
+      AWS_S3_PREFIX: plugins
+      AWS_S3_REGION: eu-west-1
+      GH_INDEX_REPO: "falcoctl"
+      GH_INDEX_REPO_BRANCH: "gh-pages"
+
+    # These permissions are needed to interact with GitHub's OIDC Token endpoint.
+    permissions:
+      id-token: write
+      contents: write
+      packages: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout Plugins
+        uses: actions/checkout@v3
+
+      - name: Git set-up
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends git && apt-get clean
+
+      - name: Update readme
+        run: make update-readme
+
+      - name: Create PR if necessary
+        uses: peter-evans/create-pull-request@v5-rc
+        with:
+          signoff: true
+          branch: docs/update-readme-registry-table
+          base: master
+          title: 'docs(README.md): update plugin registry table.'
+          body: 'Updating README.md (automatically generated with build/registry). Do not edit this PR.\n\n/kind documentation\n\n/area documentation'
+          commit-message: 'docs(README.md): update plugin registry table.'
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Clone index repo
+        uses: actions/checkout@v3
+        with:
+          repository: ${{ github.repository_owner }}/${{ env.GH_INDEX_REPO }}
+          ref: ${{ env.GH_INDEX_REPO_BRANCH }}
+          path: 'tmp'
+          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Upsert the index
+        run: DIST_INDEX="/tmp/falcoctl/index.yaml" make update-index
+
+      - name: Commit the index
+        run: |
+          cd tmp
+          git add index.yaml
+          git commit --message="update(index.yaml): new plugins registry data" --signoff         
+
+      - name: Push the index
+        uses: ad-m/github-push-action@v0.6.0
+        with:
+          directory: tmp
+          repository: ${{ github.repository_owner }}/${{ env.GH_INDEX_REPO }}
+          branch: ${{ env.GH_INDEX_REPO_BRANCH }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
