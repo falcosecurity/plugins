@@ -4,7 +4,7 @@ on:
   push:
     tags:
       # semver
-      - '[a-z]*[0-9]+.[0-9]+.[0-9]+'
+      - '[a-z]*[0-9]+.[0-9]+.[0-9]+*'
 jobs:
   release-plugins-stable:
     runs-on: ubuntu-latest
@@ -34,9 +34,30 @@ jobs:
           text: ${{ github.ref_name }}
           regex: '^([a-z]+[a-z0-9_\-]*)-(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?$'
 
-      # Takes only the first group of the match for the tagged package
+      # Takes only the first group of the match for the tagged package and builds it (amd64)
       - name: Build release packages
         run: make release/${{ steps.regex-match.outputs.group1 }}
+
+      # Build for aarch64
+      - uses: uraimo/run-on-arch-action@v2
+        name: Build arm64 packages
+        with:
+          arch: aarch64
+          distro: ubuntu_latest
+          
+          # Speeds up builds by storing container images in a GitHub package registry.
+          githubToken: ${{ github.token }}
+
+          # Mount root in the container
+          dockerRunArgs: --volume ${{ github.host-workspace }} --platform linux/amd64
+
+          # Dependencies
+          install: |
+            apt-get update && apt-get install -y --no-install-recommends build-essential git ca-certificates golang curl && apt-get clean
+            update-ca-certificates
+            git config --global --add safe.directory ${{ github.workspace }}
+
+          run: make release/${{ steps.regex-match.outputs.group1 }}
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
