@@ -3,6 +3,7 @@ name: Update Plugins-dev
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   release-plugins-dev:
@@ -31,8 +32,30 @@ jobs:
         working-directory: build/registry
         run: make
 
-      - name: Build packages
+      # Build packages for amd64
+      - name: Build amd64 packages
         run: make packages
+
+      # Build packages for aarch64
+      - uses: uraimo/run-on-arch-action@v2
+        name: Build arm64 packages
+        with:
+          arch: aarch64
+          distro: ubuntu_latest
+          
+          # Speeds up builds by storing container images in a GitHub package registry.
+          githubToken: ${{ github.token }}
+
+          # Mount root in the container
+          dockerRunArgs: --volume ${{ github.host-workspace }} --platform linux/amd64
+
+          # Dependencies
+          install: |
+            apt-get update && apt-get install -y --no-install-recommends build-essential git ca-certificates golang curl && apt-get clean
+            update-ca-certificates
+            git config --global --add safe.directory ${{ github.workspace }}
+
+          run: make packeges
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
