@@ -1,24 +1,39 @@
-name: Update Plugins-dev
+name: Release Plugins
 
 on:
   push:
-    branches: [main]
-  workflow_dispatch:
+    tags:
+      # semver
+      - '[a-z]*[0-9]+.[0-9]+.[0-9]+*'
 
+# These permissions are needed to interact with GitHub's OIDC Token endpoint.
 env:
   AWS_S3_BUCKET: falco-distribution
   AWS_S3_PREFIX: plugins
   AWS_S3_REGION: eu-west-1
 
-# These permissions are needed to interact with GitHub's OIDC Token endpoint.
 permissions:
   id-token: write
   contents: read
   packages: write
 
 jobs:
-  release-plugins-dev-x86:
+  extract-info:
     runs-on: ubuntu-latest
+    outputs:
+      package: ${{ steps.regex-match.outputs.group1 }}
+      
+    steps:
+      - name: Extract semver ℹ️
+        uses: actions-ecosystem/action-regex-match@v2
+        id: regex-match
+        with:
+          text: ${{ github.ref_name }}
+          regex: '^([a-z]+[a-z0-9_\-]*)-(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?$'
+
+  release-plugins-stable-x86:
+    runs-on: ubuntu-latest
+    needs: extract-info
     steps:
       - name: Checkout Plugins ⤵️
         uses: actions/checkout@v3
@@ -33,7 +48,7 @@ jobs:
         run: make
 
       - name: Run x86 build 🏗️
-        run: make packages
+        run: make release/${{ needs.extract-info.outputs.package }}
 
       - name: Configure AWS credentials 🔧⚙️
         uses: aws-actions/configure-aws-credentials@v1
@@ -44,10 +59,11 @@ jobs:
       - name: Upload files to S3 ⬆️
         # uses AWS_S3_BUCKET, AWS_S3_PREFIX, AWS_S3_REGION environment variables
         working-directory: build/registry
-        run: ./bin/registry upload-to-s3 dev
+        run: ./bin/registry upload-to-s3 stable
 
-  release-plugins-dev-arm64:
+  release-plugins-stable-arm64:
     runs-on: ubuntu-latest
+    needs: extract-info
     steps:
       - name: Checkout Plugins ⤵️
         uses: actions/checkout@v3
@@ -58,14 +74,14 @@ jobs:
           arch: aarch64
           distro: ubuntu_latest
           githubToken: ${{ github.token }}
- 
+
           install: |
             apt-get update && apt-get install -y --no-install-recommends build-essential git ca-certificates golang curl && apt-get clean
             update-ca-certificates
             git config --global --add safe.directory ${{ github.workspace }}
             
-          run: make packages
-
+          run: make release/${{ needs.extract-info.outputs.package }}
+          
       - name: Configure AWS credentials 🔧⚙️
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -75,4 +91,4 @@ jobs:
       - name: Upload files to S3 ⬆️
         # uses AWS_S3_BUCKET, AWS_S3_PREFIX, AWS_S3_REGION environment variables
         working-directory: build/registry
-        run: ./bin/registry upload-to-s3 dev
+        run: ./bin/registry upload-to-s3 stable
