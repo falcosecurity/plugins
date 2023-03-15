@@ -1,0 +1,19 @@
+name: TEST
+on:
+  pull_request_target:
+    types:
+      - ready_for_review
+    paths:
+      - 'docs/**'
+
+jobs:
+  test-api:
+    runs-on: ubuntu-22.04
+    permissions:
+      pull-requests: write
+    steps:
+      - name: test topkek
+        uses: mshick/add-pr-comment@v2
+        with:
+          message: |
+            Please double check **driver/API_VERSION** file. See [versioning](https://github.com/falcosecurity/libs/blob/master/driver/README.VERSION.md#api-version-number).
