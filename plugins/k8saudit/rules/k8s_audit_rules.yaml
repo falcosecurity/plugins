@@ -145,13 +145,13 @@
   condition: ka.target.resource=secrets
 
 - macro: health_endpoint
-  condition: ka.uri=/healthz
+  condition: ka.uri=/healthz or ka.uri startswith /healthz?
 
 - macro: live_endpoint
-  condition: ka.uri=/livez
+  condition: ka.uri=/livez or ka.uri startswith /livez?
 
 - macro: ready_endpoint
-  condition: ka.uri=/readyz
+  condition: ka.uri=/readyz or ka.uri startswith /readyz?
 
 - rule: Create Disallowed Pod
   desc: >
