@@ -108,8 +108,8 @@ type LogEvent struct {
 // Plugin represents our plugin
 type Plugin struct {
 	plugins.BasePlugin
-	APIToken         string `json:"api_token" jsonschema:"title=API token,description=API Token,required"`
-	Organization     string `json:"organization" jsonschema:"title=Organization,description=Your Okta organization,required"`
+	APIToken         string `json:"api_token" jsonschema:"title=API token,description=API Token"`
+	Organization     string `json:"organization" jsonschema:"title=Organization,description=Your Okta organization"`
 	CacheExpiration  uint64 `json:"cache_expiration" jsonschema:"title=Cache Expiration,description=TTL in seconds for keys in cache for MFA events (default: 600)"`
 	CacheUserMaxSize uint64 `json:"cache_usermaxsize" jsonschema:"title=Cache User Max Size,description=Max size by user for the cache (default: 200)"`
 	lastLogEvent     LogEvent
