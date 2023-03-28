@@ -172,6 +172,7 @@ func (oktaPlugin *Plugin) Init(config string) error {
 func (oktaPlugin *Plugin) Fields() []sdk.FieldEntry {
 	return []sdk.FieldEntry{
 		{Type: "string", Name: "okta.app", Desc: "Application"},
+		{Type: "string", Name: "okta.org", Desc: "Organization"},
 		{Type: "string", Name: "okta.evt.type", Desc: "Event Type"},
 		{Type: "string", Name: "okta.evt.legacytype", Desc: "Event Legacy Type"},
 		{Type: "string", Name: "okta.severity", Desc: "Severity"},
@@ -263,6 +264,8 @@ func (oktaPlugin *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) e
 			s := strings.Split(data.DebugContext.DebugData.RequestURI, "/")
 			req.SetValue(s[2])
 		}
+	case "okta.org":
+		req.SetValue(oktaPlugin.Organization)
 	case "okta.evt.type":
 		req.SetValue(data.EventType)
 	case "okta.evt.legacytype":
