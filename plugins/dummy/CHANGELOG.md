@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.8.0
+
+* [`3c22642`](https://github.com/falcosecurity/plugins/commit/3c22642) update(plugins/dummy): bump version to 8.0 for testing purpose
+
+
 ## v0.7.0
 
 * [`2e161d7`](https://github.com/falcosecurity/plugins/commit/2e161d7) update(plugins/dummy): bump plugin version to v0.7.0

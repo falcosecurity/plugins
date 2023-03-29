@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.5.0
+
+* [`972cca0`](https://github.com/falcosecurity/plugins/commit/972cca0) update(plugin/github): bump plugin version to v0.5.0
+
+* [`0b6e12b`](https://github.com/falcosecurity/plugins/commit/0b6e12b) update(rules/github): bump required_plugins_versions for github rules
+
+
 ## v0.4.0
 
 * [`9654722`](https://github.com/falcosecurity/plugins/commit/9654722) update(plugins/github): bump plugin version to v0.4.0
