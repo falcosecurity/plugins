@@ -49,8 +49,8 @@ github.com/aws/smithy-go v1.13.3/go.mod h1:Tg+OJXh4MB2R/uN61Ko2f6hTZwB/ZYGOtib8J
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/falcosecurity/plugin-sdk-go v0.6.0 h1:HCxgxQ9qYn+G6qhimovpxoMiDe38ojT6O4QDl5r6uJY=
-github.com/falcosecurity/plugin-sdk-go v0.6.0/go.mod h1:YNeijGR1gojfv1CV17WoQMGeCheTJdCwTgShPpPpgFA=
+github.com/falcosecurity/plugin-sdk-go v0.6.2 h1:p+lFeFKIWh4T3I07dD28f1An8tN9drqyVvFXqthRsJI=
+github.com/falcosecurity/plugin-sdk-go v0.6.2/go.mod h1:YNeijGR1gojfv1CV17WoQMGeCheTJdCwTgShPpPpgFA=
 github.com/google/go-cmp v0.5.7/go.mod h1:n+brtR0CgQNWTVd5ZUFpTBC8YFBDLK/h/bpaJ8/DtOE=
 github.com/google/go-cmp v0.5.8 h1:e6P7q2lk1O+qJJb4BtCQXlK8vWEO8V1ZeuEdJNOqZyg=
 github.com/google/go-cmp v0.5.8/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
