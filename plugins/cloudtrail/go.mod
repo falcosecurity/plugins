@@ -10,7 +10,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.33
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.27.11
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.18.5
-	github.com/falcosecurity/plugin-sdk-go v0.6.0
-	github.com/valyala/fastjson v1.6.3
 	github.com/aws/smithy-go v1.13.3
+	github.com/falcosecurity/plugin-sdk-go v0.6.2
+	github.com/valyala/fastjson v1.6.3
 )
