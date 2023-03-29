@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.7.0
+
+* [`3c6009b`](https://github.com/falcosecurity/plugins/commit/3c6009b) update(plugins/cloudtrail): bump plugin version to v0.7.0
+
+* [`8984655`](https://github.com/falcosecurity/plugins/commit/8984655) update(rules/cloudtrail): bump required_plugins_versions for cloudtrail rules
+
+* [`505a308`](https://github.com/falcosecurity/plugins/commit/505a308) update(plugins/cloudtrail): More friendly error messages
+
+
 ## v0.6.0
 
 * [`0571948`](https://github.com/falcosecurity/plugins/commit/0571948) update(plugins/cloudtrail): bump plugin version to v0.6.0

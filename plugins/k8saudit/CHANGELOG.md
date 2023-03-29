@@ -1,10 +1,21 @@
 # Changelog
 
+## v0.5.0
+
+* [`9e623ef`](https://github.com/falcosecurity/plugins/commit/9e623ef) update(plugins/k8saudit): bump plugin version to v0.5.0
+
+* [`a2989d1`](https://github.com/falcosecurity/plugins/commit/a2989d1) fix(plugin/k8saudit): Add missing comma
+
+* [`9a5d083`](https://github.com/falcosecurity/plugins/commit/9a5d083) update(rules/k8saudit): bump required_plugins_versions for k8saudit rules
+
+* [`0809a56`](https://github.com/falcosecurity/plugins/commit/0809a56) fix(plugins/k8saudit): prevent panics while shutting down webserver
+
+
 ## v0.4.1
 
-* [`be1a8fe`](https://github.com/falcosecurity/plugins/commit/be1a8fe) update(plugins/k8saudit): bump version to 0.4.1 for patched ruleset
+* [`f4dcac2`](https://github.com/falcosecurity/plugins/commit/f4dcac2) update(plugins/k8saudit): bump version to 0.4.1 for patched ruleset
 
-* [`a941160`](https://github.com/falcosecurity/plugins/commit/a941160) update(plugins/k8saudit): update ruleset to support k8saudit-eks alternative ...
+* [`c83fb72`](https://github.com/falcosecurity/plugins/commit/c83fb72) update(plugins/k8saudit): update ruleset to support k8saudit-eks alternative ...
 
 
 ## v0.4.0
