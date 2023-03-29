@@ -47,7 +47,7 @@ const (
 	PluginName               = "cloudtrail"
 	PluginDescription        = "reads cloudtrail JSON data saved to file in the directory specified in the settings"
 	PluginContact            = "github.com/falcosecurity/plugins/"
-	PluginVersion            = "0.7.0"
+	PluginVersion            = "0.7.1"
 	PluginEventSource        = "aws_cloudtrail"
 )
 
