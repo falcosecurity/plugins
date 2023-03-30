@@ -9,9 +9,8 @@ jobs:
     steps:
       - name: Checkout Plugins
         uses: actions/checkout@v3
-
-      - name: Fetch all tags
-        run: git fetch --force --tags
+        with:
+          fetch-depth: 0
 
       - name: Setup Golang
         uses: actions/setup-go@v3
