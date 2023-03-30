@@ -63,10 +63,10 @@ The event source for `okta` events is `okta`.
 | `okta.security.isp`             | `string` | None            | Security ISP                          |
 | `okta.security.domain`          | `string` | None            | Security Domain                       |
 | `okta.target.user.id`           | `string` | None            | Target User ID                        |
-| `okta.target.user.aternateid`   | `string` | None            | Target User Alternate ID              |
+| `okta.target.user.alternateid`  | `string` | None            | Target User Alternate ID              |
 | `okta.target.user.name`         | `string` | None            | Target User Name                      |
 | `okta.target.group.id`          | `string` | None            | Target Group ID                       |
-| `okta.target.group.aternateid`  | `string` | None            | Target Group Alternate ID             |
+| `okta.target.group.alternateid` | `string` | None            | Target Group Alternate ID             |
 | `okta.target.group.name`        | `string` | None            | Target Group Name                     |
 | `okta.mfa.failure.countlast`    | `uint64` | Index, Required | Count of MFA failures in last seconds |
 | `okta.mfa.deny.countlast`       | `uint64` | Index, Required | Count of MFA denies in last seconds   |
