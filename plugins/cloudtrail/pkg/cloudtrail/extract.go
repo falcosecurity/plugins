@@ -71,6 +71,9 @@ var supportedFields = []sdk.FieldEntry{
 	{Type: "uint64", Name: "s3.cnt.put", Display: "N Put Ops", Desc: "the number of put operations. This field is 1 for PutObject events, 0 otherwise.", Properties: []string{"hidden"}},
 	{Type: "uint64", Name: "s3.cnt.other", Display: "N Other Ops", Desc: "the number of non I/O operations. This field is 0 for GetObject and PutObject events, 1 for all the other events.", Properties: []string{"hidden"}},
 	{Type: "string", Name: "ec2.name", Display: "Instance Name", Desc: "the name of the ec2 instances, typically stored in the instance tags."},
+	{Type: "string", Name: "ec2.imageid", Display: "Image Id", Desc: "the ID for the image used to run the ec2 instance in the response."},
+	{Type: "string", Name: "ecr.repository", Display: "ECR Repository name", Desc: "the name of the ecr Repository specified in the request."},
+	{Type: "string", Name: "ecr.image.tag", Display: "Image Tag", Desc: "the tag of the image specified in the request."},
 }
 
 func getUser(jdata *fastjson.Value) (bool, string) {
@@ -504,6 +507,30 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 			return false, ""
 		}
 		res = iname
+	case "ec2.imageid":
+		var imageId = ""
+		jilist := jdata.GetArray("responseElements", "tagSpecificationSet", "items")
+		if jilist == nil {
+			return false, ""
+		}
+		item := jilist[0]
+		imageId = string(item.GetStringBytes("imageId"))
+		if imageId == "" {
+			return false, ""
+		}
+		res = imageId
+	case "ecr.repository":
+		val := jdata.GetStringBytes("requestParameters", "repositoryName")
+		if val == nil {
+			return false, ""
+		}
+		res = string(val)
+	case "ecr.image.tag":
+		val := jdata.GetStringBytes("requestParameters", "imageTag")
+		if val == nil {
+			return false, ""
+		}
+		res = string(val)
 	default:
 		return false, ""
 	}

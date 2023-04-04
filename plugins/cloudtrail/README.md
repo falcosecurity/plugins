@@ -19,7 +19,7 @@ The event source for cloudtrail events is `aws_cloudtrail`.
 Here is the current set of supported fields:
 
 <!-- README-PLUGIN-FIELDS -->
-|             NAME              |   TYPE   | ARG  |                                                                       DESCRIPTION                                                                        |
+|             NAME              |   TYPE   | ARG  | DESCRIPTION                                                                                                                                              |
 |-------------------------------|----------|------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `ct.id`                       | `string` | None | the unique ID of the cloudtrail event (eventID in the json).                                                                                             |
 | `ct.error`                    | `string` | None | The error code from the event. Will be "<NA>" (e.g. the NULL/empty/none value) if there was no error.                                                    |
@@ -62,6 +62,9 @@ Here is the current set of supported fields:
 | `s3.cnt.put`                  | `uint64` | None | the number of put operations. This field is 1 for PutObject events, 0 otherwise.                                                                         |
 | `s3.cnt.other`                | `uint64` | None | the number of non I/O operations. This field is 0 for GetObject and PutObject events, 1 for all the other events.                                        |
 | `ec2.name`                    | `string` | None | the name of the ec2 instances, typically stored in the instance tags.                                                                                    |
+| `ec2.imageid`                 | `string` | None | the ID for the image used to run the ec2 instance in the response.                                                                                       |
+| `ecr.repository`              | `string` | None | the name of the ecr Repository specified in the request.                                                                                                 |
+| `ecr.image.tag`               | `string` | None | the tag of the image specified in the request.                                                                                                           |
 <!-- /README-PLUGIN-FIELDS -->
 
 ## Handling AWS Authentication
