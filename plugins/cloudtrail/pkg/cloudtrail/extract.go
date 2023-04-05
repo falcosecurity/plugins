@@ -73,7 +73,7 @@ var supportedFields = []sdk.FieldEntry{
 	{Type: "string", Name: "ec2.name", Display: "Instance Name", Desc: "the name of the ec2 instances, typically stored in the instance tags."},
 	{Type: "string", Name: "ec2.imageid", Display: "Image Id", Desc: "the ID for the image used to run the ec2 instance in the response."},
 	{Type: "string", Name: "ecr.repository", Display: "ECR Repository name", Desc: "the name of the ecr Repository specified in the request."},
-	{Type: "string", Name: "ecr.image.tag", Display: "Image Tag", Desc: "the tag of the image specified in the request."},
+	{Type: "string", Name: "ecr.imagetag", Display: "Image Tag", Desc: "the tag of the image specified in the request."},
 }
 
 func getUser(jdata *fastjson.Value) (bool, string) {
@@ -525,7 +525,7 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 			return false, ""
 		}
 		res = string(val)
-	case "ecr.image.tag":
+	case "ecr.imagetag":
 		val := jdata.GetStringBytes("requestParameters", "imageTag")
 		if val == nil {
 			return false, ""
