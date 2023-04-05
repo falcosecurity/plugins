@@ -177,6 +177,7 @@ func (oktaPlugin *Plugin) Fields() []sdk.FieldEntry {
 		{Type: "string", Name: "okta.evt.legacytype", Desc: "Event Legacy Type"},
 		{Type: "string", Name: "okta.severity", Desc: "Severity"},
 		{Type: "string", Name: "okta.message", Desc: "Message"},
+		{Type: "string", Name: "okta.published", Desc: "Event Source Timestamp"},
 		{Type: "string", Name: "okta.actor.id", Desc: "Actor ID"},
 		{Type: "string", Name: "okta.actor.Type", Desc: "Actor Type"},
 		{Type: "string", Name: "okta.actor.alternateid", Desc: "Actor Alternate ID"},
@@ -274,6 +275,8 @@ func (oktaPlugin *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) e
 		req.SetValue(data.Severity)
 	case "okta.message":
 		req.SetValue(data.DisplayMessage)
+	case "okta.published":
+		req.SetValue(data.Published)
 	case "okta.actor.id":
 		req.SetValue(data.Actor.ID)
 	case "okta.actor.Type":

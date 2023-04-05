@@ -23,13 +23,15 @@ The event source for `okta` events is `okta`.
 # Supported Fields
 
 <!-- README-PLUGIN-FIELDS -->
-|              NAME               |   TYPE   |       ARG       |              DESCRIPTION              |
+| NAME                            |   TYPE   |       ARG       | DESCRIPTION                           |
 |---------------------------------|----------|-----------------|---------------------------------------|
 | `okta.app`                      | `string` | None            | Application                           |
+| `okta.org`                      | `string` | None            | Organization                          |
 | `okta.evt.type`                 | `string` | None            | Event Type                            |
 | `okta.evt.legacytype`           | `string` | None            | Event Legacy Type                     |
 | `okta.severity`                 | `string` | None            | Severity                              |
 | `okta.message`                  | `string` | None            | Message                               |
+| `okta.published`                | `string` | None            | Event Source Timestamp                |
 | `okta.actor.id`                 | `string` | None            | Actor ID                              |
 | `okta.actor.Type`               | `string` | None            | Actor Type                            |
 | `okta.actor.alternateid`        | `string` | None            | Actor Alternate ID                    |
