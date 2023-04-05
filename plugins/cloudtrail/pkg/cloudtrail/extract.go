@@ -510,7 +510,7 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 	case "ec2.imageid":
 		var imageId = ""
 		jilist := jdata.GetArray("responseElements", "tagSpecificationSet", "items")
-		if jilist == nil {
+		if jilist == nil || len(jilist) == 0 {
 			return false, ""
 		}
 		item := jilist[0]
