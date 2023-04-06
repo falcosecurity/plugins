@@ -42,7 +42,7 @@ type LogEvent struct {
 	LegacyEventType string `json:"legacyEventType,omitempty"`
 	DisplayMessage  string `json:"displayMessage"`
 	Actor           struct {
-		ID          string `json:"os"`
+		ID          string `json:"id"`
 		Type        string `json:"type"`
 		AlternateID string `json:"alternateId,omitempty"`
 		DisplayName string `json:"displayName,omitempty"`
@@ -286,7 +286,7 @@ func (oktaPlugin *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) e
 	case "okta.actor.name":
 		req.SetValue(data.Actor.DisplayName)
 	case "okta.client.zone":
-		req.SetValue(data.Client.ID)
+		req.SetValue(data.Client.Zone)
 	case "okta.client.ip":
 		req.SetValue(data.Client.IPAddress)
 	case "okta.client.device":
