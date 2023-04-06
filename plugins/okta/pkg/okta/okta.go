@@ -42,7 +42,7 @@ type LogEvent struct {
 	LegacyEventType string `json:"legacyEventType,omitempty"`
 	DisplayMessage  string `json:"displayMessage"`
 	Actor           struct {
-		ID          string `json:"os"`
+		ID          string `json:"id"`
 		Type        string `json:"type"`
 		AlternateID string `json:"alternateId,omitempty"`
 		DisplayName string `json:"displayName,omitempty"`
