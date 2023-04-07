@@ -399,7 +399,7 @@ func (oktaPlugin *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) e
 	// case "okta.security.isproxy":
 	// 	req.SetValue(data.SecurityContext.IsProxy)
 	default:
-		return fmt.Errorf("no known field: %s", req.Field())
+		return nil
 	}
 
 	return nil
