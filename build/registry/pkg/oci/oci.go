@@ -105,11 +105,12 @@ func s3ArtifactNamePrefix(plugin *registry.Plugin, version string, rulesFile boo
 func platformFromS3Key(key string) string {
 	if strings.Contains(key, x86_arch_s3) {
 		// Instead of "x86_64" we return "amd64" the one to be used in the oci artifact.
-		return "linux/amd64"
+		return fmt.Sprintf("linux/%s", amd64OCI)
 	}
 
 	if strings.Contains(key, arm_aarch64_s3) {
-		return "linux/aarch64"
+		// Instead of "aarch64" we return "arm64" the one to be used in the oci artifact.
+		return fmt.Sprintf("linux/%s", arm64OCI)
 	}
 
 	// Return empty string if it does not contain one of the expected architectures.

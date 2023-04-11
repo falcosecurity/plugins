@@ -46,5 +46,8 @@ const (
 	// Architectures as used in the names of the archives uploaded in the S3 bucket.
 	x86_arch_s3    = "x86_64"
 	arm_aarch64_s3 = "aarch64"
+	// Architectures as used in the OCI manifests. We translate the archs from S3 notation to the OCI one.
+	amd64OCI       = "amd64"
+	arm64OCI       = "arm64"
 	archive_suffix = ".tar.gz"
 )
