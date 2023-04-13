@@ -9,9 +9,6 @@ jobs:
   update-plugins-registry:
     runs-on: ubuntu-latest
     env:
-      AWS_S3_BUCKET: falco-distribution
-      AWS_S3_PREFIX: plugins
-      AWS_S3_REGION: eu-west-1
       GH_INDEX_REPO: "falcoctl"
       GH_INDEX_REPO_BRANCH: "gh-pages"
 
@@ -49,24 +46,26 @@ jobs:
         with:
           repository: ${{ github.repository_owner }}/${{ env.GH_INDEX_REPO }}
           ref: ${{ env.GH_INDEX_REPO_BRANCH }}
-          path: 'tmp'
+          path: $RUNNER_TEMP
           token: ${{ secrets.GITHUB_TOKEN }}
           persist-credentials: false
           fetch-depth: 0
 
       - name: Upsert the index
-        run: DIST_INDEX="/tmp/falcoctl/index.yaml" make update-index
+        run: DIST_INDEX="/$RUNNER_TEMP/falcoctl/index.yaml" make update-index
 
       - name: Commit the index
+        working-directory: $RUNNER_TEMP
         run: |
-          cd tmp
+          git config --local user.email "actions@github.com"
+          git config --local user.name "GitHub Action"
           git add index.yaml
           git commit --message="update(index.yaml): new plugins registry data" --signoff         
 
       - name: Push the index
         uses: ad-m/github-push-action@v0.6.0
         with:
-          directory: tmp
+          directory: $RUNNER_TEMP
           repository: ${{ github.repository_owner }}/${{ env.GH_INDEX_REPO }}
           branch: ${{ env.GH_INDEX_REPO_BRANCH }}
           github_token: ${{ secrets.GITHUB_TOKEN }}

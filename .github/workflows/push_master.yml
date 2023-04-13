@@ -1,6 +1,8 @@
 name: Update Plugins-dev
 
 on:
+  pull_request:
+    branches: [main]
   push:
     branches: [main]
   workflow_dispatch:
@@ -23,28 +25,22 @@ jobs:
       - name: Checkout Plugins ⤵️
         uses: actions/checkout@v3
 
-      - name: Setup Golang 🚀
-        uses: actions/setup-go@v3
-        with:
-          go-version: '^1.19'
-
-      - name: Build registry artifact tool 📒
-        working-directory: build/registry
-        run: make
-
       - name: Run x86 build 🏗️
         run: make packages
 
       - name: Configure AWS credentials 🔧⚙️
-        uses: aws-actions/configure-aws-credentials@v1
+        if: github.event_name == 'push'
+        uses: aws-actions/configure-aws-credentials@v2
         with:
-          role-to-assume: "arn:aws:iam::292999226676:role/terraform-20230120142903096000000002"
+          role-to-assume: "arn:aws:iam::292999226676:role/github_actions-plugins-s3"
           aws-region: ${{ env.AWS_S3_REGION }}
 
       - name: Upload files to S3 ⬆️
-        # uses AWS_S3_BUCKET, AWS_S3_PREFIX, AWS_S3_REGION environment variables
-        working-directory: build/registry
-        run: ./bin/registry upload-to-s3 dev
+        if: github.event_name == 'push'
+        run: |
+          for package in output/*.tar.gz; do
+            aws s3 cp --no-progress $package s3://${{ env.AWS_S3_BUCKET}}/${{ env.AWS_S3_PREFIX }}/dev/
+          done
 
   release-plugins-dev-arm64:
     runs-on: ubuntu-latest
@@ -67,12 +63,15 @@ jobs:
           run: make packages
 
       - name: Configure AWS credentials 🔧⚙️
-        uses: aws-actions/configure-aws-credentials@v1
+        if: github.event_name == 'push'
+        uses: aws-actions/configure-aws-credentials@v2
         with:
-          role-to-assume: "arn:aws:iam::292999226676:role/terraform-20230120142903096000000002"
+          role-to-assume: "arn:aws:iam::292999226676:role/github_actions-plugins-s3"
           aws-region: ${{ env.AWS_S3_REGION }}
 
       - name: Upload files to S3 ⬆️
-        # uses AWS_S3_BUCKET, AWS_S3_PREFIX, AWS_S3_REGION environment variables
-        working-directory: build/registry
-        run: ./bin/registry upload-to-s3 dev
+        if: github.event_name == 'push'
+        run: |
+          for package in output/*.tar.gz; do
+            aws s3 cp --no-progress $package s3://${{ env.AWS_S3_BUCKET}}/${{ env.AWS_S3_PREFIX }}/dev/
+          done
