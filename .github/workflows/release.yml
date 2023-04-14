@@ -4,18 +4,14 @@ on:
   push:
     tags:
       # semver
-      - '[a-z]*[0-9]+.[0-9]+.[0-9]+*'
+      - '([a-z]+[a-z0-9-_\-]*)-[0-9]+.[0-9]+.[0-9]+'
+      - '([a-z]+[a-z0-9-_\-]*)-[0-9]+.[0-9]+.[0-9]+-[a-z]+'
+      - '([a-z]+[a-z0-9-_\-]*)-[0-9]+.[0-9]+.[0-9]+-[a-z]+[0-9]+'
 
-# These permissions are needed to interact with GitHub's OIDC Token endpoint.
 env:
   AWS_S3_BUCKET: falco-distribution
   AWS_S3_PREFIX: plugins
   AWS_S3_REGION: eu-west-1
-
-permissions:
-  id-token: write
-  contents: read
-  packages: write
 
 jobs:
   extract-info:

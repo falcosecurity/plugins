@@ -12,12 +12,6 @@ env:
   AWS_S3_PREFIX: plugins
   AWS_S3_REGION: eu-west-1
 
-# These permissions are needed to interact with GitHub's OIDC Token endpoint.
-permissions:
-  id-token: write
-  contents: read
-  packages: write
-
 jobs:
   release-plugins-dev-x86:
     runs-on: ubuntu-latest
