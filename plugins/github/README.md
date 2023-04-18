@@ -24,7 +24,7 @@ The plugin exports the following init parameters:
 
 - `websocketServerURL`: The URL of the server where the plugin will run, i.e. the plublic accessible address of this machine.
 - `secretsDir`: The directory where the secrets required by the plugin are stored. Unless the github token is provided by environment variable, it must be stored in a file named github.token in this directory. In addition, when the webhook server uses HTTPs, server.key and server.crt must be in this directory too. The default value for this parameter is `~/.ghplugin`.
-- `UseHTTPs`: if this parameter is set to `true`, then the webhook webserver listening at WebsocketServerURL will use HTTPs. In that case, `server.key` and `server.crt` must be present in the SecretsDir directory, or the plugin will fail to load. If the parameter is set to false, the webhook webserver will be plain HTTP. **Use HTTP only for testing or when the plugin is behind a proxy that handles encryption**. The default value for this parameter is `true`.
+- `useHTTPs`: if this parameter is set to `true`, then the webhook webserver listening at WebsocketServerURL will use HTTPs. In that case, `server.key` and `server.crt` must be present in the SecretsDir directory, or the plugin will fail to load. If the parameter is set to false, the webhook webserver will be plain HTTP. **Use HTTP only for testing or when the plugin is behind a proxy that handles encryption**. The default value for this parameter is `true`.
 
 ### Open string format
 
@@ -38,7 +38,7 @@ Instrument three specific repositories:
 ```yaml
   - name: github
     library_path: libgithub.so
-    init_config: '{"websocketServerURL" :"http://foo.ngrok.io"}'
+    init_config: '{"useHTTPs":true, "websocketServerURL" :"http://foo.ngrok.io"}'
     open_params: 'falcosecurity/falco, falcosecurity/libs, falcosecurity/test-infra'
 ```
 
