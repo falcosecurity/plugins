@@ -3,10 +3,8 @@ name: Release Plugins
 on:
   push:
     tags:
-      # semver
-      - '([a-z]+[a-z0-9-_\-]*)-[0-9]+.[0-9]+.[0-9]+'
-      - '([a-z]+[a-z0-9-_\-]*)-[0-9]+.[0-9]+.[0-9]+-[a-z]+'
-      - '([a-z]+[a-z0-9-_\-]*)-[0-9]+.[0-9]+.[0-9]+-[a-z]+[0-9]+'
+      # All tags
+      - '**'
 
 env:
   AWS_S3_BUCKET: falco-distribution
@@ -18,6 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       package: ${{ steps.regex-match.outputs.group1 }}
+      isSemver: ${{ steps.regex-match.outputs.match }}
       
     steps:
       - name: Extract semver ℹ️
@@ -28,6 +27,7 @@ jobs:
           regex: '^([a-z]+[a-z0-9_\-]*)-(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?$'
 
   release-plugins-stable-x86:
+    if: needs.extract-info.outputs.isSemver != ''
     runs-on: ubuntu-latest
     needs: extract-info
     steps:
@@ -50,6 +50,7 @@ jobs:
           done
 
   release-plugins-stable-arm64:
+    if: needs.extract-info.outputs.isSemver != ''
     runs-on: ubuntu-latest
     needs: extract-info
     steps:
