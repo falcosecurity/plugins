@@ -7,6 +7,10 @@ on:
     branches: [ master ]
   workflow_dispatch:
 
+permissions:
+  id-token: write
+  contents: read
+
 env:
   AWS_S3_BUCKET: falco-distribution
   AWS_S3_PREFIX: plugins
@@ -47,6 +51,8 @@ jobs:
         with:
           arch: aarch64
           distro: ubuntu_latest
+          dockerRunArgs:
+            --volume "${PWD}/artifacts:/artifacts"
           githubToken: ${{ github.token }}
  
           install: |
@@ -54,7 +60,9 @@ jobs:
             update-ca-certificates
             git config --global --add safe.directory ${{ github.workspace }}
             
-          run: make packages
+          run: |
+            make packages
+            cp -R output/* /artifacts
 
       - name: Configure AWS credentials 🔧⚙️
         if: github.event_name == 'push'
@@ -66,6 +74,6 @@ jobs:
       - name: Upload files to S3 ⬆️
         if: github.event_name == 'push'
         run: |
-          for package in output/*.tar.gz; do
+          for package in artifacts/*.tar.gz; do
             aws s3 cp --no-progress $package s3://${{ env.AWS_S3_BUCKET}}/${{ env.AWS_S3_PREFIX }}/dev/
           done
