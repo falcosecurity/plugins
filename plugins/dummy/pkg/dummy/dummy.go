@@ -36,7 +36,7 @@ const (
 	PluginName               = "dummy"
 	PluginDescription        = "Reference plugin for educational purposes"
 	PluginContact            = "github.com/falcosecurity/plugins"
-	PluginVersion            = "0.8.2"
+	PluginVersion            = "0.8.3"
 	PluginEventSource        = "dummy"
 )
 
