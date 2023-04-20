@@ -6,6 +6,10 @@ on:
       # All tags
       - '**'
 
+permissions:
+  id-token: write
+  contents: read
+
 env:
   AWS_S3_BUCKET: falco-distribution
   AWS_S3_PREFIX: plugins
@@ -63,13 +67,16 @@ jobs:
           arch: aarch64
           distro: ubuntu_latest
           githubToken: ${{ github.token }}
-
+          dockerRunArgs:
+            --volume "${PWD}/artifacts:/artifacts"
           install: |
             apt-get update && apt-get install -y --no-install-recommends build-essential git ca-certificates golang curl && apt-get clean
             update-ca-certificates
             git config --global --add safe.directory ${{ github.workspace }}
             
-          run: make release/${{ needs.extract-info.outputs.package }}
+          run: |
+            make release/${{ needs.extract-info.outputs.package }}
+            cp -R output/* /artifacts
           
       - name: Configure AWS credentials 🔧⚙️
         uses: aws-actions/configure-aws-credentials@v2
@@ -79,6 +86,6 @@ jobs:
 
       - name: Upload files to S3 ⬆️
         run: |
-          for package in output/*.tar.gz; do
+          for package in artifacts/*.tar.gz; do
             aws s3 cp --no-progress $package s3://${{ env.AWS_S3_BUCKET }}/${{ env.AWS_S3_PREFIX }}/stable/
           done
