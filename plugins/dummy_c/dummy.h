@@ -21,9 +21,8 @@ limitations under the License.
 class dummy_instance: public falcosecurity::event_sourcer::instance
 {
     public:
-        dummy_instance(uint64_t max_events, uint64_t jitter, uint64_t *sample):
+        dummy_instance(uint64_t max_events, uint64_t *sample):
             m_max_events(max_events),
-            m_jitter(jitter),
             m_sample(sample)
         {}
 

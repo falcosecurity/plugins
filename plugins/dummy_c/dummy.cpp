@@ -15,7 +15,6 @@ limitations under the License.
 */
 
 #include "dummy.h"
-#include "include/falcosecurity/internal/deps/plugin_types.h"
 #include "nlohmann/json.hpp"
 
 using json = nlohmann::json;
@@ -32,7 +31,7 @@ bool dummy_plugin::init(const std::string& config)
 {
     m_config = config;
 	// Config is optional. In this case defaults are used.
-	if(m_config == "" || m_config == "{}")
+	if(m_config.empty() || m_config.compare("{}"))
 	{
 		return true;
 	}
@@ -41,7 +40,6 @@ bool dummy_plugin::init(const std::string& config)
 	try {
 		obj = json::parse(m_config);
 	}catch(std::exception e){
-		//set_last_error(e.what());
 		return false;
 	}
 
@@ -110,8 +108,7 @@ bool dummy_plugin::extract(const ss_plugin_event* evt, ss_plugin_extract_field* 
             return true;
         case 2: //dummy.strvalue
             // The event payload is simply the sample, as a string
-            // XXX check < 10
-            std::string payload = "__"+std::to_string(*evt->data)+"__";
+            std::string payload = "__"+std::to_string(m_sample)+"__";
             const char* payload_ptr = payload.c_str();
 
             field->res.str = (const char**) &payload_ptr;
@@ -134,8 +131,10 @@ void dummy_plugin::event_source(std::string& out) const
 
 std::unique_ptr<falcosecurity::event_sourcer::instance> dummy_plugin::open(const std::string& params) 
 {
-    auto instance = new dummy_instance(m_max_events, m_jitter, &m_sample);
-    return std::unique_ptr<falcosecurity::event_sourcer::instance>(instance);
+    if(!params.empty()){
+        m_max_events = std::stoi(params);
+    }
+    return std::unique_ptr<falcosecurity::event_sourcer::instance>(new dummy_instance(m_max_events, &m_sample));
 }
 
 ss_plugin_rc dummy_instance::next(const falcosecurity::event_sourcer* p, ss_plugin_event* evt) 
