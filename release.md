@@ -1,6 +1,6 @@
 # Release Process
 
-Our release process is automated by several [Prow jobs](https://github.com/falcosecurity/test-infra/blob/master/config/jobs/build-plugins/build-plugins.yaml). 
+Our release process is automated by a couple of GitHub Actions ([`Update Plugins-dev`](https://github.com/falcosecurity/plugins/blob/master/.github/workflows/push_master.yml) and [`Release Plugins`](https://github.com/falcosecurity/plugins/blob/master/.github/workflows/release.yml)). 
 
 The process publishes two types of releases:
 - **dev** builds: the process is fully automated, and it is triggered when changes are merged into `master` branch
