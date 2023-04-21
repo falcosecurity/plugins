@@ -67,8 +67,13 @@ jobs:
           arch: aarch64
           distro: ubuntu_latest
           githubToken: ${{ github.token }}
+
+          setup: |
+            mkdir -p "${PWD}/artifacts"
+
           dockerRunArgs:
             --volume "${PWD}/artifacts:/artifacts"
+
           install: |
             apt-get update && apt-get install -y --no-install-recommends build-essential git ca-certificates golang curl && apt-get clean
             update-ca-certificates
