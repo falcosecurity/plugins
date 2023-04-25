@@ -152,7 +152,11 @@ func getEvtInfo(jdata *fastjson.Value) string {
 		return "<invalid cloudtrail event: eventName field missing>"
 	}
 
-	info = fmt.Sprintf("%v via %v %v%v %v", evtuser, evtsrcip, errsymbol, rwsymbol, evtname)
+	if (evtuser == evtsrcip) {
+		info = fmt.Sprintf("%v %v%v %v", evtuser, errsymbol, rwsymbol, evtname)
+	} else {
+		info = fmt.Sprintf("%v via %v %v%v %v", evtuser, evtsrcip, errsymbol, rwsymbol, evtname)
+	}
 
 	switch evtname {
 	case "PutBucketPublicAccessBlock":
