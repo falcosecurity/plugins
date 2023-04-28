@@ -106,9 +106,24 @@ The json object has the following properties:
 
 * `sqsDelete`: value is boolean. If true, then the plugin will delete sqs messages from the queue immediately after receiving them. (Default: true)
 * `s3DownloadConcurrency`: value is numeric. Controls the number of background goroutines used to download S3 files. (Default: 1)
+* `S3Interval`: value is string. Download log files matching the specified time interval. Note that this matches log file *names*, not event timestamps. CloudTrail logs usually cover [the previous 5 minutes of activity](https://docs.aws.amazon.com/awscloudtrail/latest/userguide/get-and-view-cloudtrail-log-files.html). See *Time Intervals* below for possible formats.
 * `useS3SNS`: value is boolean. If true, then the plugin will expect SNS messages to originate from S3 instead of directly from Cloudtrail (Default: false)
 
 The init string can be the empty string, which is treated identically to `{}`.
+
+### Time Intervals
+
+S3Interval values can be individual duration values or RFC 3339-style timestamps. In this case the interval will start at the specified time and end at the current time:
+* `5d`: A simple duration relative to the current time.
+* `2021-03-30T18:07:17Z`: A duration starting from the specified RFC 3339 formatted time.
+
+Simple durations must be a positive integer followed by `w` for weeks, `d` for days, `h` for hours, `m` for minutes, or `s` for seconds.
+RFC 3339-style times must be formatted as a datestamp, the letter `T`, a timestamp with no fractional seconds, and the letter `Z`, e.g. `2021-03-30T18:07:17Z`.
+
+Values can also cover a range:
+* `5d-2d`: A simple duration interval relative to the current time.
+* `2023-04-05T06:00:00Z-2023-04-05T12:00:10Z`: An RFC 3339-style timestamp interval.
+* `2023-04-05T06:00:00Z-5d`: A combination of an RFC 3339-style timestamp and a duration.
 
 ### Plugin Open Params
 
