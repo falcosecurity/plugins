@@ -19,6 +19,7 @@ package cloudtrail
 // Struct for plugin init config
 type PluginConfig struct {
 	S3DownloadConcurrency int             `json:"s3DownloadConcurrency" jsonschema:"title=S3 download concurrency,description=Controls the number of background goroutines used to download S3 files (Default: 32),default=32"`
+	S3Interval            string          `json:"s3Interval" jsonschema:"title=S3 log interval,description=Download log files over the specified interval (Default: 24h),default=24h"`
 	SQSDelete             bool            `json:"sqsDelete" jsonschema:"title=Delete SQS messages,description=If true then the plugin will delete SQS messages from the queue immediately after receiving them (Default: true),default=true"`
 	UseAsync              bool            `json:"useAsync" jsonschema:"title=Use async extraction,description=If true then async extraction optimization is enabled (Default: true),default=true"`
 	UseS3SNS              bool            `json:"useS3SNS" jsonschema:"title=Use S3 SNS,description=If true then the plugin will expect SNS messages to originate from S3 instead of directly from Cloudtrail (Default: false),default=false"`
@@ -29,6 +30,7 @@ type PluginConfig struct {
 func (p *PluginConfig) Reset() {
 	p.SQSDelete = true
 	p.S3DownloadConcurrency = 32
+	p.S3Interval = "24h"
 	p.UseAsync = true
 	p.UseS3SNS = false
 	p.AWS.Reset()

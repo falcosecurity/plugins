@@ -26,6 +26,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -172,38 +173,124 @@ func (oCtx *PluginInstance) openS3(input string) error {
 		return err
 	}
 
-	// Fetch the list of keys
+
+	type listOrigin struct {
+		prefix *string
+		startAfter *string
+	}
+
+	var inputParams []listOrigin
 	ctx := context.Background()
-	paginator := s3.NewListObjectsV2Paginator(oCtx.s3.client, &s3.ListObjectsV2Input{
-		Bucket: &oCtx.s3.bucket,
-		Prefix: &prefix,
-	})
 
-	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(ctx)
-		if err != nil {
-			// Try friendlier error sources first.
-			var aErr smithy.APIError
-			if errors.As(err, &aErr) {
-				return fmt.Errorf(PluginName + " plugin error: %s: %s", aErr.ErrorCode(), aErr.ErrorMessage())
-			}
+	startTime, endTime, err := ParseInterval(oCtx.config.S3Interval)
+	if err != nil {
+		return fmt.Errorf(PluginName + " invalid interval: \"%s\": %s", oCtx.config.S3Interval, err.Error())
 
-			var oErr *smithy.OperationError
-			if errors.As(err, &oErr) {
-				return fmt.Errorf(PluginName + " plugin error: %s: %s", oErr.Service(), oErr.Unwrap())
-			}
+	}
+	if !endTime.IsZero() && endTime.Compare(startTime) > 0 {
+		return fmt.Errorf(PluginName + " start time %s must be less than end time %s", startTime.Format(RFC3339Simple), endTime.Format(RFC3339Simple))
+	}
 
-			return fmt.Errorf(PluginName + " plugin error: failed to list objects: " + err.Error())
+	// CloudTrail logs have the format
+	// bucket_name/prefix_name/AWSLogs/Account ID/CloudTrail/region/YYYY/MM/DD/AccountID_CloudTrail_RegionName_YYYYMMDDTHHmmZ_UniqueString.json.gz
+	// Reduce the number of pages we have to process using "StartAfter" parameters
+	// here, then trim individual filepaths below.
+
+	intervalPrefix := prefix
+	startAfterSuffix := startTime.Format("2006/01/02/")
+
+	// For durations, carve out a special case for "Copy S3 URI" in the AWS console, which gives you
+	// bucket_name/prefix_name/AWSLogs/<Account ID>/
+	awsLogsRE := regexp.MustCompile(`AWSLogs/\d+/?$`)
+	if awsLogsRE.MatchString(prefix) {
+		if (! strings.HasSuffix(intervalPrefix, "/")) {
+			intervalPrefix += "/"
 		}
-		for _, obj := range page.Contents {
-			path := obj.Key
-			isCompressed := strings.HasSuffix(*path, ".json.gz")
-			if filepath.Ext(*path) != ".json" && !isCompressed {
-				continue
-			}
+		intervalPrefix += "CloudTrail/"
+	}
 
-			var fi fileInfo = fileInfo{name: *path, isCompressed: isCompressed}
-			oCtx.files = append(oCtx.files, fi)
+	if strings.HasSuffix(intervalPrefix, "/CloudTrail/") {
+		delimiter := "/"
+		// Fetch the list of regions.
+		output, err := oCtx.s3.client.ListObjectsV2(ctx, &s3.ListObjectsV2Input{
+			Bucket: &oCtx.s3.bucket,
+			Prefix: &intervalPrefix,
+			Delimiter: &delimiter,
+		})
+		if err == nil {
+			for _, commonPrefix := range output.CommonPrefixes {
+				// startAfter doesn't have to be a real key.
+				startAfter := *commonPrefix.Prefix + startAfterSuffix
+				params := listOrigin {prefix: commonPrefix.Prefix, startAfter: &startAfter}
+				inputParams = append(inputParams, params)
+			}
+		}
+	}
+
+	filepathRE := regexp.MustCompile(`.*_CloudTrail_[^_]+_([^_]+)Z_`)
+	var startTS string
+	var endTS string
+
+	if len(inputParams) > 0 {
+		startTS = startTime.Format("20060102T0304")
+		if !endTime.IsZero() {
+			endTS = endTime.Format("20060102T0304")
+		}
+	} else {
+		// No region prefixes found, just use what we were given.
+		params := listOrigin {prefix: &prefix, startAfter: nil}
+		inputParams = append(inputParams, params)
+	}
+
+	// Would it make sense to do this concurrently?
+	for _, params := range inputParams {
+		// Fetch the list of keys
+		paginator := s3.NewListObjectsV2Paginator(oCtx.s3.client, &s3.ListObjectsV2Input{
+			Bucket: &oCtx.s3.bucket,
+			Prefix: params.prefix,
+			StartAfter: params.startAfter,
+		})
+
+		for paginator.HasMorePages() {
+			page, err := paginator.NextPage(ctx)
+			if err != nil {
+				// Try friendlier error sources first.
+				var aErr smithy.APIError
+				if errors.As(err, &aErr) {
+					return fmt.Errorf(PluginName + " plugin error: %s: %s", aErr.ErrorCode(), aErr.ErrorMessage())
+				}
+
+				var oErr *smithy.OperationError
+				if errors.As(err, &oErr) {
+					return fmt.Errorf(PluginName + " plugin error: %s: %s", oErr.Service(), oErr.Unwrap())
+				}
+
+				return fmt.Errorf(PluginName + " plugin error: failed to list objects: " + err.Error())
+			}
+			for _, obj := range page.Contents {
+				path := obj.Key
+
+				if startTS != "" {
+					matches := filepathRE.FindStringSubmatch(*path)
+					if matches != nil {
+						pathTS := matches[1]
+						if pathTS < startTS {
+							continue
+						}
+						if endTS != "" && pathTS > endTS {
+							continue
+						}
+					}
+				}
+
+				isCompressed := strings.HasSuffix(*path, ".json.gz")
+				if filepath.Ext(*path) != ".json" && !isCompressed {
+					continue
+				}
+
+				var fi fileInfo = fileInfo{name: *path, isCompressed: isCompressed}
+				oCtx.files = append(oCtx.files, fi)
+			}
 		}
 	}
 
