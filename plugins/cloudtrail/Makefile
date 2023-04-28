@@ -28,7 +28,7 @@ all: $(OUTPUT)
 clean:
 	@rm -f $(OUTPUT)
 
-$(OUTPUT):
+$(OUTPUT): pkg/cloudtrail/*.go plugin/cloudtrail.go
 	@$(GODEBUGFLAGS) $(GO) build -buildmode=c-shared -o $(OUTPUT) ./plugin
 
 readme:
