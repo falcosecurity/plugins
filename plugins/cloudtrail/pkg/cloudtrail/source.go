@@ -187,9 +187,6 @@ func (oCtx *PluginInstance) openS3(input string) error {
 		return fmt.Errorf(PluginName + " invalid interval: \"%s\": %s", oCtx.config.S3Interval, err.Error())
 
 	}
-	if !endTime.IsZero() && endTime.Compare(startTime) > 0 {
-		return fmt.Errorf(PluginName + " start time %s must be less than end time %s", startTime.Format(RFC3339Simple), endTime.Format(RFC3339Simple))
-	}
 
 	// CloudTrail logs have the format
 	// bucket_name/prefix_name/AWSLogs/Account ID/CloudTrail/region/YYYY/MM/DD/AccountID_CloudTrail_RegionName_YYYYMMDDTHHmmZ_UniqueString.json.gz
@@ -235,6 +232,9 @@ func (oCtx *PluginInstance) openS3(input string) error {
 		startTS = startTime.Format("20060102T0304")
 		if !endTime.IsZero() {
 			endTS = endTime.Format("20060102T0304")
+			if endTS < startTS {
+			return fmt.Errorf(PluginName + " start time %s must be less than end time %s", startTime.Format(RFC3339Simple), endTime.Format(RFC3339Simple))
+	}
 		}
 	} else {
 		// No region prefixes found, just use what we were given.
