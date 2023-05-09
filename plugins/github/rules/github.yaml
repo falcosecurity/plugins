@@ -27,6 +27,7 @@
   output: A github webhook was linked to this Falco instance (ID=%github.webhook.id type=%github.webhook.type owner=%github.owner user=%github.user) 
   priority: DEBUG
   source: github
+  tags: [github]
 
 - rule: Webhook Disconnected
   desc: Detect a webhook unlink
@@ -34,6 +35,7 @@
   output: A github webhook was disconnected from Falco instance (ID=%github.webhook.id type=%github.webhook.type org=%github.org user=%github.user) 
   priority: DEBUG
   source: github
+  tags: [github]
 
 - rule: Private Repository Becoming Public
   desc: Detect changing the visibility of a repository to public
@@ -41,6 +43,7 @@
   output: A repository went from private to public (repository=%github.repo repo_owner=%github.owner org=%github.org user=%github.user) 
   priority: CRITICAL
   source: github
+  tags: [github]
 
 - rule: Public Repository Becoming Private
   desc: Detect changing the visibility of a repository to private
@@ -48,6 +51,7 @@
   output: A repository went from public to private (repository=%github.repo repo_owner=%github.owner org=%github.org user=%github.user) 
   priority: WARNING
   source: github
+  tags: [github]
 
 - rule: Create Public Repository
   desc: Detect the creation of a new public repository
@@ -55,6 +59,7 @@
   output: A new public repository was created (repository=%github.repo repo_owner=%github.owner org=%github.org user=%github.user) 
   priority: WARNING
   source: github
+  tags: [github]
 
 - rule: Delete Public Repository
   desc: Detect the deletion of a public repository
@@ -62,6 +67,7 @@
   output: A public repository was deleted (repository=%github.repo repo_owner=%github.owner org=%github.org user=%github.user) 
   priority: WARNING
   source: github
+  tags: [github]
 
 - rule: Create Repository
   desc: Detect the creation of a new repository
@@ -69,6 +75,7 @@
   output: A new repository was created (repository=%github.repo repo_owner=%github.owner org=%github.org user=%github.user) 
   priority: INFO
   source: github
+  tags: [github]
 
 - rule: Delete Repository
   desc: Detect the deletion of a repository
@@ -76,6 +83,7 @@
   output: A repository was deleted (repository=%github.repo repo_owner=%github.owner org=%github.org user=%github.user) 
   priority: INFO
   source: github
+  tags: [github]
 
 - rule: Create Deploy Key
   desc: Detect the creation of a new deploy key for a repository
@@ -83,6 +91,7 @@
   output: A new deploy key was created (repository=%github.repo repo_owner=%github.owner org=%github.org user=%github.user) 
   priority: INFO
   source: github
+  tags: [github]
 
 - rule: Delete Deploy Key
   desc: Detect the deletion a repository's deploy key
@@ -90,6 +99,7 @@
   output: A deploy key was deleted (repository=%github.repo repo_owner=%github.owner org=%github.org user=%github.user) 
   priority: INFO
   source: github
+  tags: [github]
 
 - rule: Add Collaborator to Repository
   desc: Detect the addition of a collaborator to a repository
@@ -97,6 +107,7 @@
   output: A collaborator was added to a repository (repository=%github.repo repo_owner=%github.owner org=%github.org user=%github.user collaborator=%github.collaborator.name role=%github.collaborator.role) 
   priority: INFO
   source: github
+  tags: [github]
 
 - rule: Remove Collaborator from Repository
   desc: Detect the removal of a collaborator from a repository
@@ -104,6 +115,7 @@
   output: A collaborator was removed from a repository (repository=%github.repo repo_owner=%github.owner org=%github.org user=%github.user collaborator=%github.collaborator.name) 
   priority: INFO
   source: github
+  tags: [github]
 
 - rule: Secret pushed into a public repository
   desc: A secret (AWS keys, github token...) was committed into a public repository
@@ -111,6 +123,7 @@
   output: One or more secrets were pushed into a private repository (repository=%github.repo repo_owner=%github.owner org=%github.org user=%github.user secret_types=%github.diff.committed_secrets.desc file=%github.diff.committed_secrets.files line=%github.diff.committed_secrets.lines url=%github.diff.committed_secrets.links) 
   priority: CRITICAL
   source: github
+  tags: [github]
 
 - rule: Secret pushed into a private repository
   desc: A secret (AWS keys, github token...) was committed into a private repository
@@ -118,6 +131,7 @@
   output: One or more secrets were pushed into a private repository (repository=%github.repo repo_owner=%github.owner org=%github.org user=%github.user secret_types=%github.diff.committed_secrets.desc file=%github.diff.committed_secrets.files line=%github.diff.committed_secrets.lines url=%github.diff.committed_secrets.links) 
   priority: CRITICAL
   source: github
+  tags: [github]
 
 - rule: Github action with miners
   desc: a github action containing crypto miners was executed
@@ -125,3 +139,4 @@
   output: a github action containing crypto miners was executed (repository=%github.repo repo_owner=%github.owner org=%github.org user=%github.user file=%github.workflow.filename)
   priority: CRITICAL
   source: github
+  tags: [github]
