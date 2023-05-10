@@ -13,5 +13,4 @@ require (
 	github.com/aws/smithy-go v1.13.3
 	github.com/falcosecurity/plugin-sdk-go v0.7.1
 	github.com/valyala/fastjson v1.6.3
-	github.com/xhit/go-str2duration/v2 v2.1.0
 )
