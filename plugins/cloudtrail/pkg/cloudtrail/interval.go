@@ -18,9 +18,8 @@ package cloudtrail
 
 import (
 	"regexp"
+	"strconv"
 	"time"
-
-	"github.com/xhit/go-str2duration/v2"
 )
 
 var RFC3339Simple = "2006-01-02T03:04:05Z"
@@ -30,10 +29,24 @@ func parseEndpoint(endpoint string) (time.Time, error) {
 	var endpointTime time.Time
 	var err error
 
-	epRE := regexp.MustCompile(`^\d+[wdhms]$`)
-	if (epRE.MatchString(endpoint)) {
-		duration, err := str2duration.ParseDuration(endpoint)
-		if (err == nil) {
+	durationRE := regexp.MustCompile(`^(\d+)([wdhms])$`)
+	matches := durationRE.FindStringSubmatch(endpoint)
+	if matches != nil {
+		durI, err := strconv.Atoi(matches[1])
+		if err == nil {
+			duration := time.Duration(durI)
+			switch matches[2] {
+			case "w":
+				duration *= time.Hour * 24 * 7
+			case "d":
+				duration *= time.Hour * 24
+			case "h":
+				duration *= time.Hour
+			case "m":
+				duration *= time.Minute
+			case "s":
+				duration *= time.Second
+			}
 			endpointTime = utc.Add(- duration)
 		}
 	} else {
@@ -49,12 +62,12 @@ func ParseInterval(interval string) (time.Time, time.Time, error) {
 	var err error
 
 	// First, see if we have an interval.
-	intervalRE := regexp.MustCompile(`(.*)(\s*-\s*)(\d+[wdhms]$|\d{4}-\d{2}\d{2}[^Z]*Z)`)
+	intervalRE := regexp.MustCompile(`(.*)\s*-\s*(\d+[wdhms]|\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)$`)
 	matches := intervalRE.FindStringSubmatch(interval)
 	if matches != nil {
 		startTime, err = parseEndpoint(matches[1])
 		if err == nil {
-			endTime, err = parseEndpoint(matches[3])
+			endTime, err = parseEndpoint(matches[2])
 		}
 	} else {
 		startTime, err = parseEndpoint(interval)
