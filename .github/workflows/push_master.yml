@@ -7,6 +7,12 @@ on:
     branches: [ master ]
   workflow_dispatch:
 
+# Checks if any concurrent jobs under the same pull request or branch are being executed
+# NOTE: this will cancel every workflow that is being ran against a PR as group is just the github ref (without the workflow name)
+concurrency:
+  group: ${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true  
+  
 permissions:
   id-token: write
   contents: read
@@ -19,10 +25,21 @@ env:
 jobs:
   release-plugins-dev-x86:
     runs-on: ubuntu-latest
+    container: golang:1.18
     steps:
+      - name: Install deps
+        run: |
+          apt update
+          apt install -y --no-install-recommends git awscli
+    
       - name: Checkout Plugins ⤵️
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
+      - name: Safe directory
+        run: git config --global --add safe.directory $GITHUB_WORKSPACE
+          
       - name: Run x86 build 🏗️
         run: make packages
 
@@ -45,7 +62,9 @@ jobs:
     steps:
       - name: Checkout Plugins ⤵️
         uses: actions/checkout@v3
-      
+        with:
+          fetch-depth: 0
+
       - name: Run arm64 build 🏗️
         uses: uraimo/run-on-arch-action@v2
         with:
@@ -58,15 +77,22 @@ jobs:
 
           dockerRunArgs:
             --volume "${PWD}/artifacts:/artifacts"
+            --volume "/var/run/docker.sock:/var/run/docker.sock"
  
           install: |
-            apt-get update && apt-get install -y --no-install-recommends build-essential git ca-certificates golang curl && apt-get clean
-            update-ca-certificates
-            git config --global --add safe.directory ${{ github.workspace }}
+            apt-get update && apt-get install -y --no-install-recommends docker.io && apt-get clean
             
           run: |
-            make packages
+            cat > script.sh <<EOF
+            #!/bin/sh
+            apt-get update && apt-get install -y --no-install-recommends ca-certificates curl && apt-get clean
+            update-ca-certificates
+            git config --global --add safe.directory /repo
+            cd /repo && make packages
             cp -R output/* /artifacts
+            EOF
+            chmod +x script.sh
+            docker run -ti --rm --platform arm64 -v /artifacts:/artifacts -v ${{ github.workspace }}:/repo golang:1.18 /repo/script.sh
 
       - name: Configure AWS credentials 🔧⚙️
         if: github.event_name == 'push'

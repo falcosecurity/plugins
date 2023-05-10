@@ -6,6 +6,11 @@ on:
       # All tags
       - '**'
 
+# Checks if any concurrent jobs is running for release CI and eventually cancel it.
+concurrency:
+  group: ci-release
+  cancel-in-progress: true  
+
 permissions:
   id-token: write
   contents: read
@@ -33,10 +38,21 @@ jobs:
   release-plugins-stable-x86:
     if: needs.extract-info.outputs.isSemver != ''
     runs-on: ubuntu-latest
+    container: golang:1.18
     needs: extract-info
     steps:
+      - name: Install deps
+        run: |
+          apt update
+          apt install -y --no-install-recommends git awscli
+    
       - name: Checkout Plugins ⤵️
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          
+      - name: Safe directory
+        run: git config --global --add safe.directory $GITHUB_WORKSPACE   
 
       - name: Run x86 build 🏗️
         run: make release/${{ needs.extract-info.outputs.package }}
@@ -60,6 +76,8 @@ jobs:
     steps:
       - name: Checkout Plugins ⤵️
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
       
       - name: Run arm64 build 🏗️
         uses: uraimo/run-on-arch-action@v2
@@ -73,15 +91,22 @@ jobs:
 
           dockerRunArgs:
             --volume "${PWD}/artifacts:/artifacts"
+            --volume "/var/run/docker.sock:/var/run/docker.sock"
 
           install: |
-            apt-get update && apt-get install -y --no-install-recommends build-essential git ca-certificates golang curl && apt-get clean
-            update-ca-certificates
-            git config --global --add safe.directory ${{ github.workspace }}
+            apt-get update && apt-get install -y --no-install-recommends docker.io && apt-get clean
             
           run: |
-            make release/${{ needs.extract-info.outputs.package }}
+            cat > script.sh <<EOF
+            #!/bin/sh
+            apt-get update && apt-get install -y --no-install-recommends ca-certificates curl && apt-get clean
+            update-ca-certificates
+            git config --global --add safe.directory /repo
+            cd /repo && make packages
             cp -R output/* /artifacts
+            EOF
+            chmod +x script.sh
+            docker run -ti --rm --platform arm64 -v /artifacts:/artifacts -v ${{ github.workspace }}:/repo golang:1.18 /repo/script.sh
           
       - name: Configure AWS credentials 🔧⚙️
         uses: aws-actions/configure-aws-credentials@v2
