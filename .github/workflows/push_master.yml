@@ -11,7 +11,7 @@ on:
 # NOTE: this will cancel every workflow that is being ran against a PR as group is just the github ref (without the workflow name)
 concurrency:
   group: ${{ github.head_ref || github.run_id }}
-  cancel-in-progress: true  
+  cancel-in-progress: true
   
 permissions:
   id-token: write
@@ -73,15 +73,17 @@ jobs:
           githubToken: ${{ github.token }}
 
           setup: |
-            mkdir -p "${PWD}/artifacts"
+            mkdir -p "/tmp/artifacts"
 
           dockerRunArgs:
-            --volume "${PWD}/artifacts:/artifacts"
             --volume "/var/run/docker.sock:/var/run/docker.sock"
  
           install: |
             apt-get update && apt-get install -y --no-install-recommends docker.io && apt-get clean
-            
+          
+          # Note: we still use /tmp/artifacts as volume source because
+          # we are running docker in docker but we are still using HOST socket.
+          # See https://stackoverflow.com/questions/31381322/docker-in-docker-cannot-mount-volume.
           run: |
             cat > script.sh <<EOF
             #!/bin/sh
@@ -92,7 +94,7 @@ jobs:
             cp -R output/* /artifacts
             EOF
             chmod +x script.sh
-            docker run -ti --rm --platform arm64 -v /artifacts:/artifacts -v ${{ github.workspace }}:/repo golang:1.18 /repo/script.sh
+            docker run -ti --rm --platform arm64 -v /tmp/artifacts:/artifacts -v ${{ github.workspace }}:/repo golang:1.18 /repo/script.sh
 
       - name: Configure AWS credentials 🔧⚙️
         if: github.event_name == 'push'
@@ -104,6 +106,6 @@ jobs:
       - name: Upload files to S3 ⬆️
         if: github.event_name == 'push'
         run: |
-          for package in artifacts/*.tar.gz; do
+          for package in /tmp/artifacts/*.tar.gz; do
             aws s3 cp --no-progress $package s3://${{ env.AWS_S3_BUCKET}}/${{ env.AWS_S3_PREFIX }}/dev/
           done
