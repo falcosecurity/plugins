@@ -1,0 +1,20 @@
+name: Build Plugins PR
+
+on:
+  pull_request:
+    branches: [ master ]
+
+# Checks if any concurrent jobs under the same pull request or branch are being executed
+# NOTE: this will cancel every workflow that is being ran against a PR as group is just the github ref (without the workflow name)
+concurrency:
+  group: ${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  build-plugins-ci:
+    uses: ./.github/workflows/reusable_build_packages.yaml
+    with:
+      makecommand: make packages
+      suffix: ${{ github.event.number }}
+    secrets: inherit
+

@@ -1,29 +1,18 @@
-name: Update Plugins-dev
-
+# This is a reusable workflow used by master and release CI
 on:
-  pull_request:
-    branches: [ master ]
-  push:
-    branches: [ master ]
-  workflow_dispatch:
-
-# Checks if any concurrent jobs under the same pull request or branch are being executed
-# NOTE: this will cancel every workflow that is being ran against a PR as group is just the github ref (without the workflow name)
-concurrency:
-  group: ${{ github.head_ref || github.run_id }}
-  cancel-in-progress: true
-  
-permissions:
-  id-token: write
-  contents: read
-
-env:
-  AWS_S3_BUCKET: falco-distribution
-  AWS_S3_PREFIX: plugins
-  AWS_S3_REGION: eu-west-1
-
+  workflow_call:
+    inputs:
+      makecommand:
+        description: Command used for make
+        required: true
+        type: string
+      suffix:
+        description: Suffix for uploading packages (dev or stable)
+        required: true
+        type: string
+        
 jobs:
-  release-plugins-dev-x86:
+  build-packages-x86:
     runs-on: ubuntu-latest
     container: golang:1.18
     steps:
@@ -41,23 +30,15 @@ jobs:
         run: git config --global --add safe.directory $GITHUB_WORKSPACE
           
       - name: Run x86 build 🏗️
-        run: make packages
+        run: ${{ inputs.makecommand }}
 
-      - name: Configure AWS credentials 🔧⚙️
-        if: github.event_name == 'push'
-        uses: aws-actions/configure-aws-credentials@v2
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
         with:
-          role-to-assume: "arn:aws:iam::292999226676:role/github_actions-plugins-s3"
-          aws-region: ${{ env.AWS_S3_REGION }}
+          name: plugins-x86_64-${{ inputs.suffix }}.tar.gz
+          path: output/*.tar.gz
 
-      - name: Upload files to S3 ⬆️
-        if: github.event_name == 'push'
-        run: |
-          for package in output/*.tar.gz; do
-            aws s3 cp --no-progress $package s3://${{ env.AWS_S3_BUCKET}}/${{ env.AWS_S3_PREFIX }}/dev/
-          done
-
-  release-plugins-dev-arm64:
+  build-packages-arm64:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Plugins ⤵️
@@ -90,22 +71,16 @@ jobs:
             apt-get update && apt-get install -y --no-install-recommends ca-certificates curl && apt-get clean
             update-ca-certificates
             git config --global --add safe.directory /repo
-            cd /repo && make packages
+            cd /repo && ${{ inputs.makecommand }}
             cp -R output/* /artifacts
             EOF
             chmod +x script.sh
             docker run -ti --rm --platform arm64 -v /tmp/artifacts:/artifacts -v ${{ github.workspace }}:/repo golang:1.18 /repo/script.sh
-
-      - name: Configure AWS credentials 🔧⚙️
-        if: github.event_name == 'push'
-        uses: aws-actions/configure-aws-credentials@v2
+            
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
         with:
-          role-to-assume: "arn:aws:iam::292999226676:role/github_actions-plugins-s3"
-          aws-region: ${{ env.AWS_S3_REGION }}
+          name: plugins-aarch64-${{ inputs.suffix }}.tar.gz
+          path: /tmp/artifacts/*.tar.gz          
 
-      - name: Upload files to S3 ⬆️
-        if: github.event_name == 'push'
-        run: |
-          for package in /tmp/artifacts/*.tar.gz; do
-            aws s3 cp --no-progress $package s3://${{ env.AWS_S3_BUCKET}}/${{ env.AWS_S3_PREFIX }}/dev/
-          done
+      
