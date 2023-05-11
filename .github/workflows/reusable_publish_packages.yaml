@@ -1,0 +1,46 @@
+# This is a reusable workflow used by master and release CI
+on:
+  workflow_call:
+    inputs:
+      suffix:
+        description: Suffix for uploading packages (dev or stable)
+        required: true
+        type: string
+        
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_S3_BUCKET: falco-distribution
+  AWS_S3_PREFIX: plugins
+  AWS_S3_REGION: eu-west-1        
+        
+jobs:
+  publish-packages:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download x86_64 plugins
+        uses: actions/download-artifact@v3
+        with:
+          name: plugins-x86_64-${{ inputs.suffix }}.tar.gz
+          path: /tmp/plugins-x86_64
+          
+      - name: Download aarch64 plugins
+        uses: actions/download-artifact@v3
+        with:
+          name: plugins-aarch64-${{ inputs.suffix }}.tar.gz
+          path: /tmp/plugins-aarch64
+          
+      - name: Configure AWS credentials 🔧⚙️
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: "arn:aws:iam::292999226676:role/github_actions-plugins-s3"
+          aws-region: ${{ env.AWS_S3_REGION }}
+
+      - name: Upload files to S3 ⬆️
+        run: |
+          for package in /tmp/plugins-*/*.tar.gz; do
+            aws s3 cp --no-progress $package s3://${{ env.AWS_S3_BUCKET}}/${{ env.AWS_S3_PREFIX }}/${{ inputs.suffix }}/
+          done    
+
