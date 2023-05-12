@@ -228,6 +228,26 @@ plugins:
         source: nomad
       extraction:
         supported: true
+  - name: dnscollector
+    description: DNS Collector Events
+    authors: Daniel Moloney
+    contact: https://github.com/SysdigDan/dnscollector-falco-plugin/issues
+    maintainers:
+      - name: Daniel Moloney
+    keywords:
+      - audit
+      - log-events
+      - dns
+    url: https://github.com/SysdigDan/dnscollector-falco-plugin
+    rules_url: https://github.com/SysdigDan/dnscollector-falco-plugin/tree/master/rules
+    license: Apache-2.0
+    capabilities:
+      sourcing:
+        supported: true
+        id: 11
+        source: dnscollector
+      extraction:
+        supported: true
   - name: test
     description: This ID is reserved for source plugin development. Any plugin author can use this ID, but authors can expect events from other developers with this ID. After development is complete, the author should request an actual ID
     reserved: true
