@@ -200,7 +200,15 @@ plugins:
     authors: The Falco Authors
     contact: https://falco.org/community
     url: https://github.com/falcosecurity/plugins/tree/master/plugins/k8saudit-eks
+    rules_url: https://github.com/falcosecurity/plugins/tree/master/plugins/k8saudit/rules
     license: Apache-2.0
+    keywords:
+      - audit
+      - audit-log
+      - audit-events
+      - kubernetes
+      - eks
+      - aws    
     capabilities:
       sourcing:
         supported: true
