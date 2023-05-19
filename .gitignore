@@ -6,4 +6,5 @@ output/
 plugins/*/*.so
 plugins/*/lib*.h
 plugins/dummy_c/nlohmann
-plugins/dummy_c/sdk
+plugins/dummy_c/include
+plugins/dummy_c/*.tar.gz
