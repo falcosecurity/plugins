@@ -3,8 +3,8 @@ github.com/alecthomas/jsonschema v0.0.0-20220216202328-9eeeec9d044b/go.mod h1:/n
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/falcosecurity/plugin-sdk-go v0.6.3-0.20230518082303-76e31c63c56c h1:NF6kXssDRnr70IhgV7RApnnsNOtCBxCIQu3uXt4Qzdo=
-github.com/falcosecurity/plugin-sdk-go v0.6.3-0.20230518082303-76e31c63c56c/go.mod h1:zwhMa42Ilc9MY2AjfGoLzwN2DpFgVmk6FiJR3BP/+v4=
+github.com/falcosecurity/plugin-sdk-go v0.6.3-0.20230519075604-7b2cafbb8d4a h1:wQtbGK0uNYk6Pnc9o3tPIHW9qo9x4T5imOrSm28NJko=
+github.com/falcosecurity/plugin-sdk-go v0.6.3-0.20230519075604-7b2cafbb8d4a/go.mod h1:zwhMa42Ilc9MY2AjfGoLzwN2DpFgVmk6FiJR3BP/+v4=
 github.com/iancoleman/orderedmap v0.0.0-20190318233801-ac98e3ecb4b0 h1:i462o439ZjprVSFSZLZxcsoAe592sZB1rci2Z8j4wdk=
 github.com/iancoleman/orderedmap v0.0.0-20190318233801-ac98e3ecb4b0/go.mod h1:N0Wam8K1arqPXNWjMo21EXnBPOPp36vB07FNRdD2geA=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
