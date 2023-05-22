@@ -48,7 +48,7 @@ func pluginToIndexEntry(p registry.Plugin, registry, repo string) *index.Entry {
 		Repository:  repo,
 		Description: p.Description,
 		Home:        p.URL,
-		Keywords:    append(p.Keywords, p.Name),
+		Keywords:    appendIfNotPresent(p.Keywords, p.Name),
 		License:     p.License,
 		Maintainers: p.Maintainers,
 		Sources:     []string{p.URL},
@@ -63,7 +63,7 @@ func pluginRulesToIndexEntry(p registry.Plugin, registry, repo string) *index.En
 		Repository:  repo,
 		Description: p.Description,
 		Home:        p.URL,
-		Keywords:    append(p.Keywords, p.Name+common.RulesArtifactSuffix),
+		Keywords:    appendIfNotPresent(p.Keywords, p.Name+common.RulesArtifactSuffix),
 		License:     p.License,
 		Maintainers: p.Maintainers,
 		Sources:     []string{p.RulesURL},
@@ -170,4 +170,17 @@ func ociRepo(ociEntries map[string]string, client remote.Client, ociRepoNamespac
 
 	ociEntries[artifactName] = ref
 	return nil
+}
+
+// Add new item to a slice if not present.
+func appendIfNotPresent(keywords []string, kw string) []string {
+	// If the keyword already exist do nothing.
+	for i := range keywords {
+		if keywords[i] == kw {
+			return keywords
+		}
+	}
+
+	// Add the keyword
+	return append(keywords, kw)
 }
