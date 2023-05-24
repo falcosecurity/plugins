@@ -108,7 +108,7 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 
 	switch field {
 	case "github.type":
-		res = string(jdata.GetStringBytes("type"))
+		res = string(jdata.GetStringBytes("webhook_type"))
 	case "github.action":
 		res = string(jdata.GetStringBytes("action"))
 	case "github.user":
