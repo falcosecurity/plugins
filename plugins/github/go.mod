@@ -4,7 +4,7 @@ go 1.15
 
 require (
 	github.com/alecthomas/jsonschema v0.0.0-20220216202328-9eeeec9d044b
-	github.com/falcosecurity/plugin-sdk-go v0.6.2
+	github.com/falcosecurity/plugin-sdk-go v0.7.1
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/google/go-querystring v1.1.0 // indirect
