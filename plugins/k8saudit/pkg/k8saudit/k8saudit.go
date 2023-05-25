@@ -53,7 +53,7 @@ func (k *Plugin) Info() *plugins.Info {
 		Name:        pluginName,
 		Description: "Read Kubernetes Audit Events and monitor Kubernetes Clusters",
 		Contact:     "github.com/falcosecurity/plugins",
-		Version:     "0.5.3",
+		Version:     "0.6.0",
 		EventSource: "k8s_audit",
 	}
 }

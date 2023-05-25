@@ -19,7 +19,7 @@
 
 - required_plugin_versions:
   - name: okta
-    version: 0.7.0
+    version: 0.8.0
 
 # Example Rule on login in to OKTA. Disabled by default since it might be noisy
 #- rule: User logged in to OKTA

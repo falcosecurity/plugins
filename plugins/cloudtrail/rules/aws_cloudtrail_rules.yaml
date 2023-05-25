@@ -20,9 +20,9 @@
 
 - required_plugin_versions:
   - name: cloudtrail
-    version: 0.7.0
+    version: 0.8.0
   - name: json
-    version: 0.6.0
+    version: 0.7.0
 
 # Note that this rule is disabled by default. It's useful only to
 # verify that the cloudtrail plugin is sending events properly.  The
