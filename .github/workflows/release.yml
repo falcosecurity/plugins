@@ -8,8 +8,8 @@ on:
 
 # Checks if any concurrent jobs is running for release CI and eventually cancel it.
 concurrency:
-  group: ci-release
-  cancel-in-progress: false
+  group: ci-release-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   extract-info:
