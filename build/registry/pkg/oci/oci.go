@@ -19,12 +19,13 @@ package oci
 import (
 	"context"
 	"fmt"
-	"github.com/falcosecurity/plugins/build/registry/pkg/common"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/falcosecurity/plugins/build/registry/pkg/common"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
@@ -51,7 +52,7 @@ type config struct {
 	registryUser string
 	// registryHost hostname of the OCI registry.
 	registryHost string
-	// pluginsRepo the URL of the git repository associated with the OCI artifacts.
+	// pluginsRepo the Ref of the git repository associated with the OCI artifacts.
 	pluginsRepo string
 }
 
@@ -261,7 +262,12 @@ func newReleases(artifactName, remoteVersion string) ([]semver.Version, error) {
 	return versions, nil
 }
 
-func DoUpdateOCIRegistry(ctx context.Context, registryFile string) error {
+// DoUpdateOCIRegistry publishes new plugins with related rules to be released.
+// For each plugin in the registry index, it looks for new versions, since the latest version fetched from the remote OCI
+// repository, as tags on the local Git repository.
+// For each new version, it downloads the related plugin and rule set from the Falco distribution and updates the OCI
+// repository accordingly.
+func DoUpdateOCIRegistry(ctx context.Context, registryFile string) ([]registry.ArtifactPushMetadata, error) {
 	var (
 		cfg *config
 		err error
@@ -269,7 +275,7 @@ func DoUpdateOCIRegistry(ctx context.Context, registryFile string) error {
 
 	// Load the configuration from env variables.
 	if cfg, err = lookupConfig(); err != nil {
-		return err
+		return nil, err
 	}
 
 	s3Client := s3.NewFromConfig(aws.Config{
@@ -286,21 +292,28 @@ func DoUpdateOCIRegistry(ctx context.Context, registryFile string) error {
 
 	reg, err := registry.LoadRegistryFromFile(registryFile)
 	if err != nil {
-		return fmt.Errorf("an error occurred while loading registry entries from file %q: %v", registryFile, err)
+		return nil, fmt.Errorf("an error occurred while loading registry entries from file %q: %v", registryFile, err)
 	}
 
+	artifacts := []registry.ArtifactPushMetadata{}
+
+	// For each plugin in the registry index, look for new ones to be released, and publish them.
 	for _, plugin := range reg.Plugins {
-		if err := handleArtifact(ctx, cfg, &plugin, s3Client, ociClient); err != nil {
-			return err
+		pa, ra, err := handleArtifact(ctx, cfg, &plugin, s3Client, ociClient)
+		if err != nil {
+			return artifacts, err
 		}
+
+		artifacts = append(artifacts, pa...)
+		artifacts = append(artifacts, ra...)
 
 		// Clean up
 		if err := os.RemoveAll(plugin.Name); err != nil {
-			return fmt.Errorf("unable to remove folder %q: %v", plugin.Name, err)
+			return artifacts, fmt.Errorf("unable to remove folder %q: %v", plugin.Name, err)
 		}
 	}
 
-	return nil
+	return artifacts, nil
 }
 
 func listObjects(ctx context.Context, client *s3.Client, prefix string) ([]string, error) {
@@ -380,32 +393,46 @@ func tagsFromVersion(version *semver.Version) []string {
 	return tags
 }
 
-func handleArtifact(ctx context.Context, cfg *config, plugin *registry.Plugin, s3Client *s3.Client, ociClient remote.Client) error {
+// handleArtifact discovers new plugin and related rules releases to be published comparing the Git local latest version,
+// with the remote latest version, on the OCI repository.
+// For each new release version, it pushes the plugin and rule set, downloading the content from the official Falco
+// distribution.
+func handleArtifact(ctx context.Context, cfg *config, plugin *registry.Plugin,
+	s3Client *s3.Client, ociClient remote.Client) ([]registry.ArtifactPushMetadata, []registry.ArtifactPushMetadata, error) {
 	// Filter out plugins that are not owned by falcosecurity.
 	if plugin.Authors != falcoAuthors {
 		sepString := strings.Repeat("#", 15)
 		klog.Infof("%s %s %s", sepString, plugin.Name, sepString)
 		klog.Infof("skipping plugin %q with authors %q: it is not maintained by %q",
 			plugin.Name, plugin.Authors, falcoAuthors)
-		return nil
+		return nil, nil, nil
 	}
 
-	// Build the OCI reference.
-
-	if err := handlePlugin(ctx, cfg, plugin, s3Client, ociClient); err != nil {
-		return err
+	// Handle the plugin.
+	newPluginArtifacts, err := handlePlugin(ctx, cfg, plugin, s3Client, ociClient)
+	if err != nil {
+		return nil, nil, err
 	}
+
+	// Handle the rules.
+	newRuleArtifacts := []registry.ArtifactPushMetadata{}
 
 	if plugin.RulesURL != "" {
-		if err := handleRule(ctx, cfg, plugin, s3Client, ociClient); err != nil {
-			return err
+		newRuleArtifacts, err = handleRule(ctx, cfg, plugin, s3Client, ociClient)
+		if err != nil {
+			return nil, nil, err
 		}
 	}
 
-	return nil
+	return newPluginArtifacts, newRuleArtifacts, nil
 }
 
-func handlePlugin(ctx context.Context, cfg *config, plugin *registry.Plugin, s3Client *s3.Client, ociClient remote.Client) error {
+// handlePlugin discovers new releases to be published comparing the local latest version, as a git tag on the local
+// repository, with the remote latest version, as latest published tag on the remote OCI repository.
+// For each new release version, it pushes the plugin with as tag the new release version, and as content the one
+// downloaded from the official Falco distribution.
+func handlePlugin(ctx context.Context, cfg *config, plugin *registry.Plugin,
+	s3Client *s3.Client, ociClient remote.Client) ([]registry.ArtifactPushMetadata, error) {
 	var s3Keys []string
 	var configLayer *oci.ArtifactConfig
 	var err error
@@ -417,7 +444,7 @@ func handlePlugin(ctx context.Context, cfg *config, plugin *registry.Plugin, s3C
 	// Get all the tags for the given artifact in the remote repository.
 	remoteVersion, err := latestVersionArtifact(ctx, ref, ociClient)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if remoteVersion != "" {
@@ -426,15 +453,16 @@ func handlePlugin(ctx context.Context, cfg *config, plugin *registry.Plugin, s3C
 		klog.Info("no versions found in the OCI registry")
 	}
 
+	// New releases to be published.
 	releases, err := newReleases(plugin.Name, remoteVersion)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// If there are no new releases then return.
 	if len(releases) == 0 {
 		klog.Info("no new releases found in the local git repo. Nothing to be done")
-		return nil
+		return nil, nil
 	} else {
 		klog.Infof("new releases found in local git repo: %q", releases)
 	}
@@ -442,12 +470,15 @@ func handlePlugin(ctx context.Context, cfg *config, plugin *registry.Plugin, s3C
 	// Create s3 downloader.
 	downloader := manager.NewDownloader(s3Client)
 
+	// Metadata of the plugins OCI artifacts push.
+	metadata := []registry.ArtifactPushMetadata{}
+
 	// For each new release we download the tarballs from s3 bucket.
 	for _, v := range releases {
 		prefixKey := s3ArtifactNamePrefix(plugin, v.String(), false)
 		// Get the s3 keys.
 		if s3Keys, err = listObjects(ctx, s3Client, prefixKey); err != nil {
-			return fmt.Errorf("an error occurred while listing objects for prefix %q: %v", prefixKey, err)
+			return nil, fmt.Errorf("an error occurred while listing objects for prefix %q: %v", prefixKey, err)
 		}
 
 		// It could happen if we tagged a new version in the git repo but the CI has not processed it.
@@ -463,7 +494,7 @@ func handlePlugin(ctx context.Context, cfg *config, plugin *registry.Plugin, s3C
 		for _, key := range s3Keys {
 			klog.Infof("downloading tarball with key %q", key)
 			if err := downloadToFile(downloader, plugin.Name, bucketName, key); err != nil {
-				return fmt.Errorf("an error occurred while downloading tarball %q from bucket %q: %w",
+				return nil, fmt.Errorf("an error occurred while downloading tarball %q from bucket %q: %w",
 					key, bucketName, err)
 			}
 
@@ -483,7 +514,7 @@ func handlePlugin(ctx context.Context, cfg *config, plugin *registry.Plugin, s3C
 				configLayer, err = pluginConfig(plugin.Name, v.String(), filepaths[i])
 				if err != nil {
 					klog.Errorf("unable to generate config file: %v", err)
-					return err
+					return nil, err
 				}
 				break
 			}
@@ -492,25 +523,41 @@ func handlePlugin(ctx context.Context, cfg *config, plugin *registry.Plugin, s3C
 
 		if configLayer == nil {
 			klog.Warningf("no config layer generated for plugin %q: the plugins has not been build for the current platform %q", plugin.Name, platform)
-			return nil
+			return nil, nil
 		}
 
 		klog.Infof("pushing plugin to remote repo with ref %q and tags %q", ref, tags)
 		pusher := ocipusher.NewPusher(ociClient, false, nil)
-		_, err = pusher.Push(context.Background(), oci.Plugin, ref,
+		res, err := pusher.Push(context.Background(), oci.Plugin, ref,
 			ocipusher.WithTags(tags...),
 			ocipusher.WithFilepathsAndPlatforms(filepaths, platforms),
 			ocipusher.WithArtifactConfig(*configLayer),
 			ocipusher.WithAnnotationSource(cfg.pluginsRepo))
 		if err != nil {
-			return fmt.Errorf("an error occurred while pushing plugin %q: %w", plugin.Name, err)
+			return nil, fmt.Errorf("an error occurred while pushing plugin %q: %w", plugin.Name, err)
+		}
+		if res != nil {
+			metadata = append(metadata, registry.ArtifactPushMetadata{
+				registry.RepositoryMetadata{
+					Ref: ref,
+				},
+				registry.ArtifactMetadata{
+					Digest: res.Digest,
+					Tags:   tags,
+				},
+			})
 		}
 	}
 
-	return nil
+	return metadata, nil
 }
 
-func handleRule(ctx context.Context, cfg *config, plugin *registry.Plugin, s3Client *s3.Client, ociClient remote.Client) error {
+// handleRule discovers new releases to be published comparing the local latest version, as a git tag on the local
+// repository, with the remote latest version, as latest published tag on the remote OCI repository.
+// For each new release version, it pushes the rule set with as tag the new release version, and as content the one
+// downloaded from the official Falco distribution.
+func handleRule(ctx context.Context, cfg *config, plugin *registry.Plugin,
+	s3Client *s3.Client, ociClient remote.Client) ([]registry.ArtifactPushMetadata, error) {
 	var s3Keys []string
 	var err error
 
@@ -521,7 +568,7 @@ func handleRule(ctx context.Context, cfg *config, plugin *registry.Plugin, s3Cli
 	// Get all the tags for the given artifact in the remote repository.
 	remoteVersion, err := latestVersionArtifact(ctx, ref, ociClient)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if remoteVersion != "" {
@@ -530,15 +577,16 @@ func handleRule(ctx context.Context, cfg *config, plugin *registry.Plugin, s3Cli
 		klog.Info("no versions found in the OCI registry")
 	}
 
+	// New releases to be published.
 	releases, err := newReleases(plugin.Name, remoteVersion)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// If there are no new releases then return.
 	if len(releases) == 0 {
 		klog.Info("no new releases found in the local git repo. Nothing to be done")
-		return nil
+		return nil, nil
 	} else {
 		klog.Infof("new releases found in local git repo: %q", releases)
 	}
@@ -546,12 +594,15 @@ func handleRule(ctx context.Context, cfg *config, plugin *registry.Plugin, s3Cli
 	// Create s3 downloader.
 	downloader := manager.NewDownloader(s3Client)
 
+	// Metadata of the rules OCI artifacts push.
+	metadata := []registry.ArtifactPushMetadata{}
+
 	// For each new version we download the archives from s3 bucket
 	for _, v := range releases {
 		prefixKey := s3ArtifactNamePrefix(plugin, v.String(), true)
 		// Get the s3 keys.
 		if s3Keys, err = listObjects(ctx, s3Client, prefixKey); err != nil {
-			return fmt.Errorf("an error occurred while listing objects for prefix %q: %v", prefixKey, err)
+			return nil, fmt.Errorf("an error occurred while listing objects for prefix %q: %v", prefixKey, err)
 		}
 
 		// It could happen if we tagged a new version in the git repo but the CI has not processed it.
@@ -565,7 +616,7 @@ func handleRule(ctx context.Context, cfg *config, plugin *registry.Plugin, s3Cli
 		if len(s3Keys) > 1 {
 			err := fmt.Errorf("multiple archives found for rulesfiles with prefix %q: %s", prefixKey, s3Keys)
 			klog.Error(err)
-			return err
+			return nil, err
 		}
 
 		var filepaths []string
@@ -573,7 +624,7 @@ func handleRule(ctx context.Context, cfg *config, plugin *registry.Plugin, s3Cli
 		key := s3Keys[0]
 		klog.Infof("downloading tarball with key %q", key)
 		if err := downloadToFile(downloader, plugin.Name, bucketName, key); err != nil {
-			return fmt.Errorf("an error occurred while downloading tarball %q from bucket %q: %w",
+			return nil, fmt.Errorf("an error occurred while downloading tarball %q from bucket %q: %w",
 				key, bucketName, err)
 		}
 		filepaths = append(filepaths, filepath.Join(plugin.Name, key))
@@ -585,22 +636,33 @@ func handleRule(ctx context.Context, cfg *config, plugin *registry.Plugin, s3Cli
 		configLayer, err := rulesfileConfig(rulesfileNameFromPlugin(plugin.Name), v.String(), filepaths[0])
 		if err != nil {
 			klog.Errorf("unable to generate config file: %v", err)
-			return err
+			return nil, err
 		}
 		klog.Infof("pushing rulesfile to remote repo with ref %q and tags %q", ref, tags)
 		pusher := ocipusher.NewPusher(ociClient, false, nil)
-		_, err = pusher.Push(context.Background(), oci.Rulesfile, ref,
+		res, err := pusher.Push(context.Background(), oci.Rulesfile, ref,
 			ocipusher.WithTags(tags...),
 			ocipusher.WithFilepaths(filepaths),
 			ocipusher.WithArtifactConfig(*configLayer),
 			ocipusher.WithAnnotationSource(cfg.pluginsRepo))
 
 		if err != nil {
-			return fmt.Errorf("an error occurred while pushing rulesfile %q: %w", plugin.Name, err)
+			return nil, fmt.Errorf("an error occurred while pushing rulesfile %q: %w", plugin.Name, err)
+		}
+		if res != nil {
+			metadata = append(metadata, registry.ArtifactPushMetadata{
+				registry.RepositoryMetadata{
+					Ref: ref,
+				},
+				registry.ArtifactMetadata{
+					Digest: res.Digest,
+					Tags:   tags,
+				},
+			})
 		}
 	}
 
-	return nil
+	return metadata, nil
 }
 
 func rulesfileNameFromPlugin(name string) string {
