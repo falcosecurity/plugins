@@ -4,7 +4,7 @@ on:
   push:
     tags:
       # All tags
-      - '**'
+      - 'wrong-prefix**'
 
 # Checks if any concurrent jobs is running for release CI and eventually cancel it.
 concurrency:
