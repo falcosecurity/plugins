@@ -53,3 +53,19 @@ type Registry struct {
 	Plugins         []Plugin `yaml:"plugins"`
 	ReservedSources []string `yaml:"reserved_sources"`
 }
+
+// ArtifactPushMetadata represents metadata of a push of an OCI Artifact to
+// an OCI repository.
+type ArtifactPushMetadata struct {
+	Repository RepositoryMetadata `json:"repository"`
+	Artifact   ArtifactMetadata   `json:"artifact"`
+}
+
+type ArtifactMetadata struct {
+	Digest string   `json:"digest"`
+	Tags   []string `json:"tags"`
+}
+
+type RepositoryMetadata struct {
+	Ref string `json:"ref"`
+}

@@ -18,13 +18,17 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
+
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+
 	"github.com/falcosecurity/plugins/build/registry/pkg/check"
 	"github.com/falcosecurity/plugins/build/registry/pkg/distribution"
 	"github.com/falcosecurity/plugins/build/registry/pkg/oci"
 	"github.com/falcosecurity/plugins/build/registry/pkg/table"
-	"github.com/spf13/cobra"
-	"os"
 )
 
 const (
@@ -72,7 +76,19 @@ func main() {
 		Args:                  cobra.ExactArgs(1),
 		DisableFlagsInUseLine: true,
 		RunE: func(c *cobra.Command, args []string) error {
-			return oci.DoUpdateOCIRegistry(context.Background(), args[0])
+			res, err := oci.DoUpdateOCIRegistry(context.Background(), args[0])
+			if err != nil {
+				return err
+			}
+
+			out, err := json.Marshal(res)
+			if err != nil {
+				return errors.Wrap(err, "error marshaling oci registry push metadata")
+			}
+
+			fmt.Printf("%s\n", out)
+
+			return nil
 		},
 	}
 
