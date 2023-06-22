@@ -18,6 +18,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 
@@ -85,7 +86,12 @@ func main() {
 		Args:                  cobra.ExactArgs(1),
 		DisableFlagsInUseLine: true,
 		RunE: func(c *cobra.Command, args []string) error {
-			return oci.UpdateOCIRegistry(args[0], opts)
+			status, err := oci.DoUpdateOCIRegistry(context.Background(), args[0])
+			if err != nil {
+				return err
+			}
+
+			return oci.PrintUpdateStatus(status, opts.Output)
 		},
 	}
 
