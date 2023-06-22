@@ -22,10 +22,15 @@ jobs:
         run: make
 
       - name: Upload OCI artifacts to GitHub packages
+        id: oci_build
         env:
           REGISTRY: ghcr.io
           REGISTRY_USER: ${{ github.repository_owner }}
           REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO_GITHUB: https://github.com/${{ github.repository_owner }}/plugins.git
         working-directory: build/registry
-        run: ./bin/registry update-oci-registry ../../registry.yaml
+        run: >-
+          echo "REGISTRY_UPDATE_STATUS=$(
+            ./bin/registry update-oci-registry ../../registry.yaml
+          )" >> $GITHUB_OUTPUT
+      - run: "echo ${{ steps.oci_build.outputs.REGISTRY_UPDATE_STATUS }}"
