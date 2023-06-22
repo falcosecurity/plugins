@@ -54,6 +54,8 @@ type Registry struct {
 	ReservedSources []string `yaml:"reserved_sources"`
 }
 
+type ArtifactPushMetadataList []ArtifactPushMetadata
+
 // ArtifactPushMetadata represents metadata of a push of an OCI Artifact to
 // an OCI repository.
 type ArtifactPushMetadata struct {
