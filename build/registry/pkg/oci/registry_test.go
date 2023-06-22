@@ -14,10 +14,10 @@ import (
 
 var _ = Describe("Update OCI registry", func() {
 	var (
-		out  *bytes.Buffer
-		res  registry.ArtifactPushMetadataList
-		opts *options.CommonOptions
-		err  error
+		out    *bytes.Buffer
+		status registry.ArtifactsPushStatus
+		opts   *options.CommonOptions
+		err    error
 	)
 
 	Context("Print update result", func() {
@@ -28,7 +28,7 @@ var _ = Describe("Update OCI registry", func() {
 
 		When("at least one artifact has been pushed to the OCI registry", func() {
 			BeforeEach(func() {
-				res = registry.ArtifactPushMetadataList{
+				status = registry.ArtifactsPushStatus{
 					{
 						Repository: registry.RepositoryMetadata{
 							Ref: samplePluginRepoRef,
@@ -38,7 +38,7 @@ var _ = Describe("Update OCI registry", func() {
 							Tags:   []string{samplePluginTag}},
 					},
 				}
-				err = oci.PrintUpdateResult(res, opts)
+				err = oci.PrintUpdateStatus(status, opts.Output)
 			})
 
 			It("should not fail", func() {
@@ -48,16 +48,16 @@ var _ = Describe("Update OCI registry", func() {
 				Expect(out.String()).ToNot(BeEmpty())
 			})
 			It("output should contain a valid JSON", func() {
-				res = registry.ArtifactPushMetadataList{}
-				err := json.Unmarshal(out.Bytes(), &res)
+				status = registry.ArtifactsPushStatus{}
+				err := json.Unmarshal(out.Bytes(), &status)
 				Expect(err).To(BeNil())
 			})
 		})
 
 		When("no artifacts have been pushed to the OCI registry", func() {
 			BeforeEach(func() {
-				res = registry.ArtifactPushMetadataList{}
-				err = oci.PrintUpdateResult(res, opts)
+				status = registry.ArtifactsPushStatus{}
+				err = oci.PrintUpdateStatus(status, opts.Output)
 			})
 
 			It("should not fail", func() {
@@ -67,8 +67,8 @@ var _ = Describe("Update OCI registry", func() {
 				Expect(out.String()).ToNot(BeEmpty())
 			})
 			It("output should contain a valid JSON", func() {
-				res = registry.ArtifactPushMetadataList{}
-				err := json.Unmarshal(out.Bytes(), &res)
+				status = registry.ArtifactsPushStatus{}
+				err := json.Unmarshal(out.Bytes(), &status)
 				Expect(err).To(BeNil())
 			})
 		})
