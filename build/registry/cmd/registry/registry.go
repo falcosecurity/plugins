@@ -43,6 +43,7 @@ func main() {
 	defer out.Flush()
 
 	opts := options.NewCommonOptions(
+		options.WithContext(context.Background()),
 		options.WithOutput(out),
 	)
 
@@ -86,7 +87,7 @@ func main() {
 		Args:                  cobra.ExactArgs(1),
 		DisableFlagsInUseLine: true,
 		RunE: func(c *cobra.Command, args []string) error {
-			status, err := oci.DoUpdateOCIRegistry(context.Background(), args[0])
+			status, err := oci.DoUpdateOCIRegistry(opts.Context, args[0])
 			if err != nil {
 				return err
 			}
