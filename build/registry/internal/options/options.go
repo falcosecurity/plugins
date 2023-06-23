@@ -17,11 +17,13 @@ limitations under the License.
 package options
 
 import (
+	"context"
 	"io"
 )
 
 type CommonOptions struct {
-	Output io.Writer
+	Output  io.Writer
+	Context context.Context
 }
 
 type CommonOption func(opts *CommonOptions)
@@ -39,5 +41,11 @@ func NewCommonOptions(opts ...CommonOption) *CommonOptions {
 func WithOutput(out io.Writer) CommonOption {
 	return func(opts *CommonOptions) {
 		opts.Output = out
+	}
+}
+
+func WithContext(ctx context.Context) CommonOption {
+	return func(opts *CommonOptions) {
+		opts.Context = ctx
 	}
 }
