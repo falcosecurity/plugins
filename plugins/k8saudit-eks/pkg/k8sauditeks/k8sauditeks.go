@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
@@ -58,7 +59,7 @@ func (k *Plugin) Info() *plugins.Info {
 		Name:        pluginName,
 		Description: "Read Kubernetes Audit Events for EKS from Cloudwatch Logs",
 		Contact:     "github.com/falcosecurity/plugins",
-		Version:     "0.2.1",
+		Version:     "0.3.0",
 		EventSource: "k8s_audit",
 	}
 }
@@ -138,6 +139,10 @@ func (p *Plugin) Open(clustername string) (source.Instance, error) {
 		for {
 			select {
 			case i := <-eventsC:
+				message := *i.Message
+				if strings.Contains(message, "[Truncated...]") {
+					continue
+				}
 				values, err := p.Plugin.ParseAuditEventsPayload([]byte(*i.Message))
 				if err != nil {
 					p.Logger.Println(err)
