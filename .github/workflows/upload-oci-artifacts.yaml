@@ -61,6 +61,14 @@ jobs:
         with:
           cosign-release: 'v2.1.0'
       - run: cosign version
+
+      - name: Log into ghcr.io
+        uses: docker/login-action@master
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Sign the artifacts with GitHub OIDC Token
         run: cosign sign --yes ${{ matrix.value.repository.ref }}@${{ matrix.value.artifact.digest }}
 
