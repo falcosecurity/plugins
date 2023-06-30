@@ -258,3 +258,8 @@ serviceAccount:
   annotations:
     - eks.amazonaws.com/role-arn: arn:aws:iam::${ACCOUNT_ID}:role/${ROLE} #if you use an OIDC provider, you can attach a role to the service account
 ```
+Note the three placeholders REGION, ACCOUNT_ID, and CLUSTER_NAME which must be replaced with fitting values.
+
+### Warning
+
+AWS Cloudwatch Logs truncates log lines with more than 10,000 characters, as these lines can't be parsed by the plugin they are ignored and some events may be missed.
