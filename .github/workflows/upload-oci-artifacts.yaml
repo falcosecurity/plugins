@@ -43,9 +43,9 @@ jobs:
   # Create signatures of the plugin artifacts as OCI artifacts
   sign-oci-artifacts:
     needs: [ publish-oci-artifacts ]
-
     runs-on: ubuntu-latest
 
+    if: ${{ needs.publish-oci-artifacts.outputs.matrix != '[]' }}
     strategy:
       matrix:
         value: ${{ fromJson(needs.publish-oci-artifacts.outputs.matrix) }}
