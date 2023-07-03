@@ -37,9 +37,6 @@ jobs:
             ./bin/registry update-oci-registry ../../registry.yaml
           )" >> $GITHUB_OUTPUT
 
-      - name: Print registry update status
-        run: "echo ${{ steps.oci_build.outputs.REGISTRY_UPDATE_STATUS }}"
-
   # Create signatures of the plugin artifacts as OCI artifacts
   sign-oci-artifacts:
     needs: [ publish-oci-artifacts ]
