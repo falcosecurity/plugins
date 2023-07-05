@@ -1,4 +1,4 @@
-# This is a reusable workflow used by master CCI
+# This is a reusable workflow used by master CI
 on:
   workflow_call:
     inputs:
@@ -59,42 +59,12 @@ jobs:
           name: ${{ inputs.plugins-artifact }}
           path: /tmp/plugins-${{ inputs.arch }}
       
-      - name: Prepare config file
-        run: |          
-          # craft a default falco.yaml if no custom one is available
-          config_file=$CONFIG_FILE
-          if [ ! -f "$config_file" ]; then
-            # we assume that the current plugin is always a dependency
-            deps="${{ inputs.plugin }}"
-
-            # we collect all plugin dependencies across all plugin rulesets
-            # todo(jasondellaluce): find a way to avoid ignoring alternatives
-            rules_dir=$RULES_DIR
-            if [ -d "$rules_dir" ]; then
-              rules_files=$(ls $rules_dir/*)
-              for rules_file in $rules_files; do
-                rules_deps=$(cat $rules_file | yq -r '.[].required_plugin_versions | select(. != null and . != "")[] | [.name + ":" + .version] | @csv')
-                for dep in $rules_deps; do
-                  plugin_name=$(echo $dep | tr -d '"' | cut -d ':' -f 1)
-                  if [[ ${deps} != *"$plugin_name"* ]]; then
-                    deps="${deps} "${plugin_name}
-                  fi
-                done
-              done
-            fi
-
-            mkdir -p $(echo $config_file | sed 's:[^/]*$::')
-            touch $config_file
-            echo "plugins:" >> $config_file
-            for dep in $deps; do
-              echo "  - name: ${dep}" >> $config_file
-              echo "    library_path: lib${dep}.so" >> $config_file
-            done
-          fi
-
-          echo Using config file "${config_file}"
-          cat ${config_file}
-          echo ""
+      - name: Get config file
+        run: |
+          ./.github/get-config-file.sh \
+            ${{ inputs.plugin }} \
+            ${{ env.CONFIG_FILE }} \
+            ${{ env.RULES_DIR }}
 
       - name: Install plugin and rules (local artifacts)
         run: |
