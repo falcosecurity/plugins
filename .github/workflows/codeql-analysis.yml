@@ -20,6 +20,12 @@ on:
   schedule:
     - cron: '28 11 * * 2'
 
+# Checks if any concurrent jobs under the same pull request or branch are being executed
+# NOTE: this will cancel every workflow that is being ran against a PR as group is just the github ref (without the workflow name)
+concurrency:
+  group: codeql-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   analyze:
     name: Analyze
