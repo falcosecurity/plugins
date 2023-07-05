@@ -11,6 +11,10 @@ concurrency:
   group: ci-release-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  FALCO_VERSION: 0.35.1
+  FALCOCTL_VERSION: 0.5.1
+
 jobs:
   extract-info:
     runs-on: ubuntu-latest
@@ -36,9 +40,27 @@ jobs:
       makecommand: make release/${{ needs.extract-info.outputs.package }}
       suffix: stable
     secrets: inherit
-    
+
+  build-rules-tool:
+    needs: [extract-info]
+    uses: ./.github/workflows/reusable_build_rules_tool.yaml
+    with:
+      output: rules-checker
+      repository: falcosecurity/rules
+
+  validate-plugins:
+    needs: [extract-info, build-plugins, build-rules-tool]
+    uses: ./.github/workflows/reusable_validate_plugins.yaml
+    with:
+      plugin: ${{ needs.extract-info.outputs.package }}
+      falcoctl-version: ${{ github.env.FALCOCTL_VERSION }}
+      falco-image: falcosecurity/falco-no-driver:${{ github.env.FALCO_VERSION }}
+      plugins-artifact: plugins-x86_64-stable.tar.gz
+      rules-checker: ./rules-checker
+      arch: x86_64
+
   publish-plugins:
-    needs: build-plugins
+    needs: [build-plugins, validate-plugins]
     uses: falcosecurity/plugins/.github/workflows/reusable_publish_packages.yaml@master
     with:
       suffix: stable

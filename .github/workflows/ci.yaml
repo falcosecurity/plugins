@@ -7,14 +7,44 @@ on:
 # Checks if any concurrent jobs under the same pull request or branch are being executed
 # NOTE: this will cancel every workflow that is being ran against a PR as group is just the github ref (without the workflow name)
 concurrency:
-  group: ${{ github.head_ref || github.run_id }}
+  group: ci-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
-jobs:
-  build-plugins-ci:
+env:
+  FALCO_VERSION: 0.35.1
+  FALCOCTL_VERSION: 0.5.1
+
+jobs:  
+  build-plugins:
     uses: ./.github/workflows/reusable_build_packages.yaml
     with:
       makecommand: make packages
       suffix: ${{ github.event.number }}
     secrets: inherit
 
+  get-changed-plugins:
+    uses: ./.github/workflows/reusable_get_changed_plugins.yaml
+  
+  build-rules-tool:
+    needs: [get-changed-plugins]
+    if: needs.get-changed-plugins.outputs.changed-plugins != '[]' && needs.get-changed-plugins.outputs.changed-plugins != ''
+    uses: ./.github/workflows/reusable_build_rules_tool.yaml
+    with:
+      output: rules-checker
+      repository: falcosecurity/rules
+  
+  validate-plugins:
+    needs: [build-plugins, get-changed-plugins, build-rules-tool]
+    if: needs.get-changed-plugins.outputs.changed-plugins != '[]' && needs.get-changed-plugins.outputs.changed-plugins != ''
+    strategy:
+      fail-fast: false
+      matrix:
+        plugin: ${{ fromJson(needs.get-changed-plugins.outputs.changed-plugins) }}
+    uses: ./.github/workflows/reusable_validate_plugins.yaml
+    with:
+      plugin: ${{ matrix.plugin }}
+      falcoctl-version: ${{ github.env.FALCOCTL_VERSION }}
+      falco-image: falcosecurity/falco-no-driver:${{ github.env.FALCO_VERSION }}
+      plugins-artifact: plugins-x86_64-${{ github.event.number }}.tar.gz
+      rules-checker: ./rules-checker
+      arch: x86_64
