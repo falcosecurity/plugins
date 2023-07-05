@@ -1,0 +1,46 @@
+# This is a reusable workflow used by master CCI
+on:
+  workflow_call:
+    outputs:
+      changed-plugins:
+        description: "A json-encoded array with the names of plugins to be used by the CI"
+        value: ${{ jobs.get-values.outputs.changed-plugins }}
+
+jobs:
+  get-values:
+    runs-on: ubuntu-latest
+    outputs:
+      changed-plugins: ${{ steps.set-changed-plugins.outputs.changed-plugins }}
+    steps:
+      - name: Checkout rules
+        uses: actions/checkout@v3
+
+      - name: Get changed files
+        id: changed-plugins
+        if: github.event_name == 'pull_request'
+        uses: jitterbit/get-changed-files@v1
+        with:
+          format: space-delimited
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get changed plugins
+        id: set-changed-plugins
+        run: |
+          # if we skip changed-plugins because we're not in a pull-request,
+          # then we consider all the rules contained in the repo
+          all_files="${{ steps.changed-plugins.outputs.all }}"
+          values=""
+          if [ -z "$all_files" ]; then
+            values=$(ls plugins)
+          else
+            for changed_file in $all_files; do
+              if [[ ${changed_file} =~ ^plugins/.* ]]; then
+                plugindir=$(echo ${changed_file} | sed -e 's/^plugins//' | sed -E 's_(/[^/]+).*_\1_')
+                pluginname="${plugindir:1}"
+                if [[ ! $values =~ "$pluginname" ]]; then
+                  values="${values}$pluginname"$'\n'
+                fi
+              fi
+            done
+          fi
+          echo "changed-plugins=$(echo "${values}" | jq -R -s -c 'split("\n")' | jq -c 'map(select(length > 0))')" >> $GITHUB_OUTPUT
