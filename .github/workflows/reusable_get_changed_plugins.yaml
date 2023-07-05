@@ -1,4 +1,4 @@
-# This is a reusable workflow used by master CCI
+# This is a reusable workflow used by master CI
 on:
   workflow_call:
     outputs:

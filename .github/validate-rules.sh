@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 falco_image=$1
 checker_tool=$2

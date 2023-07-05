@@ -1,0 +1,138 @@
+name: Rules
+
+on:
+  pull_request:
+    branches:
+      - master
+
+# Checks if any concurrent jobs under the same pull request or branch are being executed
+# NOTE: this will cancel every workflow that is being ran against a PR as group is just the github ref (without the workflow name)
+concurrency:
+  group: rules-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  FALCO_VERSION: 0.35.1
+
+jobs:
+  get-changed-plugins:
+    uses: ./.github/workflows/reusable_get_changed_plugins.yaml
+    
+  build-rules-tool:
+    needs: [get-changed-plugins]
+    if: needs.get-changed-plugins.outputs.changed-plugins != '[]' && needs.get-changed-plugins.outputs.changed-plugins != ''
+    uses: ./.github/workflows/reusable_build_rules_tool.yaml
+    with:
+      output: rules-checker
+      repository: falcosecurity/rules
+
+  check-version:
+    needs: [get-changed-plugins, build-rules-tool]
+    if: github.event_name == 'pull_request' && needs.get-changed-plugins.outputs.changed-plugins != '[]' && needs.get-changed-plugins.outputs.changed-plugins != ''
+    strategy:
+      fail-fast: false
+      matrix:
+        plugin: ${{ fromJson(needs.get-changed-plugins.outputs.changed-plugins) }}
+    runs-on: ubuntu-latest
+    env:
+      RULES_DIR: ${{ github.workspace }}/plugins/${{ matrix.plugin }}/rules
+      CONFIG_FILE: ${{ github.workspace }}/plugins/${{ matrix.plugin }}/falco.yaml
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Get all git tags
+        run: git fetch --tags origin
+      
+      - name: Install system dependencies
+        run:
+          pip install yq
+
+      - name: Download rules tool
+        uses: actions/download-artifact@v3
+        with:
+          name: rules-tool.tar.gz
+      
+      - name: Get config file
+        run: |
+          ./.github/get-config-file.sh \
+            ${{ matrix.plugin }} \
+            ${{ env.CONFIG_FILE }} \
+            ${{ env.RULES_DIR }}
+
+      - name: Compare changed files with previous versions
+        id: compare
+        run: |
+          rules_dir=$RULES_DIR
+
+          if [ -d "$rules_dir" ]; then
+            rules_files=$(ls $rules_dir/*)
+            for rules_file in $rules_files; do
+              ./.github/compare-rule-files.sh \
+                  "$rules_file" \
+                  $CONFIG_FILE \
+                  ${{ matrix.plugin }} \
+                  rule_result.txt \
+                  ./rules-checker \
+                  "falcosecurity/falco-no-driver:$FALCO_VERSION"
+
+              if [ -s rule_result.txt ]; then
+                if [ ! -s result.txt ]; then
+                  touch result.txt
+                fi
+                cat rule_result.txt >> result.txt
+              fi
+            done
+          fi
+
+          if [ -s result.txt ]; then
+            echo "comment_file=result.txt" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Save PR info
+        if: steps.compare.outputs.comment_file != ''
+        run: |
+          mkdir -p ./pr
+          cp ${{ steps.compare.outputs.comment_file }} ./pr/COMMENT-${{ strategy.job-index }}
+
+      - name: Upload PR info as artifact
+        uses: actions/upload-artifact@v2
+        if: steps.compare.outputs.comment_file != ''
+        with:
+          name: pr-${{ strategy.job-index }}
+          path: pr/
+          retention-days: 1
+
+  upload-pr-info:
+    needs: [get-changed-plugins, check-version]
+    if: github.event_name == 'pull_request' && needs.get-changed-plugins.outputs.changed-plugins != '[]' && needs.get-changed-plugins.outputs.changed-plugins != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download PR infos
+        uses: actions/download-artifact@v3
+        with:
+          path: tmp-artifacts
+      
+      - name: Save PR info
+        run: |
+          mkdir -p ./pr
+          echo ${{ github.event.number }} > ./pr/NR
+          touch ./pr/COMMENT
+          echo "# Rules files suggestions" >> ./pr/COMMENT
+          echo "" >> ./pr/COMMENT
+          files=$(find ./tmp-artifacts/)
+          for file in $files; do
+            if [[ $file =~ "COMMENT" ]]; then
+              cat $file >> ./pr/COMMENT
+            fi
+          done
+          echo Uploading PR info...
+          cat ./pr/COMMENT
+          echo ""
+
+      - name: Upload PR info as artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: pr
+          path: pr/
+          retention-days: 1
