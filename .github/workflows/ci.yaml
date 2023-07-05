@@ -10,10 +10,6 @@ concurrency:
   group: ci-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
-env:
-  FALCO_VERSION: 0.35.1
-  FALCOCTL_VERSION: 0.5.1
-
 jobs:  
   build-plugins:
     uses: ./.github/workflows/reusable_build_packages.yaml
@@ -43,8 +39,8 @@ jobs:
     uses: ./.github/workflows/reusable_validate_plugins.yaml
     with:
       plugin: ${{ matrix.plugin }}
-      falcoctl-version: ${{ github.env.FALCOCTL_VERSION }}
-      falco-image: falcosecurity/falco-no-driver:${{ github.env.FALCO_VERSION }}
+      falcoctl-version: 0.5.1
+      falco-image: falcosecurity/falco-no-driver:0.35.1
       plugins-artifact: plugins-x86_64-${{ github.event.number }}.tar.gz
       rules-checker: ./rules-checker
       arch: x86_64

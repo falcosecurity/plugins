@@ -45,8 +45,7 @@ jobs:
 
       - name: Download falcoctl
         run: |
-          arch=${{ inputs.arch == 'x86_64' && 'amd64' || 'arm64' }}
-          curl --fail -LS "https://github.com/falcosecurity/falcoctl/releases/download/v${{ inputs.falcoctl-version }}/falcoctl_${{ inputs.falcoctl-version }}_linux_${arch}.tar.gz" | tar -xz
+          curl --fail -LS "https://github.com/falcosecurity/falcoctl/releases/download/v${{ inputs.falcoctl-version }}/falcoctl_${{ inputs.falcoctl-version }}_linux_${{ inputs.arch == 'x86_64' && 'amd64' || 'arm64' }}.tar.gz" | tar -xz
           sudo install -o root -g root -m 0755 falcoctl /usr/local/bin/falcoctl
 
       - name: Download rules tool

@@ -11,10 +11,6 @@ concurrency:
   group: ci-release-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  FALCO_VERSION: 0.35.1
-  FALCOCTL_VERSION: 0.5.1
-
 jobs:
   extract-info:
     runs-on: ubuntu-latest
@@ -53,8 +49,8 @@ jobs:
     uses: ./.github/workflows/reusable_validate_plugins.yaml
     with:
       plugin: ${{ needs.extract-info.outputs.package }}
-      falcoctl-version: ${{ github.env.FALCOCTL_VERSION }}
-      falco-image: falcosecurity/falco-no-driver:${{ github.env.FALCO_VERSION }}
+      falcoctl-version: 0.5.1
+      falco-image: falcosecurity/falco-no-driver:0.35.1
       plugins-artifact: plugins-x86_64-stable.tar.gz
       rules-checker: ./rules-checker
       arch: x86_64
