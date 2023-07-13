@@ -182,6 +182,7 @@ func (oCtx *PluginInstance) openS3(input string) error {
 	var inputParams []listOrigin
 	ctx := context.Background()
 
+	// XXX Make empty mean no startTime.
 	startTime, endTime, err := ParseInterval(oCtx.config.S3Interval)
 	if err != nil {
 		return fmt.Errorf(PluginName + " invalid interval: \"%s\": %s", oCtx.config.S3Interval, err.Error())
@@ -194,7 +195,6 @@ func (oCtx *PluginInstance) openS3(input string) error {
 	// here, then trim individual filepaths below.
 
 	intervalPrefix := prefix
-	startAfterSuffix := startTime.Format("2006/01/02/")
 
 	// For durations, carve out a special case for "Copy S3 URI" in the AWS console, which gives you
 	// bucket_name/prefix_name/AWSLogs/<Account ID>/
@@ -216,9 +216,13 @@ func (oCtx *PluginInstance) openS3(input string) error {
 		})
 		if err == nil {
 			for _, commonPrefix := range output.CommonPrefixes {
-				// startAfter doesn't have to be a real key.
-				startAfter := *commonPrefix.Prefix + startAfterSuffix
-				params := listOrigin {prefix: commonPrefix.Prefix, startAfter: &startAfter}
+				params := listOrigin {prefix: commonPrefix.Prefix}
+				if !startTime.IsZero() {
+					// startAfter doesn't have to be a real key.
+					startAfterSuffix := startTime.Format("2006/01/02/")
+					startAfter := *commonPrefix.Prefix + startAfterSuffix
+					params.startAfter = &startAfter
+				}
 				inputParams = append(inputParams, params)
 			}
 		}
@@ -229,12 +233,14 @@ func (oCtx *PluginInstance) openS3(input string) error {
 	var endTS string
 
 	if len(inputParams) > 0 {
-		startTS = startTime.Format("20060102T0304")
-		if !endTime.IsZero() {
-			endTS = endTime.Format("20060102T0304")
-			if endTS < startTS {
-			return fmt.Errorf(PluginName + " start time %s must be less than end time %s", startTime.Format(RFC3339Simple), endTime.Format(RFC3339Simple))
-	}
+		if !startTime.IsZero() {
+			startTS = startTime.Format("20060102T0304")
+			if !endTime.IsZero() {
+				endTS = endTime.Format("20060102T0304")
+				if endTS < startTS {
+					return fmt.Errorf(PluginName + " start time %s must be less than end time %s", startTime.Format(RFC3339Simple), endTime.Format(RFC3339Simple))
+				}
+			}
 		}
 	} else {
 		// No region prefixes found, just use what we were given.
