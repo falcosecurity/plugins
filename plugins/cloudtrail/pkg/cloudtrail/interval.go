@@ -69,7 +69,7 @@ func ParseInterval(interval string) (time.Time, time.Time, error) {
 		if err == nil {
 			endTime, err = parseEndpoint(matches[2])
 		}
-	} else {
+	} else if interval != "" {
 		startTime, err = parseEndpoint(interval)
 	}
 	return startTime, endTime, err
