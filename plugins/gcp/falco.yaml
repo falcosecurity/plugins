@@ -1,0 +1,66 @@
+plugins:
+  - name: json
+    library_path: libjson.so
+
+  - name: gcp_auditlog
+    library_path: gcp_auditlog.so
+    init_config: '{"num_goroutines": 4, "maxout_stand_messages": 100, "project_id": "ldp-dev-2", "sub_id":"amin-security-test-sub", "path":"wait.json"}'
+    open_params: ''
+load_plugins: [gcp_auditlog, json]
+
+stdout_output:
+  enabled: true
+
+# Watch config file and rules files for modification.
+# When a file is modified, Falco will propagate new config,
+# by reloading itself.
+watch_config_files: true
+
+# If true, the times displayed in log messages and output messages
+# will be in ISO 8601. By default, times are displayed in the local
+# time zone, as governed by /etc/localtime.
+time_format_iso_8601: false
+
+# If "true", print falco alert messages and rules file
+# loading/validation results as json, which allows for easier
+# consumption by downstream programs. Default is "false".
+json_output: true
+
+# When using json output, whether or not to include the "output" property
+# itself (e.g. "File below a known binary directory opened for writing
+# (user=root ....") in the json output.
+json_include_output_property: true
+
+# When using json output, whether or not to include the "tags" property
+# itself in the json output. If set to true, outputs caused by rules
+# with no tags will have a "tags" field set to an empty array. If set to
+# false, the "tags" field will not be included in the json output at all.
+json_include_tags_property: true
+
+# Send information logs to stderr and/or syslog Note these are *not* security
+# notification logs! These are just Falco lifecycle (and possibly error) logs.
+log_stderr: true
+log_syslog: true
+
+# Minimum log level to include in logs. Note: these levels are
+# separate from the priority field of rules. This refers only to the
+# log level of falco's internal logging. Can be one of "emergency",
+# "alert", "critical", "error", "warning", "notice", "info", "debug".
+log_level: info
+
+# Falco is capable of managing the logs coming from libs. If enabled,
+# the libs logger send its log records the same outputs supported by
+# Falco (stderr and syslog). Disabled by default.
+libs_logger:
+  enabled: false
+  # Minimum log severity to include in the libs logs. Note: this value is
+  # separate from the log level of the Falco logger and does not affect it.
+  # Can be one of "fatal", "critical", "error", "warning", "notice",
+  # "info", "debug", "trace".
+  severity: debug
+
+# Minimum rule priority level to load and run. All rules having a
+# priority more severe than this level will be loaded/run.  Can be one
+# of "emergency", "alert", "critical", "error", "warning", "notice",
+# "informational", "debug".
+priority: debug
