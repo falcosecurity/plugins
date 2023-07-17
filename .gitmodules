@@ -1,0 +1,3 @@
+[submodule "falco-GCP"]
+	path = falco-GCP
+	url = https://github.com/ahmedameenaim/falco-GCP
