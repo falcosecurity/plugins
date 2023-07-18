@@ -16,6 +16,10 @@ limitations under the License.
 
 package registry
 
+import (
+	"github.com/falcosecurity/falcoctl/pkg/index"
+)
+
 type SourcingCapability struct {
 	Supported bool   `yaml:"supported"`
 	ID        uint   `yaml:"id"`
@@ -41,12 +45,13 @@ type Plugin struct {
 		Email string `yaml:"email"`
 		Name  string `yaml:"name"`
 	} `yaml:"maintainers"`
-	Keywords     []string     `yaml:"keywords"`
-	URL          string       `yaml:"url"`
-	RulesURL     string       `yaml:"rules_url"`
-	License      string       `yaml:"license"`
-	Reserved     bool         `yaml:"reserved"`
-	Capabilities Capabilities `yaml:"capabilities"`
+	Keywords     []string         `yaml:"keywords"`
+	URL          string           `yaml:"url"`
+	RulesURL     string           `yaml:"rules_url"`
+	License      string           `yaml:"license"`
+	Reserved     bool             `yaml:"reserved"`
+	Capabilities Capabilities     `yaml:"capabilities"`
+	Signature    *index.Signature `yaml:"signature,omitempty"`
 }
 
 type Registry struct {
