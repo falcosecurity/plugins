@@ -17,8 +17,10 @@ echo Current branch is \"$cur_branch\"
 echo Checking version for rules file \"$RULES_FILE\"...
 cp $RULES_FILE tmp_rule_file.yaml
 
+set +e pipefail
 echo Searching tag with prefix prefix \"$PLUGIN_NAME-\"...
 latest_tag=`git describe --match="$PLUGIN_NAME-*.*.*" --exclude="$PLUGIN_NAME-*.*.*-*" --abbrev=0 --tags $(git rev-list --tags="$PLUGIN_NAME-*.*.*" --max-count=1)`
+set -e pipefail
 
 if [ -z "$latest_tag" ]
 then
