@@ -6,13 +6,6 @@
   - name: json
     version: 0.7.0
 
-- macro: never_true
-  condition: (evt.num=0)
-
-- macro: always_true
-  condition: (evt.num>=0)
-
-
 - macro: is_binded_delta_to_public
   condition: > 
     gcp.policyDelta contains "ADD" and (gcp.policyDelta contains "allAuthenticatedUsers"
