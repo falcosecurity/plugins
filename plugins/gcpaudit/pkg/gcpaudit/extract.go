@@ -1,4 +1,4 @@
-package gcp_auditlog
+package gcpaudit
 
 import (
 	"fmt"

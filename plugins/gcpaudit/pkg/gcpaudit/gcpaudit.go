@@ -1,4 +1,4 @@
-package gcp_auditlog
+package gcpaudit
 
 import (
 
@@ -13,10 +13,10 @@ import (
 
 const (
 	PluginID          uint32 = 999
-	PluginName               = "gcp_auditlog"
-	PluginDescription        = "Reference plugin for educational purposes"
+	PluginName               = "gcpaudit"
+	PluginDescription        = "Read GCP Audit Logs events"
 	PluginContact            = "github.com/falcosecurity/plugins"
-	PluginVersion            = "0.6.0"
+	PluginVersion            = "0.1.0"
 	PluginEventSource        = "gcp_auditlog"
 )
 
@@ -55,27 +55,3 @@ func (p *Plugin) Open(topic string) (source.Instance, error) {
 	return source.NewPushInstance(pushEventC, source.WithInstanceClose(cancel))
 
 }
-
-// func (p *Plugin) Open(topic string) (source.Instance, error) {
-
-// 	pull := func(ctx context.Context, evt sdk.EventWriter) error {
-
-// 		contents, err := ioutil.ReadFile(p.Config.AuditLogsFilePath)
-
-// 		if err != nil {
-// 			fmt.Errorf("Error when opening file: ", err)
-// 		}
-
-// 		// Write the event data
-// 		n, err := evt.Writer().Write(contents)
-
-// 		if err != nil {
-// 			return err
-// 		} else if n < len(contents) {
-// 			return fmt.Errorf("auditlogs message too long: %d, but %d were written", len(contents), n)
-// 		}
-
-// 		return err
-// 	}
-// 	return source.NewPullInstance(pull)
-// }
