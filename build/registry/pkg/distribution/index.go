@@ -41,7 +41,7 @@ const (
 	GHOrg = "falcosecurity"
 )
 
-func pluginToIndexEntry(p registry.Plugin, registry, repo string) *index.Entry {
+func PluginToIndexEntry(p registry.Plugin, registry, repo string) *index.Entry {
 	return &index.Entry{
 		Name:        p.Name,
 		Type:        string(falcoctloci.Plugin),
@@ -57,7 +57,7 @@ func pluginToIndexEntry(p registry.Plugin, registry, repo string) *index.Entry {
 	}
 }
 
-func pluginRulesToIndexEntry(p registry.Plugin, registry, repo string) *index.Entry {
+func PluginRulesToIndexEntry(p registry.Plugin, registry, repo string) *index.Entry {
 	return &index.Entry{
 		Name:        p.Name + common.RulesArtifactSuffix,
 		Type:        string(falcoctloci.Rulesfile),
@@ -91,13 +91,13 @@ func upsertIndex(r *registry.Registry, ociArtifacts map[string]string, indexPath
 			tokens := strings.Split(refPlugin, "/")
 			ociRegistry := tokens[0]
 			ociRepo := filepath.Join(tokens[1:]...)
-			i.Upsert(pluginToIndexEntry(p, ociRegistry, ociRepo))
+			i.Upsert(PluginToIndexEntry(p, ociRegistry, ociRepo))
 		}
 		if refRulesfile, ok := ociArtifacts[p.Name+common.RulesArtifactSuffix]; ok {
 			tokens := strings.Split(refRulesfile, "/")
 			ociRegistry := tokens[0]
 			ociRepo := filepath.Join(tokens[1:]...)
-			i.Upsert(pluginRulesToIndexEntry(p, ociRegistry, ociRepo))
+			i.Upsert(PluginRulesToIndexEntry(p, ociRegistry, ociRepo))
 		}
 	}
 

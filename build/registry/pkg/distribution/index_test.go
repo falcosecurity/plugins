@@ -17,10 +17,12 @@ limitations under the License.
 package distribution_test
 
 import (
-	"github.com/falcosecurity/plugins/build/registry/pkg/distribution"
+	"os"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"os"
+
+	"github.com/falcosecurity/plugins/build/registry/pkg/distribution"
 )
 
 const (
@@ -29,7 +31,7 @@ const (
 	registryFile      = "testdata/registry.yaml"
 	wrongRegistryFile = "testdata/wrong-registry.yaml"
 	registryUser      = "falcosecurity"
-	registry          = "ghcr.io"
+	registryName      = "ghcr.io"
 )
 
 var _ = Describe("Update index", func() {
@@ -39,7 +41,7 @@ var _ = Describe("Update index", func() {
 	Context("with registry file", func() {
 		BeforeEach(func() {
 			os.Setenv("REGISTRY_USER", registryUser)
-			os.Setenv("REGISTRY", registry)
+			os.Setenv("REGISTRY", registryName)
 		})
 		Context("with index file", func() {
 			BeforeEach(func() {
@@ -61,7 +63,7 @@ var _ = Describe("Update index", func() {
 	Context("without registry file", func() {
 		BeforeEach(func() {
 			os.Setenv("REGISTRY_USER", registryUser)
-			os.Setenv("REGISTRY", registry)
+			os.Setenv("REGISTRY", registryName)
 		})
 		Context("with index file", func() {
 			BeforeEach(func() {
