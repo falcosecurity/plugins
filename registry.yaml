@@ -256,6 +256,28 @@ plugins:
         source: dnscollector
       extraction:
         supported: true
+  - name: gcpaudit
+    description: Read GCP Audit Logs
+    authors: The Falco Authors
+    contact: https://falco.org/community
+    maintainers:
+      - name: The Falco Authors
+        email: cncf-falco-dev@lists.cncf.io
+    keywords:
+      - audit
+      - audit-log
+      - audit-events
+      - gcp
+    url: https://github.com/falcosecurity/plugins/tree/master/plugins/gcpaudit
+    rules_url: https://github.com/falcosecurity/plugins/tree/master/plugins/gcpaudit/rules
+    license: Apache-2.0
+    capabilities:
+      sourcing:
+        supported: true
+        id: 12
+        source: gcp_auditlog
+      extraction:
+        supported: true
   - name: test
     description: This ID is reserved for source plugin development. Any plugin author can use this ID, but authors can expect events from other developers with this ID. After development is complete, the author should request an actual ID
     reserved: true

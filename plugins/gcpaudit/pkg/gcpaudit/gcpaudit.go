@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	PluginID          uint32 = 999
+	PluginID          uint32 = 12
 	PluginName               = "gcpaudit"
-	PluginDescription        = "Read GCP Audit Logs events"
+	PluginDescription        = "Read GCP Audit Logs"
 	PluginContact            = "github.com/falcosecurity/plugins"
 	PluginVersion            = "0.1.0"
 	PluginEventSource        = "gcp_auditlog"
