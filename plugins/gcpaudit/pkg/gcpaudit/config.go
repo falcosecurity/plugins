@@ -1,4 +1,4 @@
-package gcp_auditlog
+package gcpaudit
 
 import (
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins"

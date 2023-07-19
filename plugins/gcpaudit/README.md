@@ -87,16 +87,16 @@ For more details about what Cloud logging log queries, see the [GCP official doc
 # Supported Fields
 
 <!-- README-PLUGIN-FIELDS -->
-|              NAME               |   TYPE   |              DESCRIPTION                        |
-|---------------------------------|----------|-------------------------------------------------|
-| `gcp.user`            | `string` | GCP principal email who committed the action    |
-| `gcp.callerIP`               | `string` | GCP principal caller IP                         |
-| `gcp.userAgent `        | `string` | GCP principal caller useragent                  |
-| `gcp.authorizationInfo `       | `string` | GCP authorization information affected resource |
-| `gcp.policyDelta`        | `string` | GCP API service name                            |
-| `gcp.request`            | `string` | GCP API raw request                             |
-| `gcp.serviceName`                | `string` | GCP API service  method executed                |
-
+|          NAME           |   TYPE   | ARG  |                   DESCRIPTION                   |
+|-------------------------|----------|------|-------------------------------------------------|
+| `gcp.user`              | `string` | None | GCP principal email who committed the action    |
+| `gcp.callerIP`          | `string` | None | GCP principal caller IP                         |
+| `gcp.userAgent`         | `string` | None | GCP principal caller useragent                  |
+| `gcp.authorizationInfo` | `string` | None | GCP authorization information affected resource |
+| `gcp.serviceName`       | `string` | None | GCP API service name                            |
+| `gcp.policyDelta`       | `string` | None | GCP service resource access policy              |
+| `gcp.request`           | `string` | None | GCP API raw request                             |
+| `gcp.methodName`        | `string` | None | GCP API service  method executed                |
 <!-- /README-PLUGIN-FIELDS -->
 
 # Development
@@ -128,10 +128,10 @@ Only `init` accepts settings:
     - name: json
       library_path: libjson.so
 
-    - name: gcp_auditlog
-      library_path: gcp_auditlog.so
+    - name: gcpaudit
+      library_path: libgcpaudit.so
       init_config: '{"num_goroutines": 4, "maxout_stand_messages": 100, "project_id": "your-gcp-project", "sub_id":"Your-subscription-ID"}'
-  load_plugins: [gcp_auditlog, json]
+  load_plugins: [gcpaudit, json]
   ```
 
 * `rules.yaml`

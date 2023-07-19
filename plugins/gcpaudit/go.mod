@@ -1,4 +1,4 @@
-module falcoplugin
+module gcpaudit
 
 go 1.19
 

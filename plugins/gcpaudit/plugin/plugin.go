@@ -1,7 +1,7 @@
 package main
 
 import (
-	"falcoplugin/pkg/gcp_auditlog"
+	"gcpaudit/pkg/gcpaudit"
 
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/extractor"
@@ -10,7 +10,7 @@ import (
 
 func init() {
 	plugins.SetFactory(func() plugins.Plugin {
-		p := &gcp_auditlog.Plugin{}
+		p := &gcpaudit.Plugin{}
 		source.Register(p)
 		extractor.Register(p)
 		return p

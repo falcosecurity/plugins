@@ -1,10 +1,10 @@
 - required_engine_version: 11
 
 - required_plugin_versions:
-  - name: gcp_auditlog
-    version: 0.5.0
+  - name: gcpaudit
+    version: 0.1.0
   - name: json
-    version: 0.6.0
+    version: 0.7.0
 
 - macro: never_true
   condition: (evt.num=0)
