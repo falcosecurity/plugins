@@ -39,6 +39,7 @@ const apiDownloadBufSize = 16 * 1024 * 1024
 var (
 	rgxHunkShort = regexp.MustCompile(`^@@ -(?:\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@.*`)
 	rgxHunkLong  = regexp.MustCompile(`^@@@ -(?:\d+)(?:,\d+)? -(?:\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@@.*`)
+	nullCommitID = "0000000000000000000000000000000000000000"
 )
 
 // scanning a git diff line by line, looking for line additions
@@ -70,7 +71,7 @@ func scanDiffPatch(patch string, onAddition func(lineNum uint64, line string)) e
 			}
 		}
 
-		// note: this assume that a hunk header is the first line of the diff
+		// note: this assumes that a hunk header is the first line of the diff
 		// this would not work in generic git diffs, but it's what we want
 		// for our API calls
 		if hunkLineNum == -1 {
@@ -118,7 +119,7 @@ func scanDiff(oCtx *PluginInstance, repo string, refs string, diffFiles *[]diffF
 		return err
 	}
 
-	// Process all of the diffs in the reponse
+	// Process all the diffs in the response
 	flist := jdata.GetArray("files")
 	if flist == nil {
 		return nil
@@ -188,9 +189,9 @@ func scanWorkFlowYaml(oCtx *PluginInstance, fileName string, repoName string, wo
 
 	workflowInfo.FileName = fileName
 
-	content_b64 := string(jdata.GetStringBytes("content"))
-	if content_b64 != "" {
-		content, err := base64.StdEncoding.DecodeString(content_b64)
+	contentB64 := string(jdata.GetStringBytes("content"))
+	if contentB64 != "" {
+		content, err := base64.StdEncoding.DecodeString(contentB64)
 		if err == nil {
 			scanner := bufio.NewScanner(strings.NewReader(string(content)))
 			var ln uint64
@@ -220,10 +221,10 @@ func handleHook(w http.ResponseWriter, r *http.Request, oCtx *PluginInstance) {
 
 	defer r.Body.Close()
 
-	// GitHub's webook messages encode the webook type as an http header instead of
-	// putting it in the json, which is very unfortunate becasue it forces us to
+	// GitHub's webhook messages encode the webhook type as a http header instead of
+	// putting it in the json, which is very unfortunate because it forces us to
 	// add it manually.
-	// Currently, we do this by unmarshaling the string, adding an additional
+	// Currently, we do this by unmarshalling the string, adding an additional
 	// webhook_type property and then marshaling it.
 	// This is clearly very inefficient, but for the moment we don't care, assuming
 	// that the message frequency will always be low enough not to cause concerns.
@@ -243,33 +244,40 @@ func handleHook(w http.ResponseWriter, r *http.Request, oCtx *PluginInstance) {
 	// If we find any committed secret, we add its information to a new section in the webhook
 	// json, so that the extractors can have easy access to it.
 	if whType == "push" {
-		// extract the diff parameters (refs and repo name) from the webhook json
-		cmpIfc := jmap["compare"]
-		if cmpIfc != nil {
-			cmpStr := cmpIfc.(string)
-			refsStart := strings.LastIndex(cmpStr, "/")
-			if refsStart < 5 || len(cmpStr)-refsStart < 5 {
-				oCtx.whSrvChan <- []byte("E malformed compare field in push json: " + cmpStr)
-				return
-			}
-			refsStr := cmpStr[refsStart+1:]
+		// If a branch is being created or deleted, a push event is sent before create or delete events.
+		// So we extract the before and after commit IDs. If either is null, then it means that a branch
+		// is being created or deleted.
+		beforeCommitID := jmap["before"]
+		afterCommitID := jmap["after"]
+		if beforeCommitID != nullCommitID && afterCommitID != nullCommitID {
+			// extract the diff parameters (refs and repo name) from the webhook json
+			cmpIfc := jmap["compare"]
+			if cmpIfc != nil {
+				cmpStr := cmpIfc.(string)
+				refsStart := strings.LastIndex(cmpStr, "/")
+				if refsStart < 5 || len(cmpStr)-refsStart < 5 {
+					oCtx.whSrvChan <- []byte("E malformed compare field in push json: " + cmpStr)
+					return
+				}
+				refsStr := cmpStr[refsStart+1:]
 
-			repoMap := jmap["repository"].(map[string]interface{})
-			if repoMap != nil {
-				repoFullNameIfc := repoMap["full_name"]
-				if repoFullNameIfc != nil {
-					repoFullName := repoFullNameIfc.(string)
+				repoMap := jmap["repository"].(map[string]interface{})
+				if repoMap != nil {
+					repoFullNameIfc := repoMap["full_name"]
+					if repoFullNameIfc != nil {
+						repoFullName := repoFullNameIfc.(string)
 
-					var diffFiles []diffFileInfo
-					// Make the diff request and analyze it
-					err := scanDiff(oCtx, repoFullName, refsStr, &diffFiles)
-					if err != nil {
-						oCtx.whSrvChan <- []byte("E " + err.Error())
-						return
+						var diffFiles []diffFileInfo
+						// Make the diff request and analyze it
+						err := scanDiff(oCtx, repoFullName, refsStr, &diffFiles)
+						if err != nil {
+							oCtx.whSrvChan <- []byte("E " + err.Error())
+							return
+						}
+
+						// Add the results to the webhook json
+						jmap["files"] = diffFiles
 					}
-
-					// Add the results to the webhook json
-					jmap["files"] = diffFiles
 				}
 			}
 		}
