@@ -278,6 +278,25 @@ plugins:
         source: gcp_auditlog
       extraction:
         supported: true
+  - name: syslogsrv
+    description: Syslog Server Events
+    authors: Maksim Nabokikh
+    contact: https://github.com/nabokihms/syslogsrv-falco-plugin/issues
+    maintainers:
+      - name: Maksim Nabokikh
+    keywords:
+      - log-events
+      - syslog
+    url: https://github.com/nabokihms/syslogsrv-falco-plugin/tree/main/plugins/syslogsrv
+    rules_url: https://github.com/nabokihms/syslogsrv-falco-plugin/tree/main/rules
+    license: Apache-2.0
+    capabilities:
+      sourcing:
+        supported: true
+        id: 13
+        source: syslogsrv
+      extraction:
+        supported: true
   - name: test
     description: This ID is reserved for source plugin development. Any plugin author can use this ID, but authors can expect events from other developers with this ID. After development is complete, the author should request an actual ID
     reserved: true
