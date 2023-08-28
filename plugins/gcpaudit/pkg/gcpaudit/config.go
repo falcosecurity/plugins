@@ -16,16 +16,16 @@ type Plugin struct {
 }
 
 type PluginConfig struct {
-	AuditLogsFilePath      string `json:"path" jsonschema:"title=path,description="`
-	SubscriptionID         string `json:"sub_id" jsonschema:"title=sub_id,description="`
-	MaxOutstandingMessages int    `json:"maxout_stand_messages" jsonschema:"title=maxout_stand_messages,description=is the maximum number of unprocessed messages"`
-	NumGoroutines          int    `json:"num_goroutines" jsonschema:"title=num_goroutines,description=is the number of goroutines that each datastructure along the Receive path will spawn"`
-	MaxOutstandingBytes    int    `json:"maxout_stand_bytes" jsonschema:"title=sub_id,description="`
-	ProjectID              string `json:"project_id" jsonschema:"title=project_id,description="`
+	ProjectID              string `json:"project_id" jsonschema:"title=Project ID,description=A unique identifier for a GCP project (Default: empty),default="`
+	CredentialsFile        string `json:"credentials_file" jsonschema:"title=Credentials File,description=If non-empty overrides the default GCP credentials file (e.g. ~/.config/gcloud/application_default_credentials.json) and env variables such as GOOGLE_APPLICATION_CREDENTIALS (Default: empty),default="`
+	NumGoroutines          int    `json:"num_goroutines" jsonschema:"title=Num Goroutines,description=The number of goroutines that each datastructure along the Receive path will spawn (Default: 10),default=10"`
+	MaxOutstandingMessages int    `json:"max_outstanding_messages" jsonschema:"title=Max Outstanding Messages,description=The maximum number of unprocessed messages (Default: 1000),default=1000"`
 }
 
 // Reset sets the configuration to its default values
 func (auditlogsPlugin *PluginConfig) Reset() {
-	auditlogsPlugin.MaxOutstandingMessages = 1000
+	auditlogsPlugin.ProjectID = ""
+	auditlogsPlugin.CredentialsFile = ""
 	auditlogsPlugin.NumGoroutines = 10
+	auditlogsPlugin.MaxOutstandingMessages = 1000
 }

@@ -130,7 +130,9 @@ Only `init` accepts settings:
 
     - name: gcpaudit
       library_path: libgcpaudit.so
-      init_config: '{"num_goroutines": 4, "maxout_stand_messages": 100, "project_id": "your-gcp-project", "sub_id":"Your-subscription-ID"}'
+      open_params: "your-subscription-ID"
+      init_config:
+        project_id: "your-gcp-project-ID"
   load_plugins: [gcpaudit, json]
   ```
 

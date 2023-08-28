@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"strings"
 	"time"
 
@@ -14,18 +13,17 @@ import (
 )
 
 func (auditlogsPlugin *Plugin) pullMsgsSync(ctx context.Context, projectID, subID string) (chan []byte, chan error) {
-	project_id := projectID
-	sub_id := subID
+	var clientOptions []option.ClientOption
+	if len(auditlogsPlugin.Config.CredentialsFile) > 0 {
+		clientOptions = append(clientOptions, option.WithCredentialsFile(auditlogsPlugin.Config.CredentialsFile))
+	}
 
-	serviceAccountPath := os.Getenv("GCP_SERVICE_ACCOUNT_PATH")
-
-	client, err := pubsub.NewClient(ctx, project_id, option.WithCredentialsFile(serviceAccountPath))
-
+	client, err := pubsub.NewClient(ctx, projectID, clientOptions...)
 	if err != nil {
 		fmt.Printf("pubsub.NewClient: %v", err)
 	}
 
-	sub := client.Subscription(sub_id)
+	sub := client.Subscription(subID)
 
 	sub.ReceiveSettings.MaxOutstandingMessages = auditlogsPlugin.Config.MaxOutstandingMessages
 	sub.ReceiveSettings.NumGoroutines = auditlogsPlugin.Config.NumGoroutines
