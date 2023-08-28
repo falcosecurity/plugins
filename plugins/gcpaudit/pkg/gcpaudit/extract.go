@@ -2,7 +2,7 @@ package gcpaudit
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
 )
@@ -21,10 +21,8 @@ func (p *Plugin) Fields() []sdk.FieldEntry {
 }
 
 func (p *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
-
 	if evt.EventNum() != p.lastEventNum {
-
-		evtBytes, err := ioutil.ReadAll(evt.Reader())
+		evtBytes, err := io.ReadAll(evt.Reader())
 		if err != nil {
 			return err
 		}
