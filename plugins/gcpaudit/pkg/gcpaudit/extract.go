@@ -27,17 +27,14 @@ func (p *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 			return err
 		}
 		evtString := string(evtBytes)
-
 		p.jdata, err = p.jparser.Parse(evtString)
 		if err != nil {
 			return err
 		}
-		p.jdataEvtnum = evt.EventNum()
-
+		p.lastEventNum = evt.EventNum()
 	}
 
 	switch req.Field() {
-
 	case "gcp.user":
 		principalEmail := string(p.jdata.Get("protoPayload").Get("authenticationInfo").Get("principalEmail").GetStringBytes())
 		req.SetValue(principalEmail)
@@ -50,24 +47,18 @@ func (p *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 		principalUserAgent := p.jdata.Get("protoPayload").Get("requestMetadata").Get("callerSuppliedUserAgent")
 		if principalUserAgent != nil {
 			req.SetValue(string(principalUserAgent.GetStringBytes()))
-		} else {
-			fmt.Println("Principal User Agent was omitted!")
 		}
 
 	case "gcp.authorizationInfo":
 		principalAuthorizationInfo := p.jdata.Get("protoPayload").Get("authorizationInfo")
 		if principalAuthorizationInfo.Exists() {
 			req.SetValue(principalAuthorizationInfo.String())
-		} else {
-			fmt.Println("Authorization info was omitted!")
 		}
 
 	case "gcp.serviceName":
 		serviceName := p.jdata.Get("protoPayload").Get("serviceName")
 		if serviceName.Exists() {
 			req.SetValue(string(serviceName.GetStringBytes()))
-		} else {
-			fmt.Println("Service name was omitted!")
 		}
 
 	case "gcp.request":
@@ -91,7 +82,8 @@ func (p *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 		req.SetValue(serviceName)
 
 	default:
-		return fmt.Errorf("no known field: %s", req.Field())
+		return fmt.Errorf("unknown field: %s", req.Field())
 	}
+
 	return nil
 }

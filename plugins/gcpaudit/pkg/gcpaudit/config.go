@@ -12,7 +12,6 @@ type Plugin struct {
 	lastEventNum uint64
 	jparser      fastjson.Parser
 	jdata        *fastjson.Value
-	jdataEvtnum  uint64
 }
 
 type PluginConfig struct {
