@@ -20,7 +20,7 @@ const (
 	PluginEventSource        = "gcp_auditlog"
 )
 
-func (auditlogsPlugin *Plugin) Info() *plugins.Info {
+func (p *Plugin) Info() *plugins.Info {
 	return &plugins.Info{
 		ID:          PluginID,
 		Name:        PluginName,

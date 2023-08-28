@@ -7,7 +7,7 @@ import (
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
 )
 
-func (auditlogsPlugin *Plugin) Fields() []sdk.FieldEntry {
+func (p *Plugin) Fields() []sdk.FieldEntry {
 	return []sdk.FieldEntry{
 		{Type: "string", Name: "gcp.user", Desc: "GCP principal email who committed the action"},
 		{Type: "string", Name: "gcp.callerIP", Desc: "GCP principal caller IP"},
@@ -20,9 +20,9 @@ func (auditlogsPlugin *Plugin) Fields() []sdk.FieldEntry {
 	}
 }
 
-func (auditlogsPlugin *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
+func (p *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 
-	if evt.EventNum() != auditlogsPlugin.lastEventNum {
+	if evt.EventNum() != p.lastEventNum {
 
 		evtBytes, err := ioutil.ReadAll(evt.Reader())
 		if err != nil {
@@ -30,26 +30,26 @@ func (auditlogsPlugin *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventRead
 		}
 		evtString := string(evtBytes)
 
-		auditlogsPlugin.jdata, err = auditlogsPlugin.jparser.Parse(evtString)
+		p.jdata, err = p.jparser.Parse(evtString)
 		if err != nil {
 			return err
 		}
-		auditlogsPlugin.jdataEvtnum = evt.EventNum()
+		p.jdataEvtnum = evt.EventNum()
 
 	}
 
 	switch req.Field() {
 
 	case "gcp.user":
-		principalEmail := string(auditlogsPlugin.jdata.Get("protoPayload").Get("authenticationInfo").Get("principalEmail").GetStringBytes())
+		principalEmail := string(p.jdata.Get("protoPayload").Get("authenticationInfo").Get("principalEmail").GetStringBytes())
 		req.SetValue(principalEmail)
 
 	case "gcp.callerIP":
-		principalIP := string(auditlogsPlugin.jdata.Get("protoPayload").Get("requestMetadata").Get("callerIp").GetStringBytes())
+		principalIP := string(p.jdata.Get("protoPayload").Get("requestMetadata").Get("callerIp").GetStringBytes())
 		req.SetValue(principalIP)
 
 	case "gcp.userAgent":
-		principalUserAgent := auditlogsPlugin.jdata.Get("protoPayload").Get("requestMetadata").Get("callerSuppliedUserAgent")
+		principalUserAgent := p.jdata.Get("protoPayload").Get("requestMetadata").Get("callerSuppliedUserAgent")
 		if principalUserAgent != nil {
 			req.SetValue(string(principalUserAgent.GetStringBytes()))
 		} else {
@@ -57,7 +57,7 @@ func (auditlogsPlugin *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventRead
 		}
 
 	case "gcp.authorizationInfo":
-		principalAuthorizationInfo := auditlogsPlugin.jdata.Get("protoPayload").Get("authorizationInfo")
+		principalAuthorizationInfo := p.jdata.Get("protoPayload").Get("authorizationInfo")
 		if principalAuthorizationInfo.Exists() {
 			req.SetValue(principalAuthorizationInfo.String())
 		} else {
@@ -65,7 +65,7 @@ func (auditlogsPlugin *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventRead
 		}
 
 	case "gcp.serviceName":
-		serviceName := auditlogsPlugin.jdata.Get("protoPayload").Get("serviceName")
+		serviceName := p.jdata.Get("protoPayload").Get("serviceName")
 		if serviceName.Exists() {
 			req.SetValue(string(serviceName.GetStringBytes()))
 		} else {
@@ -73,23 +73,23 @@ func (auditlogsPlugin *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventRead
 		}
 
 	case "gcp.request":
-		request := auditlogsPlugin.jdata.Get("protoPayload").Get("request").String()
+		request := p.jdata.Get("protoPayload").Get("request").String()
 		req.SetValue(request)
 
 	case "gcp.policyDelta":
-		resource := string(auditlogsPlugin.jdata.Get("resource").Get("type").GetStringBytes())
+		resource := string(p.jdata.Get("resource").Get("type").GetStringBytes())
 
 		if resource == "gcs_bucket" {
-			bindingDeltas := auditlogsPlugin.jdata.Get("protoPayload").Get("serviceData").Get("policyDelta").Get("bindingDeltas").String()
+			bindingDeltas := p.jdata.Get("protoPayload").Get("serviceData").Get("policyDelta").Get("bindingDeltas").String()
 
 			req.SetValue(bindingDeltas)
 		} else {
-			bindingDeltas := auditlogsPlugin.jdata.Get("protoPayload").Get("metadata").Get("datasetChange").Get("bindingDeltas").String()
+			bindingDeltas := p.jdata.Get("protoPayload").Get("metadata").Get("datasetChange").Get("bindingDeltas").String()
 			req.SetValue(bindingDeltas)
 		}
 
 	case "gcp.methodName":
-		serviceName := string(auditlogsPlugin.jdata.Get("protoPayload").Get("methodName").GetStringBytes())
+		serviceName := string(p.jdata.Get("protoPayload").Get("methodName").GetStringBytes())
 		req.SetValue(serviceName)
 
 	default:
