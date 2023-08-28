@@ -26,10 +26,10 @@ endif
 all: $(OUTPUT)
 
 clean:
-	@rm -f $(OUTPUT)
+	rm -f $(OUTPUT)
 
-$(OUTPUT): 
-	@$(GODEBUGFLAGS) $(GO) build -buildmode=c-shared -o $(OUTPUT) ./plugin
+$(OUTPUT): plugin/*.go pkg/gcpaudit/*.go
+	$(GODEBUGFLAGS) $(GO) build -buildmode=c-shared -o $(OUTPUT) ./plugin
 
 readme:
 	@$(READMETOOL) -p ./$(OUTPUT) -f README.md

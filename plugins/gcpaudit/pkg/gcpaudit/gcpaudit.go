@@ -32,11 +32,11 @@ func (p *Plugin) Info() *plugins.Info {
 }
 
 func (p *Plugin) Open(params string) (source.Instance, error) {
-	ctx, cancel := context.WithCancel(context.Background())
 	subscriptionID := params
-	eventsC, errC := p.pullMsgsSync(ctx, p.Config.ProjectID, subscriptionID)
-	pushEventC := make(chan source.PushEvent)
+	ctx, cancel := context.WithCancel(context.Background())
+	eventsC, errC := p.pullMsgsSync(ctx, subscriptionID)
 
+	pushEventC := make(chan source.PushEvent)
 	go func() {
 		defer close(eventsC)
 		for {
@@ -52,5 +52,4 @@ func (p *Plugin) Open(params string) (source.Instance, error) {
 	}()
 
 	return source.NewPushInstance(pushEventC, source.WithInstanceClose(cancel))
-
 }

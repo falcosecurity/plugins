@@ -22,10 +22,5 @@ func (p *Plugin) InitSchema() *sdk.SchemaInfo {
 
 // initialize state
 func (p *Plugin) Init(cfg string) error {
-	err := json.Unmarshal([]byte(cfg), &p.Config)
-
-	if err != nil {
-		return err
-	}
-	return nil
+	return json.Unmarshal([]byte(cfg), &p.Config)
 }
