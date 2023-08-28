@@ -23,9 +23,9 @@ type PluginConfig struct {
 }
 
 // Reset sets the configuration to its default values
-func (auditlogsPlugin *PluginConfig) Reset() {
-	auditlogsPlugin.ProjectID = ""
-	auditlogsPlugin.CredentialsFile = ""
-	auditlogsPlugin.NumGoroutines = 10
-	auditlogsPlugin.MaxOutstandingMessages = 1000
+func (p *PluginConfig) Reset() {
+	p.ProjectID = ""
+	p.CredentialsFile = ""
+	p.NumGoroutines = 10
+	p.MaxOutstandingMessages = 1000
 }

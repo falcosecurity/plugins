@@ -7,7 +7,7 @@ import (
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
 )
 
-func (auditlogsPlugin *Plugin) InitSchema() *sdk.SchemaInfo {
+func (p *Plugin) InitSchema() *sdk.SchemaInfo {
 	reflector := jsonschema.Reflector{
 		RequiredFromJSONSchemaTags: true, // all properties are optional by default
 		AllowAdditionalProperties:  true, // unrecognized properties don't cause a parsing failures
@@ -21,8 +21,8 @@ func (auditlogsPlugin *Plugin) InitSchema() *sdk.SchemaInfo {
 }
 
 // initialize state
-func (auditlogsPlugin *Plugin) Init(cfg string) error {
-	err := json.Unmarshal([]byte(cfg), &auditlogsPlugin.Config)
+func (p *Plugin) Init(cfg string) error {
+	err := json.Unmarshal([]byte(cfg), &p.Config)
 
 	if err != nil {
 		return err

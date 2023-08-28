@@ -12,10 +12,10 @@ import (
 	"google.golang.org/api/option"
 )
 
-func (auditlogsPlugin *Plugin) pullMsgsSync(ctx context.Context, projectID, subID string) (chan []byte, chan error) {
+func (p *Plugin) pullMsgsSync(ctx context.Context, projectID, subID string) (chan []byte, chan error) {
 	var clientOptions []option.ClientOption
-	if len(auditlogsPlugin.Config.CredentialsFile) > 0 {
-		clientOptions = append(clientOptions, option.WithCredentialsFile(auditlogsPlugin.Config.CredentialsFile))
+	if len(p.Config.CredentialsFile) > 0 {
+		clientOptions = append(clientOptions, option.WithCredentialsFile(p.Config.CredentialsFile))
 	}
 
 	client, err := pubsub.NewClient(ctx, projectID, clientOptions...)
@@ -25,8 +25,8 @@ func (auditlogsPlugin *Plugin) pullMsgsSync(ctx context.Context, projectID, subI
 
 	sub := client.Subscription(subID)
 
-	sub.ReceiveSettings.MaxOutstandingMessages = auditlogsPlugin.Config.MaxOutstandingMessages
-	sub.ReceiveSettings.NumGoroutines = auditlogsPlugin.Config.NumGoroutines
+	sub.ReceiveSettings.MaxOutstandingMessages = p.Config.MaxOutstandingMessages
+	sub.ReceiveSettings.NumGoroutines = p.Config.NumGoroutines
 
 	eventC := make(chan []byte)
 	errC := make(chan error)
@@ -85,7 +85,7 @@ func performPubSubOperation(subscription *pubsub.Subscription, ctx context.Conte
 	return nil
 }
 
-func (auditlogsPlugin *Plugin) String(evt sdk.EventReader) (string, error) {
+func (p *Plugin) String(evt sdk.EventReader) (string, error) {
 
 	evtBytes, err := ioutil.ReadAll(evt.Reader())
 	if err != nil {
