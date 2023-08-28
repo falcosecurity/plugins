@@ -31,11 +31,10 @@ func (auditlogsPlugin *Plugin) Info() *plugins.Info {
 	}
 }
 
-func (p *Plugin) Open(topic string) (source.Instance, error) {
-
+func (p *Plugin) Open(params string) (source.Instance, error) {
 	ctx, cancel := context.WithCancel(context.Background())
-
-	eventsC, errC := p.pullMsgsSync(ctx, p.Config.ProjectID, p.Config.SubscriptionID)
+	subscriptionID := params
+	eventsC, errC := p.pullMsgsSync(ctx, p.Config.ProjectID, subscriptionID)
 	pushEventC := make(chan source.PushEvent)
 
 	go func() {
