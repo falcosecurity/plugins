@@ -59,6 +59,9 @@ jobs:
           arch=${{ inputs.arch }}
           loaded_plugins="$(cat ${{ steps.get-config.outputs.config_file }} | grep '\- name: ' | cut -d ':' -f 2 | xargs)"
 
+          sudo mkdir -p /etc/falco/falco
+          sudo mkdir -p /usr/share/falco/plugins
+
           for plugin_name in $loaded_plugins; do
               echo Installing locally-built plugin "$plugin_name"...
           
@@ -76,9 +79,7 @@ jobs:
                   echo Extracting archive "$archive"...
                   mkdir -p tmpdir && pushd tmpdir
                   tar -xvf $archive
-                  sudo mkdir -p /etc/falco/falco
                   sudo cp -r *.yaml /etc/falco/falco || true
-                  sudo mkdir -p /usr/share/falco/plugins
                   sudo cp -r *.so /usr/share/falco/plugins || true
                   popd && rm -fr tmpdir
               done
@@ -164,6 +165,8 @@ jobs:
             exit 0
           fi
 
+          sudo mkdir -p /usr/share/falco/plugins
+
           rules_files=$(ls ${{ steps.get-config.outputs.rules_dir }}/*)
           for rules_file in $rules_files; do
             deps=$(cat $rules_file | yq -r '.[].required_plugin_versions | select(. != null and . != "")[] | [.name + ":" + .version] | @csv')
@@ -189,13 +192,12 @@ jobs:
                   echo Installed plugin "${plugin_name}" at version "${plugin_ver}"
                   has_updates=1
                 else
-                  echo Can't pull plugin "${plugin_name}" at version "${plugin_ver}"
+                  echo Can\'t pull plugin "${plugin_name}" at version "${plugin_ver}"
                   echo Attempt installing locally-built plugin "${plugin_name}"...
                   for archive in $(ls /tmp/plugins-${{ inputs.arch }}/${plugin_name}-*); do
                     echo Extracting archive "$archive"...
                     mkdir -p tmpdir && pushd tmpdir
                     tar -xvf $archive
-                    sudo mkdir -p /usr/share/falco/plugins
                     sudo cp -r *.so /usr/share/falco/plugins || true
                     popd && rm -fr tmpdir
                   done
