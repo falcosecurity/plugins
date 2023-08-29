@@ -37,7 +37,7 @@ NAME := <YOUR-PLUGIN-NAME-HERE>
 OUTPUT := lib$(NAME).so
 
 ifeq ($(DEBUG), 1)
-    GODEBUGFLAGS= GODEBUG=cgocheck=2
+    GODEBUGFLAGS= GODEBUG=cgocheck=1
 else
     GODEBUGFLAGS= GODEBUG=cgocheck=0
 endif
