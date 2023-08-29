@@ -1,10 +1,6 @@
 package gcpaudit
 
 import (
-
-	// "io/ioutil"
-	// "fmt"
-	// "github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
 	"context"
 
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins"
