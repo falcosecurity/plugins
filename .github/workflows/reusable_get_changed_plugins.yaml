@@ -18,7 +18,7 @@ jobs:
       - name: Get changed files
         id: changed-plugins
         if: github.event_name == 'pull_request'
-        uses: jitterbit/get-changed-files@v1
+        uses: Ana06/get-changed-files@v2.2.0
         with:
           format: space-delimited
           token: ${{ secrets.GITHUB_TOKEN }}
