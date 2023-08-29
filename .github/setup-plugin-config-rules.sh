@@ -6,9 +6,9 @@ PLUGIN=$1
 rules_dir="$GITHUB_WORKSPACE/plugins/${PLUGIN}/rules"
 config_file="$GITHUB_WORKSPACE/plugins/${PLUGIN}/falco.yaml"
 
-# set paths into env vars
-echo "PLUGIN_RULES_DIR=${rules_dir}" >> "$GITHUB_ENV"
-echo "PLUGIN_CONFIG_FILE=${config_file}" >> "$GITHUB_ENV"
+# set paths into step outputs
+echo "rules_dir=${rules_dir}" >> "$GITHUB_OUTPUT"
+echo "config_file=${config_file}" >> "$GITHUB_OUTPUT"
 
 # craft a default falco.yaml if no custom one is available
 if [ ! -f "$config_file" ]; then

@@ -40,6 +40,7 @@ jobs:
         run: pip install yq
 
       - name: Setup plugin config and rules
+        id: get-config
         run: ./.github/setup-plugin-config-rules.sh ${{ inputs.plugin }}
 
       - name: Download rules tool
@@ -56,7 +57,7 @@ jobs:
       - name: Install plugin and rules
         run: |
           arch=${{ inputs.arch }}
-          loaded_plugins="$(cat $PLUGIN_CONFIG_FILE | grep '\- name: ' | cut -d ':' -f 2 | xargs)"
+          loaded_plugins="$(cat ${{ steps.get-config.outputs.config_file }} | grep '\- name: ' | cut -d ':' -f 2 | xargs)"
 
           for plugin_name in $loaded_plugins; do
               echo Installing locally-built plugin "$plugin_name"...
@@ -88,17 +89,17 @@ jobs:
           # craft an empty rules file if none is available.
           # this ensures that the plugin gets still loaded even if it has no rules.
           rules_files=""
-          if [ ! -d "$PLUGIN_RULES_DIR" ]; then
+          if [ ! -d "${{ steps.get-config.outputs.rules_dir }}" ]; then
             touch tmp_rules.yaml
             rules_files="./tmp_rules.yaml"
           else
-            rules_files=$(ls $PLUGIN_RULES_DIR/*)
+            rules_files=$(ls ${{ steps.get-config.outputs.rules_dir }}/*)
           fi
 
           ./.github/validate-rules.sh \
             "${{ inputs.falco-image }}" \
             "${{ inputs.rules-checker }}" \
-            "$PLUGIN_CONFIG_FILE" \
+            "${{ steps.get-config.outputs.config_file }}" \
             "$rules_files"
 
   # todo(jasondellaluce): support aarch64 too
@@ -113,6 +114,7 @@ jobs:
         run: pip install yq
       
       - name: Setup plugin config and rules
+        id: get-config
         run: ./.github/setup-plugin-config-rules.sh ${{ inputs.plugin }}
 
       - name: Download plugins
@@ -158,11 +160,11 @@ jobs:
         run: |
           set -e pipefail
 
-          if [ ! -d "$PLUGIN_RULES_DIR" ]; then
+          if [ ! -d "${{ steps.get-config.outputs.rules_dir }}" ]; then
             exit 0
           fi
 
-          rules_files=$(ls $PLUGIN_RULES_DIR/*)
+          rules_files=$(ls ${{ steps.get-config.outputs.rules_dir }}/*)
           for rules_file in $rules_files; do
             deps=$(cat $rules_file | yq -r '.[].required_plugin_versions | select(. != null and . != "")[] | [.name + ":" + .version] | @csv')
 
@@ -205,7 +207,7 @@ jobs:
               ./.github/validate-rules.sh \
                 "${{ inputs.falco-image }}" \
                 "${{ inputs.rules-checker }}" \
-                "$PLUGIN_CONFIG_FILE" \
+                "${{ steps.get-config.outputs.config_file }}" \
                 "$rules_file"
             done 
           done
