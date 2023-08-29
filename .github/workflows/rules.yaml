@@ -38,14 +38,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Get all git tags
-        run: git fetch --tags origin
-      
       - name: Install system dependencies
         run: pip install yq
 
       - name: Setup plugin config and rules
         run: ./.github/setup-plugin-config-rules.sh ${{ matrix.plugin }}
+
+      - name: Get latest tag
+        id: get-tag
+        run: ./.github/get-latest-plugin-version.sh ${{ matrix.plugin }}
 
       - name: Download rules tool
         uses: actions/download-artifact@v3
@@ -54,6 +55,7 @@ jobs:
 
       - name: Compare changed files with previous versions
         id: compare
+        if: steps.get-tag.outputs.version != '0.0.0'
         run: |
           rules_dir=$PLUGIN_RULES_DIR
 
@@ -66,7 +68,8 @@ jobs:
                   ${{ matrix.plugin }} \
                   rule_result.txt \
                   ./rules-checker \
-                  "falcosecurity/falco-no-driver:$FALCO_VERSION"
+                  "falcosecurity/falco-no-driver:$FALCO_VERSION" \
+                  ${{ steps.get-tag.outputs.ref }}
 
               if [ -s rule_result.txt ]; then
                 if [ ! -s result.txt ]; then
