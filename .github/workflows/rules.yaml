@@ -42,6 +42,7 @@ jobs:
         run: pip install yq
 
       - name: Setup plugin config and rules
+        id: get-config
         run: ./.github/setup-plugin-config-rules.sh ${{ matrix.plugin }}
 
       - name: Get latest tag
@@ -57,14 +58,14 @@ jobs:
         id: compare
         if: steps.get-tag.outputs.version != '0.0.0'
         run: |
-          rules_dir=$PLUGIN_RULES_DIR
+          rules_dir=${{ steps.get-config.outputs.rules_dir }}
 
           if [ -d "$rules_dir" ]; then
             rules_files=$(ls $rules_dir/*)
             for rules_file in $rules_files; do
               ./.github/compare-rule-files.sh \
                   "$rules_file" \
-                  $PLUGIN_CONFIG_FILE \
+                  ${{ steps.get-config.outputs.config_file }} \
                   ${{ matrix.plugin }} \
                   rule_result.txt \
                   ./rules-checker \
