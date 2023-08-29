@@ -29,24 +29,18 @@ on:
 
 jobs:  
   # todo(jasondellaluce): support aarch64 too
-  validate-plugin-and-rules:
+  validate-local:
     if: inputs.arch == 'x86_64'
-    env:
-      RULES_DIR: ${{ github.workspace }}/plugins/${{ inputs.plugin }}/rules
-      CONFIG_FILE: ${{ github.workspace }}/plugins/${{ inputs.plugin }}/falco.yaml
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
       - name: Install system dependencies
-        run:
-          pip install yq
+        run: pip install yq
 
-      - name: Download falcoctl
-        run: |
-          curl --fail -LS "https://github.com/falcosecurity/falcoctl/releases/download/v${{ inputs.falcoctl-version }}/falcoctl_${{ inputs.falcoctl-version }}_linux_${{ inputs.arch == 'x86_64' && 'amd64' || 'arm64' }}.tar.gz" | tar -xz
-          sudo install -o root -g root -m 0755 falcoctl /usr/local/bin/falcoctl
+      - name: Setup plugin config and rules
+        run: ./.github/setup-plugin-config-rules.sh ${{ inputs.plugin }}
 
       - name: Download rules tool
         uses: actions/download-artifact@v3
@@ -58,18 +52,10 @@ jobs:
         with:
           name: ${{ inputs.plugins-artifact }}
           path: /tmp/plugins-${{ inputs.arch }}
-      
-      - name: Get config file
-        run: |
-          ./.github/get-config-file.sh \
-            ${{ inputs.plugin }} \
-            ${{ env.CONFIG_FILE }} \
-            ${{ env.RULES_DIR }}
 
-      - name: Install plugin and rules (local artifacts)
+      - name: Install plugin and rules
         run: |
-          config_file=$CONFIG_FILE
-          loaded_plugins="$(cat $config_file | grep '\- name: ' | cut -d ':' -f 2 | xargs)"
+          loaded_plugins="$(cat $PLUGIN_CONFIG_FILE | grep '\- name: ' | cut -d ':' -f 2 | xargs)"
           
           sudo mkdir -p /etc/falco/falco
           sudo mkdir -p /usr/share/falco/plugins
@@ -88,27 +74,49 @@ jobs:
           popd
           rm -fr tmp
 
-      - name: Validate plugin and rules (local artifacts)
+      - name: Validate plugin and rules
         run: |
-          config_file=$CONFIG_FILE
-          rules_dir=$RULES_DIR
           
           # craft an empty rules file if none is available.
           # this ensures that the plugin gets still loaded even if it has no rules.
           rules_files=""
-          if [ ! -d "$rules_dir" ]; then
+          if [ ! -d "$PLUGIN_RULES_DIR" ]; then
             touch tmp_rules.yaml
             rules_files="./tmp_rules.yaml"
           else
-            rules_files=$(ls $rules_dir/*)
+            rules_files=$(ls $PLUGIN_RULES_DIR/*)
           fi
 
           ./.github/validate-rules.sh \
             "${{ inputs.falco-image }}" \
             "${{ inputs.rules-checker }}" \
-            "$config_file" \
+            "$PLUGIN_CONFIG_FILE" \
             "$rules_files"
 
+  validate-falcoctl:
+    # todo(jasondellaluce): support aarch64 too
+    if: inputs.arch == 'x86_64'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install system dependencies
+        run: pip install yq
+      
+      - name: Setup plugin config and rules
+        run: ./.github/setup-plugin-config-rules.sh ${{ inputs.plugin }}
+
+      - name: Download rules tool
+        uses: actions/download-artifact@v3
+        with:
+          name: rules-tool.tar.gz
+
+      - name: Download falcoctl
+        run: |
+          curl --fail -LS "https://github.com/falcosecurity/falcoctl/releases/download/v${{ inputs.falcoctl-version }}/falcoctl_${{ inputs.falcoctl-version }}_linux_${{ inputs.arch == 'x86_64' && 'amd64' || 'arm64' }}.tar.gz" | tar -xz
+          sudo install -o root -g root -m 0755 falcoctl /usr/local/bin/falcoctl
+  
       # note(jsondellaluce): exploring the set of all dependencies including their
       # alternatives and all the possible combinations of different versions would
       # result in a combinatorial explosion. As such, we take the simple route
@@ -132,17 +140,15 @@ jobs:
       # todo(jasondellaluce): improve this by attempting more cases
       # todo(jasondellaluce): if we skip one minor version (e.g. bump from v0.1.0
       # to v0.3.0), this algorithm would stop before finishing the exploration
-      - name: Validate plugin and rules (falcoctl artifacts)
+      - name: Validate plugin and rules
         run: |
           set -e pipefail
-          config_file=$CONFIG_FILE
-          rules_dir=$RULES_DIR
 
-          if [ ! -d "$rules_dir" ]; then
+          if [ ! -d "$PLUGIN_RULES_DIR" ]; then
             exit 0
           fi
 
-          rules_files=$(ls $rules_dir/*)
+          rules_files=$(ls $PLUGIN_RULES_DIR/*)
           for rules_file in $rules_files; do
             deps=$(cat $rules_file | yq -r '.[].required_plugin_versions | select(. != null and . != "")[] | [.name + ":" + .version] | @csv')
 
@@ -174,7 +180,7 @@ jobs:
               ./.github/validate-rules.sh \
                 "${{ inputs.falco-image }}" \
                 "${{ inputs.rules-checker }}" \
-                "$config_file" \
+                "$PLUGIN_CONFIG_FILE" \
                 "$rules_file"
             done 
           done

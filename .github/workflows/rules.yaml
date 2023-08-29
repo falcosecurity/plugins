@@ -34,9 +34,6 @@ jobs:
       matrix:
         plugin: ${{ fromJson(needs.get-changed-plugins.outputs.changed-plugins) }}
     runs-on: ubuntu-latest
-    env:
-      RULES_DIR: ${{ github.workspace }}/plugins/${{ matrix.plugin }}/rules
-      CONFIG_FILE: ${{ github.workspace }}/plugins/${{ matrix.plugin }}/falco.yaml
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -45,32 +42,27 @@ jobs:
         run: git fetch --tags origin
       
       - name: Install system dependencies
-        run:
-          pip install yq
+        run: pip install yq
+
+      - name: Setup plugin config and rules
+        run: ./.github/setup-plugin-config-rules.sh ${{ matrix.plugin }}
 
       - name: Download rules tool
         uses: actions/download-artifact@v3
         with:
           name: rules-tool.tar.gz
-      
-      - name: Get config file
-        run: |
-          ./.github/get-config-file.sh \
-            ${{ matrix.plugin }} \
-            ${{ env.CONFIG_FILE }} \
-            ${{ env.RULES_DIR }}
 
       - name: Compare changed files with previous versions
         id: compare
         run: |
-          rules_dir=$RULES_DIR
+          rules_dir=$PLUGIN_RULES_DIR
 
           if [ -d "$rules_dir" ]; then
             rules_files=$(ls $rules_dir/*)
             for rules_file in $rules_files; do
               ./.github/compare-rule-files.sh \
                   "$rules_file" \
-                  $CONFIG_FILE \
+                  $PLUGIN_CONFIG_FILE \
                   ${{ matrix.plugin }} \
                   rule_result.txt \
                   ./rules-checker \
