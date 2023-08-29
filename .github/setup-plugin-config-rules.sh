@@ -1,18 +1,22 @@
 #!/bin/bash
 
 PLUGIN=$1
-CONFIG_FILE=$2
-RULES_DIR=$3
+
+# set expected paths for plugins' config and rules files
+rules_dir="$GITHUB_WORKSPACE/plugins/${PLUGIN}/rules"
+config_file="$GITHUB_WORKSPACE/plugins/${PLUGIN}/falco.yaml"
+
+# set paths into env vars
+echo "PLUGIN_RULES_DIR=${rules_dir}" >> "$GITHUB_ENV"
+echo "PLUGIN_CONFIG_FILE=${config_file}" >> "$GITHUB_ENV"
 
 # craft a default falco.yaml if no custom one is available
-config_file=$CONFIG_FILE
 if [ ! -f "$config_file" ]; then
   # we assume that the current plugin is always a dependency
   deps="$PLUGIN"
 
   # we collect all plugin dependencies across all plugin rulesets
   # todo(jasondellaluce): find a way to avoid ignoring alternatives
-  rules_dir=$RULES_DIR
   if [ -d "$rules_dir" ]; then
     echo Extracting plugin dependencies from rules files...
     rules_files=$(ls $rules_dir/*)
