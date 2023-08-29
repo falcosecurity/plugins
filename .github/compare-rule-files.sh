@@ -13,6 +13,12 @@ set -e pipefail
 rm -f $RESULT_FILE
 touch $RESULT_FILE
 
+extra_flags=""
+loaded_plugins="$(cat $CONFIG_FILE | grep 'library_path: ' | cut -d ':' -f 2 | xargs)"
+for plugin_lib in $loaded_plugins; do
+    extra_flags="${extra_flags} -f /usr/share/falco/plugins/${plugin_lib}"
+done
+
 cur_branch=`git rev-parse HEAD`
 echo Current branch is \"$cur_branch\"
 echo Checking version for rules file \"$RULES_FILE\"...
@@ -26,6 +32,7 @@ $CHECKER_TOOL \
     -c $CONFIG_FILE \
     -l $RULES_FILE \
     -r tmp_rule_file.yaml \
+    ${extra_flags} \
 1>tmp_res.txt
 git switch --detach $cur_branch
 

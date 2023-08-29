@@ -57,9 +57,7 @@ jobs:
       # solution would be to pull them with falcoctl. The flaw with this
       # approach is that we load the same plugin for both the "old" and the
       # "new" rulesets. The issue would be that the job would fail whenever
-      # the two rulesets depend on plugins with different majors. However,
-      # this is an issue for falcosecurity/rules too and the check tool
-      # does not support this case currently.
+      # the two rulesets depend on plugins with different majors.
       # todo(jasondellaluce): fix this corner case in the future
       - name: Download plugins
         uses: actions/download-artifact@v3
