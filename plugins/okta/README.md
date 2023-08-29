@@ -23,7 +23,7 @@ The event source for `okta` events is `okta`.
 # Supported Fields
 
 <!-- README-PLUGIN-FIELDS -->
-| NAME                            |   TYPE   |       ARG       | DESCRIPTION                           |
+|              NAME               |   TYPE   |       ARG       |              DESCRIPTION              |
 |---------------------------------|----------|-----------------|---------------------------------------|
 | `okta.app`                      | `string` | None            | Application                           |
 | `okta.org`                      | `string` | None            | Organization                          |
