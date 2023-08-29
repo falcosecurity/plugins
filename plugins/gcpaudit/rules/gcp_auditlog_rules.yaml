@@ -58,7 +58,6 @@
 - macro: is_cloudsql_service
   condition: gcp.serviceName="cloudsql.googleapis.com"
 
-
 - rule: GCP Cloud SQL database user modified or deleted
   desc: Detect when a Cloud SQL DB user has been modified or deleted.
   condition:  > 

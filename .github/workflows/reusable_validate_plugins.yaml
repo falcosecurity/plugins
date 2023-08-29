@@ -38,7 +38,10 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Install system dependencies
-        run: pip install yq
+        run: |
+          apt update -y
+          apt install -y --no-install-recommends pip git jq
+          pip install yq
 
       - name: Setup plugin config and rules
         id: get-config
@@ -62,8 +65,8 @@ jobs:
           arch=${{ inputs.arch }}
           loaded_plugins="$(cat ${{ steps.get-config.outputs.config_file }} | grep '\- name: ' | cut -d ':' -f 2 | xargs)"
 
-          sudo mkdir -p /etc/falco/falco
-          sudo mkdir -p /usr/share/falco/plugins
+          mkdir -p /etc/falco/falco
+          mkdir -p /usr/share/falco/plugins
 
           for plugin_name in $loaded_plugins; do
               echo Installing locally-built plugin "$plugin_name"...
@@ -82,11 +85,11 @@ jobs:
 
               for archive in $packages; do
                   echo Extracting archive "$archive"...
-                  mkdir -p tmpdir && pushd tmpdir
+                  mkdir -p tmpdir && cd tmpdir
                   tar -xvf $archive
-                  sudo cp -r *.yaml /etc/falco/falco || true
-                  sudo cp -r *.so /usr/share/falco/plugins || true
-                  popd && rm -fr tmpdir
+                  cp -r *.yaml /etc/falco/falco || true
+                  cp -r *.so /usr/share/falco/plugins || true
+                  cd .. && rm -fr tmpdir
               done
           done
 
