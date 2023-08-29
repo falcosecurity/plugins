@@ -1,4 +1,4 @@
-# This is a reusable workflow used by master CI
+# This is a reusable workflow used by master and release CI
 on:
   workflow_call:
     inputs:
@@ -27,7 +27,7 @@ on:
         required: true
         type: string
 
-jobs:  
+jobs:
   # todo(jasondellaluce): support aarch64 too
   validate-local:
     if: inputs.arch == 'x86_64'
@@ -101,8 +101,8 @@ jobs:
             "$PLUGIN_CONFIG_FILE" \
             "$rules_files"
 
+  # todo(jasondellaluce): support aarch64 too
   validate-falcoctl:
-    # todo(jasondellaluce): support aarch64 too
     if: inputs.arch == 'x86_64'
     runs-on: ubuntu-latest
     steps:
