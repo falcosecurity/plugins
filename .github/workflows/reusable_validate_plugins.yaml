@@ -55,28 +55,36 @@ jobs:
 
       - name: Install plugin and rules
         run: |
-          loaded_plugins="$(cat $PLUGIN_CONFIG_FILE | grep '\- name: ' | cut -d ':' -f 2 | xargs)"
+          arch=${{ inputs.arch }}
+          loaded_plugins="$(cat $PLUGIN_CONFIG_FILE | grep '\- name: ' | cut -d ':' -f 2 | xargs)"            
           
           sudo mkdir -p /etc/falco/falco
           sudo mkdir -p /usr/share/falco/plugins
-
-          mkdir -p tmp
-          pushd tmp
           for plugin_name in $loaded_plugins; do
-            echo Installing locally-built plugin "$plugin_name"...
-            for archive in $(ls /tmp/plugins-${{ inputs.arch }}/${plugin_name}-*); do
-              echo Extracting archive "$archive"...
-              tar -xvf $archive
-              sudo cp -r *.so /usr/share/falco/plugins || true
-              sudo cp -r *.yaml /etc/falco/falco || true
-            done
+              echo Installing locally-built plugin "$plugin_name"...
+          
+              # at release time we only build the released plugin, so it's possible
+              # that validation requires a plugin that we haven't built locally.
+              # in those cases, we build it on-the-fly perform validation with it.
+              packages=$(ls /tmp/plugins-${arch}/${plugin_name}-*)
+              if [ -z "$packages" ]; then
+                  echo Building plugin "$plugin_name" temporary packages...
+                  make package/$plugin_name -j4
+                  packages=$(ls $(pwd)/output/${plugin_name}-*)
+              fi
+          
+              for archive in $packages; do
+                  echo Extracting archive "$archive"...
+                  mkdir -p tmpdir && pushd tmpdir
+                  tar -xvf $archive
+                  sudo cp -r *.so /usr/share/falco/plugins || true
+                  sudo cp -r *.yaml /etc/falco/falco || true
+                  popd && rm -fr tmpdir
+              done
           done
-          popd
-          rm -fr tmp
 
       - name: Validate plugin and rules
         run: |
-          
           # craft an empty rules file if none is available.
           # this ensures that the plugin gets still loaded even if it has no rules.
           rules_files=""
