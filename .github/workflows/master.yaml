@@ -14,7 +14,7 @@ jobs:
   build-plugins-dev:
     uses: falcosecurity/plugins/.github/workflows/reusable_build_packages.yaml@master
     with:
-      makecommand: make packages
+      makecommand: make packages -j4
       suffix: dev
     secrets: inherit
 
