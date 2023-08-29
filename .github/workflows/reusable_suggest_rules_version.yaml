@@ -1,0 +1,158 @@
+# This is a reusable workflow used by the PR CI
+on:
+  workflow_call:
+    inputs:
+      plugin:
+        description: Name of the plugin that needs to be validated
+        required: true
+        type: string
+      falco-image:
+        description: Docker image of Falco to be used for validation
+        required: true
+        type: string
+      plugins-artifact:
+        description: Name of the plugin artifact containing the dev builds
+        required: true
+        type: string
+      rules-checker:
+        description: Path of the rules checker tool built from falcosecurity/rules
+        required: true
+        type: string
+      arch:
+        description: Architecture of the plugins artifacts (x86_64 or aarch64)
+        required: true
+        type: string
+      job-index:
+        description: If used in a matrix, the value of strategy.job-index
+        required: false
+        default: 0
+        type: number
+
+jobs:
+  # note: we don't need anything else than x86_64 since we're validating rules
+  check-version:
+    if: github.event_name == 'pull_request' && inputs.arch == 'x86_64'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install system dependencies
+        run: pip install yq
+
+      - name: Setup plugin config and rules
+        id: get-config
+        run: ./.github/setup-plugin-config-rules.sh ${{ inputs.plugin }}
+
+      - name: Get latest tag
+        id: get-tag
+        run: ./.github/get-latest-plugin-version.sh ${{ inputs.plugin }}
+
+      - name: Download rules tool
+        uses: actions/download-artifact@v3
+        with:
+          name: rules-tool.tar.gz
+      
+      # note: here we're loading the locally-built plugins, whereas another
+      # solution would be to pull them with falcoctl. The flaw with this
+      # approach is that we load the same plugin for both the "old" and the
+      # "new" rulesets. The issue would be that the job would fail whenever
+      # the two rulesets depend on plugins with different majors. However,
+      # this is an issue for falcosecurity/rules too and the check tool
+      # does not support this case currently.
+      # todo(jasondellaluce): fix this corner case in the future
+      - name: Download plugins
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ inputs.plugins-artifact }}
+          path: /tmp/plugins-${{ inputs.arch }}
+      
+      - name: Extract plugins
+        run: |
+          for archive in /tmp/plugins-*/*.tar.gz; do
+            echo Extracting archive "$archive"...
+            mkdir -p tmpdir && pushd tmpdir
+            tar -xvf $archive
+            sudo mkdir -p /usr/share/falco/plugins
+            sudo cp -r *.so /usr/share/falco/plugins || true
+            popd && rm -fr tmpdir
+          done    
+
+      - name: Compare changed files with previous versions
+        id: compare
+        if: steps.get-tag.outputs.version != '0.0.0'
+        run: |
+          rules_dir=${{ steps.get-config.outputs.rules_dir }}
+
+          if [ -d "$rules_dir" ]; then
+            rules_files=$(ls $rules_dir/*)
+            for rules_file in $rules_files; do
+              ./.github/compare-rule-files.sh \
+                  "$rules_file" \
+                  ${{ steps.get-config.outputs.config_file }} \
+                  ${{ inputs.plugin }} \
+                  rule_result.txt \
+                  ${{ inputs.rules-checker }} \
+                  ${{ inputs.falco-image }} \
+                  ${{ steps.get-tag.outputs.ref }}
+
+              if [ -s rule_result.txt ]; then
+                if [ ! -s result.txt ]; then
+                  touch result.txt
+                fi
+                cat rule_result.txt >> result.txt
+              fi
+            done
+          fi
+
+          if [ -s result.txt ]; then
+            echo "comment_file=result.txt" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Save PR info
+        if: steps.compare.outputs.comment_file != ''
+        run: |
+          mkdir -p ./pr
+          cp ${{ steps.compare.outputs.comment_file }} ./pr/COMMENT-${{ inputs.job-index }}
+
+      - name: Upload PR info as artifact
+        uses: actions/upload-artifact@v2
+        if: steps.compare.outputs.comment_file != ''
+        with:
+          name: pr-${{ inputs.job-index }}
+          path: pr/
+          retention-days: 1
+
+  upload-pr-info:
+    needs: [check-version]
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download PR infos
+        uses: actions/download-artifact@v3
+        with:
+          path: tmp-artifacts
+      
+      - name: Save PR info
+        run: |
+          mkdir -p ./pr
+          echo ${{ github.event.number }} > ./pr/NR
+          touch ./pr/COMMENT
+          echo "# Rules files suggestions" >> ./pr/COMMENT
+          echo "" >> ./pr/COMMENT
+          files=$(find ./tmp-artifacts/)
+          for file in $files; do
+            if [[ $file =~ "COMMENT" ]]; then
+              cat $file >> ./pr/COMMENT
+            fi
+          done
+          echo Uploading PR info...
+          cat ./pr/COMMENT
+          echo ""
+
+      - name: Upload PR info as artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: pr
+          path: pr/
+          retention-days: 1

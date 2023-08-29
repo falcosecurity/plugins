@@ -44,3 +44,19 @@ jobs:
       plugins-artifact: plugins-x86_64-${{ github.event.number }}.tar.gz
       rules-checker: ./rules-checker
       arch: x86_64
+  
+  suggest-rules-version:
+    needs: [build-plugins, get-changed-plugins, build-rules-tool]
+    if: needs.get-changed-plugins.outputs.changed-plugins != '[]' && needs.get-changed-plugins.outputs.changed-plugins != ''
+    strategy:
+      fail-fast: false
+      matrix:
+        plugin: ${{ fromJson(needs.get-changed-plugins.outputs.changed-plugins) }}
+    uses: ./.github/workflows/reusable_suggest_rules_version.yaml
+    with:
+      plugin: ${{ matrix.plugin }}
+      falco-image: falcosecurity/falco-no-driver:0.35.1
+      plugins-artifact: plugins-x86_64-${{ github.event.number }}.tar.gz
+      rules-checker: ./rules-checker
+      arch: x86_64
+      job-index: ${{ strategy.job-index }}
