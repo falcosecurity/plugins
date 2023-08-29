@@ -33,7 +33,7 @@ jobs:
     needs: extract-info
     uses: falcosecurity/plugins/.github/workflows/reusable_build_packages.yaml@master
     with:
-      makecommand: make release/${{ needs.extract-info.outputs.package }}
+      makecommand: make release/${{ needs.extract-info.outputs.package }} -j4
       suffix: stable
     secrets: inherit
 
