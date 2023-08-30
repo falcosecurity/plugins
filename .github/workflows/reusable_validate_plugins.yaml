@@ -33,6 +33,8 @@ jobs:
     if: inputs.arch == 'x86_64'
     runs-on: ubuntu-latest
     container: golang:1.18
+    env:
+      GOFLAGS: '-buildvcs=false'
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -67,6 +69,9 @@ jobs:
 
           mkdir -p /etc/falco/falco
           mkdir -p /usr/share/falco/plugins
+          
+          # avoids git exit status 128: detected dubious ownership in repository
+          git config --global --add safe.directory $(pwd)
 
           for plugin_name in $loaded_plugins; do
               echo Installing locally-built plugin "$plugin_name"...
