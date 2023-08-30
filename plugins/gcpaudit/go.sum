@@ -24,8 +24,8 @@ github.com/envoyproxy/go-control-plane v0.9.0/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymF
 github.com/envoyproxy/go-control-plane v0.9.1-0.20191026205805-5f8ba28d4473/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=
 github.com/envoyproxy/go-control-plane v0.9.4/go.mod h1:6rpuAdCZL397s3pYoYcLgu1mIlRU8Am5FuJP05cCM98=
 github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7+kN2VEUnK/pcBlmesArF7c=
-github.com/falcosecurity/plugin-sdk-go v0.7.1 h1:tVi5MdQ9dq6i5f5R29ufhsgKs0gYOXLZQ4d83gEbanE=
-github.com/falcosecurity/plugin-sdk-go v0.7.1/go.mod h1:NP+y22DYOS+G3GDXIXNmzf0CBL3nfPPMoQuHvAzfitQ=
+github.com/falcosecurity/plugin-sdk-go v0.7.3 h1:nmlBUmeAgEhcEHhSDWeEYgD9WdiHR9uMWyog5Iv7GIA=
+github.com/falcosecurity/plugin-sdk-go v0.7.3/go.mod h1:NP+y22DYOS+G3GDXIXNmzf0CBL3nfPPMoQuHvAzfitQ=
 github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b/go.mod h1:SBH7ygxi8pfUlaOkMMuAQtPIUF8ecWP5IEl/CR7VP2Q=
 github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e h1:1r7pUrabqp18hOBcwBwiTsbnFeTZHV9eER/QT5JVZxY=
 github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e/go.mod h1:cIg4eruTrX1D+g88fzRXU5OdNfaM+9IcxsU14FzY7Hc=

@@ -8,7 +8,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.38.5
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/falcosecurity/falcoctl v0.5.1
-	github.com/falcosecurity/plugin-sdk-go v0.7.1
+	github.com/falcosecurity/plugin-sdk-go v0.7.3
 	github.com/onsi/ginkgo/v2 v2.10.0
 	github.com/onsi/gomega v1.27.8
 	github.com/pkg/errors v0.9.1
