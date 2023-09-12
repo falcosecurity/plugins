@@ -1,11 +1,10 @@
 package main
 
 import (
-	"gcpaudit/pkg/gcpaudit"
-
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/extractor"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/source"
+	"github.com/falcosecurity/plugins/plugins/gcpaudit/pkg/gcpaudit"
 )
 
 func init() {
