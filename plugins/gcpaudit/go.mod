@@ -1,4 +1,4 @@
-module gcpaudit
+module github.com/falcosecurity/plugins/plugins/gcpaudit
 
 go 1.19
 
