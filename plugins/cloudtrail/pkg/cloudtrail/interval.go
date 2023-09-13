@@ -22,7 +22,7 @@ import (
 	"time"
 )
 
-var RFC3339Simple = "2006-01-02T03:04:05Z"
+var RFC3339Simple = "2006-01-02T15:04:05Z"
 
 func parseEndpoint(endpoint string) (time.Time, error) {
 	utc := time.Now().UTC()

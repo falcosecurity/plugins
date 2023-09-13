@@ -182,7 +182,6 @@ func (oCtx *PluginInstance) openS3(input string) error {
 	var inputParams []listOrigin
 	ctx := context.Background()
 
-	// XXX Make empty mean no startTime.
 	startTime, endTime, err := ParseInterval(oCtx.config.S3Interval)
 	if err != nil {
 		return fmt.Errorf(PluginName + " invalid interval: \"%s\": %s", oCtx.config.S3Interval, err.Error())
@@ -234,9 +233,10 @@ func (oCtx *PluginInstance) openS3(input string) error {
 
 	if len(inputParams) > 0 {
 		if !startTime.IsZero() {
-			startTS = startTime.Format("20060102T0304")
+			startAfterFormat := "20060102T1504"
+			startTS = startTime.Format(startAfterFormat)
 			if !endTime.IsZero() {
-				endTS = endTime.Format("20060102T0304")
+				endTS = endTime.Format(startAfterFormat)
 				if endTS < startTS {
 					return fmt.Errorf(PluginName + " start time %s must be less than end time %s", startTime.Format(RFC3339Simple), endTime.Format(RFC3339Simple))
 				}
