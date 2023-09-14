@@ -20,12 +20,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/falcosecurity/plugins/build/registry/pkg/common"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/falcosecurity/falcoctl/pkg/index"
+	"github.com/falcosecurity/plugins/build/registry/pkg/common"
+
+	"github.com/falcosecurity/falcoctl/pkg/index/index"
 	falcoctloci "github.com/falcosecurity/falcoctl/pkg/oci"
 	"github.com/falcosecurity/falcoctl/pkg/oci/authn"
 	"github.com/falcosecurity/plugins/build/registry/pkg/oci"
