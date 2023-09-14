@@ -137,8 +137,8 @@ func latestVersionArtifact(ctx context.Context, ref string, ociClient remote.Cli
 	remoteTags, err := repo.Tags(ctx)
 	// Only way to know if the repo does not exist is to check the content of the error.
 	if err != nil && !strings.Contains(err.Error(), "unexpected status code 404") {
-		klog.Errorf("unable to get latest version from remote repository for %q: %v", ref, err)
-		return "", err
+		klog.Warningf("unable to get latest version from remote repository for %q: %v", ref, err)
+		return "", nil
 	}
 
 	// If no tags found it means that the artifact does not exist in the OCI registry or
