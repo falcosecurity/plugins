@@ -6,6 +6,10 @@ jobs:
   publish-oci-artifacts:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+      packages: write
+
     outputs:
       matrix: ${{ steps.oci_build.outputs.REGISTRY_UPDATE_STATUS }}
 
