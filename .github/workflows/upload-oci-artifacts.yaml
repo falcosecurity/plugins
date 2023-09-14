@@ -33,9 +33,8 @@ jobs:
           REPO_GITHUB: https://github.com/${{ github.repository_owner }}/plugins.git
         working-directory: build/registry
         run: >-
-          echo "REGISTRY_UPDATE_STATUS=$(
-            ./bin/registry update-oci-registry ../../registry.yaml
-          )" >> $GITHUB_OUTPUT
+          REGISTRY_UPDATE_STATUS=$(./bin/registry update-oci-registry ../../registry.yaml)
+          echo "REGISTRY_UPDATE_STATUS=${REGISTRY_UPDATE_STATUS}" >> $GITHUB_OUTPUT
 
   # Create signatures of the plugin artifacts as OCI artifacts
   sign-oci-artifacts:
