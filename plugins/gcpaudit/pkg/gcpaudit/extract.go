@@ -59,15 +59,15 @@ func (p *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 		req.SetValue(principalIP)
 
 	case "gcp.userAgent":
-		principalUserAgent := p.jdata.Get("protoPayload").Get("requestMetadata").Get("callerSuppliedUserAgent")
+		principalUserAgent := p.jdata.Get("protoPayload").Get("requestMetadata").GetStringBytes("callerSuppliedUserAgent")
 		if principalUserAgent != nil {
-			req.SetValue(string(principalUserAgent.GetStringBytes()))
+			req.SetValue(string(principalUserAgent))
 		}
 
 	case "gcp.authorizationInfo":
-		principalAuthorizationInfo := p.jdata.Get("protoPayload").Get("authorizationInfo")
-		if principalAuthorizationInfo.Exists() {
-			req.SetValue(principalAuthorizationInfo.String())
+		principalAuthorizationInfo := p.jdata.Get("protoPayload").GetStringBytes("authorizationInfo")
+		if principalAuthorizationInfo != nil {
+			req.SetValue(string(principalAuthorizationInfo))
 		}
 
 	case "gcp.serviceName":
@@ -77,19 +77,24 @@ func (p *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 		}
 
 	case "gcp.request":
-		request := p.jdata.Get("protoPayload").Get("request").String()
-		req.SetValue(request)
+		request := p.jdata.Get("protoPayload").GetStringBytes("request")
+		if request != nil {
+			req.SetValue(string(request))
+		}
 
 	case "gcp.policyDelta":
 		resource := string(p.jdata.Get("resource").Get("type").GetStringBytes())
 
 		if resource == "gcs_bucket" {
-			bindingDeltas := p.jdata.Get("protoPayload").Get("serviceData").Get("policyDelta").Get("bindingDeltas").String()
-
-			req.SetValue(bindingDeltas)
+			bindingDeltas := p.jdata.Get("protoPayload").Get("serviceData").Get("policyDelta").GetStringBytes("bindingDeltas")
+			if bindingDeltas != nil {
+				req.SetValue(string(bindingDeltas))
+			}
 		} else {
-			bindingDeltas := p.jdata.Get("protoPayload").Get("metadata").Get("datasetChange").Get("bindingDeltas").String()
-			req.SetValue(bindingDeltas)
+			bindingDeltas := p.jdata.Get("protoPayload").Get("metadata").Get("datasetChange").GetStringBytes("bindingDeltas")
+			if bindingDeltas != nil {
+				req.SetValue(string(bindingDeltas))
+			}
 		}
 
 	case "gcp.methodName":
