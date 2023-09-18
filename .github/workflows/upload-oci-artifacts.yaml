@@ -36,7 +36,7 @@ jobs:
           REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO_GITHUB: https://github.com/${{ github.repository_owner }}/plugins.git
         working-directory: build/registry
-        run: >-
+        run: |
           REGISTRY_UPDATE_STATUS=$(./bin/registry update-oci-registry ../../registry.yaml)
           echo "REGISTRY_UPDATE_STATUS=${REGISTRY_UPDATE_STATUS}" >> $GITHUB_OUTPUT
 
