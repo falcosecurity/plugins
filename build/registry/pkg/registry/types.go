@@ -17,7 +17,7 @@ limitations under the License.
 package registry
 
 import (
-	"github.com/falcosecurity/falcoctl/pkg/index"
+	"github.com/falcosecurity/falcoctl/pkg/index/index"
 )
 
 type SourcingCapability struct {
