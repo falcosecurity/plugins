@@ -156,15 +156,15 @@ func (p *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 		}
 
 	case "gcp.location":
-		location := p.jdata.Get("resource").Get("labels").Get("location")
-		if location.Exists() {
-			req.SetValue(location)
+		location := p.jdata.Get("resource").Get("labels").GetStringBytes("location")
+		if location != nil {
+			req.SetValue(string(location))
 			return nil
 		}
 		// if location is not present, check for region
-		region := p.jdata.Get("resource").Get("labels").Get("region")
-		if region.Exists() {
-			req.SetValue(region)
+		region := p.jdata.Get("resource").Get("labels").GetStringBytes("region")
+		if region != nil {
+			req.SetValue(string(region))
 			return nil
 		}
 		// if region is not present, check for zone
