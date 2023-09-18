@@ -202,6 +202,13 @@
   type: plugin
   registry: ghcr.io
   repository: falcosecurity/plugins/plugin/okta
+  signature:
+    cosign:
+        certificate-oidc-issuer: https://token.actions.githubusercontent.com
+        certificate-oidc-issuer-regexp: ""
+        certificate-identity: ""
+        certificate-identity-regexp: https://github.com/LucaGuerra/cool-falco-ruleset/
+        certificate-github-workflow: ""
   description: Okta Log Events
   home: https://github.com/falcosecurity/plugins/tree/master/plugins/okta
   keywords:
@@ -218,6 +225,13 @@
   type: rulesfile
   registry: ghcr.io
   repository: falcosecurity/plugins/ruleset/okta
+  signature:
+    cosign:
+        certificate-oidc-issuer: https://token.actions.githubusercontent.com
+        certificate-oidc-issuer-regexp: ""
+        certificate-identity: ""
+        certificate-identity-regexp: https://github.com/LucaGuerra/cool-falco-ruleset/
+        certificate-github-workflow: ""
   description: Okta Log Events
   home: https://github.com/falcosecurity/plugins/tree/master/plugins/okta
   keywords:

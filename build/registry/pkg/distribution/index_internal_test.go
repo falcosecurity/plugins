@@ -20,7 +20,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/falcosecurity/falcoctl/pkg/index"
+	"github.com/falcosecurity/falcoctl/pkg/index/index"
 
 	"github.com/falcosecurity/plugins/build/registry/pkg/distribution"
 	"github.com/falcosecurity/plugins/build/registry/pkg/registry"
