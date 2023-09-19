@@ -13,7 +13,7 @@ const (
 	PluginName               = "gcpaudit"
 	PluginDescription        = "Read GCP Audit Logs"
 	PluginContact            = "github.com/falcosecurity/plugins"
-	PluginVersion            = "0.1.3"
+	PluginVersion            = "0.2.0"
 	PluginEventSource        = "gcp_auditlog"
 )
 
