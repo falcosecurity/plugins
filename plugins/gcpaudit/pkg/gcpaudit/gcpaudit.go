@@ -2,6 +2,7 @@ package gcpaudit
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/source"
@@ -28,6 +29,10 @@ func (p *Plugin) Info() *plugins.Info {
 }
 
 func (p *Plugin) Open(params string) (source.Instance, error) {
+	if params == "" {
+		return nil, fmt.Errorf("no subscriptionID provided")
+	}
+
 	subscriptionID := params
 	ctx, cancel := context.WithCancel(context.Background())
 	eventsC, errC := p.pullMsgsSync(ctx, subscriptionID)
