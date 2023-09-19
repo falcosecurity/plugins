@@ -149,13 +149,11 @@ func latestVersionArtifact(ctx context.Context, ref string, ociClient remote.Cli
 
 	// We parse the tags in semVer and then sort and get the latest one.
 	for _, tag := range remoteTags {
-		// Ignore the "latest" tag.
-		if tag == "latest" {
-			continue
-		}
 		parsedVersion, err := semver.ParseTolerant(tag)
 		if err != nil {
-			return "", fmt.Errorf("cannot parse tag %q to semVer: %v", tag, err)
+			// Ignore any non-semver tags (like latest or signature tags)
+			klog.Infof("Tag %s is not semver, ignoring")
+			continue
 		}
 
 		versions = append(versions, parsedVersion)
