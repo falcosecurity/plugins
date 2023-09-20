@@ -39,6 +39,10 @@ plugins:
     url: https://github.com/falcosecurity/plugins/tree/master/plugins/k8saudit
     rules_url: https://github.com/falcosecurity/plugins/tree/master/plugins/k8saudit/rules
     license: Apache-2.0
+    signature:
+      cosign:
+        certificate-oidc-issuer: https://token.actions.githubusercontent.com
+        certificate-identity-regexp: https://github.com/falcosecurity/plugins/
     capabilities:
       sourcing:
         supported: true
@@ -46,10 +50,6 @@ plugins:
         source: k8s_audit
       extraction:
         supported: true
-    signature:
-      cosign:
-        certificate-oidc-issuer: https://token.actions.githubusercontent.com
-        certificate-identity-regexp: https://github.com/falcosecurity/plugins/
   - name: cloudtrail
     description: Reads Cloudtrail JSON logs from files/S3 and injects as events
     authors: The Falco Authors
@@ -65,6 +65,10 @@ plugins:
     url: https://github.com/falcosecurity/plugins/tree/master/plugins/cloudtrail
     rules_url: https://github.com/falcosecurity/plugins/tree/master/plugins/cloudtrail/rules
     license: Apache-2.0
+    signature:
+      cosign:
+        certificate-oidc-issuer: https://token.actions.githubusercontent.com
+        certificate-identity-regexp: https://github.com/falcosecurity/plugins/
     capabilities:
       sourcing:
         supported: true
@@ -85,6 +89,10 @@ plugins:
       - extractor
     url: https://github.com/falcosecurity/plugins/tree/master/plugins/json
     license: Apache-2.0
+    signature:
+      cosign:
+        certificate-oidc-issuer: https://token.actions.githubusercontent.com
+        certificate-identity-regexp: https://github.com/falcosecurity/plugins/
     capabilities:
       extraction:
         supported: true
@@ -169,6 +177,10 @@ plugins:
     url: https://github.com/falcosecurity/plugins/tree/master/plugins/okta
     rules_url: https://github.com/falcosecurity/plugins/tree/master/plugins/okta/rules
     license: Apache-2.0
+    signature:
+      cosign:
+        certificate-oidc-issuer: https://token.actions.githubusercontent.com
+        certificate-identity-regexp: https://github.com/falcosecurity/plugins/
     capabilities:
       sourcing:
         supported: true
@@ -192,6 +204,10 @@ plugins:
     url: https://github.com/falcosecurity/plugins/tree/master/plugins/github
     rules_url: https://github.com/falcosecurity/plugins/tree/master/plugins/github/rules
     license: Apache-2.0
+    signature:
+      cosign:
+        certificate-oidc-issuer: https://token.actions.githubusercontent.com
+        certificate-identity-regexp: https://github.com/falcosecurity/plugins/
     capabilities:
       sourcing:
         supported: true
@@ -206,6 +222,10 @@ plugins:
     url: https://github.com/falcosecurity/plugins/tree/master/plugins/k8saudit-eks
     rules_url: https://github.com/falcosecurity/plugins/tree/master/plugins/k8saudit/rules
     license: Apache-2.0
+    signature:
+      cosign:
+        certificate-oidc-issuer: https://token.actions.githubusercontent.com
+        certificate-identity-regexp: https://github.com/falcosecurity/plugins/
     keywords:
       - audit
       - audit-log
