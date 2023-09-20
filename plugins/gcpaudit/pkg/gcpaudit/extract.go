@@ -102,57 +102,57 @@ func (p *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 		req.SetValue(methodName)
 
 	case "gcp.cloudfunctions.function":
-		functionName := p.jdata.Get("resource").Get("labels").Get("function_name")
-		if functionName.Exists() {
-			req.SetValue(functionName)
+		functionName := p.jdata.Get("resource").Get("labels").GetStringBytes("function_name")
+		if functionName != nil {
+			req.SetValue(string(functionName))
 		}
 
 	case "gcp.cloudsql.databaseId":
-		databaseId := p.jdata.Get("resource").Get("labels").Get("database_id")
-		if databaseId.Exists() {
-			req.SetValue(databaseId)
+		databaseId := p.jdata.Get("resource").Get("labels").GetStringBytes("database_id")
+		if databaseId != nil {
+			req.SetValue(string(databaseId))
 		}
 
 	case "gcp.compute.instanceId":
-		instanceId := p.jdata.Get("resource").Get("labels").Get("instance_id")
-		if instanceId.Exists() {
-			req.SetValue(instanceId)
+		instanceId := p.jdata.Get("resource").Get("labels").GetStringBytes("instance_id")
+		if instanceId != nil {
+			req.SetValue(string(instanceId))
 		}
 
 	case "gcp.compute.networkId":
-		networkId := p.jdata.Get("resource").Get("labels").Get("network_id")
-		if networkId.Exists() {
-			req.SetValue(networkId)
+		networkId := p.jdata.Get("resource").Get("labels").GetStringBytes("network_id")
+		if networkId != nil {
+			req.SetValue(string(networkId))
 		}
 
 	case "gcp.compute.subnetwork":
-		subnetwork := p.jdata.Get("resource").Get("labels").Get("subnetwork_name")
-		if subnetwork.Exists() {
-			req.SetValue(subnetwork)
+		subnetwork := p.jdata.Get("resource").Get("labels").GetStringBytes("subnetwork_name")
+		if subnetwork != nil {
+			req.SetValue(string(subnetwork))
 		}
 
 	case "gcp.compute.subnetworkId":
-		subnetworkId := p.jdata.Get("resource").Get("labels").Get("subnetwork_id")
-		if subnetworkId.Exists() {
-			req.SetValue(subnetworkId)
+		subnetworkId := p.jdata.Get("resource").Get("labels").GetStringBytes("subnetwork_id")
+		if subnetworkId != nil {
+			req.SetValue(string(subnetworkId))
 		}
 
 	case "gcp.dns.zone":
-		zone := p.jdata.Get("resource").Get("labels").Get("zone_name")
-		if zone.Exists() {
-			req.SetValue(zone)
+		zone := p.jdata.Get("resource").Get("labels").GetStringBytes("zone_name")
+		if zone != nil {
+			req.SetValue(string(zone))
 		}
 
 	case "gcp.iam.serviceAccount":
-		serviceAccount := p.jdata.Get("resource").Get("labels").Get("email_id")
-		if serviceAccount.Exists() {
-			req.SetValue(serviceAccount)
+		serviceAccount := p.jdata.Get("resource").Get("labels").GetStringBytes("email_id")
+		if serviceAccount != nil {
+			req.SetValue(string(serviceAccount))
 		}
 
 	case "gcp.iam.serviceAccountId":
-		serviceAccountId := p.jdata.Get("resource").Get("labels").Get("unique_id")
-		if serviceAccountId.Exists() {
-			req.SetValue(serviceAccountId)
+		serviceAccountId := p.jdata.Get("resource").Get("labels").GetStringBytes("unique_id")
+		if serviceAccountId != nil {
+			req.SetValue(string(serviceAccountId))
 		}
 
 	case "gcp.location":
@@ -188,27 +188,27 @@ func (p *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 		}
 
 	case "gcp.projectId":
-		projectId := p.jdata.Get("resource").Get("labels").Get("project_id")
-		if projectId.Exists() {
-			req.SetValue(projectId)
+		projectId := p.jdata.Get("resource").Get("labels").GetStringBytes("project_id")
+		if projectId != nil {
+			req.SetValue(string(projectId))
 		}
 
 	case "gcp.resourceName":
-		resourceName := p.jdata.Get("protoPayload").Get("resourceName")
-		if resourceName.Exists() {
-			req.SetValue(resourceName)
+		resourceName := p.jdata.Get("protoPayload").GetStringBytes("resourceName")
+		if resourceName != nil {
+			req.SetValue(string(resourceName))
 		}
 
 	case "gcp.resourceType":
-		resourceType := p.jdata.Get("resource").Get("type")
-		if resourceType.Exists() {
-			req.SetValue(resourceType)
+		resourceType := p.jdata.Get("resource").GetStringBytes("type")
+		if resourceType != nil {
+			req.SetValue(string(resourceType))
 		}
 
 	case "gcp.storage.bucket":
-		bucket := p.jdata.Get("resource").Get("labels").Get("bucket_name")
-		if bucket.Exists() {
-			req.SetValue(bucket)
+		bucket := p.jdata.Get("resource").Get("labels").GetStringBytes("bucket_name")
+		if bucket != nil {
+			req.SetValue(string(bucket))
 		}
 
 	default:
