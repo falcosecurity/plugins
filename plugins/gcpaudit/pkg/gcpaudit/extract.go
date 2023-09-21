@@ -168,13 +168,16 @@ func (p *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 			return nil
 		}
 		// if region is not present, check for zone
-		zone := p.jdata.Get("resource").Get("labels").Get("zone").String()
-		if zone != "" && len(zone) > 2 {
-			// if in format: "us-central1-a", remove last two chars
-			formattedZone := zone[:len(zone)-2]
-			req.SetValue(formattedZone)
-		} else if zone != "" {
-			req.SetValue(zone)
+		val := p.jdata.Get("resource").Get("labels").Get("zone").GetStringBytes()
+		if val != nil {
+			zone := string(val)
+			if len(zone) > 2 {
+				// if in format: "us-central1-a", remove last two chars
+				formattedZone := zone[:len(zone)-2]
+				req.SetValue(formattedZone)
+			} else if zone != "" {
+				req.SetValue(zone)
+			}
 		}
 
 	case "gcp.logging.sink":
