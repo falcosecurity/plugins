@@ -120,27 +120,18 @@ load_plugins: [k8saudit-eks, json]
 **Open Parameters**
 A string which contains the name of your EKS Cluster (required).
 
-
 ### Rules
 
-The `k8saudit-eks` plugin ships with a no default rule for test purpose, the same rules than those for `k8saudit` plugin can work, just add an `alternative` field:
-```
-- required_engine_version: 15
-- required_plugin_versions:
-  - name: k8saudit
-    version: 0.1.0
-    alternatives:
-      - name: k8saudit-eks
-        version: 0.1.0
-```
+The `k8saudit-eks` plugin ships with no default rule for test purpose, you can use the same rules than those for `k8saudit` plugin. See [here](https://github.com/falcosecurity/plugins/blob/master/plugins/k8saudit/rules/k8s_audit_rules.yaml).
 
-To test if it works, you can still use this one for example:
+
+To test if it works anyway, you can still use this one for example:
 
 ```yaml
 - required_engine_version: 15
 - required_plugin_versions:
   - name: k8saudit-eks
-    version: 0.1.0
+    version: 0.2.0
 
 - rule: Dummy rule
   desc: >
@@ -153,26 +144,11 @@ To test if it works, you can still use this one for example:
   tags: [k8s]
 ```
 
-### Running
-
-This plugin requires Falco with version >= **0.33.0**.
-```shell
-falco -c falco.yaml -r rules/k8s_audit_rules.yaml
-```
-```shell
-17:48:41.067076000: Warning user=eks:certificate-controller verb=get target=eks-certificates-controller target.namespace=kube-system resource=configmapsEvents detected: 1
-Rule counts by severity:
-   WARNING: 1
-Triggered rules by rule name:
-   Dummy rule: 1
-Syscall event drop monitoring:
-   - event drop detected: 0 occurrences
-   - num times actions taken: 0
-```
-
 ### AWS IAM Policy Permissions
 
-This plugin retrieves Kubernetes audit events from Amazon CloudWatch and it therefore needs appropriate permissions to perform these actions. Here is a AWS IAM policy document that satisfies the requirements:
+This plugin retrieves Kubernetes audit events from Amazon CloudWatch Logs and it therefore needs appropriate permissions to perform these actions. If you use a `profile` or associate a role to the service account in Kubernetes with an OIDC provider, you need to grant it permissions.
+
+Here is a AWS IAM policy document that satisfies the requirements:
 
 ```json
 {
@@ -195,4 +171,90 @@ This plugin retrieves Kubernetes audit events from Amazon CloudWatch and it ther
 }
 ```
 
-Note the three placeholders REGION, ACCOUNT_ID, and CLUSTER_NAME which must be replaced with fitting values.
+> **Note**
+The three placeholders REGION, ACCOUNT_ID, and CLUSTER_NAME which must be replaced with fitting values.
+
+### Running locally
+
+This plugin requires Falco with version >= **0.35.0**.
+```shell
+falco -c falco.yaml -r rules/k8s_audit_rules.yaml
+```
+```shell
+17:48:41.067076000: Warning user=eks:certificate-controller verb=get target=eks-certificates-controller target.namespace=kube-system resource=configmapsEvents detected: 1
+Rule counts by severity:
+   WARNING: 1
+Triggered rules by rule name:
+   Dummy rule: 1
+Syscall event drop monitoring:
+   - event drop detected: 0 occurrences
+   - num times actions taken: 0
+```
+
+### Running in EKS
+
+> **Warning**
+When running Falco with the `k8saudit-eks` plugin in a kubernetes cluster, you can't have more than 1 pod at once. The plugin pulls the logs from Cloudwatch Logs, having multiple instances will lead to multiple gatherings of the same logs and the duplication of alerts.
+
+You can use the official [Falco helm chart](https://github.com/falcosecurity/charts/tree/master/falco) to deploy it with the `k8saudit-eks` plugin as 1 replica deployment. You can also use it to associate the IAM role you created (see [AWS IAM Policy Permissions](#aws-iam-policy-permissions)).
+
+See this example of `values.yaml`.
+
+```yaml
+tty: true
+kubernetes: false #disable the collection of k8s metadata
+
+falco:
+  rules_file:
+    - /etc/falco/k8s_audit_rules.yaml #rules to use
+    - /etc/falco/rules.d
+  plugins:
+    - name: k8saudit-eks
+      library_path: libk8saudit-eks.so
+      init_config:
+        region: ${REGION} #replace with your region
+        shift: 10
+        polling_interval: 10
+        use_async: false
+        buffer_size: 500
+      open_params: ${CLUSTER_NAME} #replace with your cluster name
+    - name: json
+      library_path: libjson.so
+      init_config: ""
+  load_plugins: [k8saudit-eks, json] #plugins to load
+
+driver:
+  enabled: false #disable the collection of syscalls
+collectors:
+  enabled: false #disable the collection of container metadata
+
+controller:
+  kind: deployment
+  deployment:
+    replicas: 1 #1 replica deployment to avoid duplication of alerts
+
+falcoctl: #use falcoctl to install automatically the plugin and the rules
+  indexes:
+  - name: falcosecurity
+    url: https://falcosecurity.github.io/falcoctl/index.yaml
+  artifact:
+    install:
+      enabled: true
+    follow:
+      enabled: true
+  config:
+    artifact:
+      allowedTypes:
+        - plugin
+        - rulesfile
+      install:
+        resolveDeps: false
+        refs: [k8saudit-rules:0, k8saudit-eks:0, json:0]
+      follow:
+        refs: [k8saudit-rules:0]
+
+serviceAccount:
+  create: true
+  annotations:
+    - eks.amazonaws.com/role-arn: arn:aws:iam::${ACCOUNT_ID}:role/${ROLE} #if you use an OIDC provider, you can attach a role to the service account
+```
