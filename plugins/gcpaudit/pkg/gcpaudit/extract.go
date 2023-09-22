@@ -1,10 +1,10 @@
 package gcpaudit
 
 import (
-	"fmt"
 	"io"
 
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
+	"github.com/valyala/fastjson"
 )
 
 func (p *Plugin) Fields() []sdk.FieldEntry {
@@ -35,188 +35,111 @@ func (p *Plugin) Fields() []sdk.FieldEntry {
 	}
 }
 
+// Extract a field value from an event.
 func (p *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
+	// Decode the json, but only if we haven't done it yet for this event
 	if evt.EventNum() != p.lastEventNum {
-		evtBytes, err := io.ReadAll(evt.Reader())
+		// Read the event data
+		data, err := io.ReadAll(evt.Reader())
 		if err != nil {
 			return err
 		}
-		evtString := string(evtBytes)
-		p.jdata, err = p.jparser.Parse(evtString)
+
+		// For this plugin, events are always strings
+		evtStr := string(data)
+
+		p.jdata, err = p.jparser.Parse(evtStr)
 		if err != nil {
+			// Not a json file, so not present.
 			return err
 		}
 		p.lastEventNum = evt.EventNum()
 	}
 
-	switch req.Field() {
-	case "gcp.user":
-		principalEmail := string(p.jdata.Get("protoPayload").Get("authenticationInfo").Get("principalEmail").GetStringBytes())
-		req.SetValue(principalEmail)
-
-	case "gcp.callerIP":
-		principalIP := string(p.jdata.Get("protoPayload").Get("requestMetadata").Get("callerIp").GetStringBytes())
-		req.SetValue(principalIP)
-
-	case "gcp.userAgent":
-		principalUserAgent := p.jdata.Get("protoPayload").Get("requestMetadata").GetStringBytes("callerSuppliedUserAgent")
-		if principalUserAgent != nil {
-			req.SetValue(string(principalUserAgent))
-		}
-
-	case "gcp.authorizationInfo":
-		principalAuthorizationInfo := p.jdata.Get("protoPayload").GetStringBytes("authorizationInfo")
-		if principalAuthorizationInfo != nil {
-			req.SetValue(string(principalAuthorizationInfo))
-		}
-
-	case "gcp.serviceName":
-		serviceName := p.jdata.Get("protoPayload").Get("serviceName")
-		if serviceName.Exists() {
-			req.SetValue(string(serviceName.GetStringBytes()))
-		}
-
-	case "gcp.request":
-		request := p.jdata.Get("protoPayload").GetStringBytes("request")
-		if request != nil {
-			req.SetValue(string(request))
-		}
-
-	case "gcp.policyDelta":
-		resource := string(p.jdata.Get("resource").Get("type").GetStringBytes())
-
-		if resource == "gcs_bucket" {
-			bindingDeltas := p.jdata.Get("protoPayload").Get("serviceData").Get("policyDelta").GetStringBytes("bindingDeltas")
-			if bindingDeltas != nil {
-				req.SetValue(string(bindingDeltas))
-			}
-		} else {
-			bindingDeltas := p.jdata.Get("protoPayload").Get("metadata").Get("datasetChange").GetStringBytes("bindingDeltas")
-			if bindingDeltas != nil {
-				req.SetValue(string(bindingDeltas))
-			}
-		}
-
-	case "gcp.methodName":
-		methodName := string(p.jdata.Get("protoPayload").Get("methodName").GetStringBytes())
-		req.SetValue(methodName)
-
-	case "gcp.cloudfunctions.function":
-		functionName := p.jdata.Get("resource").Get("labels").GetStringBytes("function_name")
-		if functionName != nil {
-			req.SetValue(string(functionName))
-		}
-
-	case "gcp.cloudsql.databaseId":
-		databaseId := p.jdata.Get("resource").Get("labels").GetStringBytes("database_id")
-		if databaseId != nil {
-			req.SetValue(string(databaseId))
-		}
-
-	case "gcp.compute.instanceId":
-		instanceId := p.jdata.Get("resource").Get("labels").GetStringBytes("instance_id")
-		if instanceId != nil {
-			req.SetValue(string(instanceId))
-		}
-
-	case "gcp.compute.networkId":
-		networkId := p.jdata.Get("resource").Get("labels").GetStringBytes("network_id")
-		if networkId != nil {
-			req.SetValue(string(networkId))
-		}
-
-	case "gcp.compute.subnetwork":
-		subnetwork := p.jdata.Get("resource").Get("labels").GetStringBytes("subnetwork_name")
-		if subnetwork != nil {
-			req.SetValue(string(subnetwork))
-		}
-
-	case "gcp.compute.subnetworkId":
-		subnetworkId := p.jdata.Get("resource").Get("labels").GetStringBytes("subnetwork_id")
-		if subnetworkId != nil {
-			req.SetValue(string(subnetworkId))
-		}
-
-	case "gcp.dns.zone":
-		zone := p.jdata.Get("resource").Get("labels").GetStringBytes("zone_name")
-		if zone != nil {
-			req.SetValue(string(zone))
-		}
-
-	case "gcp.iam.serviceAccount":
-		serviceAccount := p.jdata.Get("resource").Get("labels").GetStringBytes("email_id")
-		if serviceAccount != nil {
-			req.SetValue(string(serviceAccount))
-		}
-
-	case "gcp.iam.serviceAccountId":
-		serviceAccountId := p.jdata.Get("resource").Get("labels").GetStringBytes("unique_id")
-		if serviceAccountId != nil {
-			req.SetValue(string(serviceAccountId))
-		}
-
-	case "gcp.location":
-		location := p.jdata.Get("resource").Get("labels").GetStringBytes("location")
-		if location != nil {
-			req.SetValue(string(location))
-			return nil
-		}
-		// if location is not present, check for region
-		region := p.jdata.Get("resource").Get("labels").GetStringBytes("region")
-		if region != nil {
-			req.SetValue(string(region))
-			return nil
-		}
-		// if region is not present, check for zone
-		val := p.jdata.Get("resource").Get("labels").Get("zone").GetStringBytes()
-		if val != nil {
-			zone := string(val)
-			if len(zone) > 2 {
-				// if in format: "us-central1-a", remove last two chars
-				formattedZone := zone[:len(zone)-2]
-				req.SetValue(formattedZone)
-			} else if zone != "" {
-				req.SetValue(zone)
-			}
-		}
-
-	case "gcp.logging.sink":
-		resource := string(p.jdata.Get("resource").Get("type").GetStringBytes())
-
-		if resource == "logging_sink" {
-			loggingSink := p.jdata.Get("resource").Get("labels").Get("name")
-			if loggingSink.Exists() {
-				req.SetValue(loggingSink)
-			}
-		}
-
-	case "gcp.projectId":
-		projectId := p.jdata.Get("resource").Get("labels").GetStringBytes("project_id")
-		if projectId != nil {
-			req.SetValue(string(projectId))
-		}
-
-	case "gcp.resourceName":
-		resourceName := p.jdata.Get("protoPayload").GetStringBytes("resourceName")
-		if resourceName != nil {
-			req.SetValue(string(resourceName))
-		}
-
-	case "gcp.resourceType":
-		resourceType := p.jdata.Get("resource").GetStringBytes("type")
-		if resourceType != nil {
-			req.SetValue(string(resourceType))
-		}
-
-	case "gcp.storage.bucket":
-		bucket := p.jdata.Get("resource").Get("labels").GetStringBytes("bucket_name")
-		if bucket != nil {
-			req.SetValue(string(bucket))
-		}
-
-	default:
-		return fmt.Errorf("unknown field: %s", req.Field())
+	// Extract the field value
+	present, value := getfieldStr(p.jdata, req.Field())
+	if present {
+		req.SetValue(value)
 	}
 
 	return nil
+}
+
+func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
+	var res string
+
+	switch field {
+	case "gcp.user":
+		res = string(jdata.Get("protoPayload").Get("authenticationInfo").Get("principalEmail").GetStringBytes())
+	case "gcp.callerIP":
+		res = string(jdata.Get("protoPayload").Get("requestMetadata").Get("callerIp").GetStringBytes())
+	case "gcp.userAgent":
+		res = string(jdata.Get("protoPayload").Get("requestMetadata").Get("callerSuppliedUserAgent").GetStringBytes())
+	case "gcp.authorizationInfo":
+		res = string(jdata.Get("protoPayload").Get("authorizationInfo").GetStringBytes())
+	case "gcp.serviceName":
+		res = string(jdata.Get("protoPayload").Get("serviceName").GetStringBytes())
+	case "gcp.request":
+		res = string(jdata.Get("protoPayload").Get("request").GetStringBytes())
+	case "gcp.policyDelta":
+		resource := string(jdata.Get("resource").Get("type").GetStringBytes())
+		if resource == "gcs_bucket" {
+			res = string(jdata.Get("protoPayload").Get("serviceData").Get("policyDelta").Get("bindingDeltas").GetStringBytes())
+		} else {
+			res = string(jdata.Get("protoPayload").Get("metadata").Get("datasetChange").Get("bindingDeltas").GetStringBytes())
+		}
+	case "gcp.methodName":
+		res = string(jdata.Get("protoPayload").Get("methodName").GetStringBytes())
+	case "gcp.cloudfunctions.function":
+		res = string(jdata.Get("resource").Get("labels").Get("function_name").GetStringBytes())
+	case "gcp.cloudsql.databaseId":
+		res = string(jdata.Get("resource").Get("labels").Get("database_id").GetStringBytes())
+	case "gcp.compute.instanceId":
+		res = string(jdata.Get("resource").Get("labels").Get("instance_id").GetStringBytes())
+	case "gcp.compute.networkId":
+		res = string(jdata.Get("resource").Get("labels").Get("network_id").GetStringBytes())
+	case "gcp.compute.subnetwork":
+		res = string(jdata.Get("resource").Get("labels").Get("subnetwork_name").GetStringBytes())
+	case "gcp.compute.subnetworkId":
+		res = string(jdata.Get("resource").Get("labels").Get("subnetwork_id").GetStringBytes())
+	case "gcp.dns.zone":
+		res = string(jdata.Get("resource").Get("labels").Get("zone_name").GetStringBytes())
+	case "gcp.iam.serviceAccount":
+		res = string(jdata.Get("resource").Get("labels").Get("email_id").GetStringBytes())
+	case "gcp.iam.serviceAccountId":
+		res = string(jdata.Get("resource").Get("labels").Get("unique_id").GetStringBytes())
+	case "gcp.location":
+		res = string(jdata.Get("resource").Get("labels").Get("location").GetStringBytes())
+		if res != "" {
+			break
+		}
+		// if location is not present, check for region
+		res = string(jdata.Get("resource").Get("labels").Get("region").GetStringBytes())
+		if res != "" {
+			break
+		}
+		// if region is not present, check for zone
+		res = string(jdata.Get("resource").Get("labels").Get("zone").GetStringBytes())
+		if len(res) > 2 {
+			// if in format: "us-central1-a", remove last two chars
+			res = res[:len(res)-2]
+		}
+	case "gcp.logging.sink":
+		resource := string(jdata.Get("resource").Get("type").GetStringBytes())
+		if resource == "logging_sink" {
+			res = string(jdata.Get("resource").Get("labels").Get("name").GetStringBytes())
+		}
+	case "gcp.projectId":
+		res = string(jdata.Get("resource").Get("labels").Get("project_id").GetStringBytes())
+	case "gcp.resourceName":
+		res = string(jdata.Get("protoPayload").Get("resourceName").GetStringBytes())
+	case "gcp.resourceType":
+		res = string(jdata.Get("resource").Get("type").GetStringBytes())
+	case "gcp.storage.bucket":
+		res = string(jdata.Get("resource").Get("labels").Get("bucket_name").GetStringBytes())
+	default:
+		return false, ""
+	}
+
+	return true, res
 }
