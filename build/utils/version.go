@@ -1,8 +1,9 @@
+// SPDX-License-Identifier: Apache-2.0
 //go:build (linux && cgo) || (darwin && cgo) || (freebsd && cgo)
 // +build linux,cgo darwin,cgo freebsd,cgo
 
 /*
-Copyright (C) 2022 The Falco Authors.
+Copyright (C) 2023 The Falco Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
