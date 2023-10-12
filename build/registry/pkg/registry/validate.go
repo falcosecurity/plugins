@@ -29,17 +29,20 @@ var (
 
 func (s *SourcingCapability) validate(usedIDs map[uint]bool, forbiddenSources map[string]bool) error {
 	if s.Supported {
-		if s.ID == 0 {
-			return fmt.Errorf("forbidden source ID: '%d'", s.ID)
+		if s.ID > MaxPublicID {
+			return fmt.Errorf("source ID outside the allowed range (%d): '%d'", MaxPublicID, s.ID)
 		}
 		if _, ok := usedIDs[s.ID]; ok {
-			return fmt.Errorf("source id is not unique: '%d'", s.ID)
+			return fmt.Errorf("source ID is not unique: '%d'", s.ID)
 		}
-		if _, ok := forbiddenSources[s.Source]; ok {
-			return fmt.Errorf("forbidden source name: '%s'", s.Source)
-		}
-		if !rgxSource.MatchString(s.Source) {
-			return fmt.Errorf("source name does follow the naming convention: '%s'", s.Source)
+		// ID=0 is a special case and we don't want to define a source name
+		if s.ID != 0 {
+			if _, ok := forbiddenSources[s.Source]; ok {
+				return fmt.Errorf("forbidden source name: '%s'", s.Source)
+			}
+			if !rgxSource.MatchString(s.Source) {
+				return fmt.Errorf("source name does follow the naming convention: '%s'", s.Source)
+			}
 		}
 		usedIDs[s.ID] = true
 	}
