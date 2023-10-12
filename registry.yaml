@@ -25,6 +25,13 @@ reserved_sources: ["syscall", "internal", "plugins"]
 #
 # License IDs refer to the SPDX License List at https://spdx.org/licenses
 plugins:
+  - name: plugin-id-zero-value
+    description: This ID is reserved for particular purposes and cannot be registered. A plugin author should not use this ID unless specified by the documentation.
+    reserved: true
+    capabilities:
+      sourcing:
+        supported: true
+        id: 0
   - name: k8saudit
     description: Read Kubernetes Audit Events and monitor Kubernetes Clusters
     authors: The Falco Authors
