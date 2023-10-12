@@ -21,6 +21,10 @@ import (
 	"github.com/falcosecurity/falcoctl/pkg/index/index"
 )
 
+// MaxPublicID represents the max allowed value for plublic plugin IDs,
+// see https://github.com/falcosecurity/plugins/blob/main/docs/plugin-ids.md
+const MaxPublicID = 1<<30 - 1 // 1073741823 is the public block upper limit
+
 type SourcingCapability struct {
 	Supported bool   `yaml:"supported"`
 	ID        uint   `yaml:"id"`
