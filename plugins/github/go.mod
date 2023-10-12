@@ -11,7 +11,7 @@ require (
 	github.com/iancoleman/orderedmap v0.2.0 // indirect
 	github.com/sethvargo/go-password v0.2.0
 	github.com/valyala/fastjson v1.6.3
-	golang.org/x/net v0.7.0 // indirect
+	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20220524215830-622c5d57e401
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
