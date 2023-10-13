@@ -62,6 +62,7 @@ These comments and the text between them should not be edited by hand -->
 <!-- REGISTRY:TABLE -->
 | Name | Capabilities | Description
 | --- | --- | --- |
+| plugin-id-zero-value | **Event Sourcing** <br/>ID: 0 <br/>`` | This ID is reserved for particular purposes and cannot be registered. A plugin author should not use this ID unless specified by the documentation.  <br/><br/> Authors: N/A <br/> License: N/A |
 | [k8saudit](https://github.com/falcosecurity/plugins/tree/master/plugins/k8saudit) | **Event Sourcing** <br/>ID: 1 <br/>`k8s_audit` <br/>**Field Extraction** <br/> `k8s_audit` | Read Kubernetes Audit Events and monitor Kubernetes Clusters  <br/><br/> Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
 | [cloudtrail](https://github.com/falcosecurity/plugins/tree/master/plugins/cloudtrail) | **Event Sourcing** <br/>ID: 2 <br/>`aws_cloudtrail` <br/>**Field Extraction** <br/> `aws_cloudtrail` | Reads Cloudtrail JSON logs from files/S3 and injects as events  <br/><br/> Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
 | [json](https://github.com/falcosecurity/plugins/tree/master/plugins/json) | **Field Extraction** <br/> *All Sources* | Extract values from any JSON payload  <br/><br/> Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
