@@ -278,7 +278,6 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 			if val != nil {
 				res = string(val)
 			}
-			return false, ""
 		}
 	case "ct.user.identitytype":
 		val := jdata.GetStringBytes("userIdentity", "type")
