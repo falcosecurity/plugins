@@ -21,7 +21,7 @@ const (
 	RulesArtifactSuffix = "-rules"
 	// EngineVersionKey is the name given to all the engine requirements.
 	// The same name used by Falco when outputting the engine version.
-	EngineVersionKey = "engine_version"
+	EngineVersionKey = "engine_version_semver"
 	// PluginAPIVersion is the name givet to the plugin api version requirements.
 	// The same name used by Falco when outputting the plugin api version
 	PluginAPIVersion = "plugin_api_version"
