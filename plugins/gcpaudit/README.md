@@ -161,11 +161,11 @@ See example:
   desc: Detect when access on a GCP Bucket granted to the public internet.
   condition: is_gcs_service and gcp.methodName="storage.setIamPermissions" and is_binded_delta_to_public 
   output: > 
-    project=%json.value[/resource/labels/project_id]
+    project=%gcp.projectId
     A GCP bucket access granted to be public by user=%gcp.user userIP=%gcp.callerIP userAgent=%gcp.userAgent  bindedDelta=%gcp.policyDelta
     authorizationInfo=%gcp.authorizationInfo
     rawRequest=%gcp.request 
-    bucketName=%json.value[/resource/labels/bucket_name]  
+    bucketName=%gcp.storage.bucket  
   priority: CRITICAL
   source: auditlogs
   tags: [GCP, buckets, compliance]
