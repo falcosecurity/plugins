@@ -20,7 +20,7 @@
 
 - required_plugin_versions:
   - name: gcpaudit
-    version: 0.1.0
+    version: 0.2.0
   - name: json
     version: 0.7.0
 
@@ -65,10 +65,10 @@
     is_cloudsql_service and (gcp.methodName="cloudsql.users.update"
     or gcp.methodName="cloudsql.users.delete")
   output: >
-    project=%json.value[/resource/labels/project_id] 
+    project=%gcp.projectId 
     A CloudSQL DB user has been updated by user=%gcp.user userIP=%gcp.callerIP userAgent=%gcp.userAgent 
     authorizationInfo=%gcp.authorizationInfo rawRequest=%gcp.request
-    databaseName=%json.value[/resource/labels/database_id]
+    databaseName=%gcp.cloudsql.databaseId
   priority: NOTICE
   source: gcp_auditlog
   tags: [GCP, cloudsql, compliance]
@@ -77,10 +77,10 @@
   desc: Detect when a Cloud SQL DB backup has been deleted.
   condition: is_cloudsql_service and gcp.methodName="cloudsql.backupRuns.delete"
   output: > 
-    project=%json.value[/resource/labels/project_id]
+    project=%gcp.projectId
     A Cloud SQL DB backup has been deleted by user=%gcp.user userIP=%gcp.callerIP userAgent=%gcp.userAgent 
     authorizationInfo=%gcp.authorizationInfo rawRequest=%gcp.request
-    databaseName=%json.value[/resource/labels/database_id]
+    databaseName=%gcp.cloudsql.databaseId
   priority: NOTICE
   source: gcp_auditlog
   tags: [GCP, cloudsql, impact, T1490-inhibit-system-recovery]
@@ -90,10 +90,10 @@
   desc: Detect when a Cloud SQL DB instance data to cloud storage bucket.
   condition: is_cloudsql_service and gcp.methodName="cloudsql.instances.export"
   output: > 
-    project=%json.value[/resource/labels/project_id]
+    project=%gcp.projectId
     A Cloud SQL DB instance data exported to a cloud storage bucket by user=%gcp.user userIP=%gcp.callerIP userAgent=%gcp.userAgent 
     authorizationInfo=%gcp.authorizationInfo rawRequest=%gcp.request
-    databaseName=%json.value[/resource/labels/database_id]
+    databaseName=%gcp.cloudsql.databaseId
   priority: NOTICE
   source: gcp_auditlog
   tags: [GCP, cloudsql, data-exfiltration, T1567-exfiltration-to-Cloud-Storage]
@@ -102,10 +102,10 @@
   desc: Detect when a Cloud SQL DB instance has been deleted.
   condition: is_cloudsql_service and gcp.methodName="cloudsql.instances.delete"
   output: > 
-    project=%json.value[/resource/labels/project_id]
+    project=%gcp.projectId
     A Cloud SQL DB instance has been deleted by user=%gcp.user userIP=%gcp.callerIP userAgent=%gcp.userAgent 
     authorizationInfo=%gcp.authorizationInfo rawRequest=%gcp.request
-    databaseName=%json.value[/resource/labels/database_id]
+    databaseName=%gcp.cloudsql.databaseId
   priority: NOTICE
   source: gcp_auditlog
   tags: [GCP, cloudsql, impact, T1485-data-destruction]
@@ -117,10 +117,10 @@
     or gcp.methodName="cloudsql.instances.create" 
     or gcp.methodName="cloudsql.instances.patch")
   output: > 
-    project=%json.value[/resource/labels/project_id]
+    project=%gcp.projectId
     A Cloud SQL DB instance has been modified or created by user=%gcp.user userIP=%gcp.callerIP userAgent=%gcp.userAgent 
     authorizationInfo=%gcp.authorizationInfo rawRequest=%gcp.request
-    databaseName=%json.value[/resource/labels/database_id]
+    databaseName=%gcp.cloudsql.databaseId
   priority: NOTICE
   source: gcp_auditlog
   tags: [GCP, cloudsql, compliance]
@@ -129,10 +129,10 @@
   desc: Detect when access on a GCP Bucket granted to the public internet.
   condition: is_gcs_service and gcp.methodName="storage.setIamPermissions" and is_binded_delta_to_public 
   output: > 
-    project=%json.value[/resource/labels/project_id]
+    project=%gcp.projectId
     A GCP bucket access granted to be public by user=%gcp.user userIP=%gcp.callerIP userAgent=%gcp.userAgent  bindedDelta=%gcp.policyDelta
     authorizationInfo=%gcp.authorizationInfo rawRequest=%gcp.request
-    bucketName=%json.value[/resource/labels/bucket_name]  
+    bucketName=%gcp.storage.bucket  
   priority: CRITICAL
   source: gcp_auditlog
   tags: [GCP, buckets, compliance]
@@ -144,10 +144,10 @@
     and gcp.methodName="storage.objects.update" 
     and is_binded_delta_to_public
   output: > 
-    project=%json.value[/resource/labels/project_id]
+    project=%gcp.projectId
     A GCP bucket objects access granted to be public by user=%gcp.user userIP=%gcp.callerIP userAgent=%gcp.userAgent 
     authorizationInfo=%gcp.authorizationInfo rawRequest=%gcp.request
-    bucketName=%json.value[/resource/labels/bucket_name] 
+    bucketName=%gcp.storage.bucket 
   priority: CRITICAL
   source: gcp_auditlog
   tags: [GCP, buckets, objects, compliance]
@@ -156,10 +156,10 @@
   desc: Detect deletion of a GCS bucket.
   condition: is_gcs_service and gcp.methodName="storage.buckets.list"
   output: > 
-    project=%json.value[/resource/labels/project_id]
+    project=%gcp.projectId
     GCS buckets has been listed to user=%gcp.user userIP=%gcp.callerIP userAgent=%gcp.userAgent 
     authorizationInfo=%gcp.authorizationInfo rawRequest=%gcp.request
-    bucketName=%json.value[/resource/labels/bucket_name]
+    bucketName=%gcp.storage.bucket
   priority: NOTICE
   source: gcp_auditlog
   tags: [GCP, buckets, TA0007-discovery, T1083-file-and-directory-discovery]
@@ -168,10 +168,10 @@
   desc: Detect deletion of a GCS bucket.
   condition: is_gcs_service and gcp.methodName="storage.buckets.delete"
   output: >
-    project=%json.value[/resource/labels/project_id] 
+    project=%gcp.projectId 
     A GCS bucket has been deleted by user=%gcp.user userIP=%gcp.callerIP userAgent=%gcp.userAgent 
     authorizationInfo=%gcp.authorizationInfo rawRequest=%gcp.request
-    bucketName=%json.value[/resource/labels/bucket_name]
+    bucketName=%gcp.storage.bucket
   priority: NOTICE
   source: gcp_auditlog
   tags: [GCP, buckets, mitre_data_destruction]
@@ -180,9 +180,9 @@
   desc: Detect when an administrative change to a GCS Bucket has been made.
   condition: is_gcs_service and gcp.methodName="storage.buckets.update"
   output: > 
-    project=%json.value[/resource/labels/project_id]
+    project=%gcp.projectId
     A GCS bucket has been updated by user=%gcp.user callerip=%gcp.callerIP useragent=%gcp.userAgent  service=%gcp.serviceName method=%gcp.methodName zones=
-    bucketName=%json.value[/resource/labels/bucket_name] rawRequest=%gcp.request
+    bucketName=%gcp.storage.bucket rawRequest=%gcp.request
   priority: NOTICE
   source: gcp_auditlog
   tags: [GCP, buckets, compliance]
@@ -191,11 +191,11 @@
   desc: Detect when permissions have changed on a GCS Bucket.
   condition: is_gcs_service and gcp.methodName="storage.setIamPermissions"
   output: > 
-    project=%json.value[/resource/labels/project_id]
+    project=%gcp.projectId
     A GCS bucket Iam policy has been changed by user=%gcp.user userIP=%gcp.callerIP userAgent=%gcp.userAgent 
     authorizationInfo=%gcp.authorizationInfo 
     rawRequest=%gcp.request
-    bucketName=%json.value[/resource/labels/bucket_name]
+    bucketName=%gcp.storage.bucket
   priority: NOTICE
   source: gcp_auditlog
   tags: [GCP, buckets, compliance]
@@ -207,7 +207,7 @@
     and gcp.methodName="google.iam.v1.IAMPolicy.SetIamPolicy" 
     and is_binded_delta_to_public
   output: > 
-    project=%json.value[/resource/labels/project_id]
+    project=%gcp.projectId
     A GCP Bigquery dataset access granted to be public by user=%gcp.user userIP=%gcp.callerIP userAgent=%gcp.userAgent 
     authorizationInfo=%gcp.authorizationInfo 
     rawRequest=%gcp.request
@@ -226,7 +226,7 @@
     or gcp.methodName contains "compute.instances.updateAccessConfig"
     or gcp.methodName contains "compute.instances.updateNetworkInterface")
   output: > 
-    project=%json.value[/resource/labels/project_id]
+    project=%gcp.projectId
     A GCP VM has ben stopped by user=%gcp.user userIP=%gcp.callerIP userAgent=%gcp.userAgent 
     authorizationInfo=%gcp.authorizationInfo rawRequest=%gcp.request
   priority: NOTICE
@@ -238,7 +238,7 @@
   desc: Detect when a virtual machine is stopped.
   condition: is_compute_service and (gcp.methodName contains "compute.instances.stop")
   output: > 
-    project=%json.value[/resource/labels/project_id]
+    project=%gcp.projectId
     A GCP VM has ben stopped by user=%gcp.user userIP=%gcp.callerIP userAgent=%gcp.userAgent 
     authorizationInfo=%gcp.authorizationInfo rawRequest=%gcp.request
   priority: NOTICE
@@ -253,7 +253,7 @@
     or gcp.methodName contains "compute.firewalls.patch" 
     or gcp.methodName contains "compute.firewalls.insert")
   output: > 
-    project=%json.value[/resource/labels/project_id]
+    project=%gcp.projectId
     A GCP GCE Firewall rule modified by user=%gcp.user userIP=%gcp.callerIP userAgent=%gcp.userAgent 
     authorizationInfo=%gcp.authorizationInfo rawRequest=%gcp.request
   priority: NOTICE
@@ -268,7 +268,7 @@
     or gcp.methodName contains "compute.securityPolicies.insert" 
     or gcp.methodName contains "compute.securityPolicies.patch")
   output: > 
-    project=%json.value[/resource/labels/project_id]
+    project=%gcp.projectId
     A GCP WAF network policy or waf rule modified by user=%gcp.user userIP=%gcp.callerIP userAgent=%gcp.userAgent 
     authorizationInfo=%gcp.methodName rawRequest=%gcp.request
     policyName=%json.value[/resource/labels/policy_name]
@@ -284,7 +284,7 @@
     or gcp.methodName contains "compute.securityPolicies.addRule" 
     or gcp.methodName contains "compute.securityPolicies.patchRule")
   output: > 
-    project=%json.value[/resource/labels/project_id]
+    project=%gcp.projectId
     A GCP WAF network policy or waf rule modified by user=%gcp.user userIP=%gcp.callerIP userAgent=%gcp.userAgent 
     authorizationInfo=%gcp.authorizationInfo rawRequest=%gcp.request
     policyName=%json.value[/resource/labels/policy_name]
@@ -300,7 +300,7 @@
     or gcp.methodName contains "compute.networkEdgeSecurityServices.create" 
     or gcp.methodName contains "compute.networkEdgeSecurityServices.update")
   output: > 
-    project=%json.value[/resource/labels/project_id]
+    project=%gcp.projectId
     A GCP CloudArmor edge security modified by user=%gcp.user user=%gcp.user userIP=%gcp.callerIP userAgent=%gcp.userAgent 
     authorizationInfo=%gcp.authorizationInfo 
     rawRequest=%gcp.request
@@ -314,7 +314,7 @@
   desc: Detect when a backendService deleted.
   condition: is_compute_service and (gcp.methodName contains "compute.backendServices.delete")
   output: > 
-    project=%json.value[/resource/labels/project_id]
+    project=%gcp.projectId
     A GCP backendService deleted by user=%gcp.user userIP=%gcp.callerIP userAgent=%gcp.userAgent 
     authorizationInfo=%gcp.authorizationInfo 
     rawRequest=%gcp.request
@@ -327,7 +327,7 @@
   desc: Detect when a serviceAccount created. 
   condition: is_iam_service and (gcp.methodName="google.iam.admin.v1.CreateServiceAccount")
   output: > 
-    project=%json.value[/resource/labels/project_id]
+    project=%gcp.projectId
     A GCP serviceAccount created by user=%gcp.user userIP=%gcp.callerIP userAgent=%gcp.userAgent 
     authorizationInfo=%gcp.authorizationInfo 
     rawRequest=%gcp.request
@@ -340,7 +340,7 @@
   desc: Detect when a serviceAccount deleted.
   condition: is_iam_service and (gcp.methodName="google.iam.admin.v1.DeleteServiceAccount")
   output: > 
-    project=%json.value[/resource/labels/project_id]
+    project=%gcp.projectId
     A GCP serviceAccount delete by user=%gcp.user userIP=%gcp.callerIP userAgent=%gcp.userAgent 
     authorizationInfo=%gcp.authorizationInfo 
     rawRequest=%gcp.request
@@ -352,7 +352,7 @@
   desc: Detect when a serviceAccount modified.
   condition: is_iam_service and (gcp.methodName="google.iam.admin.v1.UpdateServiceAccount")
   output: > 
-    project=%json.value[/resource/labels/project_id]
+    project=%gcp.projectId
     A GCP serviceAccount delete by user=%gcp.user userIP=%gcp.callerIP userAgent=%gcp.userAgent 
     authorizationInfo=%gcp.authorizationInfo 
     rawRequest=%gcp.request
@@ -365,7 +365,7 @@
   desc: Detect when a serviceAccount key created.
   condition: is_iam_service and (gcp.methodName="google.iam.admin.v1.CreateServiceAccountKey")
   output: > 
-    project=%json.value[/resource/labels/project_id]
+    project=%gcp.projectId
     A GCP serviceAccount delete by user=%gcp.user userIP=%gcp.callerIP userAgent=%gcp.userAgent 
     authorizationInfo=%gcp.authorizationInfo 
     rawRequest=%gcp.request
@@ -378,7 +378,7 @@
   desc: Detect when a serviceAccount key created.
   condition: is_iam_service and (gcp.methodName="google.iam.admin.v1.DeleteServiceAccountKey")
   output: > 
-    project=%json.value[/resource/labels/project_id]
+    project=%gcp.projectId
     A GCP serviceAccount delete by user=%gcp.user userIP=%gcp.callerIP userAgent=%gcp.userAgent 
     authorizationInfo=%gcp.authorizationInfo 
     rawRequest=%gcp.request
@@ -390,7 +390,7 @@
   desc: Detect when a IAM custom role created.
   condition: is_iam_service and (gcp.methodName="google.iam.admin.v1.CreateRole")
   output: > 
-    project=%json.value[/resource/labels/project_id]
+    project=%gcp.projectId
     A GCP IAM custom role created by user=%gcp.user userIP=%gcp.callerIP userAgent=%gcp.userAgent 
     authorizationInfo=%gcp.authorizationInfo 
     rawRequest=%gcp.request
@@ -402,7 +402,7 @@
   desc: Detect when a IAM custom role modified.
   condition: is_iam_service and (gcp.methodName="google.iam.admin.v1.UpdateRole")
   output: > 
-    project=%json.value[/resource/labels/project_id]
+    project=%gcp.projectId
     A GCP IAM custom role modified by user=%gcp.user userIP=%gcp.callerIP userAgent=%gcp.userAgent 
     authorizationInfo=%gcp.authorizationInfo 
     rawRequest=%gcp.request
@@ -414,7 +414,7 @@
   desc: Detect when a IAM principle policy modified.
   condition: is_crm_service and (gcp.methodName="SetIamPolicy")
   output: > 
-    project=%json.value[/resource/labels/project_id]
+    project=%gcp.projectId
     A GCP IAM custom role modified by user=%gcp.user bindingPolicy=%gcp.policyDelta userIP=%gcp.callerIP userAgent=%gcp.userAgent 
     authorizationInfo=%gcp.authorizationInfo 
     rawRequest=%gcp.request
@@ -427,11 +427,11 @@
   desc: Detect when a cloud function is created.
   condition: is_cloudfunctions_service and (gcp.methodName="google.cloud.functions.v1.CloudFunctionsService.CreateFunction")
   output: > 
-    project=%json.value[/resource/labels/project_id]
+    project=%gcp.projectId
     A GCP cloud function is created by by user=%gcp.user userIP=%gcp.callerIP userAgent=%gcp.userAgent 
     authorizationInfo=%gcp.authorizationInfo 
     rawRequest=%gcp.request
-    functionName=%json.value[/resource/labels/function_name]
+    functionName=%gcp.cloudfunctions.function
   priority: NOTICE
   source: gcp_auditlog
   tags: [GCP, CloudFunction, 	abuse-elevation-control-mechanism]
@@ -443,11 +443,11 @@
       gcp.methodName="google.cloud.functions.v1.CloudFunctionsService.UpdateFunction"
       or gcp.methodName="google.cloud.functions.v1.CloudFunctionsService.DeleteFunction")
   output: > 
-    project=%json.value[/resource/labels/project_id]
+    project=%gcp.projectId
     A GCP cloud function is created by by user=%gcp.user userIP=%gcp.callerIP userAgent=%gcp.userAgent 
     authorizationInfo=%gcp.authorizationInfo 
     rawRequest=%gcp.request
-    functionName=%json.value[/resource/labels/function_name]
+    functionName=%gcp.cloudfunctions.function
   priority: NOTICE
   source: gcp_auditlog
   tags: [GCP, CloudFunction, 	abuse-elevation-control-mechanism]
@@ -456,7 +456,7 @@
   desc: Detect when a KMS keyring is created.
   condition: is_kms_service and gcp.methodName="CreateKeyRing"
   output: > 
-    project=%json.value[/resource/labels/project_id]
+    project=%gcp.projectId
     A GCP KMS key ring is created by by user=%gcp.user userIP=%gcp.callerIP userAgent=%gcp.userAgent 
     authorizationInfo=%gcp.authorizationInfo 
     rawRequest=%gcp.request
@@ -469,7 +469,7 @@
   desc: Detect when a cloud function is created.
   condition: is_kms_service and gcp.methodName="CreateCryptoKey"
   output: > 
-    project=%json.value[/resource/labels/project_id]
+    project=%gcp.projectId
     A GCP KMS is created by by user=%gcp.user userIP=%gcp.callerIP userAgent=%gcp.userAgent 
     authorizationInfo=%gcp.authorizationInfo 
     rawRequest=%gcp.request
@@ -485,7 +485,7 @@
       gcp.methodName="UpdateCryptoKey"
       or gcp.methodName="DestroyCryptoKeyVersion")
   output: > 
-    project=%json.value[/resource/labels/project_id]
+    project=%gcp.projectId
     A GCP KMS is destructed by by user=%gcp.user userIP=%gcp.callerIP userAgent=%gcp.userAgent 
     authorizationInfo=%gcp.authorizationInfo 
     rawRequest=%gcp.request
@@ -498,7 +498,7 @@
   desc: Detect when a GCP Pub/Sub Subscribtion has been deleted. This could stop audit logs from being sent to Datadog.
   condition: is_pubsub_service and gcp.methodName="google.pubsub.v1.Publisher.DeleteTopic"
   output: > 
-    project=%json.value[/resource/labels/project_id]
+    project=%gcp.projectId
     A GCP Pub/Sub topic has been deleted by user=%gcp.user userIP=%gcp.callerIP userAgent=%gcp.userAgent 
     authorizationInfo=%gcp.authorizationInfo 
     rawRequest=%gcp.request
@@ -512,7 +512,7 @@
     is_pubsub_service and (gcp.methodName="google.pubsub.v1.Subscriber.UpdateSubscription" 
     or gcp.methodName="google.pubsub.v1.Subscriber.DeleteSubscription")
   output: > 
-    project=%json.value[/resource/labels/project_id]
+    project=%gcp.projectId
     A GCP Pub/Sub Subscribtion has been updated/deleted by user=%gcp.user userIP=%gcp.callerIP userAgent=%gcp.userAgent 
     authorizationInfo=%gcp.authorizationInfo 
     rawRequest=%gcp.request
@@ -527,7 +527,7 @@
     is_logging_service and (gcp.methodName="google.logging.v2.ConfigServiceV2.UpdateSink" 
     or gcp.methodName="google.logging.v2.ConfigServiceV2.DeleteSink")
   output: > 
-    project=%json.value[/resource/labels/project_id]
+    project=%gcp.projectId
     A GCP Pub/Sub Subscribtion has been deleted by user=%gcp.user userIP=%gcp.callerIP userAgent=%gcp.userAgent 
     authorizationInfo=%gcp.authorizationInfo 
     rawRequest=%gcp.request
