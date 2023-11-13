@@ -1,5 +1,49 @@
 # Changelog
 
+## v0.9.1
+
+* [`16306f2`](https://github.com/falcosecurity/plugins/commit/16306f2) update(cloudtrail): bump version to 0.9.1
+
+* [`66c77be`](https://github.com/falcosecurity/plugins/commit/66c77be) fix(plugins/cloudtrail): remove wrong return statement when extracting recipi...
+
+
+## v0.9.0
+
+* [`3156ed5`](https://github.com/falcosecurity/plugins/commit/3156ed5) fix(plugins/cloudtrail): Generate the correct interval values
+
+* [`5bbc310`](https://github.com/falcosecurity/plugins/commit/5bbc310) update(plugins/cloudtrail): Make our default interval ""
+
+* [`431bcf8`](https://github.com/falcosecurity/plugins/commit/431bcf8) update(plugins/cloudtrail): Remove a dependency
+
+* [`ef52d3c`](https://github.com/falcosecurity/plugins/commit/ef52d3c) update(plugins/cloudtrail): Fix a time comparison
+
+* [`c02b076`](https://github.com/falcosecurity/plugins/commit/c02b076) update(plugins/cloudtrail): Add an S3Interval option
+
+* [`4b1156b`](https://github.com/falcosecurity/plugins/commit/4b1156b) update(plugins/cloudtrail): Add dependencies to our Makefile
+
+* [`9a0ec0d`](https://github.com/falcosecurity/plugins/commit/9a0ec0d) update(plugins/cloudtrail): Increase our default S3 concurrency
+
+
+## v0.8.0
+
+* [`9f36290`](https://github.com/falcosecurity/plugins/commit/9f36290) update(plugins/cloudtrail): Avoid duplicate event info
+
+
+## v0.7.3
+
+* [`3bac296`](https://github.com/falcosecurity/plugins/commit/3bac296) fix(plugins/cloudtrail): fix ruleset dependencies
+
+
+## v0.7.2
+
+* [`0c07efc`](https://github.com/falcosecurity/plugins/commit/0c07efc) feature(plugins/cloudtrail): add fields to plugin
+
+* [`501f351`](https://github.com/falcosecurity/plugins/commit/501f351) fix(plugins/cloudtrail): if accountId not present in userIdentity, set it to ...
+
+
+## v0.7.1
+
+
 ## v0.7.0
 
 * [`3c6009b`](https://github.com/falcosecurity/plugins/commit/3c6009b) update(plugins/cloudtrail): bump plugin version to v0.7.0

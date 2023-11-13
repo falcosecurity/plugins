@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.9.1
+
+* [`8c60832`](https://github.com/falcosecurity/plugins/commit/8c60832) update(plugins/dummy): update version to 0.10.0-rc1
+
+* [`7e5a4a7`](https://github.com/falcosecurity/plugins/commit/7e5a4a7) new(dummy): add an example rule for the dummy plugin
+
+
+## v0.9.0
+
+
+## v0.8.3
+
+
+## v0.8.2
+
+
+## v0.8.1
+
+
 ## v0.8.0
 
 * [`3c22642`](https://github.com/falcosecurity/plugins/commit/3c22642) update(plugins/dummy): bump version to 8.0 for testing purpose

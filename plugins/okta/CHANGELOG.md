@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.8.1
+
+
+## v0.8.0
+
+
+## v0.7.0
+
+* [`c15abf9`](https://github.com/falcosecurity/plugins/commit/c15abf9) fix(plugins/okta): return nil if field not present
+
+* [`1248d02`](https://github.com/falcosecurity/plugins/commit/1248d02) fix(plugins/okta): adjust mappings in actor.id and client.zone
+
+* [`edb96f4`](https://github.com/falcosecurity/plugins/commit/edb96f4) feature(plugins/okta): add published timestamp field
+
+* [`5a2b8ec`](https://github.com/falcosecurity/plugins/commit/5a2b8ec) fix(plugins/okta): typo on okta.target.{user,group}.alternateid
+
+
+## v0.6.0
+
+* [`60997d6`](https://github.com/falcosecurity/plugins/commit/60997d6) feature(plugins/okta): make api token and organization field optional
+
+* [`e4334df`](https://github.com/falcosecurity/plugins/commit/e4334df) feature(plugins/okta): add okta.org as available field
+
+
 ## v0.5.0
 
 * [`4ea1faf`](https://github.com/falcosecurity/plugins/commit/4ea1faf) update(plugins/okta): update readme

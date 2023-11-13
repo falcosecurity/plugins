@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.6.1
+
+
+## v0.6.0
+
+* [`044d7d3`](https://github.com/falcosecurity/plugins/commit/044d7d3) fix(plugins/github): fix small typo
+
+* [`4c22035`](https://github.com/falcosecurity/plugins/commit/4c22035) feat(plugins/github): add github tag to all rules in ruleset file
+
+* [`409260a`](https://github.com/falcosecurity/plugins/commit/409260a) fix(plugins/github): fix type field extraction
+
+
+## v0.5.3
+
+* [`dc1e87e`](https://github.com/falcosecurity/plugins/commit/dc1e87e) fix(plugins/github): fix ruleset dependencies
+
+
+## v0.5.2
+
+
+## v0.5.1
+
+
 ## v0.5.0
 
 * [`972cca0`](https://github.com/falcosecurity/plugins/commit/972cca0) update(plugin/github): bump plugin version to v0.5.0
