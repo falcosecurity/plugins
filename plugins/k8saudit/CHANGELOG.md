@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.6.1
+
+
+## v0.6.0
+
+* [`0c6922e`](https://github.com/falcosecurity/plugins/commit/0c6922e) feat(plugins/k8saudit): include query params in health check endpoint exceptions
+
+
+## v0.5.3
+
+* [`8949655`](https://github.com/falcosecurity/plugins/commit/8949655) fix(plugins/k8saudit): fix dependencies in ruleset
+
+
+## v0.5.2
+
+
+## v0.5.1
+
+* [`8ce5b5b`](https://github.com/falcosecurity/plugins/commit/8ce5b5b) feature(plugins/k8saudit/rules): Add two additional users to eks_allowed_k8s_...
+
+
 ## v0.5.0
 
 * [`9e623ef`](https://github.com/falcosecurity/plugins/commit/9e623ef) update(plugins/k8saudit): bump plugin version to v0.5.0
