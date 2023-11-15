@@ -298,6 +298,18 @@
   source: k8s_audit
   tags: [k8s]
 
+- macro: user_known_portforward_activities
+  condition: (k8s_audit_never_true)
+
+- rule: port-forward
+  desc: >
+    Detect any attempt to portforward
+  condition: ka.target.subresource in (portforward) and not user_known_portforward_activities
+  output: Portforward to pod (user=%ka.user.name pod=%ka.target.name ns=%ka.target.namespace action=%ka.target.subresource )
+  priority: NOTICE
+  source: k8s_audit
+  tags: [k8s]
+
 - macro: user_known_pod_debug_activities
   condition: (k8s_audit_never_true)
 
