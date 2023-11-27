@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -37,6 +38,9 @@ import (
 )
 
 const pluginName = "k8saudit-eks"
+const regExpAuditID = `"auditID":[ a-z0-9-"]+`
+
+var regExpCAuditID *regexp.Regexp
 
 type Plugin struct {
 	k8saudit.Plugin
@@ -92,6 +96,11 @@ func (k *Plugin) Init(cfg string) error {
 		return err
 	}
 
+	regExpCAuditID, err = regexp.Compile(regExpAuditID)
+	if err != nil {
+		return err
+	}
+
 	// setup optional async extraction optimization
 	extract.SetAsync(k.Config.UseAsync)
 
@@ -141,6 +150,12 @@ func (p *Plugin) Open(clustername string) (source.Instance, error) {
 			case i := <-eventsC:
 				message := *i.Message
 				if strings.Contains(message, "[Truncated...]") {
+					auditID := regExpCAuditID.FindStringSubmatch(message)
+					if len(auditID) > 0 {
+						p.Logger.Printf("truncated log line, can't be parsed (%v)\n", auditID[0])
+					} else {
+						p.Logger.Println("truncated log line, can't be parsed")
+					}
 					continue
 				}
 				values, err := p.Plugin.ParseAuditEventsPayload([]byte(*i.Message))
