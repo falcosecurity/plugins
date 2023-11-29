@@ -149,7 +149,7 @@ func (p *Plugin) Open(clustername string) (source.Instance, error) {
 			select {
 			case i := <-eventsC:
 				message := *i.Message
-				if strings.Contains(message, "[Truncated...]") {
+				if strings.HasSuffix(message, "[Truncated...]") {
 					auditID := regExpCAuditID.FindStringSubmatch(message)
 					if len(auditID) > 0 {
 						p.Logger.Printf("truncated log line, can't be parsed (%v)\n", auditID[0])
