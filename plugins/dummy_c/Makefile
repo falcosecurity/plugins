@@ -14,7 +14,7 @@
 
 PLUGIN_INFO_H_DIR=./
 CURL=curl
-PLUGIN_SDK_CPP_GIT_REF=20f7c2825853eee38b9d766b3402e64d50585b71
+PLUGIN_SDK_CPP_GIT_REF=70d5feb28ebf57d5f546452c27e1608911e56a5f
 
 NAME := dummy_c
 OUTPUT := lib$(NAME).so
@@ -22,10 +22,7 @@ OUTPUT := lib$(NAME).so
 all: $(OUTPUT)
 
 clean:
-	rm -rf plugin-sdk-cpp.tar.gz nlohmann sdk include $(OUTPUT)
-
-nlohmann/json.hpp:
-	mkdir -p nlohmann && $(CURL) -sLo nlohmann/json.hpp https://github.com/nlohmann/json/releases/download/v3.10.2/json.hpp
+	rm -rf plugin-sdk-cpp.tar.gz sdk include $(OUTPUT)
 
 plugin-sdk-cpp.tar.gz:
 	$(CURL) -sLo plugin-sdk-cpp.tar.gz https://github.com/falcosecurity/plugin-sdk-cpp/archive/$(PLUGIN_SDK_CPP_GIT_REF).tar.gz
@@ -34,8 +31,8 @@ include: plugin-sdk-cpp.tar.gz
 	tar -xaf plugin-sdk-cpp.tar.gz plugin-sdk-cpp-$(PLUGIN_SDK_CPP_GIT_REF)/include --strip-components=1
 
 
-$(OUTPUT): include nlohmann/json.hpp dummy.cpp
-	g++ -std=c++0x -fPIC -Iinclude/ -I. -shared -o $(OUTPUT) *.cpp
+$(OUTPUT): include dummy.cpp
+	g++ -std=c++0x -fPIC -Iinclude/ -shared -o $(OUTPUT) *.cpp
 
 readme:
 	@$(READMETOOL) -p ./$(OUTPUT) -f README.md
