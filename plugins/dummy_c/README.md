@@ -15,11 +15,11 @@ The event source for dummy events is `dummy`.
 Here is the current set of supported fields:
 
 <!-- README-PLUGIN-FIELDS -->
-|       NAME        |   TYPE   |  ARG  |                               DESCRIPTION                               |
-|-------------------|----------|-------|-------------------------------------------------------------------------|
-| `dummy.divisible` | `uint64` | Index | Return 1 if the value is divisible by the provided divisor, 0 otherwise |
-| `dummy.value`     | `uint64` | Index | The sample value in the event                                           |
-| `dummy.strvalue`  | `string` | Index | The sample value in the event, as a string                              |
+|       NAME        |   TYPE   |       ARG       |                               DESCRIPTION                               |
+|-------------------|----------|-----------------|-------------------------------------------------------------------------|
+| `dummy.divisible` | `uint64` | Index, Required | Return 1 if the value is divisible by the provided divisor, 0 otherwise |
+| `dummy.value`     | `uint64` | None            | The sample value in the event                                           |
+| `dummy.strvalue`  | `string` | None            | The sample value in the event, as a string                              |
 <!-- /README-PLUGIN-FIELDS -->
 
 ## Configuration
@@ -61,8 +61,14 @@ plugins:
   - name: dummy_c
     library_path: libdummy_c.so
     init_config: '{"jitter": 10}'
-    open_params: '{"start": 1, "maxEvents": 100}'
+    open_params: '{"start": 1, "maxEvents": 20}'
 
 # Optional. If not specified the first entry in plugins is used.
 load_plugins: [dummy_c]
+```
+
+Run Falco using `dummy_c_rules.yaml`
+
+```bash
+sudo ./usr/bin/falco -c falco.yaml -r dummy_c_rules.yaml --disable-source=syscall
 ```
