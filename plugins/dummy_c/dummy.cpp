@@ -20,6 +20,8 @@ limitations under the License.
 #define PLUGIN_NAME "dummy_c"
 #define SOURCE_NAME "dummy_c"
 #define PLUGIN_VERSION "0.2.3"
+#define PLUGIN_ID 4
+
 #define PLUGIN_LOG_PREFIX "[dummy_c]"
 #define DEFAULT_JITTER 10
 #define DEFAULT_MAX_EVENTS 100
@@ -76,7 +78,7 @@ public:
 
 	std::string get_contact() { return "https://github.com/falcosecurity/plugins"; }
 
-	uint32_t get_id() { return 999; };
+	uint32_t get_id() { return PLUGIN_ID; };
 
 	std::string get_event_source() { return SOURCE_NAME; }
 
