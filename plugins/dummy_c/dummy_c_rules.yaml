@@ -17,7 +17,7 @@
 #
 
 - rule: Sample dummy_c plugin rule
-  desc: Print all events with value > 1.
+  desc: Match all events with sample > 1.
   condition: dummy.value > 1
   output: -> triggered (value=%dummy.value)
   priority: CRITICAL

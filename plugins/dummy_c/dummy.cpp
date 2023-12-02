@@ -17,14 +17,16 @@ limitations under the License.
 
 #include <falcosecurity/sdk.h>
 
-#define PLUGIN_NAME "dummy_c"
-#define SOURCE_NAME "dummy_c"
-#define PLUGIN_VERSION "0.2.3"
 #define PLUGIN_ID 4
+#define PLUGIN_NAME "dummy_c"
+#define PLUGIN_DESCRIPTION "Reference plugin for educational purposes"
+#define PLUGIN_CONTACT "github.com/falcosecurity/plugins"
+#define PLUGIN_VERSION "0.2.3"
+#define PLUGIN_SOURCE_NAME "dummy_c"
 
 #define PLUGIN_LOG_PREFIX "[dummy_c]"
 #define DEFAULT_JITTER 10
-#define DEFAULT_MAX_EVENTS 100
+#define DEFAULT_MAX_EVENTS 20
 #define DEFAULT_START_VALUE 1
 
 class dummy_source
@@ -49,7 +51,7 @@ public:
 		m_event_count++;
 
 		// Increment sample by 1, also add a jitter of [0:jitter]
-		m_sample_value = m_sample_value + 1 + (random() % (m_jitter + 1));
+		m_sample_value += 1 + (random() % (m_jitter + 1));
 
 		// we will memcpy the content of `m_sample_value` inside `m_enc.encode`.
 		m_enc.set_data((void *)&m_sample_value, sizeof(uint64_t));
@@ -74,13 +76,13 @@ public:
 
 	std::string get_version() { return PLUGIN_VERSION; }
 
-	std::string get_description() { return "Reference plugin for educational purposes"; }
+	std::string get_description() { return PLUGIN_DESCRIPTION; }
 
-	std::string get_contact() { return "https://github.com/falcosecurity/plugins"; }
+	std::string get_contact() { return PLUGIN_CONTACT; }
 
 	uint32_t get_id() { return PLUGIN_ID; };
 
-	std::string get_event_source() { return SOURCE_NAME; }
+	std::string get_event_source() { return PLUGIN_SOURCE_NAME; }
 
 	std::string get_last_error() { return m_lasterr; }
 
@@ -111,7 +113,7 @@ public:
 		return true;
 	}
 
-	std::vector<std::string> get_extract_event_sources() { return {SOURCE_NAME}; }
+	std::vector<std::string> get_extract_event_sources() { return {PLUGIN_SOURCE_NAME}; }
 
 	std::vector<falcosecurity::field_info> get_fields()
 	{
@@ -171,12 +173,12 @@ public:
 		case 2: // dummy.strvalue
 		{
 			// The event payload is simply the sample, as a string
-			std::string payload = "__" + std::to_string(sample) + "__";
-			req.set_value(payload, true);
+			req.set_value(std::to_string(sample), true);
 			return true;
 		}
 		default:
-			log_error("unknown field-id");
+			m_lasterr = "no known field: " + std::to_string(req.get_field_id());
+			log_error(m_lasterr);
 			return false;
 		}
 
@@ -208,7 +210,7 @@ public:
 			}
 			catch (std::exception e)
 			{
-				m_lasterr = "unable to parse the json open params";
+				m_lasterr = "wrong open params format";
 				log_error(m_lasterr);
 				return nullptr;
 			}

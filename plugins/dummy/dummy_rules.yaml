@@ -17,8 +17,8 @@
 #
 
 - rule: Sample dummy plugin rule
-  desc: Match all values >10.
-  condition: dummy.value > 10
+  desc: Match all events with sample > 1.
+  condition: dummy.value > 1
   output: -> triggered (value=%dummy.value)
   priority: CRITICAL
   source: dummy
