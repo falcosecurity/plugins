@@ -8,7 +8,7 @@ It is a companion to the `dummy` plugin which is written in Go but supports the 
 
 ## Event Source
 
-The event source for dummy events is `dummy`.
+The event source for dummy events is `dummy_c`.
 
 ## Supported Fields
 
@@ -43,7 +43,7 @@ The init string can be the empty string, which is treated identically to `{}`.
 The format of the open params string is a json object. Here's an example:
 
 ```json
-{"start": 1, "maxEvents": 100}
+{"start": 1, "maxEvents": 20}
 ```
 
 The json object has the following properties:
@@ -52,7 +52,7 @@ The json object has the following properties:
 
 The open params string can be the empty string, which is treated identically to `{}`.
 
-### `falco.yaml` Example
+### Run with Falco
 
 Here is a complete `falco.yaml` snippet showing valid configurations for the dummy_c plugin:
 

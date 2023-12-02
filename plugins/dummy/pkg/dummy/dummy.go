@@ -47,16 +47,28 @@ type PluginConfig struct {
 	Jitter uint64 `json:"jitter" jsonschema:"title=Sample jitter,description=A random amount added to the sample of each event (Default: 10),default=10"`
 }
 
+type PluginOpenParams struct {
+	Start     uint64 `json:"start" jsonschema:"title=Start value,description=The starting value of the sample (Default: 1),default=1"`
+	MaxEvents uint64 `json:"maxEvents" jsonschema:"title=Max num events,description=The number of events to return before returning EOF (Default: 20),default=20"`
+}
+
 type Plugin struct {
 	plugins.BasePlugin
 	// Will be used to randomize samples
 	rand *rand.Rand
 	// Contains the init configuration values
 	config PluginConfig
+	// Contains the open params configuration
+	openParams PluginOpenParams
 }
 
 func (p *PluginConfig) setDefault() {
 	p.Jitter = 10
+}
+
+func (p *PluginOpenParams) setDefault() {
+	p.Start = 1
+	p.MaxEvents = 20
 }
 
 func (m *Plugin) Info() *plugins.Info {
@@ -83,20 +95,6 @@ func (p *Plugin) InitSchema() *sdk.SchemaInfo {
 	return nil
 }
 
-func (p *Plugin) OpenParams() ([]sdk.OpenParam, error) {
-	var res []sdk.OpenParam
-	min := 10
-	max := int(1e6)
-	for min <= max {
-		res = append(res, sdk.OpenParam{
-			Value: fmt.Sprintf("%d", min),
-			Desc:  fmt.Sprintf("Generates a maximum of %d events", min),
-		})
-		min *= 10
-	}
-	return res, nil
-}
-
 func (p *Plugin) Init(cfg string) error {
 	// initialize state
 	p.rand = rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -107,8 +105,9 @@ func (p *Plugin) Init(cfg string) error {
 	// Since we provide a schema through InitSchema(), the framework
 	// guarantees that the config is always well-formed json.
 	p.config.setDefault()
-	json.Unmarshal([]byte(cfg), &p.config)
-
+	if len(cfg) != 0 {
+		json.Unmarshal([]byte(cfg), &p.config)
+	}
 	return nil
 }
 
@@ -117,24 +116,22 @@ func (p *Plugin) Destroy() {
 }
 
 func (p *Plugin) Open(prms string) (source.Instance, error) {
-	// The open parameters is a positive integer which denotes the number of
-	// samples to generate before returning EOF. A list of example values
-	// is provided through OpenParams()
-	maxEvents, err := strconv.Atoi(prms)
-	if err != nil {
-		return nil, fmt.Errorf("can't read max events from open params: %s", err.Error())
-	}
-	if maxEvents <= 0 {
-		return nil, fmt.Errorf("invalid max events value: %d", maxEvents)
+
+	p.openParams.setDefault()
+	if len(prms) != 0 {
+		if err := json.Unmarshal([]byte(prms), &p.openParams); err != nil {
+			return nil, fmt.Errorf("wrong open params format: %s", err.Error())
+		}
 	}
 
-	counter := uint64(0)
-	sample := uint64(p.rand.Int63n(int64(p.config.Jitter + 1)))
+	evt_counter := uint64(0)
+	sample := p.openParams.Start
+	maxEvents := p.openParams.MaxEvents
 	pull := func(ctx context.Context, evt sdk.EventWriter) error {
-		counter++
-		if counter > uint64(maxEvents) {
+		if evt_counter >= uint64(maxEvents) {
 			return sdk.ErrEOF
 		}
+		evt_counter++
 
 		// Increment sample by 1, also add a jitter of [0:jitter]
 		sample += 1 + uint64(p.rand.Int63n(int64(p.config.Jitter+1)))
@@ -171,7 +168,7 @@ func (m *Plugin) Fields() []sdk.FieldEntry {
 			Type: "uint64",
 			Name: "dummy.divisible",
 			Desc: "Return 1 if the value is divisible by the provided divisor, 0 otherwise",
-			Arg:  sdk.FieldEntryArg{IsRequired: true, IsKey: true},
+			Arg:  sdk.FieldEntryArg{IsRequired: true, IsIndex: true},
 		},
 		{
 			Type: "uint64",
@@ -199,11 +196,14 @@ func (m *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 
 	switch req.FieldID() {
 	case 0: // dummy.divisible
-		divisor, err := strconv.Atoi(req.ArgKey())
-		if err != nil {
-			return fmt.Errorf("argument to dummy.divisible %s could not be converted to number", req.ArgKey())
+
+		if !req.ArgPresent() {
+			return fmt.Errorf("'dummy.divisible' field requires an argument, but no argument is provided")
 		}
-		if evtVal%divisor == 0 {
+
+		divisor := req.ArgIndex()
+
+		if uint64(evtVal)%divisor == 0 {
 			req.SetValue(uint64(1))
 		} else {
 			req.SetValue(uint64(0))
