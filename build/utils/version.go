@@ -99,14 +99,19 @@ func pluginInfo(path string) (name, version string, err error) {
 		err = errors.New("cannot get name of " + path + ": " + C.GoString(cErr))
 		return
 	}
+	// we need to convert immediately the pointer into a string
+	// otherwise the pointer could change see plugin sdk cpp
+	name = C.GoString(cName)
 
 	cVer := C.get_version(h, &cErr)
 	if cVer == nil {
 		err = errors.New("cannot get version of " + path + ": " + C.GoString(cErr))
 		return
 	}
+	// Same as before
+	version = C.GoString(cVer)
 
-	return C.GoString(cName), C.GoString(cVer), nil
+	return
 }
 
 func git(args ...string) (output []string, err error) {
