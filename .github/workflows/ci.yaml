@@ -39,8 +39,8 @@ jobs:
     uses: ./.github/workflows/reusable_validate_plugins.yaml
     with:
       plugin: ${{ matrix.plugin }}
-      falcoctl-version: 0.5.1
-      falco-image: falcosecurity/falco-no-driver:0.35.1
+      falcoctl-version: 0.6.2
+      falco-image: falcosecurity/falco-no-driver:0.36.2
       plugins-artifact: plugins-x86_64-${{ github.event.number }}.tar.gz
       rules-checker: ./rules-checker
       arch: x86_64
@@ -55,7 +55,7 @@ jobs:
     uses: ./.github/workflows/reusable_suggest_rules_version.yaml
     with:
       plugin: ${{ matrix.plugin }}
-      falco-image: falcosecurity/falco-no-driver:0.35.1
+      falco-image: falcosecurity/falco-no-driver:0.36.2
       plugins-artifact: plugins-x86_64-${{ github.event.number }}.tar.gz
       rules-checker: ./rules-checker
       arch: x86_64
