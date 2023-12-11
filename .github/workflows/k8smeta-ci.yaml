@@ -1,0 +1,72 @@
+name: Build K8smeta plugin
+on:
+  pull_request:
+    branches: [ master ]
+    paths:
+        - 'plugins/k8smeta/**'
+  push:
+    branches: [ master ]
+    paths:
+        - 'plugins/k8smeta/**'
+  workflow_dispatch:
+
+# Checks if any concurrent jobs under the same pull request or branch are being executed
+concurrency:
+    group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+    cancel-in-progress: true
+
+jobs:
+    build-and-test:
+      name: build-and-test
+      runs-on: ubuntu-22.04
+      steps:
+        - name: Checkout ⤵️
+          uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+          with:
+            fetch-depth: 0
+
+        - name: Setup Go
+          uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
+          with:
+            go-version: '1.21'
+            check-latest: true
+
+        - name: Install deps ⛓️
+          run: |
+            sudo apt update -y
+            sudo apt install -y --no-install-recommends cmake build-essential autoconf libtool pkg-config
+
+        - name: Initialize CodeQL
+          uses: github/codeql-action/init@v2
+          with:
+            languages: cpp
+
+        - name: Build k8s meta plugin 🏗️
+          run: |
+            cd plugins/k8smeta
+            mkdir build
+            cd build && cmake -DCMAKE_BUILD_TYPE=Release ../
+            make k8smeta -j6
+
+        - name: Perform CodeQL Analysis
+          uses: github/codeql-action/analyze@v2			
+
+        - name: Build and run tests 🏎️
+          run: |
+            cd plugins/k8smeta/build
+            make build-server
+            make build-tests
+            make run-server &
+            make run-tests
+
+    formatting-check:
+      runs-on: ubuntu-22.04
+      steps:
+        - name: Checkout code
+          uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+
+        - name: Run clang-format style check
+          uses: jidicula/clang-format-action@f62da5e3d3a2d88ff364771d9d938773a618ab5e #v4.11.0
+          with:
+            clang-format-version: '14'
+            check-path: plugins/k8smeta
