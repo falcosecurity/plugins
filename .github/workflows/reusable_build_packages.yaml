@@ -23,8 +23,16 @@ jobs:
       - name: Install deps
         run: |
           apt update
-          apt install -y --no-install-recommends git awscli
-    
+          apt install -y --no-install-recommends git awscli make build-essential autoconf libtool pkg-config
+
+      - name: Install updated cmake version ⛓️
+        run: |
+          curl -L -o /tmp/cmake.tar.gz https://github.com/Kitware/CMake/releases/download/v3.22.5/cmake-3.22.5-linux-$(uname -m).tar.gz
+          gzip -d /tmp/cmake.tar.gz
+          tar -xpf /tmp/cmake.tar --directory=/tmp
+          cp -R /tmp/cmake-3.22.5-linux-$(uname -m)/* /usr
+          rm -rf /tmp/cmake-3.22.5-linux-$(uname -m)
+
       - name: Checkout Plugins ⤵️
         uses: actions/checkout@v3
         with:
