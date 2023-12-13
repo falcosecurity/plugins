@@ -93,6 +93,10 @@ Only `init` accepts settings:
 * `api_token`: your API Token to access Okta API
 * `cache_expiration`: TTL in seconds for keys in cache for MFA events (default: 600)
 * `cache_usermaxsize`: Max size by user for the cache (default: 200)
+* `refresh_interval`: Delay in seconds between two calls to the Okta API (default: 10)
+
+> **Warning**
+Don't set a too low value for `refresh_interval` too avoid `Too many requests` errors.
 
 # Configurations
 
@@ -107,6 +111,7 @@ Only `init` accepts settings:
         api_token: xxxxxxxxxxx
         cache_expiration: 84600 #24h
         cache_usermaxsize: 200
+        refresh_interval: 10 #in seconds
       open_params: ''
 
   load_plugins: [okta]

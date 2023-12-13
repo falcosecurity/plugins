@@ -1,5 +1,10 @@
 # Changelog
 
+# v 0.9.0
+
+* Add `refresh_interval` parameter
+* Add deduplication method to improve the count of MFA attempts
+
 ## v0.8.1
 
 

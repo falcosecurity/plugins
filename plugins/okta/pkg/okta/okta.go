@@ -21,7 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -113,6 +113,7 @@ type Plugin struct {
 	Organization     string `json:"organization" jsonschema:"title=Organization,description=Your Okta organization"`
 	CacheExpiration  uint64 `json:"cache_expiration" jsonschema:"title=Cache Expiration,description=TTL in seconds for keys in cache for MFA events (default: 600)"`
 	CacheUserMaxSize uint64 `json:"cache_usermaxsize" jsonschema:"title=Cache User Max Size,description=Max size by user for the cache (default: 200)"`
+	RefreshInterval  uint64 `json:"refresh_interval" jsonschema:"title=Refresh Interval,description=Delay in seconds between two calls to the Okta API (default: 10)"`
 	lastLogEvent     LogEvent
 	lastEventNum     uint64
 	cache            gcache.Cache
@@ -121,10 +122,11 @@ type Plugin struct {
 // PluginInstance represents a opened stream based on our Plugin
 type PluginInstance struct {
 	source.BaseInstance
-	client      *http.Client
-	request     *http.Request
-	cancel      context.CancelFunc
-	lastReqTime time.Time
+	client          *http.Client
+	request         *http.Request
+	cancel          context.CancelFunc
+	lastReqTime     time.Time
+	refreshInterval uint64
 }
 
 const oktaBaseURL string = "okta.com/api/v1/logs"
@@ -136,7 +138,7 @@ func (oktaPlugin *Plugin) Info() *plugins.Info {
 		Name:        "okta",
 		Description: "Okta Log Events",
 		Contact:     "github.com/falcosecurity/plugins/",
-		Version:     "0.8.1",
+		Version:     "0.9.0",
 		EventSource: "okta",
 	}
 }
@@ -161,6 +163,7 @@ func (oktaPlugin *Plugin) InitSchema() *sdk.SchemaInfo {
 func (oktaPlugin *Plugin) Init(config string) error {
 	oktaPlugin.CacheExpiration = 84600
 	oktaPlugin.CacheUserMaxSize = 200
+	oktaPlugin.RefreshInterval = 10
 	err := json.Unmarshal([]byte(config), &oktaPlugin)
 	if err != nil {
 		return err
@@ -227,7 +230,7 @@ func (oktaPlugin *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) e
 	data := oktaPlugin.lastLogEvent
 
 	if evt.EventNum() != oktaPlugin.lastEventNum {
-		rawData, err := ioutil.ReadAll(evt.Reader())
+		rawData, err := io.ReadAll(evt.Reader())
 		if err != nil {
 			return err
 		}
@@ -250,6 +253,7 @@ func (oktaPlugin *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) e
 				}
 			}
 			valueList = append(valueList, evt.Timestamp())
+			valueList = removeDuplicateUint64(valueList)
 			if uint64(len(valueList)) > oktaPlugin.CacheUserMaxSize {
 				valueList = valueList[1:]
 			}
@@ -416,7 +420,7 @@ func (oktaPlugin *Plugin) Open(params string) (source.Instance, error) {
 		return nil, err
 	}
 
-	since := time.Now().UTC().Add(-60 * time.Second)
+	since := time.Now().UTC().Add(time.Duration(-30) * time.Second)
 	values := req.URL.Query()
 	values.Add("since", since.Format(time.RFC3339))
 	req.URL.RawQuery = values.Encode()
@@ -426,16 +430,18 @@ func (oktaPlugin *Plugin) Open(params string) (source.Instance, error) {
 	req.Header.Add("Authorization", "SSWS "+oktaPlugin.APIToken)
 
 	return &PluginInstance{
-		client:  &http.Client{},
-		request: req,
-		cancel:  cancel,
+		client:          &http.Client{},
+		request:         req,
+		cancel:          cancel,
+		refreshInterval: oktaPlugin.RefreshInterval,
+		lastReqTime:     since,
 	}, nil
 }
 
 // String represents the raw value of on event
 // todo: optimize this to cache by event number
 func (oktaPlugin *Plugin) String(evt sdk.EventReader) (string, error) {
-	evtBytes, err := ioutil.ReadAll(evt.Reader())
+	evtBytes, err := io.ReadAll(evt.Reader())
 	if err != nil {
 		return "", err
 	}
@@ -446,9 +452,10 @@ func (oktaPlugin *Plugin) String(evt sdk.EventReader) (string, error) {
 
 // NextBatch is called by Falco plugin framework to get a batch of events from the instance
 func (oktaInstance *PluginInstance) NextBatch(pState sdk.PluginState, evts sdk.EventWriters) (int, error) {
-	now := time.Now()
-	if now.Before(oktaInstance.lastReqTime.Add(5 * time.Second)) {
-		time.Sleep(oktaInstance.lastReqTime.Add(5 * time.Second).Sub(now))
+	now := time.Now().UTC()
+	if duration := now.Sub(oktaInstance.lastReqTime); duration < (time.Duration(oktaInstance.refreshInterval) * time.Second) {
+		time.Sleep(time.Duration(oktaInstance.refreshInterval)*time.Second - duration)
+		now = time.Now()
 	}
 
 	var logEvents []LogEvent
@@ -462,6 +469,10 @@ func (oktaInstance *PluginInstance) NextBatch(pState sdk.PluginState, evts sdk.E
 		return 0, err
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return 0, sdk.ErrTimeout
+	}
 
 	err = json.NewDecoder(resp.Body).Decode(&logEvents)
 	if err != nil {
@@ -491,4 +502,16 @@ func (oktaInstance *PluginInstance) NextBatch(pState sdk.PluginState, evts sdk.E
 
 func (oktaInstance *PluginInstance) Close() {
 	oktaInstance.cancel()
+}
+
+func removeDuplicateUint64(intSlice []uint64) []uint64 {
+	allKeys := make(map[uint64]bool)
+	list := []uint64{}
+	for _, item := range intSlice {
+		if _, value := allKeys[item]; !value {
+			allKeys[item] = true
+			list = append(list, item)
+		}
+	}
+	return list
 }
