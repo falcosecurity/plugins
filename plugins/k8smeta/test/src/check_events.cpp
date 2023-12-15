@@ -239,7 +239,8 @@ TEST_F(sinsp_with_test_input, plugin_k8s_fields_existance)
     ASSERT_TRUE(field_exists(evt, "k8smeta.ns.labels", pl_flist));
     ASSERT_TRUE(field_exists(evt, "k8smeta.deployment.name", pl_flist));
     ASSERT_TRUE(field_exists(evt, "k8smeta.deployment.uid", pl_flist));
-    ASSERT_TRUE(field_exists(evt, "k8smeta.deployment.label[exists]", pl_flist));
+    ASSERT_TRUE(
+            field_exists(evt, "k8smeta.deployment.label[exists]", pl_flist));
     ASSERT_TRUE(field_exists(evt, "k8smeta.deployment.labels", pl_flist));
     ASSERT_TRUE(field_exists(evt, "k8smeta.svc.name", pl_flist));
     ASSERT_TRUE(field_exists(evt, "k8smeta.svc.uid", pl_flist));
@@ -335,7 +336,8 @@ TEST_F(sinsp_with_test_input, plugin_k8s_pod_refs)
               "(pod-template-hash:85d6fcf458,k8s-app:metrics-server)");
 
     // K8S_POD_IP
-    ASSERT_EQ(get_field_as_string(evt, "k8smeta.pod.ip", pl_flist), "10.16.1.2");
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.pod.ip", pl_flist),
+              "10.16.1.2");
 
     // K8S_NS_NAME
     ASSERT_EQ(get_field_as_string(evt, "k8smeta.ns.name", pl_flist),
@@ -565,8 +567,8 @@ TEST_F(sinsp_with_test_input, plugin_k8s_delete_namespace_and_deployment)
             evt, "k8smeta.ns.label[kubernetes.io/metadata.name]", pl_flist));
     ASSERT_FALSE(field_has_value(evt, "k8smeta.ns.labels", pl_flist));
     ASSERT_FALSE(field_has_value(evt, "k8smeta.deployment.name", pl_flist));
-    ASSERT_FALSE(
-            field_has_value(evt, "k8smeta.deployment.label[k8s-app]", pl_flist));
+    ASSERT_FALSE(field_has_value(evt, "k8smeta.deployment.label[k8s-app]",
+                                 pl_flist));
     ASSERT_FALSE(field_has_value(evt, "k8smeta.deployment.labels", pl_flist));
 
     m_inspector.close();

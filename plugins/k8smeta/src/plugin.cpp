@@ -337,7 +337,8 @@ std::vector<falcosecurity::field_info> my_plugin::get_fields()
     const falcosecurity::field_info fields[] = {
             {ft::FTYPE_STRING, "k8smeta.pod.name", "Pod Name",
              "Kubernetes pod name."},
-            {ft::FTYPE_STRING, "k8smeta.pod.uid", "Pod UID", "Kubernetes pod UID."},
+            {ft::FTYPE_STRING, "k8smeta.pod.uid", "Pod UID",
+             "Kubernetes pod UID."},
             {ft::FTYPE_STRING,
              "k8smeta.pod.label",
              "Pod Label",
