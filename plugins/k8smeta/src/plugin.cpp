@@ -335,54 +335,54 @@ std::vector<falcosecurity::field_info> my_plugin::get_fields()
     using ft = falcosecurity::field_value_type;
     // Use an array to perform a static_assert one the size.
     const falcosecurity::field_info fields[] = {
-            {ft::FTYPE_STRING, "k8sres.pod.name", "Pod Name",
+            {ft::FTYPE_STRING, "k8smeta.pod.name", "Pod Name",
              "Kubernetes pod name."},
-            {ft::FTYPE_STRING, "k8sres.pod.id", "Pod ID", "Kubernetes pod ID."},
+            {ft::FTYPE_STRING, "k8smeta.pod.id", "Pod ID", "Kubernetes pod ID."},
             {ft::FTYPE_STRING,
-             "k8sres.pod.label",
+             "k8smeta.pod.label",
              "Pod Label",
-             "Kubernetes pod label. E.g. 'k8sres.pod.label[foo]'.",
+             "Kubernetes pod label. E.g. 'k8smeta.pod.label[foo]'.",
              {.key = true, .required = true}},
-            {ft::FTYPE_STRING, "k8sres.pod.labels", "Pod Labels",
+            {ft::FTYPE_STRING, "k8smeta.pod.labels", "Pod Labels",
              "Kubernetes pod comma-separated key/value labels. E.g. "
              "'(foo1:bar1,foo2:bar2)'.",
              falcosecurity::field_arg(), true},
-            {ft::FTYPE_STRING, "k8sres.pod.ip", "Pod Ip", "Kubernetes pod ip"},
+            {ft::FTYPE_STRING, "k8smeta.pod.ip", "Pod Ip", "Kubernetes pod ip"},
 
-            {ft::FTYPE_STRING, "k8sres.ns.name", "Namespace Name",
+            {ft::FTYPE_STRING, "k8smeta.ns.name", "Namespace Name",
              "Kubernetes namespace name."},
-            {ft::FTYPE_STRING, "k8sres.ns.id", "Namespace ID",
+            {ft::FTYPE_STRING, "k8smeta.ns.id", "Namespace ID",
              "Kubernetes namespace ID."},
             {ft::FTYPE_STRING,
-             "k8sres.ns.label",
+             "k8smeta.ns.label",
              "Namespace Label",
-             "Kubernetes namespace label. E.g. 'k8sres.ns.label[foo]'.",
+             "Kubernetes namespace label. E.g. 'k8smeta.ns.label[foo]'.",
              {.key = true, .index = false, .required = true}},
-            {ft::FTYPE_STRING, "k8sres.ns.labels", "Namespace Labels",
+            {ft::FTYPE_STRING, "k8smeta.ns.labels", "Namespace Labels",
              "Kubernetes namespace comma-separated key/value labels. E.g. "
              "'(foo1:bar1,foo2:bar2)'.",
              falcosecurity::field_arg(), true},
 
-            {ft::FTYPE_STRING, "k8sres.deployment.name", "Deployment Name",
+            {ft::FTYPE_STRING, "k8smeta.deployment.name", "Deployment Name",
              "Kubernetes deployment name."},
-            {ft::FTYPE_STRING, "k8sres.deployment.id", "Deployment ID",
+            {ft::FTYPE_STRING, "k8smeta.deployment.id", "Deployment ID",
              "Kubernetes deployment ID."},
             {ft::FTYPE_STRING,
-             "k8sres.deployment.label",
+             "k8smeta.deployment.label",
              "Deployment Label",
-             "Kubernetes deployment label. E.g. 'k8sres.rs.label[foo]'.",
+             "Kubernetes deployment label. E.g. 'k8smeta.rs.label[foo]'.",
              {.key = true, .required = true}},
-            {ft::FTYPE_STRING, "k8sres.deployment.labels", "Deployment Labels",
+            {ft::FTYPE_STRING, "k8smeta.deployment.labels", "Deployment Labels",
              "Kubernetes deployment comma-separated key/value labels. E.g. "
              "'(foo1:bar1,foo2:bar2)'.",
              falcosecurity::field_arg(), true},
 
-            {ft::FTYPE_STRING, "k8sres.svc.name", "Services Name",
+            {ft::FTYPE_STRING, "k8smeta.svc.name", "Services Name",
              "Kubernetes services name. Return a list with all the names of "
              "the services associated with the "
              "current pod. E.g. '(service1,service2)'",
              falcosecurity::field_arg(), true},
-            {ft::FTYPE_STRING, "k8sres.svc.id", "Services ID",
+            {ft::FTYPE_STRING, "k8smeta.svc.id", "Services ID",
              "Kubernetes services ID. Return a list with all the IDs of the "
              "services associated with the "
              "current pod. E.g. "
@@ -390,48 +390,48 @@ std::vector<falcosecurity::field_info> my_plugin::get_fields()
              "25307c5007e8)'",
              falcosecurity::field_arg(), true},
             {ft::FTYPE_STRING,
-             "k8sres.svc.label",
+             "k8smeta.svc.label",
              "Services Label",
              "Kubernetes services label. If the services associated with the "
              "current pod have a label with this "
              "name, return the list of label's values. E.g. if the current pod "
              "has 2 services associated and both "
-             "have the 'foo' label, 'k8sres.svc.label[foo]' will return "
+             "have the 'foo' label, 'k8smeta.svc.label[foo]' will return "
              "'(service1-label-value,service2-label-value)",
              {.key = true, .required = true},
              true},
-            {ft::FTYPE_STRING, "k8sres.svc.labels", "Services Labels",
+            {ft::FTYPE_STRING, "k8smeta.svc.labels", "Services Labels",
              "Kubernetes services labels. Return a list with all the "
              "comma-separated key/value labels of the "
              "services associated with the current pod. E.g. "
              "'(foo1:bar1,foo2:bar2)'",
              falcosecurity::field_arg(), true},
 
-            {ft::FTYPE_STRING, "k8sres.rs.name", "Replica Set Name",
+            {ft::FTYPE_STRING, "k8smeta.rs.name", "Replica Set Name",
              "Kubernetes replica set name."},
-            {ft::FTYPE_STRING, "k8sres.rs.id", "Replica Set ID",
+            {ft::FTYPE_STRING, "k8smeta.rs.id", "Replica Set ID",
              "Kubernetes replica set ID."},
             {ft::FTYPE_STRING,
-             "k8sres.rs.label",
+             "k8smeta.rs.label",
              "Replica Set Label",
-             "Kubernetes replica set label. E.g. 'k8sres.rs.label[foo]'.",
+             "Kubernetes replica set label. E.g. 'k8smeta.rs.label[foo]'.",
              {.key = true, .required = true}},
-            {ft::FTYPE_STRING, "k8sres.rs.labels", "Replica Set Labels",
+            {ft::FTYPE_STRING, "k8smeta.rs.labels", "Replica Set Labels",
              "Kubernetes replica set comma-separated key/value labels. E.g. "
              "'(foo1:bar1,foo2:bar2)'.",
              falcosecurity::field_arg(), true},
 
-            {ft::FTYPE_STRING, "k8sres.rc.name", "Replication Controller Name",
+            {ft::FTYPE_STRING, "k8smeta.rc.name", "Replication Controller Name",
              "Kubernetes replication controller name."},
-            {ft::FTYPE_STRING, "k8sres.rc.id", "Replication Controller ID",
+            {ft::FTYPE_STRING, "k8smeta.rc.id", "Replication Controller ID",
              "Kubernetes replication controller ID."},
             {ft::FTYPE_STRING,
-             "k8sres.rc.label",
+             "k8smeta.rc.label",
              "Replication Controller Label",
              "Kubernetes replication controller label. E.g. "
-             "'k8sres.rc.label[foo]'.",
+             "'k8smeta.rc.label[foo]'.",
              {.key = true, .required = true}},
-            {ft::FTYPE_STRING, "k8sres.rc.labels",
+            {ft::FTYPE_STRING, "k8smeta.rc.labels",
              "Replication Controller Labels",
              "Kubernetes replication controller comma-separated key/value "
              "labels. E.g. '(foo1:bar1,foo2:bar2)'.",

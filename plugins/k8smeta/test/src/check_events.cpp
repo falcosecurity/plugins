@@ -228,36 +228,36 @@ TEST_F(sinsp_with_test_input, plugin_k8s_fields_existance)
 
     // Obtain an event to assert the filterchecks presence against it.
     auto evt = generate_random_event(INIT_TID);
-    ASSERT_TRUE(field_exists(evt, "k8sres.pod.name", pl_flist));
-    ASSERT_TRUE(field_exists(evt, "k8sres.pod.id", pl_flist));
-    ASSERT_TRUE(field_exists(evt, "k8sres.pod.label[exists]", pl_flist));
-    ASSERT_TRUE(field_exists(evt, "k8sres.pod.labels", pl_flist));
-    ASSERT_TRUE(field_exists(evt, "k8sres.pod.ip", pl_flist));
-    ASSERT_TRUE(field_exists(evt, "k8sres.ns.name", pl_flist));
-    ASSERT_TRUE(field_exists(evt, "k8sres.ns.id", pl_flist));
-    ASSERT_TRUE(field_exists(evt, "k8sres.ns.label[exists]", pl_flist));
-    ASSERT_TRUE(field_exists(evt, "k8sres.ns.labels", pl_flist));
-    ASSERT_TRUE(field_exists(evt, "k8sres.deployment.name", pl_flist));
-    ASSERT_TRUE(field_exists(evt, "k8sres.deployment.id", pl_flist));
-    ASSERT_TRUE(field_exists(evt, "k8sres.deployment.label[exists]", pl_flist));
-    ASSERT_TRUE(field_exists(evt, "k8sres.deployment.labels", pl_flist));
-    ASSERT_TRUE(field_exists(evt, "k8sres.svc.name", pl_flist));
-    ASSERT_TRUE(field_exists(evt, "k8sres.svc.id", pl_flist));
-    ASSERT_TRUE(field_exists(evt, "k8sres.svc.label[exists]", pl_flist));
-    ASSERT_TRUE(field_exists(evt, "k8sres.svc.labels", pl_flist));
-    ASSERT_TRUE(field_exists(evt, "k8sres.rs.name", pl_flist));
-    ASSERT_TRUE(field_exists(evt, "k8sres.rs.id", pl_flist));
-    ASSERT_TRUE(field_exists(evt, "k8sres.rs.label[exists]", pl_flist));
-    ASSERT_TRUE(field_exists(evt, "k8sres.rs.labels", pl_flist));
-    ASSERT_TRUE(field_exists(evt, "k8sres.rc.name", pl_flist));
-    ASSERT_TRUE(field_exists(evt, "k8sres.rc.id", pl_flist));
-    ASSERT_TRUE(field_exists(evt, "k8sres.rc.label[exists]", pl_flist));
-    ASSERT_TRUE(field_exists(evt, "k8sres.rc.labels", pl_flist));
+    ASSERT_TRUE(field_exists(evt, "k8smeta.pod.name", pl_flist));
+    ASSERT_TRUE(field_exists(evt, "k8smeta.pod.id", pl_flist));
+    ASSERT_TRUE(field_exists(evt, "k8smeta.pod.label[exists]", pl_flist));
+    ASSERT_TRUE(field_exists(evt, "k8smeta.pod.labels", pl_flist));
+    ASSERT_TRUE(field_exists(evt, "k8smeta.pod.ip", pl_flist));
+    ASSERT_TRUE(field_exists(evt, "k8smeta.ns.name", pl_flist));
+    ASSERT_TRUE(field_exists(evt, "k8smeta.ns.id", pl_flist));
+    ASSERT_TRUE(field_exists(evt, "k8smeta.ns.label[exists]", pl_flist));
+    ASSERT_TRUE(field_exists(evt, "k8smeta.ns.labels", pl_flist));
+    ASSERT_TRUE(field_exists(evt, "k8smeta.deployment.name", pl_flist));
+    ASSERT_TRUE(field_exists(evt, "k8smeta.deployment.id", pl_flist));
+    ASSERT_TRUE(field_exists(evt, "k8smeta.deployment.label[exists]", pl_flist));
+    ASSERT_TRUE(field_exists(evt, "k8smeta.deployment.labels", pl_flist));
+    ASSERT_TRUE(field_exists(evt, "k8smeta.svc.name", pl_flist));
+    ASSERT_TRUE(field_exists(evt, "k8smeta.svc.id", pl_flist));
+    ASSERT_TRUE(field_exists(evt, "k8smeta.svc.label[exists]", pl_flist));
+    ASSERT_TRUE(field_exists(evt, "k8smeta.svc.labels", pl_flist));
+    ASSERT_TRUE(field_exists(evt, "k8smeta.rs.name", pl_flist));
+    ASSERT_TRUE(field_exists(evt, "k8smeta.rs.id", pl_flist));
+    ASSERT_TRUE(field_exists(evt, "k8smeta.rs.label[exists]", pl_flist));
+    ASSERT_TRUE(field_exists(evt, "k8smeta.rs.labels", pl_flist));
+    ASSERT_TRUE(field_exists(evt, "k8smeta.rc.name", pl_flist));
+    ASSERT_TRUE(field_exists(evt, "k8smeta.rc.id", pl_flist));
+    ASSERT_TRUE(field_exists(evt, "k8smeta.rc.label[exists]", pl_flist));
+    ASSERT_TRUE(field_exists(evt, "k8smeta.rc.labels", pl_flist));
 
     // The label field must always have an argument with `[]` notation
-    ASSERT_THROW(field_exists(evt, "k8sres.pod.label.notexists", pl_flist),
+    ASSERT_THROW(field_exists(evt, "k8smeta.pod.label.notexists", pl_flist),
                  sinsp_exception);
-    ASSERT_THROW(field_exists(evt, "k8sres.ns.labelnotexists", pl_flist),
+    ASSERT_THROW(field_exists(evt, "k8smeta.ns.labelnotexists", pl_flist),
                  sinsp_exception);
 }
 
@@ -318,114 +318,114 @@ TEST_F(sinsp_with_test_input, plugin_k8s_pod_refs)
     GENERATE_EXECVE_EVENT_FOR_INIT(pod_uid);
 
     // K8S_POD_NAME
-    ASSERT_EQ(get_field_as_string(evt, "k8sres.pod.name", pl_flist),
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.pod.name", pl_flist),
               "metrics-server-85d6fcf458-tqkcv");
 
     // K8S_POD_ID
-    ASSERT_EQ(get_field_as_string(evt, "k8sres.pod.id", pl_flist), pod_uid);
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.pod.id", pl_flist), pod_uid);
 
     // K8S_POD_LABEL
-    ASSERT_TRUE(field_exists(evt, "k8sres.pod.label[no]", pl_flist));
-    ASSERT_EQ(get_field_as_string(evt, "k8sres.pod.label[k8s-app]", pl_flist),
+    ASSERT_TRUE(field_exists(evt, "k8smeta.pod.label[no]", pl_flist));
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.pod.label[k8s-app]", pl_flist),
               "metrics-server");
 
     // K8S_POD_LABELS
-    ASSERT_TRUE(field_exists(evt, "k8sres.pod.labels", pl_flist));
-    ASSERT_EQ(get_field_as_string(evt, "k8sres.pod.labels", pl_flist),
+    ASSERT_TRUE(field_exists(evt, "k8smeta.pod.labels", pl_flist));
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.pod.labels", pl_flist),
               "(pod-template-hash:85d6fcf458,k8s-app:metrics-server)");
 
     // K8S_POD_IP
-    ASSERT_EQ(get_field_as_string(evt, "k8sres.pod.ip", pl_flist), "10.16.1.2");
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.pod.ip", pl_flist), "10.16.1.2");
 
     // K8S_NS_NAME
-    ASSERT_EQ(get_field_as_string(evt, "k8sres.ns.name", pl_flist),
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.ns.name", pl_flist),
               "kube-system");
 
     // K8S_NS_ID
-    ASSERT_EQ(get_field_as_string(evt, "k8sres.ns.id", pl_flist),
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.ns.id", pl_flist),
               "c51d0620-b1e1-449a-a6f2-9f96830831a9");
 
     // K8S_NS_LABEL
-    ASSERT_TRUE(field_exists(evt, "k8sres.ns.label[no]", pl_flist));
+    ASSERT_TRUE(field_exists(evt, "k8smeta.ns.label[no]", pl_flist));
     ASSERT_EQ(get_field_as_string(
-                      evt, "k8sres.ns.label[kubernetes.io/metadata.name]",
+                      evt, "k8smeta.ns.label[kubernetes.io/metadata.name]",
                       pl_flist),
               "kube-system");
 
     // K8S_NS_LABELS
-    ASSERT_TRUE(field_exists(evt, "k8sres.ns.labels", pl_flist));
-    ASSERT_EQ(get_field_as_string(evt, "k8sres.ns.labels", pl_flist),
+    ASSERT_TRUE(field_exists(evt, "k8smeta.ns.labels", pl_flist));
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.ns.labels", pl_flist),
               "(kubernetes.io/metadata.name:kube-system)");
 
     // K8S_DEPLOYMENT_NAME
-    ASSERT_EQ(get_field_as_string(evt, "k8sres.deployment.name", pl_flist),
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.deployment.name", pl_flist),
               "metrics-server");
 
     // K8S_DEPLOYMENT_ID
-    ASSERT_EQ(get_field_as_string(evt, "k8sres.deployment.id", pl_flist),
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.deployment.id", pl_flist),
               "e56cf37d-5b8b-4b2d-b7bc-3316a3d72e93");
 
     // K8S_DEPLOYMENT_LABEL
-    ASSERT_TRUE(field_exists(evt, "k8sres.deployment.label[no]", pl_flist));
-    ASSERT_EQ(get_field_as_string(evt, "k8sres.deployment.label[k8s-app]",
+    ASSERT_TRUE(field_exists(evt, "k8smeta.deployment.label[no]", pl_flist));
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.deployment.label[k8s-app]",
                                   pl_flist),
               "metrics-server");
 
     // K8S_DEPLOYMENT_LABELS
-    ASSERT_TRUE(field_exists(evt, "k8sres.deployment.labels", pl_flist));
-    ASSERT_EQ(get_field_as_string(evt, "k8sres.deployment.labels", pl_flist),
+    ASSERT_TRUE(field_exists(evt, "k8smeta.deployment.labels", pl_flist));
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.deployment.labels", pl_flist),
               "(k8s-app:metrics-server)");
 
     // K8S_SVC_NAME
     // This field is a list so we have this `( )` notation
-    ASSERT_EQ(get_field_as_string(evt, "k8sres.svc.name", pl_flist),
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.svc.name", pl_flist),
               "(metrics-server)");
 
     // K8S_SVC_ID
-    ASSERT_EQ(get_field_as_string(evt, "k8sres.svc.id", pl_flist),
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.svc.id", pl_flist),
               "(b2af0913-1a07-457f-986a-111caa4fb372)");
 
     // K8S_SVC_LABEL
-    ASSERT_TRUE(field_exists(evt, "k8sres.svc.label[no]", pl_flist));
+    ASSERT_TRUE(field_exists(evt, "k8smeta.svc.label[no]", pl_flist));
     // This field is a list so we have this `( )` notation
-    ASSERT_EQ(get_field_as_string(evt, "k8sres.svc.label[k8s-app]", pl_flist),
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.svc.label[k8s-app]", pl_flist),
               "(metrics-server)");
 
     // K8S_SVC_LABELS
-    ASSERT_EQ(get_field_as_string(evt, "k8sres.svc.labels", pl_flist),
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.svc.labels", pl_flist),
               "(k8s-app:metrics-server)");
 
     // K8S_RS_NAME
-    ASSERT_EQ(get_field_as_string(evt, "k8sres.rs.name", pl_flist),
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.rs.name", pl_flist),
               "metrics-server-85d6fcf458");
 
     // K8S_RS_ID
-    ASSERT_EQ(get_field_as_string(evt, "k8sres.rs.id", pl_flist),
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.rs.id", pl_flist),
               "8be7cb9d-f96a-41b5-8fb0-81fda92a663a");
 
     // K8S_RS_LABEL
-    ASSERT_TRUE(field_exists(evt, "k8sres.rs.label[no]", pl_flist));
-    ASSERT_EQ(get_field_as_string(evt, "k8sres.rs.label[pod-template-hash]",
+    ASSERT_TRUE(field_exists(evt, "k8smeta.rs.label[no]", pl_flist));
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.rs.label[pod-template-hash]",
                                   pl_flist),
               "85d6fcf458");
 
     // K8S_RS_LABELS
-    ASSERT_TRUE(field_exists(evt, "k8sres.rs.labels", pl_flist));
+    ASSERT_TRUE(field_exists(evt, "k8smeta.rs.labels", pl_flist));
     // This field is a list so we have this `( )` notation
-    ASSERT_EQ(get_field_as_string(evt, "k8sres.rs.labels", pl_flist),
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.rs.labels", pl_flist),
               "(pod-template-hash:85d6fcf458,k8s-app:metrics-server)");
 
     // K8S_RC_NAME
-    ASSERT_TRUE(field_exists(evt, "k8sres.rc.name", pl_flist));
+    ASSERT_TRUE(field_exists(evt, "k8smeta.rc.name", pl_flist));
 
     // K8S_RC_ID
-    ASSERT_TRUE(field_exists(evt, "k8sres.rc.id", pl_flist));
+    ASSERT_TRUE(field_exists(evt, "k8smeta.rc.id", pl_flist));
 
     // K8S_RC_LABEL
-    ASSERT_TRUE(field_exists(evt, "k8sres.rc.label[no]", pl_flist));
+    ASSERT_TRUE(field_exists(evt, "k8smeta.rc.label[no]", pl_flist));
 
     // K8S_RC_LABELS
-    ASSERT_TRUE(field_exists(evt, "k8sres.rc.labels", pl_flist));
+    ASSERT_TRUE(field_exists(evt, "k8smeta.rc.labels", pl_flist));
 
     m_inspector.close();
 }
@@ -451,28 +451,28 @@ TEST_F(sinsp_with_test_input, plugin_k8s_pod_with_2_services)
     GENERATE_EXECVE_EVENT_FOR_INIT(pod_uid);
 
     // K8S_POD_ID
-    ASSERT_EQ(get_field_as_string(evt, "k8sres.pod.id", pl_flist), pod_uid);
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.pod.id", pl_flist), pod_uid);
 
     // K8S_SVC_NAME
-    ASSERT_EQ(get_field_as_string(evt, "k8sres.svc.name", pl_flist),
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.svc.name", pl_flist),
               "(nginx-service,nginx-service-second-service)");
 
     // K8S_SVC_ID
-    ASSERT_EQ(get_field_as_string(evt, "k8sres.svc.id", pl_flist),
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.svc.id", pl_flist),
               "(f0fea0cd-24cd-439f-bd51-e7a9100fed40,9e840fbe-93e4-412c-aa23-"
               "fbe6d03efd08)");
 
     // K8S_SVC_LABEL
-    ASSERT_TRUE(field_exists(evt, "k8sres.svc.label[no]", pl_flist));
+    ASSERT_TRUE(field_exists(evt, "k8smeta.svc.label[no]", pl_flist));
     // Both services have the `app` label
-    ASSERT_EQ(get_field_as_string(evt, "k8sres.svc.label[app]", pl_flist),
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.svc.label[app]", pl_flist),
               "(custom,custom-2)");
     // Only one of the 2 services has the value for the label
-    ASSERT_EQ(get_field_as_string(evt, "k8sres.svc.label[service]", pl_flist),
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.svc.label[service]", pl_flist),
               "(service1)");
 
     // K8S_SVC_LABELS
-    ASSERT_EQ(get_field_as_string(evt, "k8sres.svc.labels", pl_flist),
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.svc.labels", pl_flist),
               "(service:service1,app:custom,app:custom-2)");
 
     m_inspector.close();
@@ -498,22 +498,22 @@ TEST_F(sinsp_with_test_input, plugin_k8s_pod_with_repliacation_controller)
     GENERATE_EXECVE_EVENT_FOR_INIT(pod_uid);
 
     // K8S_POD_ID
-    ASSERT_EQ(get_field_as_string(evt, "k8sres.pod.id", pl_flist), pod_uid);
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.pod.id", pl_flist), pod_uid);
 
     // K8S_RC_NAME
-    ASSERT_EQ(get_field_as_string(evt, "k8sres.rc.name", pl_flist), "nginx");
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.rc.name", pl_flist), "nginx");
 
     // K8S_RC_ID
-    ASSERT_EQ(get_field_as_string(evt, "k8sres.rc.id", pl_flist),
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.rc.id", pl_flist),
               "f2e2a261-ba86-4fa6-9493-e5260a106126");
 
     // K8S_RC_LABEL
-    ASSERT_TRUE(field_exists(evt, "k8sres.rc.label[no]", pl_flist));
-    ASSERT_EQ(get_field_as_string(evt, "k8sres.rc.label[app]", pl_flist),
+    ASSERT_TRUE(field_exists(evt, "k8smeta.rc.label[no]", pl_flist));
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.rc.label[app]", pl_flist),
               "nginx");
 
     // K8S_RC_LABELS
-    ASSERT_EQ(get_field_as_string(evt, "k8sres.rc.labels", pl_flist),
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.rc.labels", pl_flist),
               "(app:nginx)");
 
     m_inspector.close();
@@ -549,25 +549,25 @@ TEST_F(sinsp_with_test_input, plugin_k8s_delete_namespace_and_deployment)
     // extract their fields
 
     // The pod should be still here
-    ASSERT_EQ(get_field_as_string(evt, "k8sres.pod.id", pl_flist), pod_uid);
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.pod.id", pl_flist), pod_uid);
 
     // The namespace name is extracted from the pod meta so we still have it
-    ASSERT_EQ(get_field_as_string(evt, "k8sres.ns.name", pl_flist), "default");
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.ns.name", pl_flist), "default");
     // The namespace uid is available because it is obtained from the pod refs
-    ASSERT_EQ(get_field_as_string(evt, "k8sres.ns.id", pl_flist),
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.ns.id", pl_flist),
               "f7ju8b13-df0c-43bd-8ded-973f4ede66c6");
     // The deployment uid is available because it is obtained from the pod refs
-    ASSERT_EQ(get_field_as_string(evt, "k8sres.deployment.id", pl_flist),
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.deployment.id", pl_flist),
               "920r1601-61b6-4d46-8916-db9f36414722");
 
     // These resources are removed so we shouldn't have fields
     ASSERT_FALSE(field_has_value(
-            evt, "k8sres.ns.label[kubernetes.io/metadata.name]", pl_flist));
-    ASSERT_FALSE(field_has_value(evt, "k8sres.ns.labels", pl_flist));
-    ASSERT_FALSE(field_has_value(evt, "k8sres.deployment.name", pl_flist));
+            evt, "k8smeta.ns.label[kubernetes.io/metadata.name]", pl_flist));
+    ASSERT_FALSE(field_has_value(evt, "k8smeta.ns.labels", pl_flist));
+    ASSERT_FALSE(field_has_value(evt, "k8smeta.deployment.name", pl_flist));
     ASSERT_FALSE(
-            field_has_value(evt, "k8sres.deployment.label[k8s-app]", pl_flist));
-    ASSERT_FALSE(field_has_value(evt, "k8sres.deployment.labels", pl_flist));
+            field_has_value(evt, "k8smeta.deployment.label[k8s-app]", pl_flist));
+    ASSERT_FALSE(field_has_value(evt, "k8smeta.deployment.labels", pl_flist));
 
     m_inspector.close();
 }
@@ -592,32 +592,32 @@ TEST_F(sinsp_with_test_input, plugin_k8s_delete_a_pod)
     std::string pod_uid = "0cc0927d-1d9f-4798-926b-451364a4fgjs";
     GENERATE_EXECVE_EVENT_FOR_INIT(pod_uid);
 
-    ASSERT_FALSE(field_has_value(evt, "k8sres.pod.name", pl_flist));
-    ASSERT_FALSE(field_has_value(evt, "k8sres.pod.id", pl_flist));
-    ASSERT_FALSE(field_has_value(evt, "k8sres.pod.label[exists]", pl_flist));
-    ASSERT_FALSE(field_has_value(evt, "k8sres.pod.labels", pl_flist));
-    ASSERT_FALSE(field_has_value(evt, "k8sres.pod.ip", pl_flist));
-    ASSERT_FALSE(field_has_value(evt, "k8sres.ns.name", pl_flist));
-    ASSERT_FALSE(field_has_value(evt, "k8sres.ns.id", pl_flist));
-    ASSERT_FALSE(field_has_value(evt, "k8sres.ns.label[exists]", pl_flist));
-    ASSERT_FALSE(field_has_value(evt, "k8sres.ns.labels", pl_flist));
-    ASSERT_FALSE(field_has_value(evt, "k8sres.deployment.name", pl_flist));
-    ASSERT_FALSE(field_has_value(evt, "k8sres.deployment.id", pl_flist));
+    ASSERT_FALSE(field_has_value(evt, "k8smeta.pod.name", pl_flist));
+    ASSERT_FALSE(field_has_value(evt, "k8smeta.pod.id", pl_flist));
+    ASSERT_FALSE(field_has_value(evt, "k8smeta.pod.label[exists]", pl_flist));
+    ASSERT_FALSE(field_has_value(evt, "k8smeta.pod.labels", pl_flist));
+    ASSERT_FALSE(field_has_value(evt, "k8smeta.pod.ip", pl_flist));
+    ASSERT_FALSE(field_has_value(evt, "k8smeta.ns.name", pl_flist));
+    ASSERT_FALSE(field_has_value(evt, "k8smeta.ns.id", pl_flist));
+    ASSERT_FALSE(field_has_value(evt, "k8smeta.ns.label[exists]", pl_flist));
+    ASSERT_FALSE(field_has_value(evt, "k8smeta.ns.labels", pl_flist));
+    ASSERT_FALSE(field_has_value(evt, "k8smeta.deployment.name", pl_flist));
+    ASSERT_FALSE(field_has_value(evt, "k8smeta.deployment.id", pl_flist));
     ASSERT_FALSE(
-            field_has_value(evt, "k8sres.deployment.label[exists]", pl_flist));
-    ASSERT_FALSE(field_has_value(evt, "k8sres.deployment.labels", pl_flist));
-    ASSERT_FALSE(field_has_value(evt, "k8sres.svc.name", pl_flist));
-    ASSERT_FALSE(field_has_value(evt, "k8sres.svc.id", pl_flist));
-    ASSERT_FALSE(field_has_value(evt, "k8sres.svc.label[exists]", pl_flist));
-    ASSERT_FALSE(field_has_value(evt, "k8sres.svc.labels", pl_flist));
-    ASSERT_FALSE(field_has_value(evt, "k8sres.rs.name", pl_flist));
-    ASSERT_FALSE(field_has_value(evt, "k8sres.rs.id", pl_flist));
-    ASSERT_FALSE(field_has_value(evt, "k8sres.rs.label[exists]", pl_flist));
-    ASSERT_FALSE(field_has_value(evt, "k8sres.rs.labels", pl_flist));
-    ASSERT_FALSE(field_has_value(evt, "k8sres.rc.name", pl_flist));
-    ASSERT_FALSE(field_has_value(evt, "k8sres.rc.id", pl_flist));
-    ASSERT_FALSE(field_has_value(evt, "k8sres.rc.label[exists]", pl_flist));
-    ASSERT_FALSE(field_has_value(evt, "k8sres.rc.labels", pl_flist));
+            field_has_value(evt, "k8smeta.deployment.label[exists]", pl_flist));
+    ASSERT_FALSE(field_has_value(evt, "k8smeta.deployment.labels", pl_flist));
+    ASSERT_FALSE(field_has_value(evt, "k8smeta.svc.name", pl_flist));
+    ASSERT_FALSE(field_has_value(evt, "k8smeta.svc.id", pl_flist));
+    ASSERT_FALSE(field_has_value(evt, "k8smeta.svc.label[exists]", pl_flist));
+    ASSERT_FALSE(field_has_value(evt, "k8smeta.svc.labels", pl_flist));
+    ASSERT_FALSE(field_has_value(evt, "k8smeta.rs.name", pl_flist));
+    ASSERT_FALSE(field_has_value(evt, "k8smeta.rs.id", pl_flist));
+    ASSERT_FALSE(field_has_value(evt, "k8smeta.rs.label[exists]", pl_flist));
+    ASSERT_FALSE(field_has_value(evt, "k8smeta.rs.labels", pl_flist));
+    ASSERT_FALSE(field_has_value(evt, "k8smeta.rc.name", pl_flist));
+    ASSERT_FALSE(field_has_value(evt, "k8smeta.rc.id", pl_flist));
+    ASSERT_FALSE(field_has_value(evt, "k8smeta.rc.label[exists]", pl_flist));
+    ASSERT_FALSE(field_has_value(evt, "k8smeta.rc.labels", pl_flist));
 
     // Now we use a pod that still exists and is associated with the same
     // Namespace and Deployment We want to check that the Namespace and the
@@ -625,16 +625,16 @@ TEST_F(sinsp_with_test_input, plugin_k8s_delete_a_pod)
     pod_uid = "5eaeeca9-2277-460b-a4bf-5a0783f6d49f";
     GENERATE_EXECVE_EVENT_FOR_INIT(pod_uid);
 
-    ASSERT_TRUE(field_has_value(evt, "k8sres.pod.name", pl_flist));
-    ASSERT_TRUE(field_has_value(evt, "k8sres.pod.id", pl_flist));
-    ASSERT_TRUE(field_has_value(evt, "k8sres.pod.labels", pl_flist));
-    ASSERT_TRUE(field_has_value(evt, "k8sres.pod.ip", pl_flist));
-    ASSERT_TRUE(field_has_value(evt, "k8sres.ns.name", pl_flist));
-    ASSERT_TRUE(field_has_value(evt, "k8sres.ns.id", pl_flist));
-    ASSERT_TRUE(field_has_value(evt, "k8sres.ns.labels", pl_flist));
-    ASSERT_TRUE(field_has_value(evt, "k8sres.deployment.name", pl_flist));
-    ASSERT_TRUE(field_has_value(evt, "k8sres.deployment.id", pl_flist));
-    ASSERT_TRUE(field_has_value(evt, "k8sres.deployment.labels", pl_flist));
+    ASSERT_TRUE(field_has_value(evt, "k8smeta.pod.name", pl_flist));
+    ASSERT_TRUE(field_has_value(evt, "k8smeta.pod.id", pl_flist));
+    ASSERT_TRUE(field_has_value(evt, "k8smeta.pod.labels", pl_flist));
+    ASSERT_TRUE(field_has_value(evt, "k8smeta.pod.ip", pl_flist));
+    ASSERT_TRUE(field_has_value(evt, "k8smeta.ns.name", pl_flist));
+    ASSERT_TRUE(field_has_value(evt, "k8smeta.ns.id", pl_flist));
+    ASSERT_TRUE(field_has_value(evt, "k8smeta.ns.labels", pl_flist));
+    ASSERT_TRUE(field_has_value(evt, "k8smeta.deployment.name", pl_flist));
+    ASSERT_TRUE(field_has_value(evt, "k8smeta.deployment.id", pl_flist));
+    ASSERT_TRUE(field_has_value(evt, "k8smeta.deployment.labels", pl_flist));
 
     m_inspector.close();
 }
@@ -659,7 +659,7 @@ TEST_F(sinsp_with_test_input, plugin_k8s_update_a_pod)
     GENERATE_EXECVE_EVENT_FOR_INIT(pod_uid);
 
     // After 2 "Updated" events the pod has 2 services
-    ASSERT_EQ(get_field_as_string(evt, "k8sres.svc.id", pl_flist),
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.svc.id", pl_flist),
               "(f0fea0cd-24cd-439f-bd51-e7a9100fed40,9e840fbe-93e4-412c-aa23-"
               "fbe6d03efd08)");
 
@@ -668,7 +668,7 @@ TEST_F(sinsp_with_test_input, plugin_k8s_update_a_pod)
     GENERATE_EXECVE_EVENT_FOR_INIT(pod_uid);
 
     // After 2 "Updated" events the pod has 2 services
-    ASSERT_EQ(get_field_as_string(evt, "k8sres.pod.ip", pl_flist),
+    ASSERT_EQ(get_field_as_string(evt, "k8smeta.pod.ip", pl_flist),
               "10.16.1.20");
     m_inspector.close();
 }
