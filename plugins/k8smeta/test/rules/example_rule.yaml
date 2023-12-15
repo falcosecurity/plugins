@@ -1,6 +1,6 @@
 - rule: Example rule for k8s plugin
   desc: Detect execve events into pods
   # we want to catch all execve events into a pod
-  condition: evt.type = execve and k8sres.pod.id != ""
-  output: -> Triggered (pod_name=%k8sres.pod.name pod_id=%k8sres.pod.id pod_ip=%k8sres.pod.ip pod_namespace_name=%k8sres.ns.name pod_deployment_name=%k8sres.deployment.name pod_rs_name=%k8sres.rs.name pod_services_names=%k8sres.svc.name)
+  condition: evt.type = execve and k8smeta.pod.id != ""
+  output: -> Triggered (pod_name=%k8smeta.pod.name pod_id=%k8smeta.pod.id pod_ip=%k8smeta.pod.ip pod_namespace_name=%k8smeta.ns.name pod_deployment_name=%k8smeta.deployment.name pod_rs_name=%k8smeta.rs.name pod_services_names=%k8smeta.svc.name)
   priority: WARNING
