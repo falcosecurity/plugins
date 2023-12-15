@@ -337,7 +337,7 @@ std::vector<falcosecurity::field_info> my_plugin::get_fields()
     const falcosecurity::field_info fields[] = {
             {ft::FTYPE_STRING, "k8smeta.pod.name", "Pod Name",
              "Kubernetes pod name."},
-            {ft::FTYPE_STRING, "k8smeta.pod.id", "Pod ID", "Kubernetes pod ID."},
+            {ft::FTYPE_STRING, "k8smeta.pod.uid", "Pod UID", "Kubernetes pod UID."},
             {ft::FTYPE_STRING,
              "k8smeta.pod.label",
              "Pod Label",
@@ -351,8 +351,8 @@ std::vector<falcosecurity::field_info> my_plugin::get_fields()
 
             {ft::FTYPE_STRING, "k8smeta.ns.name", "Namespace Name",
              "Kubernetes namespace name."},
-            {ft::FTYPE_STRING, "k8smeta.ns.id", "Namespace ID",
-             "Kubernetes namespace ID."},
+            {ft::FTYPE_STRING, "k8smeta.ns.uid", "Namespace UID",
+             "Kubernetes namespace UID."},
             {ft::FTYPE_STRING,
              "k8smeta.ns.label",
              "Namespace Label",
@@ -365,8 +365,8 @@ std::vector<falcosecurity::field_info> my_plugin::get_fields()
 
             {ft::FTYPE_STRING, "k8smeta.deployment.name", "Deployment Name",
              "Kubernetes deployment name."},
-            {ft::FTYPE_STRING, "k8smeta.deployment.id", "Deployment ID",
-             "Kubernetes deployment ID."},
+            {ft::FTYPE_STRING, "k8smeta.deployment.uid", "Deployment UID",
+             "Kubernetes deployment UID."},
             {ft::FTYPE_STRING,
              "k8smeta.deployment.label",
              "Deployment Label",
@@ -382,8 +382,8 @@ std::vector<falcosecurity::field_info> my_plugin::get_fields()
              "the services associated with the "
              "current pod. E.g. '(service1,service2)'",
              falcosecurity::field_arg(), true},
-            {ft::FTYPE_STRING, "k8smeta.svc.id", "Services ID",
-             "Kubernetes services ID. Return a list with all the IDs of the "
+            {ft::FTYPE_STRING, "k8smeta.svc.uid", "Services UID",
+             "Kubernetes services UID. Return a list with all the UIDs of the "
              "services associated with the "
              "current pod. E.g. "
              "'(88279776-941c-491e-8da1-95ef30f50fe8,149e72f4-a570-4282-bfa0-"
@@ -409,8 +409,8 @@ std::vector<falcosecurity::field_info> my_plugin::get_fields()
 
             {ft::FTYPE_STRING, "k8smeta.rs.name", "Replica Set Name",
              "Kubernetes replica set name."},
-            {ft::FTYPE_STRING, "k8smeta.rs.id", "Replica Set ID",
-             "Kubernetes replica set ID."},
+            {ft::FTYPE_STRING, "k8smeta.rs.uid", "Replica Set UID",
+             "Kubernetes replica set UID."},
             {ft::FTYPE_STRING,
              "k8smeta.rs.label",
              "Replica Set Label",
@@ -423,8 +423,8 @@ std::vector<falcosecurity::field_info> my_plugin::get_fields()
 
             {ft::FTYPE_STRING, "k8smeta.rc.name", "Replication Controller Name",
              "Kubernetes replication controller name."},
-            {ft::FTYPE_STRING, "k8smeta.rc.id", "Replication Controller ID",
-             "Kubernetes replication controller ID."},
+            {ft::FTYPE_STRING, "k8smeta.rc.uid", "Replication Controller UID",
+             "Kubernetes replication controller UID."},
             {ft::FTYPE_STRING,
              "k8smeta.rc.label",
              "Replication Controller Label",
@@ -943,7 +943,7 @@ bool my_plugin::extract(const falcosecurity::extract_fields_input& in)
     {
     case K8S_POD_NAME:
         return extract_name_from_meta(pod_layout.meta, req);
-    case K8S_POD_ID:
+    case K8S_POD_UID:
         req.set_value(pod_uid, true);
         break;
     case K8S_POD_LABEL:
@@ -982,7 +982,7 @@ bool my_plugin::extract(const falcosecurity::extract_fields_input& in)
         req.set_value(pod_namespace_name, true);
         break;
     }
-    case K8S_NS_ID:
+    case K8S_NS_UID:
         return extract_uid_from_refs(pod_layout.refs, NS, req);
     case K8S_NS_LABEL:
         return extract_label_value_from_refs(pod_layout.refs, NS, req);
@@ -993,7 +993,7 @@ bool my_plugin::extract(const falcosecurity::extract_fields_input& in)
         // another under some circumstances.
     case K8S_DEPLOYMENT_NAME:
         return extract_name_from_refs(pod_layout.refs, DEPLOYMENT, req);
-    case K8S_DEPLOYMENT_ID:
+    case K8S_DEPLOYMENT_UID:
         return extract_uid_from_refs(pod_layout.refs, DEPLOYMENT, req);
     case K8S_DEPLOYMENT_LABEL:
         return extract_label_value_from_refs(pod_layout.refs, DEPLOYMENT, req);
@@ -1001,7 +1001,7 @@ bool my_plugin::extract(const falcosecurity::extract_fields_input& in)
         return extract_labels_from_refs(pod_layout.refs, DEPLOYMENT, req);
     case K8S_SVC_NAME:
         return extract_name_array_from_refs(pod_layout.refs, SVC, req);
-    case K8S_SVC_ID:
+    case K8S_SVC_UID:
         return extract_uid_array_from_refs(pod_layout.refs, SVC, req);
     case K8S_SVC_LABEL:
         return extract_label_value_array_from_refs(pod_layout.refs, SVC, req);
@@ -1012,7 +1012,7 @@ bool my_plugin::extract(const falcosecurity::extract_fields_input& in)
         // another under some circumstances.
     case K8S_RS_NAME:
         return extract_name_from_refs(pod_layout.refs, RS, req);
-    case K8S_RS_ID:
+    case K8S_RS_UID:
         return extract_uid_from_refs(pod_layout.refs, RS, req);
     case K8S_RS_LABEL:
         return extract_label_value_from_refs(pod_layout.refs, RS, req);
@@ -1023,7 +1023,7 @@ bool my_plugin::extract(const falcosecurity::extract_fields_input& in)
         // replicationController to another under some circumstances.
     case K8S_RC_NAME:
         return extract_name_from_refs(pod_layout.refs, RC, req);
-    case K8S_RC_ID:
+    case K8S_RC_UID:
         return extract_uid_from_refs(pod_layout.refs, RC, req);
     case K8S_RC_LABEL:
         return extract_label_value_from_refs(pod_layout.refs, RC, req);
