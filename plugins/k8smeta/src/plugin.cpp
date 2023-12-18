@@ -953,12 +953,12 @@ bool my_plugin::extract(const falcosecurity::extract_fields_input& in)
         return extract_labels_from_meta(pod_layout.meta, req);
     case K8S_POD_IP:
     {
+        // The pod ip is not always there, for example during pod
+        // initialization we could receive an initial pod without the ip and
+        // then in a second moment, we will receive an update on that pod.
         if(!pod_layout.status.contains(
                    nlohmann::json::json_pointer(POD_IP_PATH)))
         {
-            SPDLOG_ERROR("The pod status doesn't contain the '{}' field. "
-                         "Resource status:\n{}\n",
-                         POD_IP_PATH, pod_layout.status.dump());
             return false;
         }
         std::string pod_ip;
