@@ -341,3 +341,24 @@ plugins:
         supported: true
         id: 999
         source: test
+  - name: k8smeta
+    description: Enriche Falco syscall flow with Kubernetes Metadata
+    authors: The Falco Authors
+    contact: https://falco.org/community
+    maintainers:
+      - name: The Falco Authors
+        email: cncf-falco-dev@lists.cncf.io
+    keywords:
+      - kubernetes
+      - syscall
+      - extractor
+    url: https://github.com/falcosecurity/plugins/tree/master/plugins/k8smeta
+    license: Apache-2.0
+    signature:
+      cosign:
+        certificate-oidc-issuer: https://token.actions.githubusercontent.com
+        certificate-identity-regexp: https://github.com/falcosecurity/plugins/
+    capabilities:
+      extraction:
+        supported: true
+        sources: [syscall]
