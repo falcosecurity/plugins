@@ -333,6 +333,26 @@ plugins:
         source: syslogsrv
       extraction:
         supported: true
+  - name: salesforce
+    description: Reads events from Salesforce using GRPC Connection and detect threats
+    authors: Andy
+    contact: https://github.com/an1245/falco-plugin-salesforce/issues
+    maintainers:
+      - name: Andy
+    keywords:
+      - audit
+      - log-events
+      - salesforce
+    url: https://github.com/an1245/falco-plugin-salesforce/
+    rules_url: https://github.com/an1245/falco-plugin-salesforce/tree/main/rules
+    license: Apache-2.0
+    capabilities:
+      sourcing:
+        supported: true
+        id: 14
+        source: salesforce
+      extraction:
+        supported: true
   - name: test
     description: This ID is reserved for source plugin development. Any plugin author can use this ID, but authors can expect events from other developers with this ID. After development is complete, the author should request an actual ID
     reserved: true
