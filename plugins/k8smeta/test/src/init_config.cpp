@@ -58,7 +58,7 @@ TEST_F(sinsp_with_test_input, plugin_k8s_init_with_not_allowed_verbosity_value)
 
     // `warn` is not a valid value for the `verbosity` field
     ASSERT_THROW(plugin_owner->init("{\"collectorHostname\":\"localhost\","
-                                    "\"collectorPort\":\"45000\",\"nodename\":"
+                                    "\"collectorPort\":\"45000\",\"nodeName\":"
                                     "\"control-plane\",\"verbosity\":\"warn\"}",
                                     err),
                  sinsp_exception);
@@ -71,7 +71,7 @@ TEST_F(sinsp_with_test_input, plugin_k8s_with_simple_config)
     std::string err;
 
     ASSERT_NO_THROW(plugin_owner->init(R"(
-{"collectorHostname":"localhost","collectorPort":45000,"nodename":"kind-control-plane"})",
+{"collectorHostname":"localhost","collectorPort":45000,"nodeName":"kind-control-plane"})",
                                        err));
     ASSERT_EQ(err, "");
 }
@@ -88,7 +88,7 @@ TEST_F(sinsp_with_test_input, plugin_k8s_env_variable)
     setenv(env_var_name.c_str(), env_var_value.c_str(), 1);
 
     ASSERT_NO_THROW(plugin_owner->init(R"(
-{"collectorHostname":"localhost","collectorPort":45000,"nodename":" ${FALCO_NODE_NAME} "})",
+{"collectorHostname":"localhost","collectorPort":45000,"nodeName":" ${FALCO_NODE_NAME} "})",
                                        err));
     ASSERT_EQ(err, "");
 }
