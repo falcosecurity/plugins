@@ -318,6 +318,7 @@ void my_plugin::async_thread_loop(
             break;
         }
 
+        SPDLOG_INFO("Retry after '{}' seconds", backoff_seconds);
         std::unique_lock<std::mutex> l(m_mu);
         m_cv.wait_for(l, std::chrono::seconds(backoff_seconds),
                       [this] { return m_async_thread_quit.load(); });
