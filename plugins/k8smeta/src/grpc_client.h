@@ -30,7 +30,7 @@ limitations under the License.
 class K8sMetaClient : public grpc::ClientReadReactor<metadata::Event>
 {
     public:
-    K8sMetaClient(const std::string& nodename, const std::string& ip_port,
+    K8sMetaClient(const std::string& node_name, const std::string& ip_port,
                   const std::string& ca_PEM_encoding, std::mutex& mu,
                   std::condition_variable& cv, std::atomic<bool>& thread_quit,
                   falcosecurity::async_event_handler& handler);

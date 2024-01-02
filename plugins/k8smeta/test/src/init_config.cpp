@@ -43,7 +43,7 @@ TEST_F(sinsp_with_test_input, plugin_k8s_init_with_missing_required_argument)
     ASSERT_TRUE(plugin_owner.get());
     std::string err;
 
-    // The nodename is also a required argument, but here it is not provided
+    // The node name is also a required argument, but here it is not provided
     ASSERT_THROW(plugin_owner->init("{\"collectorHostname\":\"localhost\","
                                     "\"collectorPort\":\"45000\"}",
                                     err),

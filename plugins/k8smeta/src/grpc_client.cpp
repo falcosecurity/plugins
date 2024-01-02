@@ -31,7 +31,7 @@ using grpc::Status;
 using metadata::Event;
 using metadata::Selector;
 
-K8sMetaClient::K8sMetaClient(const std::string& nodename,
+K8sMetaClient::K8sMetaClient(const std::string& node_name,
                              const std::string& ip_port,
                              const std::string& ca_PEM_encoding, std::mutex& mu,
                              std::condition_variable& cv,
@@ -42,7 +42,7 @@ K8sMetaClient::K8sMetaClient(const std::string& nodename,
         m_handler(handler), m_correctly_reading(0)
 {
     metadata::Selector sel;
-    sel.set_nodename(nodename);
+    sel.set_nodename(node_name);
     sel.clear_resourcekinds();
 
     /// todo! one day we could expose them to the user.
@@ -133,7 +133,7 @@ void K8sMetaClient::OnReadDone(bool ok)
 // routines:OPENSSL_internal:WRONG_VERSION_NUMBER)
 // ```
 //
-// 3. If the port or the nodename in the plugin init params are wrong
+// 3. If the port or the node name in the plugin init params are wrong
 // ```
 // [2023-11-29 17:01:08.802] [error] [k8smeta] error during the RPC call. Error
 // code (14), error message (failed to connect to all addresses; last error:

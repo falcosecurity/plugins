@@ -95,7 +95,7 @@ falcosecurity::init_schema my_plugin::get_init_schema()
 		"nodename": {
 			"type": "string",
 			"title": "The node on which Falco is deployed",
-			"description": "The plugin collects k8s metadata only for the node on which Falco is deployed so the nodename must be specified."
+			"description": "The plugin collects k8s metadata only for the node on which Falco is deployed so the node name must be specified."
 		},
 		"caPEMBundle": {
 			"type": "string",
@@ -149,7 +149,7 @@ void my_plugin::parse_init_config(nlohmann::json& config_json)
         assert(false);
     }
 
-    // Nodename
+    // Node name
     if(config_json.contains(nlohmann::json::json_pointer(NODENAME_PATH)))
     {
         std::string nodename_string = "";
@@ -169,20 +169,20 @@ void my_plugin::parse_init_config(nlohmann::json& config_json)
             auto env_var_name = env_var.substr(2, env_var.length() - 3);
             if(getenv(env_var_name.c_str()))
             {
-                m_nodename = getenv(env_var_name.c_str());
+                m_node_name = getenv(env_var_name.c_str());
             }
             else
             {
                 SPDLOG_CRITICAL("The provided env variable '{}' is empty",
                                 env_var);
-                m_nodename = "";
+                m_node_name = "";
             }
         }
         else
         {
-            m_nodename = nodename_string;
+            m_node_name = nodename_string;
         }
-        SPDLOG_DEBUG("metadata are received from nodename '{}'", m_nodename);
+        SPDLOG_DEBUG("metadata are received from node '{}'", m_node_name);
     }
     else
     {
@@ -310,7 +310,7 @@ void my_plugin::async_thread_loop(
 
     while(!m_async_thread_quit.load())
     {
-        K8sMetaClient k8sclient(m_nodename, ip_port, m_ca_PEM_encoding, m_mu,
+        K8sMetaClient k8sclient(m_node_name, ip_port, m_ca_PEM_encoding, m_mu,
                                 m_cv, m_async_thread_quit, *h.get());
 
         if(!k8sclient.Await(backoff_seconds))
