@@ -63,7 +63,7 @@ plugins:
     init_config:
       collectorPort: 45000
       collectorHostname: localhost
-      nodename: kind-control-plane
+      nodeName: kind-control-plane
 ```
 
 **Initialization Config**:

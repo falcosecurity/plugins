@@ -67,7 +67,7 @@ falcosecurity::init_schema my_plugin::get_init_schema()
 	"required": [
 		"collectorHostname",
 		"collectorPort",
-		"nodename"
+		"nodeName"
 	],
 	"properties": {
 		"verbosity": {
@@ -92,7 +92,7 @@ falcosecurity::init_schema my_plugin::get_init_schema()
 			"title": "The collector port",
 			"description": "The port used by the plugin to contact the collector (e.g. '45000')."
 		},
-		"nodename": {
+		"nodeName": {
 			"type": "string",
 			"title": "The node on which Falco is deployed",
 			"description": "The plugin collects k8s metadata only for the node on which Falco is deployed so the node name must be specified."

@@ -20,7 +20,7 @@ limitations under the License.
 // We can modify the log verbosity here.
 #define INIT_CONFIG                                                            \
     "{\"collectorHostname\":\"localhost\",\"collectorPort\": "                 \
-    "45000,\"nodename\":\"control-plane\",\"verbosity\":"                      \
+    "45000,\"nodeName\":\"control-plane\",\"verbosity\":"                      \
     "\"info\"}"
 
 #define ASSERT_STRING_SETS(a, b)                                               \

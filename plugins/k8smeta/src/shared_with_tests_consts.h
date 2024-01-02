@@ -97,5 +97,5 @@ limitations under the License.
 #define VERBOSITY_PATH "/verbosity"
 #define HOSTNAME_PATH "/collectorHostname"
 #define PORT_PATH "/collectorPort"
-#define NODENAME_PATH "/nodename"
+#define NODENAME_PATH "/nodeName"
 #define CA_CERT_PATH "/caPEMBundle"
