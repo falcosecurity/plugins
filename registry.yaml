@@ -334,7 +334,7 @@ plugins:
       extraction:
         supported: true
   - name: salesforce
-    description: Reads events from Salesforce using GRPC Connection and detect threats
+    description: Falco plugin providing basic runtime threat detection and auditing logging for Salesforce 
     authors: Andy
     contact: https://github.com/an1245/falco-plugin-salesforce/issues
     maintainers:
