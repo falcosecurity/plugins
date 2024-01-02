@@ -182,7 +182,7 @@ void my_plugin::parse_init_config(nlohmann::json& config_json)
         {
             m_nodename = nodename_string;
         }
-        SPDLOG_INFO("metadata are received from nodename '{}'", m_nodename);
+        SPDLOG_DEBUG("metadata are received from nodename '{}'", m_nodename);
     }
     else
     {
