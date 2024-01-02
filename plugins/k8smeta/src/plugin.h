@@ -249,7 +249,7 @@ class my_plugin
     // Init params
     std::string m_collector_hostname;
     std::string m_collector_port;
-    std::string m_nodename;
+    std::string m_node_name;
     std::string m_ca_PEM_encoding;
 
     // State tables
