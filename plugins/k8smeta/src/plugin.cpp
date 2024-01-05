@@ -225,7 +225,7 @@ bool my_plugin::init(falcosecurity::init_input& in)
     auto& t = in.tables();
 
     // The default logger is already multithread.
-    // The initial verbosity is `warn`, after parsing the plugin config, this
+    // The initial verbosity is `info`, after parsing the plugin config, this
     // value could change
     spdlog::set_level(spdlog::level::info);
 
@@ -236,6 +236,10 @@ bool my_plugin::init(falcosecurity::init_input& in)
     spdlog::set_pattern("%c: [%l] [k8smeta] %v");
 
     SPDLOG_DEBUG("init the plugin");
+    // Remove this log when we reach `1.0.0`
+    SPDLOG_WARN("[EXPERIMENTAL] This plugin is in active development "
+                "and may undergo changes in behavior without prioritizing "
+                "backward compatibility.");
 
     // This should never happen, the config is validated by the framework
     if(in.get_config().empty())

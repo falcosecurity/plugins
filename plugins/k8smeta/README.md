@@ -1,20 +1,28 @@
-# Kubernetes Audit Events Plugin
+# Kubernetes metadata enrichment Plugin
+
+## Experimental
+
+Consider this plugin as experimental until it reaches version `1.0.0`. By 'experimental' we mean that, although the plugin is functional and tested, it is currently in active development and may undergo changes in behavior as necessary, without prioritizing backward compatibility.
 
 ## Introduction
 
-This plugin enriches Falco syscall flow with Kubernetes Metadata coming from the API server.
-The plugin uses a GRPC channel to communicate with a remote [collector](https://github.com/falcosecurity/k8s-metacollector). The collector is indipendent from the plugin and should be deployed as a separate component. The main role of the plugin is to associate each syscall with information about the pod in which they are thrown.
+The `k8smeta` plugin enhances the Falco syscall source by providing additional information about the Kubernetes resources involved. For instance, when a syscall is thrown within a pod, it allows retrieving details about the pod, such as `uid`, `name`, `labels`, and more. It also provides information about resources associated with the pod like `deployments`, `services`, `replica-sets`, and others. You can find the comprehensive list of supported fields [here](#supported-fields).
 
 ### Functionality
 
-TODO
+The plugin gathers details about Kubernetes resources from a remote collector known as [`k8s-metacollector`](https://github.com/falcosecurity/k8s-metacollector). It then stores this information in tables and provides access to Falco upon request. The plugin specifically acquires data for the node where the associated Falco instance is deployed, resulting in node-level granularity. In contrast, the collector runs at the cluster level. This implies that within a given cluster, there may be multiple `k8smeta` plugins (one per node), but there is only one collector.
 
 ## Capabilities
 
-The `k8smeta` plugin implements these capabilities:
+The `k8smeta` plugin implements 3 capabilities:
+
 * `extraction`
 * `parsing`
 * `async`
+
+### Plugin official name
+
+`k8smeta`
 
 ### Supported Fields
 
@@ -55,30 +63,53 @@ The `k8smeta` plugin implements these capabilities:
 Here's an example of configuration of `falco.yaml`:
 
 ```yaml
-load_plugins: [k8smeta]
-
 plugins:
   - name: k8smeta
+    # path to the plugin .so file
     library_path: libk8smeta.so
     init_config:
+      # port exposed by the k8s-metacollector (required)
       collectorPort: 45000
+      # hostname exposed by the k8s-metacollector (required)
       collectorHostname: localhost
+      # name of the node on which the Falco instance is running. (required)
       nodeName: kind-control-plane
+      # verbosity level for the plugin logger (optional)
+      verbosity: warn # (default: info)
+      # path to the PEM encoding of the server root certificates. (optional)
+      # Used to open an authanticated GRPC channel with the collector.
+      # If empty the connection will be insecure.
+      caPEMBundle: /etc/ssl/certs/ca-certificates.crt 
+
+load_plugins: [k8smeta]
 ```
 
 **Initialization Config**:
 
-TODO
+See the [configuration](#configuration) section above.
 
 **Open Parameters**:
 
 The plugin doesn't have open params
 
-### Rule Example
+### Rules
 
-To see how to use the plugin fields in a Falco rule check the example rule `/k8smeta/test/rules/example_rule.yaml`.
+This plugin doesn't provide any custom rule, you can use the default Falco ruleset and add the necessary `k8smeta` fields. A very simple example rule can be found [here](https://github.com/falcosecurity/plugins/blob/master/plugins/k8smeta/test/rules/example_rule.yaml)
 
-### Build the plugin on a fresh Ubuntu 22.04 machine
+### Running
+
+This plugin requires Falco with version >= **0.37.0**.
+Modify the `falco.yaml` with the [configuration above](#configuration) and you are ready to go!
+
+```shell
+falco -c falco.yaml -r falco_rules.yaml
+```
+
+## Local development
+
+### Build and test
+
+Build the plugin on a fresh `Ubuntu 22.04` machine:
 
 ```bash
 sudo apt update -y
@@ -89,3 +120,5 @@ mkdir build && cd build
 cmake ..
 make k8smeta -j10
 ```
+
+To run local tests follow the steps [here](https://github.com/falcosecurity/plugins/blob/master/plugins/k8smeta/test/README.md)
