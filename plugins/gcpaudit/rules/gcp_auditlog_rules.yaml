@@ -434,12 +434,11 @@
     functionName=%gcp.cloudfunctions.function
   priority: NOTICE
   source: gcp_auditlog
-  tags: [GCP, CloudFunction, 	abuse-elevation-control-mechanism]
+  tags: [GCP, CloudFunction, abuse-elevation-control-mechanism]
 
-rule: GCP cloud function deleted
+- rule: GCP cloud function deleted
   desc: Detect when a cloud function is deleted.
-  condition: > 
-    is_cloudfunctions_service and (gcp.methodName="google.cloud.functions.v1.CloudFunctionsService.DeleteFunction")
+  condition: is_cloudfunctions_service and (gcp.methodName="google.cloud.functions.v1.CloudFunctionsService.DeleteFunction")
   output: > 
     project=%gcp.projectId
     A GCP cloud function was deleted by user=%gcp.user userIP=%gcp.callerIP userAgent=%gcp.userAgent 
@@ -504,7 +503,7 @@ rule: GCP cloud function deleted
   source: gcp_auditlog
   tags: [GCP, KMS, 	abuse-elevation-control-mechanism]
 
-  rule: GCP KMS deleted
+- rule: GCP KMS deleted
   desc: Detect when a KMS key is deleted
   condition: > 
     is_kms_service and (gcp.methodName="DestroyCryptoKeyVersion")
@@ -570,7 +569,7 @@ rule: GCP cloud function deleted
   source: gcp_auditlog
   tags: [GCP, Sink, TA0005-defense-evasion, T1562-impair-defenses]
 
-rule: GCP logging sink deleted
+- rule: GCP logging sink deleted
   desc: Detect when a GCP logging sink has been deleted. This could stop audit logs from being sent to the GCP Audit Log plugin.
   condition: > 
     is_logging_service and (gcp.methodName="google.logging.v2.ConfigServiceV2.DeleteSink")
