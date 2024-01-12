@@ -181,6 +181,20 @@ func TestExtractValue(t *testing.T) {
 	if s != "hello\"2" {
 		t.Errorf("expected value %s, but found %s", "hello\"2", s)
 	}
+
+	// empty json pointer
+	testRequest.arg = ""
+	err = e.Extract(testRequest, testEvent)
+	if err != nil {
+		t.Error(err)
+	}
+	if s, ok = testRequest.value.(string); !ok {
+		t.Errorf("expected string value")
+	}
+	minimized := "{\"list\":[{\"intvalue\":1,\"floatvalue\":2.5}],\"value\":\"hello\",\"~/escaped\":\"hello\\\"2\"}"
+	if s != minimized {
+		t.Errorf("expected value %s, but found %s", minimized, s)
+	}
 }
 
 func TestExtractObject(t *testing.T) {

@@ -160,14 +160,19 @@ func (m *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 	case 3: // jevt.value
 		fallthrough
 	case 0: // json.value
+		val := m.jdata
+
 		arg := req.ArgKey()
+		if len(arg) == 0 {
+			req.SetValue(string(val.MarshalTo(nil)))
+			return nil
+		}
 		if arg[0] == '/' {
 			arg = arg[1:]
 		}
 
 		// walk the object using the json pointer syntax (RFC 6901)
 		pointer := strings.Split(arg, "/")
-		val := m.jdata
 		for _, key := range pointer {
 			key = strings.Replace(key, "~1", "/", -1)
 			key = strings.Replace(key, "~0", "~", -1)
