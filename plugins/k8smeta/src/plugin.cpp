@@ -114,7 +114,7 @@ void my_plugin::parse_init_config(nlohmann::json& config_json)
     // Verbosity, the default verbosity is already set in the 'init' method
     if(config_json.contains(nlohmann::json::json_pointer(VERBOSITY_PATH)))
     {
-        // If the user specified a verbosity we override the actual one (`warn`)
+        // If the user specified a verbosity we override the actual one (`info`)
         std::string verbosity;
         config_json.at(nlohmann::json::json_pointer(VERBOSITY_PATH))
                 .get_to(verbosity);
@@ -235,12 +235,6 @@ bool my_plugin::init(falcosecurity::init_input& in)
     // We use local time like in Falco, not UTC
     spdlog::set_pattern("%c: [%l] [k8smeta] %v");
 
-    SPDLOG_DEBUG("init the plugin");
-    // Remove this log when we reach `1.0.0`
-    SPDLOG_WARN("[EXPERIMENTAL] This plugin is in active development "
-                "and may undergo changes in behavior without prioritizing "
-                "backward compatibility.");
-
     // This should never happen, the config is validated by the framework
     if(in.get_config().empty())
     {
@@ -251,6 +245,13 @@ bool my_plugin::init(falcosecurity::init_input& in)
 
     auto cfg = nlohmann::json::parse(in.get_config());
     parse_init_config(cfg);
+
+    SPDLOG_DEBUG("init the plugin");
+
+    // Remove this log when we reach `1.0.0`
+    SPDLOG_WARN("[EXPERIMENTAL] This plugin is in active development "
+                "and may undergo changes in behavior without prioritizing "
+                "backward compatibility.");
 
     try
     {
