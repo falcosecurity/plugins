@@ -153,7 +153,7 @@ func latestVersionArtifact(ctx context.Context, ref string, ociClient remote.Cli
 		parsedVersion, err := semver.ParseTolerant(tag)
 		if err != nil {
 			// Ignore any non-semver tags (like latest or signature tags)
-			klog.Infof("Tag %s is not semver, ignoring")
+			klog.Infof("Tag %s is not semver, ignoring", tag)
 			continue
 		}
 
