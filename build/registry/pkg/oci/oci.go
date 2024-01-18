@@ -227,20 +227,26 @@ func newReleases(artifactName, remoteVersion string) ([]semver.Version, error) {
 		return append(versions, *v), nil
 	}
 
-	tags, err := git("--no-pager", "tag", "--list", tagPrefix, "--contains", remoteTag)
+	tagList, err := git("--no-pager", "tag", "--list", tagPrefix, "--contains", remoteTag)
 	if err != nil {
 		return nil, err
 	}
 
+	tags := make(map[string]struct{})
+
+	for _, t := range tagList {
+		tags[t] = struct{}{}
+	}
+
 	// Since the remoteTag is always self-contained, we remove it.
-	tags = tags[1:]
+	delete(tags, remoteTag)
 
 	// If not new versions are found then return.
 	if len(tags) == 0 {
 		return nil, nil
 	}
 
-	for _, tag := range tags {
+	for tag := range tags {
 
 		if tag == "" {
 			continue
