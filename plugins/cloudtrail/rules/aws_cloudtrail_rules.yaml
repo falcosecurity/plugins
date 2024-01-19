@@ -21,7 +21,7 @@
 
 - required_plugin_versions:
   - name: cloudtrail
-    version: 0.8.0
+    version: 0.10.0
   - name: json
     version: 0.7.0
 
