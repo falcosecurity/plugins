@@ -20,10 +20,10 @@
 
 - required_plugin_versions:
   - name: k8saudit
-    version: 0.6.0
+    version: 0.7.0
     alternatives:
       - name: k8saudit-eks
-        version: 0.2.0
+        version: 0.4.0
   - name: json
     version: 0.7.0
 
