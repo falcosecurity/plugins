@@ -20,7 +20,7 @@
 
 - required_plugin_versions:
   - name: github
-    version: 0.6.0
+    version: 0.7.0
 
 - rule: Webhook Connected
   desc: Detect a webhook link
