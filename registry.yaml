@@ -353,6 +353,26 @@ plugins:
         source: salesforce
       extraction:
         supported: true
+  - name: box
+    description: Falco plugin providing basic runtime threat detection and auditing logging for Box 
+    authors: Andy
+    contact: https://github.com/an1245/falco-plugin-box/issues
+    maintainers:
+      - name: Andy
+    keywords:
+      - audit
+      - log-events
+      - box
+    url: https://github.com/an1245/falco-plugin-box/
+    rules_url: https://github.com/an1245/falco-plugin-box/tree/main/rules
+    license: Apache-2.0
+    capabilities:
+      sourcing:
+        supported: true
+        id: 15
+        source: box
+      extraction:
+        supported: true
   - name: test
     description: This ID is reserved for source plugin development. Any plugin author can use this ID, but authors can expect events from other developers with this ID. After development is complete, the author should request an actual ID
     reserved: true
