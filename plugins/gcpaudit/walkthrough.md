@@ -46,7 +46,8 @@ gcloud config set project [project id]
 
 It is helpful later on to have your GCP project ID configured in an environment variable.
 
-	`PROJECT_ID="[project id]"`
+```shell
+export PROJECT_ID="[project id]"
 
 The next step is to create a Pub/Sub topic to receive the output from the GCP Audit logs. 
 
