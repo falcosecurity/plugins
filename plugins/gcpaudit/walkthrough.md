@@ -304,16 +304,6 @@ Finally find the `plugins:` section and append an entry for the GCP Audit Logs p
 
 ```
     plugins:
-      - name: k8saudit
-        library_path: libk8saudit.so
-        init_config:
-        #   maxEventSize: 262144
-        #   webhookMaxBatchSize: 12582912
-        #   sslCertificate: /etc/falco/falco.pem
-        open_params: "http://:9765/k8s-audit"
-      - name: cloudtrail
-        library_path: libcloudtrail.so
-        # see docs for init_config and open_params:
       - name: json
         library_path: libjson.so
       - name: gcpaudit
