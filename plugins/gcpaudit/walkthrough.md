@@ -2,7 +2,7 @@
 
 As the name suggests, the GCP Audit Logs plugin ingests GCP Audit Logs for several key GCP services. 
 
-The  plugin uses an optimized GCP logging sink to send the most critical events from the monitored services to a user-defined Pub/Sub subscription. The GCP Audit Logs plugin subscribes to the Pub/Sub topic. It forwards the events from Pub/Sub to the Falco engine, which then filters the events and enriches the output with [custom metadata](https://github.com/falcosecurity/plugins/tree/master/plugins/gcpaudit#supported-fields). 
+An optimized GCP logging sink is used to send the most critical events from the monitored services to a user-defined Pub/Sub subscription. 
 
 <img style='border:1px solid #000000' src="./images/architecture.png" alt="A diagram showing how the plugin works with other services"/>
 
