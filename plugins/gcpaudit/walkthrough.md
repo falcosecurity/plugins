@@ -39,8 +39,8 @@ To begin make sure youâ€™re authenticated to your GCP account in gcloud and youâ
 
 
 ```
-    gcloud auth login 
-    gcloud config set project [project id]
+gcloud auth login 
+gcloud config set project [project id]
 ```
 
 
