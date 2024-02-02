@@ -153,7 +153,7 @@ func getEvtInfo(jdata *fastjson.Value) string {
 		return "<invalid cloudtrail event: eventName field missing>"
 	}
 
-	if (evtuser == evtsrcip) {
+	if evtuser == evtsrcip {
 		info = fmt.Sprintf("%v %v%v %v", evtuser, errsymbol, rwsymbol, evtname)
 	} else {
 		info = fmt.Sprintf("%v via %v %v%v %v", evtuser, evtsrcip, errsymbol, rwsymbol, evtname)
@@ -468,24 +468,42 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 	case "s3.bucket":
 		val := jdata.GetStringBytes("requestParameters", "bucketName")
 		if val == nil {
+			val = jdata.GetStringBytes("detail", "bucket", "name")
+		}
+
+		if val == nil {
 			return false, ""
 		}
+
 		res = string(val)
 	case "s3.key":
 		val := jdata.GetStringBytes("requestParameters", "key")
 		if val == nil {
+			val = jdata.GetStringBytes("detail", "object", "key")
+		}
+
+		if val == nil {
 			return false, ""
 		}
+
 		res = string(val)
 	case "s3.uri":
 		sbucket := jdata.GetStringBytes("requestParameters", "bucketName")
 		if sbucket == nil {
+			sbucket = jdata.GetStringBytes("detail", "bucket", "name")
+		}
+		if sbucket == nil {
 			return false, ""
 		}
+
 		skey := jdata.GetStringBytes("requestParameters", "key")
+		if skey == nil {
+			skey = jdata.GetStringBytes("detail", "object", "key")
+		}
 		if skey == nil {
 			return false, ""
 		}
+
 		res = fmt.Sprintf("s3://%s/%s", sbucket, skey)
 	case "ec2.name":
 		var iname string = ""
@@ -590,12 +608,16 @@ func getfieldU64(jdata *fastjson.Value, field string) (bool, uint64) {
 		}
 		return false, 0
 	case "s3.cnt.put":
-		if string(jdata.GetStringBytes("eventName")) == "PutObject" {
+		if string(jdata.GetStringBytes("eventName")) == "PutObject" ||
+			string(jdata.GetStringBytes("detail", "reason")) == "PutObject" {
 			return true, 1
 		}
 		return false, 0
 	case "s3.cnt.other":
 		ename := string(jdata.GetStringBytes("eventName"))
+		if ename == "" {
+			ename = string(jdata.GetStringBytes("detail", "reason"))
+		}
 		if ename == "GetObject" || ename == "PutObject" {
 			return true, 1
 		}
