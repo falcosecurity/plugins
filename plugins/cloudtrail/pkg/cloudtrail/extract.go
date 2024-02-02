@@ -587,14 +587,22 @@ func getfieldU64(jdata *fastjson.Value, field string) (bool, uint64) {
 		if out != nil {
 			tot = tot + getvalueU64(out)
 		}
-		return (in != nil || out != nil), tot
+		size := jdata.Get("detail", "object", "size")
+		if size != nil {
+			tot = tot + getvalueU64(size)
+		}
+		return (in != nil || out != nil || size != nil), tot
 	case "s3.bytes.in":
 		var tot uint64 = 0
 		in := jdata.Get("additionalEventData", "bytesTransferredIn")
 		if in != nil {
 			tot = tot + getvalueU64(in)
 		}
-		return (in != nil), tot
+		size := jdata.Get("detail", "object", "size")
+		if size != nil {
+			tot = tot + getvalueU64(size)
+		}
+		return (in != nil || size != nil), tot
 	case "s3.bytes.out":
 		var tot uint64 = 0
 		out := jdata.Get("additionalEventData", "bytesTransferredOut")
