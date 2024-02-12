@@ -261,8 +261,6 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 				res = res[0 : len(res)-len(".amazonaws.com")]
 			}
 		}
-
-		res = strings.TrimPrefix(res, "aws.")
 	case "ct.name":
 		val := jdata.GetStringBytes("eventName")
 		if val == nil {
