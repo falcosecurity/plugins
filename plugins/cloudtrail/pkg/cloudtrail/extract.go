@@ -215,7 +215,7 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 	case "ct.id":
 		val := jdata.GetStringBytes("eventID")
 		if val == nil {
-			val = jdata.GetStringBytes("id")
+			val = jdata.GetStringBytes("request-id")
 		}
 
 		if val == nil {
@@ -232,9 +232,6 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 		}
 	case "ct.time":
 		val := jdata.GetStringBytes("eventTime")
-		if val == nil {
-			val = jdata.GetStringBytes("time")
-		}
 
 		if val == nil {
 			return false, ""
@@ -245,20 +242,12 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 		val := jdata.GetStringBytes("eventSource")
 
 		if val == nil {
-			val = jdata.GetStringBytes("source")
-		}
-
-		if val == nil {
 			return false, ""
 		} else {
 			res = string(val)
 		}
 	case "ct.shortsrc":
 		val := jdata.GetStringBytes("eventSource")
-
-		if val == nil {
-			val = jdata.GetStringBytes("source")
-		}
 
 		if val == nil {
 			return false, ""
@@ -277,6 +266,9 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 	case "ct.name":
 		val := jdata.GetStringBytes("eventName")
 		if val == nil {
+			val = jdata.GetStringBytes("reason")
+		}
+		if val == nil {
 			return false, ""
 		} else {
 			res = string(val)
@@ -293,7 +285,7 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 			val = jdata.GetStringBytes("recipientAccountId")
 		}
 		if val == nil {
-			val = jdata.GetStringBytes("account")
+			val = jdata.GetStringBytes("requester")
 		}
 		if val != nil {
 			res = string(val)
@@ -321,10 +313,6 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 		}
 	case "ct.region":
 		val := jdata.GetStringBytes("awsRegion")
-		if val == nil {
-			val = jdata.GetStringBytes("region")
-		}
-
 		if val == nil {
 			return false, ""
 		} else {
@@ -431,7 +419,7 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 	case "ct.srcip":
 		val := jdata.GetStringBytes("sourceIPAddress")
 		if val == nil {
-			val = jdata.GetStringBytes("detail", "source-ip-address")
+			val = jdata.GetStringBytes("source-ip-address")
 		}
 		if val == nil {
 			return false, ""
@@ -494,7 +482,7 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 	case "s3.bucket":
 		val := jdata.GetStringBytes("requestParameters", "bucketName")
 		if val == nil {
-			val = jdata.GetStringBytes("detail", "bucket", "name")
+			val = jdata.GetStringBytes("bucket", "name")
 		}
 
 		if val == nil {
@@ -505,7 +493,7 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 	case "s3.key":
 		val := jdata.GetStringBytes("requestParameters", "key")
 		if val == nil {
-			val = jdata.GetStringBytes("detail", "object", "key")
+			val = jdata.GetStringBytes("object", "key")
 		}
 
 		if val == nil {
@@ -516,7 +504,7 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 	case "s3.uri":
 		sbucket := jdata.GetStringBytes("requestParameters", "bucketName")
 		if sbucket == nil {
-			sbucket = jdata.GetStringBytes("detail", "bucket", "name")
+			sbucket = jdata.GetStringBytes("bucket", "name")
 		}
 		if sbucket == nil {
 			return false, ""
@@ -524,7 +512,7 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 
 		skey := jdata.GetStringBytes("requestParameters", "key")
 		if skey == nil {
-			skey = jdata.GetStringBytes("detail", "object", "key")
+			skey = jdata.GetStringBytes("object", "key")
 		}
 		if skey == nil {
 			return false, ""
