@@ -215,6 +215,10 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 	case "ct.id":
 		val := jdata.GetStringBytes("eventID")
 		if val == nil {
+			val = jdata.GetStringBytes("id")
+		}
+
+		if val == nil {
 			return false, ""
 		} else {
 			res = string(val)
@@ -229,6 +233,10 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 	case "ct.time":
 		val := jdata.GetStringBytes("eventTime")
 		if val == nil {
+			val = jdata.GetStringBytes("time")
+		}
+
+		if val == nil {
 			return false, ""
 		} else {
 			res = string(val)
@@ -237,12 +245,20 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 		val := jdata.GetStringBytes("eventSource")
 
 		if val == nil {
+			val = jdata.GetStringBytes("source")
+		}
+
+		if val == nil {
 			return false, ""
 		} else {
 			res = string(val)
 		}
 	case "ct.shortsrc":
 		val := jdata.GetStringBytes("eventSource")
+
+		if val == nil {
+			val = jdata.GetStringBytes("source")
+		}
 
 		if val == nil {
 			return false, ""
@@ -256,6 +272,8 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 				res = res[0 : len(res)-len(".amazonaws.com")]
 			}
 		}
+
+		res = strings.TrimPrefix(res, "aws.")
 	case "ct.name":
 		val := jdata.GetStringBytes("eventName")
 		if val == nil {
@@ -271,13 +289,14 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 		return true, res
 	case "ct.user.accountid":
 		val := jdata.GetStringBytes("userIdentity", "accountId")
+		if val == nil {
+			val = jdata.GetStringBytes("recipientAccountId")
+		}
+		if val == nil {
+			val = jdata.GetStringBytes("account")
+		}
 		if val != nil {
 			res = string(val)
-		} else {
-			val := jdata.GetStringBytes("recipientAccountId")
-			if val != nil {
-				res = string(val)
-			}
 		}
 	case "ct.user.identitytype":
 		val := jdata.GetStringBytes("userIdentity", "type")
@@ -302,6 +321,10 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 		}
 	case "ct.region":
 		val := jdata.GetStringBytes("awsRegion")
+		if val == nil {
+			val = jdata.GetStringBytes("region")
+		}
+
 		if val == nil {
 			return false, ""
 		} else {
@@ -407,6 +430,9 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 		}
 	case "ct.srcip":
 		val := jdata.GetStringBytes("sourceIPAddress")
+		if val == nil {
+			val = jdata.GetStringBytes("detail", "source-ip-address")
+		}
 		if val == nil {
 			return false, ""
 		} else {
