@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/blang/semver"
@@ -67,15 +68,16 @@ func rulesfileRequirement(filePath string) (*oci.ArtifactRequirement, error) {
 	// In case the requirement was expressed as a numeric value,
 	// we convert it to semver and treat it as minor version.
 	tokens := strings.Split(fileScanner.Text(), ":")
-	reqVer, err := semver.Parse(tokens[1])
+	version := strings.TrimSpace(tokens[1])
+	reqVer, err := semver.Parse(version)
 	if err != nil {
-		reqVer, err = semver.ParseTolerant(tokens[1])
+		minor, err := strconv.ParseUint(version, 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("unable to parse requirement %q: expected a numeric value or a valid semver string", tokens[1])
+			return nil, fmt.Errorf("unable to parse requirement %q: expected a numeric value or a valid semver string", version)
 		}
 		reqVer = semver.Version{
 			Major: 0,
-			Minor: reqVer.Major,
+			Minor: minor,
 			Patch: 0,
 		}
 	}
