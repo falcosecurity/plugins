@@ -629,9 +629,6 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 		}
 	case "s3.bucket":
 		val := jdata.GetStringBytes("requestParameters", "bucketName")
-		if val == nil {
-			val = jdata.GetStringBytes("detail", "bucket", "name")
-		}
 
 		if val == nil {
 			return false, ""
@@ -640,9 +637,6 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 		res = string(val)
 	case "s3.key":
 		val := jdata.GetStringBytes("requestParameters", "key")
-		if val == nil {
-			val = jdata.GetStringBytes("detail", "object", "key")
-		}
 
 		if val == nil {
 			return false, ""
@@ -652,16 +646,10 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 	case "s3.uri":
 		sbucket := jdata.GetStringBytes("requestParameters", "bucketName")
 		if sbucket == nil {
-			sbucket = jdata.GetStringBytes("detail", "bucket", "name")
-		}
-		if sbucket == nil {
 			return false, ""
 		}
 
 		skey := jdata.GetStringBytes("requestParameters", "key")
-		if skey == nil {
-			skey = jdata.GetStringBytes("detail", "object", "key")
-		}
 		if skey == nil {
 			return false, ""
 		}
@@ -749,22 +737,14 @@ func getfieldU64(jdata *fastjson.Value, field string) (bool, uint64) {
 		if out != nil {
 			tot = tot + getvalueU64(out)
 		}
-		size := jdata.Get("detail", "object", "size")
-		if size != nil {
-			tot = tot + getvalueU64(size)
-		}
-		return (in != nil || out != nil || size != nil), tot
+		return (in != nil || out != nil), tot
 	case "s3.bytes.in":
 		var tot uint64 = 0
 		in := jdata.Get("additionalEventData", "bytesTransferredIn")
 		if in != nil {
 			tot = tot + getvalueU64(in)
 		}
-		size := jdata.Get("detail", "object", "size")
-		if size != nil {
-			tot = tot + getvalueU64(size)
-		}
-		return (in != nil || size != nil), tot
+		return in != nil, tot
 	case "s3.bytes.out":
 		var tot uint64 = 0
 		out := jdata.Get("additionalEventData", "bytesTransferredOut")
@@ -778,16 +758,12 @@ func getfieldU64(jdata *fastjson.Value, field string) (bool, uint64) {
 		}
 		return false, 0
 	case "s3.cnt.put":
-		if string(jdata.GetStringBytes("eventName")) == "PutObject" ||
-			string(jdata.GetStringBytes("detail", "reason")) == "PutObject" {
+		if string(jdata.GetStringBytes("eventName")) == "PutObject" {
 			return true, 1
 		}
 		return false, 0
 	case "s3.cnt.other":
 		ename := string(jdata.GetStringBytes("eventName"))
-		if ename == "" {
-			ename = string(jdata.GetStringBytes("detail", "reason"))
-		}
 		if ename == "GetObject" || ename == "PutObject" {
 			return true, 1
 		}
