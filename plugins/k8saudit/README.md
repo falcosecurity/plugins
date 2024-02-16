@@ -90,6 +90,15 @@ The event source for Kubernetes Audit Events is `k8s_audit`.
 
 ## Usage
 
+### Requirements
+
+The Kubernetes cluster must have the [audit logs](https://kubernetes.io/docs/tasks/debug/debug-cluster/audit/)
+enabled and configured to send the audit logs to the plugin. We provide the [audit-policy.yaml](./configs/audit-policy.yaml) which is tailored for the `k8saudit` plugin.
+The [audit-policy.yaml](./configs/audit-policy.yaml) is of vital importance, it defines the rules about what events should
+be recorded and what data they should include. The rules shipped with the `k8saudit` plugins relies on those events.
+The [webhook-config.yaml](./configs/webhook-config.yaml.in) shows how to configure the webhook backend to send events to
+an external HTTP API.
+
 ### Configuration
 
 Here's an example of configuration of `falco.yaml`:
@@ -119,6 +128,9 @@ load_plugins: [k8saudit, json]
 - `https://<host>:<port>/<endpoint>`: Opens an event stream by listening on a HTTPS webserver
 - `no scheme`: Opens an event stream by reading the events from a file on the local filesystem. The params string is interpreted as a filepath
 
+
+**NOTE**: There is also a full tutorial on how to run the k8saudit plugin in a Kubernetes cluster using minikube: 
+https://falco.org/docs/install-operate/third-party/learning/#falco-with-multiple-sources.
 
 ### Rules
 
