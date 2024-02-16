@@ -765,9 +765,9 @@ func getfieldU64(jdata *fastjson.Value, field string) (bool, uint64) {
 	case "s3.cnt.other":
 		ename := string(jdata.GetStringBytes("eventName"))
 		if ename == "GetObject" || ename == "PutObject" {
-			return true, 1
+			return false, 0
 		}
-		return false, 0
+		return true, 1
 	default:
 		return false, 0
 	}
