@@ -627,9 +627,9 @@ func getfieldU64(jdata *fastjson.Value, field string) (bool, uint64) {
 			ename = string(jdata.GetStringBytes("detail", "reason"))
 		}
 		if ename == "GetObject" || ename == "PutObject" {
-			return true, 1
+			return false, 0
 		}
-		return false, 0
+		return true, 1
 	default:
 		return false, 0
 	}
