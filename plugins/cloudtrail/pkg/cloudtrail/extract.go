@@ -46,6 +46,7 @@ var supportedFields = []sdk.FieldEntry{
 	{Type: "string", Name: "ct.region", Display: "Region", Desc: "the region of the cloudtrail event (awsRegion in the json)."},
 	{Type: "string", Name: "ct.response.subnetid", Display: "Response Subnet ID", Desc: "the subnet ID included in the response."},
 	{Type: "string", Name: "ct.response.reservationid", Display: "Response Reservation ID", Desc: "the reservation ID included in the response."},
+	{Type: "string", Name: "ct.response", Display: "Response Elements", Desc: "All response elements."},
 	{Type: "string", Name: "ct.request.availabilityzone", Display: "Request Availability Zone", Desc: "the availability zone included in the request."},
 	{Type: "string", Name: "ct.request.cluster", Display: "Request Cluster", Desc: "the cluster included in the request."},
 	{Type: "string", Name: "ct.request.functionname", Display: "Request Function Name", Desc: "the function name included in the request."},
@@ -58,6 +59,7 @@ var supportedFields = []sdk.FieldEntry{
 	{Type: "string", Name: "ct.request.subnetid", Display: "Request Subnet ID", Desc: "the subnet ID provided in the request."},
 	{Type: "string", Name: "ct.request.taskdefinition", Display: "Request Task Definition", Desc: "the task definition prrovided in the request."},
 	{Type: "string", Name: "ct.request.username", Display: "Request User Name", Desc: "the username provided in the request."},
+	{Type: "string", Name: "ct.request", Display: "Request Parameters", Desc: "All request parameters."},
 	{Type: "string", Name: "ct.srcip", Display: "Source IP", Desc: "the IP address generating the event (sourceIPAddress in the json).", Properties: []string{"conversation"}},
 	{Type: "string", Name: "ct.useragent", Display: "User Agent", Desc: "the user agent generating the event (userAgent in the json)."},
 	{Type: "string", Name: "ct.info", Display: "Info", Desc: "summary information about the event. This varies depending on the event type and, for some events, it contains event-specific details.", Properties: []string{"info"}},
@@ -347,6 +349,13 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 		} else {
 			res = string(val)
 		}
+	case "ct.response":
+		val := jdata.Get("responseElements")
+		if val == nil {
+			return false, ""
+		} else {
+			res = string(val.MarshalTo(nil))
+		}
 	case "ct.request.availabilityzone":
 		val := jdata.GetStringBytes("requestParameters", "availabilityZone")
 		if val == nil {
@@ -430,6 +439,13 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 			return false, ""
 		} else {
 			res = string(val)
+		}
+	case "ct.request":
+		val := jdata.Get("requestParameters")
+		if val == nil {
+			return false, ""
+		} else {
+			res = string(val.MarshalTo(nil))
 		}
 	case "ct.srcip":
 		val := jdata.GetStringBytes("sourceIPAddress")

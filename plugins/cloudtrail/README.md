@@ -36,6 +36,7 @@ Here is the current set of supported fields:
 | `ct.region`                   | `string` | None | the region of the cloudtrail event (awsRegion in the json).                                                                                              |
 | `ct.response.subnetid`        | `string` | None | the subnet ID included in the response.                                                                                                                  |
 | `ct.response.reservationid`   | `string` | None | the reservation ID included in the response.                                                                                                             |
+| `ct.response`                 | `string` | None | All response elements.                                                                                                                                   |
 | `ct.request.availabilityzone` | `string` | None | the availability zone included in the request.                                                                                                           |
 | `ct.request.cluster`          | `string` | None | the cluster included in the request.                                                                                                                     |
 | `ct.request.functionname`     | `string` | None | the function name included in the request.                                                                                                               |
@@ -48,6 +49,7 @@ Here is the current set of supported fields:
 | `ct.request.subnetid`         | `string` | None | the subnet ID provided in the request.                                                                                                                   |
 | `ct.request.taskdefinition`   | `string` | None | the task definition prrovided in the request.                                                                                                            |
 | `ct.request.username`         | `string` | None | the username provided in the request.                                                                                                                    |
+| `ct.request`                  | `string` | None | All request parameters.                                                                                                                                  |
 | `ct.srcip`                    | `string` | None | the IP address generating the event (sourceIPAddress in the json).                                                                                       |
 | `ct.useragent`                | `string` | None | the user agent generating the event (userAgent in the json).                                                                                             |
 | `ct.info`                     | `string` | None | summary information about the event. This varies depending on the event type and, for some events, it contains event-specific details.                   |
