@@ -83,6 +83,7 @@ var supportedFields = []sdk.FieldEntry{
 	{Type: "string", Name: "ct.tlsdetails.tlsversion", Display: "TLS Version", Desc: "The TLS version of a request."},
 	{Type: "string", Name: "ct.tlsdetails.ciphersuite", Display: "TLS Cipher Suite", Desc: "The cipher suite (combination of security algorithms used) of a request."},
 	{Type: "string", Name: "ct.tlsdetails.clientprovidedhostheader", Display: "Client Provided Host Header", Desc: "The client-provided host name used in the service API call."},
+	{Type: "string", Name: "ct.additionaleventdata", Display: "Additional Event Data", Desc: "All additional event data attributes."},
 	{Type: "string", Name: "s3.uri", Display: "Key URI", Desc: "the s3 URI (s3://<bucket>/<key>).", Properties: []string{"conversation"}},
 	{Type: "string", Name: "s3.bucket", Display: "Bucket Name", Desc: "the bucket name for s3 events.", Properties: []string{"conversation"}},
 	{Type: "string", Name: "s3.key", Display: "Key Name", Desc: "the S3 key name."},
@@ -643,6 +644,12 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 		} else {
 			res = string(val)
 		}
+	case "ct.additionaleventdata":
+		val := jdata.Get("additionalEventData")
+		if val == nil {
+			return false, ""
+		}
+		res = string(val.MarshalTo(nil))
 	case "s3.bucket":
 		val := jdata.GetStringBytes("requestParameters", "bucketName")
 

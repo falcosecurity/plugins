@@ -73,6 +73,7 @@ Here is the current set of supported fields:
 | `ct.tlsdetails.tlsversion`    | `string` | None | The TLS version of a request.                                                                                                                            |
 | `ct.tlsdetails.ciphersuite`   | `string` | None | The cipher suite (combination of security algorithms used) of a request.                                                                                 |
 | `ct.tlsdetails.clientprovidedhostheader` | `string` | None |  The client-provided host name used in the service API call.                                                                                  |
+| `ct.additionaleventdata`      | `string` | None |  All additonal event data attributes.                                                                                                                    |
 | `s3.uri`                      | `string` | None | the s3 URI (s3://<bucket>/<key>).                                                                                                                        |
 | `s3.bucket`                   | `string` | None | the bucket name for s3 events.                                                                                                                           |
 | `s3.key`                      | `string` | None | the S3 key name.                                                                                                                                         |
