@@ -1,0 +1,37 @@
+- required_engine_version: 11
+
+- required_plugin_versions:
+  - name: k8saudit-gke
+    version: 0.1.0
+  - name: json
+    version: 0.7.0
+
+- rule: GKE Pod Event
+  desc: Detected a GKE event with a Pod request object
+  condition:  > 
+    ka.auditid != "" and ka.target.resource == "pods"
+  output: >
+    GKE Event: id=%ka.auditid (user=%ka.user.name verb=%ka.verb stage=%ka.stage uri=%ka.uri);
+    ObjectReference: ns=%ka.target.namespace name=%ka.target.name resource=%ka.target.resource subresource=%ka.target.subresource
+    Privileged: %ka.req.pod.containers.privileged
+    Allow privilege escalation: %ka.req.pod.containers.allow_privilege_escalation
+    Readonly root fs: %ka.req.pod.containers.read_only_fs
+  priority: NOTICE
+  source: k8s_audit
+  tags: [k8s]
+
+- rule: GKE Event
+  desc: Detected a GKE event
+  condition:  > 
+    ka.auditid != ""
+  output: >
+    GKE Event: id=%ka.auditid (user=%ka.user.name verb=%ka.verb stage=%ka.stage uri=%ka.uri);
+    Resource: project_id=%jevt.value[/resource/labels/project_id] cluster_name=%jevt.value[/resource/labels/cluster_name];
+    Resource metadata: businessline=%jevt.value[/resource/labels/businessline] servicelevel=%jevt.value[/resource/labels/servicelevel]
+    ObjectReference: ns=%ka.target.namespace name=%ka.target.name resource=%ka.target.resource subresource=%ka.target.subresource
+    Rolebinding request: subjects=%ka.req.binding.subjects role=%ka.req.binding.role
+    Pod request: privileged=%ka.req.pod.containers.privileged
+  priority: NOTICE
+  source: k8s_audit
+  tags: [k8s]
+

@@ -1,0 +1,42 @@
+- list: allowed_k8s_users
+  items: [
+    kubelet-bootstrap
+  ]
+  override:
+    items: append
+
+- macro: gke_service_agent
+  condition: (ka.user.name endswith "@container-engine-robot.iam.gserviceaccount.com")
+
+- rule: Disallowed K8s User
+  condition: and not gke_service_agent
+  override: 
+    condition: append
+
+- list: falco_hostnetwork_images
+  items: [
+    gke.gcr.io/csi-node-driver-registrar,
+    gke.gcr.io/fluent-bit,
+    gke.gcr.io/gcp-compute-persistent-disk-csi-driver,
+    gke.gcr.io/gke-metrics-agent,
+    gke.gcr.io/k8s-dns-node-cache,
+    gke.gcr.io/kube-proxy-amd64,
+    gke.gcr.io/netd,
+    gke.gcr.io/proxy-agent
+  ]
+  override:
+    items: append
+
+- list: allowed_kube_namespace_image_list
+  items: [
+    gke.gcr.io/csi-node-driver-registrar,
+    gke.gcr.io/fluent-bit,
+    gke.gcr.io/gcp-compute-persistent-disk-csi-driver,
+    gke.gcr.io/gke-metrics-agent,
+    gke.gcr.io/k8s-dns-node-cache,
+    gke.gcr.io/kube-proxy-amd64,
+    gke.gcr.io/netd,
+    gke.gcr.io/proxy-agent
+  ]
+  override:
+    items: append

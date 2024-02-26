@@ -1,0 +1,77 @@
+base_syscalls:
+  custom_set: []
+  repair: false
+buffered_outputs: false
+file_output:
+  enabled: false
+grpc:
+  bind_address: unix:///run/falco/falco.sock
+  enabled: false
+  threadiness: 0
+grpc_output:
+  enabled: false
+http_output:
+  ca_bundle: ""
+  ca_cert: ""
+  ca_path: /etc/ssl/certs
+  enabled: false
+  insecure: false
+  url: "http://127.0.0.1:2801/"
+  user_agent: falcosecurity/falco
+json_include_output_property: true
+json_include_tags_property: true
+json_output: true
+libs_logger:
+  enabled: false
+load_plugins: [ k8saudit-gke, json ]
+log_level: info
+log_stderr: true
+log_syslog: true
+metadata_download:
+  chunk_wait_us: 1000
+  max_mb: 100
+  watch_freq_sec: 1
+metrics:
+  convert_memory_to_mb: true
+  enabled: false
+  include_empty_values: false
+  interval: 5m
+  kernel_event_counters_enabled: true
+  libbpf_stats_enabled: true
+  output_rule: true
+  resource_utilization_enabled: true
+modern_bpf:
+  cpus_for_each_syscall_buffer: 2
+output_timeout: 2000
+plugins:
+- init_config:
+    project_id: "te000-589aa8c5b4314ba934a6"
+    fetch_cluster_metadata: false
+    max_event_size: 8000000
+  library_path: libk8saudit-gke.so
+  name: k8saudit-gke
+  # open_params: "file://test/pods_create.json"
+  open_params: "falco-gke-audit-sub"
+- init_config: ""
+  library_path: libjson.so
+  name: json
+priority: debug
+program_output:
+  enabled: false
+rules_file:
+- /etc/falco/falco_rules.yaml
+- /etc/falco/k8s_audit_rules.yaml
+- /etc/falco/rules.d/k8s_audit_rules_gke.yaml
+stdout_output:
+  enabled: true
+syslog_output:
+  enabled: false
+time_format_iso_8601: false
+watch_config_files: true
+webserver:
+  enabled: false
+  k8s_healthz_endpoint: /healthz
+  listen_port: 8765
+  ssl_certificate: /etc/falco/falco.pem
+  ssl_enabled: false
+  threadiness: 2
