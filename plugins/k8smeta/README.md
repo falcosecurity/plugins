@@ -62,6 +62,8 @@ The `k8smeta` plugin implements 3 capabilities:
 
 Here's an example of configuration of `falco.yaml`:
 
+> NOTE: Please note that you can provide values to the config as environment variables. So, for example, you can take advantage of the Kubernetes downward API to provide the node name as an env variable `nodename: ${MY_NODE}`.
+
 ```yaml
 plugins:
   - name: k8smeta
