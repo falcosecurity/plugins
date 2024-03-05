@@ -30,7 +30,7 @@ import (
 )
 
 const (
-	PluginID          uint32 = 666
+	PluginID          uint32 = 16
 	PluginName               = "k8saudit-gke"
 	PluginDescription        = "Read Kubernetes Audit Events for GKE from a Pub/Sub subscription"
 	PluginContact            = "github.com/falcosecurity/plugins"
