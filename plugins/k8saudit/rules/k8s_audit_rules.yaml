@@ -24,6 +24,8 @@
     alternatives:
       - name: k8saudit-eks
         version: 0.4.0
+      - name: k8saudit-gke
+        version: 0.1.0
   - name: json
     version: 0.7.0
 
