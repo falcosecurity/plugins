@@ -72,7 +72,7 @@ func (p *Plugin) convertLogEntry(logEntry *logging.LogEntry, auditLog *audit.Aud
 		AuditID:    types.UID(logEntry.InsertId),
 		ObjectRef:  objRef,
 		Stage:      stage,
-		RequestURI: auditLog.ResourceName,
+		RequestURI: fmt.Sprintf("/%s", auditLog.ResourceName),
 		Verb:       verb,
 		User: authv1.UserInfo{
 			Username: auditLog.AuthenticationInfo.PrincipalEmail,
