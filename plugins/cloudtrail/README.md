@@ -130,6 +130,7 @@ The json object has the following properties:
 * `s3DownloadConcurrency`: value is numeric. Controls the number of background goroutines used to download S3 files. (Default: 1)
 * `S3Interval`: value is string. Download log files matching the specified time interval. Note that this matches log file *names*, not event timestamps. CloudTrail logs usually cover [the previous 5 minutes of activity](https://docs.aws.amazon.com/awscloudtrail/latest/userguide/get-and-view-cloudtrail-log-files.html). See *Time Intervals* below for possible formats.
 * `useS3SNS`: value is boolean. If true, then the plugin will expect SNS messages to originate from S3 instead of directly from Cloudtrail (Default: false)
+* `S3AccountList`: value is string. Download log files matching the specified account IDs (in a comma separated list) in an organization trail. See *Read From S3 Bucket Directly* below for more details.
 
 The init string can be the empty string, which is treated identically to `{}`.
 
@@ -164,6 +165,10 @@ When using `s3://<S3 Bucket Name>/[<Optional Prefix>]`, the plugin will scan the
 All objects below the bucket, or below the bucket + prefix, will be considered cloudtrail logs. Any object ending in .json.gz will be decompressed first.
 
 For example, if a bucket `my-s3-bucket` contained cloudtrail logs below a prefix `AWSLogs/411571310278/CloudTrail/us-west-1/2021/09/23/`, Using an open params of `s3://my-s3-bucket/AWSLogs/411571310278/CloudTrail/us-west-1/2021/09/23/` would configure the plugin to read all files below `AWSLogs/411571310278/CloudTrail/us-west-1/2021/09/23/` as cloudtrail logs and then return EOF. No other files in the bucket will be read.
+
+For organization trails the files are normally stored like `s3://bucket_name/prefix_name/AWSLogs/O-ID/Account ID/CloudTrail/Region/YYYY/MM/DD/file_name.json.gz`. Using an open parameter of `s3//my-s3-bucket/AWSLogs/o-123abc/` would configure the plugin to read all files for all account IDs in the organization `o-123abc`, for all regions and the entire retention time. Therefore it makes sense to combine this open parameter with `S3AccountList` and `S3Interval` parameters. `S3AccountList` is a comma separated string with account IDs to query.
+
+Setting `S3AccountList` to `012345678912,987654321012` and `S3Interval` to `3d-1d` with open parameter `s3://my-s3-bucket/AWSLogs/o-123abc/` would get all events for account IDs 12345678912 and 987654321012 for all regions from 3 days ago up to to 1 day ago.
 
 #### Read from SQS Queue
 
