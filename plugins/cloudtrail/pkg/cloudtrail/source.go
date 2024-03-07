@@ -182,12 +182,19 @@ func (oCtx *PluginInstance) openS3(input string) error {
 
 	var inputParams []listOrigin
 	ctx := context.Background()
+	var intervalPrefixList []string
 
 	startTime, endTime, err := ParseInterval(oCtx.config.S3Interval)
 	if err != nil {
 		return fmt.Errorf(PluginName + " invalid interval: \"%s\": %s", oCtx.config.S3Interval, err.Error())
 
 	}
+
+	s3AccountList := oCtx.config.S3AccountList
+	accountListRE := regexp.MustCompile(`^(?: *\d{12} *,?)*$`)
+	if (! accountListRE.MatchString(s3AccountList)) {
+		return fmt.Errorf(PluginName + " invalid account list: \"%s\"", oCtx.config.S3AccountList)
+}
 
 	// CloudTrail logs have the format
 	// bucket_name/prefix_name/AWSLogs/Account ID/CloudTrail/region/YYYY/MM/DD/AccountID_CloudTrail_RegionName_YYYYMMDDTHHmmZ_UniqueString.json.gz
@@ -200,32 +207,86 @@ func (oCtx *PluginInstance) openS3(input string) error {
 
 	// For durations, carve out a special case for "Copy S3 URI" in the AWS console, which gives you
 	// bucket_name/prefix_name/AWSLogs/<Account ID>/ or bucket_name/prefix_name/AWSLogs/<Org-ID>/<Account ID>/
-	awsLogsRE := regexp.MustCompile(`AWSLogs/(?:o-[a-z0-9]{10,32}/)?\d+/?$`)
+	awsLogsRE := regexp.MustCompile(`AWSLogs/(?:o-[a-z0-9]{10,32}/)?\d{12}/?$`)
+	awsLogsOrgRE := regexp.MustCompile(`AWSLogs/o-[a-z0-9]{10,32}/?$`)
 	if awsLogsRE.MatchString(prefix) {
 		if (! strings.HasSuffix(intervalPrefix, "/")) {
 			intervalPrefix += "/"
 		}
 		intervalPrefix += "CloudTrail/"
+		intervalPrefixList = append(intervalPrefixList, intervalPrefix)
+	} else if awsLogsOrgRE.MatchString(prefix) {
+		if (! strings.HasSuffix(intervalPrefix, "/")) {
+			intervalPrefix += "/"
+		}
+		if s3AccountList != "" {
+			// build intervalPrefixList by using the provided S3AccountList
+			accountListArray := strings.Split(s3AccountList , ",")
+			if len(accountListArray) <= 0 {
+				return fmt.Errorf(PluginName + " invalid account list: \"%s\"", oCtx.config.S3AccountList)
+			}
+			for i := range accountListArray {
+				accountListArray[i] = strings.TrimSpace(accountListArray[i])
+			}
+			for _, account := range accountListArray {
+				intervalPrefixList = append(intervalPrefixList, intervalPrefix + account + "/CloudTrail/")
+			}
+		} else {
+			// try to get all available account IDs in the S3 CloudTrail bucket
+			delimiter := "/"
+			paginator := s3.NewListObjectsV2Paginator(oCtx.s3.client, &s3.ListObjectsV2Input{
+				Bucket: &oCtx.s3.bucket,
+				Prefix: &intervalPrefix,
+				Delimiter: &delimiter,
+			})
+			for paginator.HasMorePages() {
+				page, err := paginator.NextPage(ctx)
+				if err != nil {
+					// Try friendlier error sources first.
+					var aErr smithy.APIError
+					if errors.As(err, &aErr) {
+						return fmt.Errorf(PluginName + " plugin error: %s: %s", aErr.ErrorCode(), aErr.ErrorMessage())
+					}
+
+					var oErr *smithy.OperationError
+					if errors.As(err, &oErr) {
+						return fmt.Errorf(PluginName + " plugin error: %s: %s", oErr.Service(), oErr.Unwrap())
+					}
+
+					return fmt.Errorf(PluginName + " plugin error: failed to list accounts: " + err.Error())
+				}
+				for _, commonPrefix := range page.CommonPrefixes {
+					path := commonPrefix.Prefix
+					if awsLogsRE.MatchString(*path) {
+						intervalPrefixList = append(intervalPrefixList, *path + "CloudTrail/")
+					}
+				}
+			}
+		}
+	} else {
+		intervalPrefixList = append(intervalPrefixList, intervalPrefix)
 	}
 
-	if strings.HasSuffix(intervalPrefix, "/CloudTrail/") {
-		delimiter := "/"
-		// Fetch the list of regions.
-		output, err := oCtx.s3.client.ListObjectsV2(ctx, &s3.ListObjectsV2Input{
-			Bucket: &oCtx.s3.bucket,
-			Prefix: &intervalPrefix,
-			Delimiter: &delimiter,
-		})
-		if err == nil {
-			for _, commonPrefix := range output.CommonPrefixes {
-				params := listOrigin {prefix: commonPrefix.Prefix}
-				if !startTime.IsZero() {
-					// startAfter doesn't have to be a real key.
-					startAfterSuffix := startTime.Format("2006/01/02/")
-					startAfter := *commonPrefix.Prefix + startAfterSuffix
-					params.startAfter = &startAfter
+	for _, intervalPrefix := range intervalPrefixList {
+		if strings.HasSuffix(intervalPrefix, "/CloudTrail/") {
+			delimiter := "/"
+			// Fetch the list of regions.
+			output, err := oCtx.s3.client.ListObjectsV2(ctx, &s3.ListObjectsV2Input{
+				Bucket: &oCtx.s3.bucket,
+				Prefix: &intervalPrefix,
+				Delimiter: &delimiter,
+			})
+			if err == nil {
+				for _, commonPrefix := range output.CommonPrefixes {
+					params := listOrigin {prefix: commonPrefix.Prefix}
+					if !startTime.IsZero() {
+						// startAfter doesn't have to be a real key.
+						startAfterSuffix := startTime.Format("2006/01/02/")
+						startAfter := *commonPrefix.Prefix + startAfterSuffix
+						params.startAfter = &startAfter
+					}
+					inputParams = append(inputParams, params)
 				}
-				inputParams = append(inputParams, params)
 			}
 		}
 	}
