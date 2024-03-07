@@ -49,8 +49,8 @@ jobs:
     uses: ./.github/workflows/reusable_validate_plugins.yaml
     with:
       plugin: ${{ needs.extract-info.outputs.package }}
-      falcoctl-version: 0.6.2
-      falco-image: falcosecurity/falco-no-driver:0.36.2
+      falcoctl-version: 0.7.3
+      falco-image: falcosecurity/falco-no-driver:0.37.1
       plugins-artifact: plugins-x86_64-stable.tar.gz
       rules-checker: ./rules-checker
       arch: x86_64
