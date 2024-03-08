@@ -1,41 +1,99 @@
-- list: allowed_k8s_users
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright (C) 2023 The Falco Authors.
+#
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+- required_engine_version: 15
+
+- required_plugin_versions:
+  - name: k8saudit-gke
+    version: 0.1.0
+  - name: json
+    version: 0.7.0
+
+# Allow the Google Container Engine robot serviceaccount
+- rule: Disallowed K8s User
+  exceptions:
+    - name: google-container-engine-robot
+      fields: [ka.user.name]
+      comps: [endswith]
+      values:
+        - ["@container-engine-robot.iam.gserviceaccount.com"]
+  override: 
+    exceptions: append
+
+# Additional images allowed to run as 'privileged' containers
+- list: falco_privileged_images
   items: [
-    kubelet-bootstrap
+    gke.gcr.io/netd,
+    gke.gcr.io/csi-node-driver-registrar,
+    gke.gcr.io/gcp-compute-persistent-disk-csi-driver,
+    gke.gcr.io/kube-proxy-amd64,
+    gke.gcr.io/k8s-dns-node-cache
   ]
   override:
     items: append
 
-- macro: gke_service_agent
-  condition: (ka.user.name endswith "@container-engine-robot.iam.gserviceaccount.com")
-
-- rule: Disallowed K8s User
-  condition: and not gke_service_agent
-  override: 
-    condition: append
-
+# Additional images allowed to run with hostNetwork=true
 - list: falco_hostnetwork_images
   items: [
+    gcr.io/gke-release/cnrm/recorder,
     gke.gcr.io/csi-node-driver-registrar,
     gke.gcr.io/fluent-bit,
+    gke.gcr.io/fluent-bit-gke-exporter,
     gke.gcr.io/gcp-compute-persistent-disk-csi-driver,
     gke.gcr.io/gke-metrics-agent,
     gke.gcr.io/k8s-dns-node-cache,
     gke.gcr.io/kube-proxy-amd64,
     gke.gcr.io/netd,
-    gke.gcr.io/proxy-agent
+    gke.gcr.io/proxy-agent,
+    k8s.gcr.io/prometheus-to-sd
   ]
   override:
     items: append
 
-- list: allowed_kube_namespace_image_list
+# Additional images allowed to mount sensitivate paths
+- list: falco_sensitive_mount_images
   items: [
     gke.gcr.io/csi-node-driver-registrar,
+    gke.gcr.io/gcp-compute-persistent-disk-csi-driver,
+  ]
+  override:
+    items: append
+
+# Additional images allowed in the kube-system namespace
+- list: user_allowed_kube_namespace_image_list
+  items: [
+    gke.gcr.io/addon-resizer,
+    gke.gcr.io/cluster-proportional-autoscaler,
+    gke.gcr.io/csi-node-driver-registrar,
+    gke.gcr.io/event-exporter,
     gke.gcr.io/fluent-bit,
+    gke.gcr.io/fluent-bit-gke-exporter,
     gke.gcr.io/gcp-compute-persistent-disk-csi-driver,
     gke.gcr.io/gke-metrics-agent,
+    gke.gcr.io/ingress-gce-404-server-with-metrics,
+    gke.gcr.io/k8s-dns-dnsmasq-nanny,
+    gke.gcr.io/k8s-dns-kube-dns,
     gke.gcr.io/k8s-dns-node-cache,
+    gke.gcr.io/k8s-dns-sidecar,
     gke.gcr.io/kube-proxy-amd64,
+    gke.gcr.io/metrics-server,
     gke.gcr.io/netd,
+    gke.gcr.io/prometheus-to-sd,
     gke.gcr.io/proxy-agent
   ]
   override:
