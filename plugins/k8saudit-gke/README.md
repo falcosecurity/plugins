@@ -75,6 +75,7 @@ Log Router Sinks setup (for each Google project containing GKE clusters):
 - create a logs routing sink (e.g. `falco-gke-audit-sink`) with the following options:
   - destination: `pubsub.googleapis.com/<your PubSub topic>` (e.g. `pubsub.googleapis.com/<my-google-pubsub-project-id>/topics/falco-gke-audit-topic`)
   - filter: `logName=~"projects/.+/logs/cloudaudit.googleapis.com%2F(activity|data_access)" AND protoPayload.serviceName="k8s.io"`
+  - exclusion filters (optional): e.g. `protoPayload.methodName="io.k8s.coordination.v1.leases.update"` (exclusion filters reduce the number of log entries send to Falco)
 - bind the iam role `roles/pubsub.publisher` to the log sink writer identity
 
 ### Cluster resource labels and Google Container API permissions
