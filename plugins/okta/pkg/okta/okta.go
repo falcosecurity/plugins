@@ -138,7 +138,7 @@ func (oktaPlugin *Plugin) Info() *plugins.Info {
 		Name:        "okta",
 		Description: "Okta Log Events",
 		Contact:     "github.com/falcosecurity/plugins/",
-		Version:     "0.10.0",
+		Version:     "0.11.0",
 		EventSource: "okta",
 	}
 }
@@ -220,6 +220,7 @@ func (oktaPlugin *Plugin) Fields() []sdk.FieldEntry {
 		{Type: "string", Name: "okta.target.group.id", Desc: "Target Group ID"},
 		{Type: "string", Name: "okta.target.group.alternateid", Desc: "Target Group Alternate ID"},
 		{Type: "string", Name: "okta.target.group.name", Desc: "Target Group Name"},
+		{Type: "string", Name: "okta.target.app.alternateid", Desc: "Target App Alternate ID"},
 		{Type: "uint64", Name: "okta.mfa.failure.countlast", Desc: "Count of MFA failures in last seconds", Arg: sdk.FieldEntryArg{IsRequired: true, IsIndex: true}},
 		{Type: "uint64", Name: "okta.mfa.deny.countlast", Desc: "Count of MFA denies in last seconds", Arg: sdk.FieldEntryArg{IsRequired: true, IsIndex: true}},
 	}
@@ -269,6 +270,12 @@ func (oktaPlugin *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) e
 		if strings.HasPrefix(data.DebugContext.DebugData.RequestURI, "/app/") {
 			s := strings.Split(data.DebugContext.DebugData.RequestURI, "/")
 			req.SetValue(s[2])
+		}
+	case "okta.target.app.alternateid":
+		for _, i := range data.Target {
+			if i.Type == "AppInstance" {
+				req.SetValue(i.AlternateID)
+			}
 		}
 	case "okta.org":
 		req.SetValue(oktaPlugin.Organization)

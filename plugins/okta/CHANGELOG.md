@@ -1,5 +1,10 @@
 # Changelog
 
+# v 0.11.0
+
+* Added a case for AppInstance alternate ID to capture in-scope application most explicit description.
+* Replaced okta.app with okta.target.app.alternateid in okta_rules.yaml
+
 # v 0.9.0
 
 * Add `refresh_interval` parameter

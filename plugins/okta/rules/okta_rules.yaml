@@ -20,7 +20,7 @@
 
 - required_plugin_versions:
   - name: okta
-    version: 0.10.0
+    version: 0.11.0
 
 # Example Rule on login in to OKTA. Disabled by default since it might be noisy
 #- rule: User logged in to OKTA
@@ -52,7 +52,7 @@
 - rule: User accessing app via single sign on OKTA
   desc: Detect a user accessing an app via OKTA
   condition: okta.evt.type = "user.authentication.sso"
-  output: "A user has accessed an app using OKTA (user=%okta.actor.name, app=%okta.app)"
+  output: "A user has accessed an app using OKTA (user=%okta.actor.name, app=%okta.target.app.alternateid)"
   priority: NOTICE
   source: okta
   tags: [okta]
@@ -169,7 +169,7 @@
 - rule: Adding user to application membership in OKTA
   desc: Detect a user who has been added o application membership in OKTA
   condition: okta.evt.type = "application.user_membership.add"
-  output: "A user has been added to an application membership in OKTA (user=%okta.actor.name, ip=%okta.client.ip, target user=%okta.target.user.name, app=%okta.app)"
+  output: "A user has been added to an application membership in OKTA (user=%okta.actor.name, ip=%okta.client.ip, target user=%okta.target.user.name, app=%okta.target.app.alternateid)"
   priority: NOTICE
   source: okta
   tags: [okta]
