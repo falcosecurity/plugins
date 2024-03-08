@@ -64,6 +64,7 @@ The event source for `okta` events is `okta`.
 | `okta.security.asorg`           | `string` | None            | Security AS Org                       |
 | `okta.security.isp`             | `string` | None            | Security ISP                          |
 | `okta.security.domain`          | `string` | None            | Security Domain                       |
+| `okta.target.app.alternateid`   | `string` | None            | Target Application Alternate ID       |
 | `okta.target.user.id`           | `string` | None            | Target User ID                        |
 | `okta.target.user.alternateid`  | `string` | None            | Target User Alternate ID              |
 | `okta.target.user.name`         | `string` | None            | Target User Name                      |
