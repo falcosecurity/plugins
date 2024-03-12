@@ -53,6 +53,12 @@ const (
 	sqsMode
 )
 
+type listOrigin struct {
+	prefix *string
+	startAfter *string
+}
+
+
 type fileInfo struct {
 	name         string
 	isCompressed bool
@@ -92,6 +98,8 @@ type PluginInstance struct {
 	queueURL           string
 	nextJParser        fastjson.Parser
 }
+
+var dlErrChan chan error
 
 func min(a, b int) int {
 	if a < b {
@@ -153,8 +161,76 @@ func (p *PluginInstance) initS3() error {
 	return nil
 }
 
+func chunkListOrigin(orgList []listOrigin, chunkSize int) [][]listOrigin {
+	if (len(orgList) == 0 || chunkSize < 1) {
+		return nil
+	}
+	divided := make([][]listOrigin, (len(orgList)+chunkSize-1)/chunkSize)
+	prev := 0
+	i := 0
+	till := len(orgList) - chunkSize
+	for prev < till {
+		next := prev + chunkSize
+		divided[i] = orgList[prev:next]
+		prev = next
+		i++
+	}
+	divided[i] = orgList[prev:]
+	return divided
+}
+
+func (oCtx *PluginInstance) listKeys(params listOrigin, startTS string, endTS string) error {
+	defer oCtx.s3.DownloadWg.Done()
+
+	ctx := context.Background()
+	// Fetch the list of keys
+	paginator := s3.NewListObjectsV2Paginator(oCtx.s3.client, &s3.ListObjectsV2Input{
+		Bucket: &oCtx.s3.bucket,
+		Prefix: params.prefix,
+		StartAfter: params.startAfter,
+	})
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			dlErrChan <- err
+			return nil
+		}
+		for _, obj := range page.Contents {
+			path := obj.Key
+
+			filepathRE := regexp.MustCompile(`.*_CloudTrail_[^_]+_([^_]+)Z_`)
+			if startTS != "" {
+				matches := filepathRE.FindStringSubmatch(*path)
+				if matches != nil {
+					pathTS := matches[1]
+					if pathTS < startTS {
+						continue
+					}
+					if endTS != "" && pathTS > endTS {
+						continue
+					}
+				}
+			}
+
+			isCompressed := strings.HasSuffix(*path, ".json.gz")
+			if filepath.Ext(*path) != ".json" && !isCompressed {
+				continue
+			}
+
+			var fi fileInfo = fileInfo{name: *path, isCompressed: isCompressed}
+			oCtx.files = append(oCtx.files, fi)
+		}
+	}
+	return nil
+}
+
 func (oCtx *PluginInstance) openS3(input string) error {
 	oCtx.openMode = s3Mode
+
+	if oCtx.config.S3DownloadConcurrency < 1 {
+		return fmt.Errorf(PluginName + " invalid S3DownloadConcurrency: \"%d\"", oCtx.config.S3DownloadConcurrency)
+	}
 
 	// remove the initial "s3://"
 	input = input[5:]
@@ -174,11 +250,6 @@ func (oCtx *PluginInstance) openS3(input string) error {
 		return err
 	}
 
-
-	type listOrigin struct {
-		prefix *string
-		startAfter *string
-	}
 
 	var inputParams []listOrigin
 	ctx := context.Background()
@@ -291,7 +362,6 @@ func (oCtx *PluginInstance) openS3(input string) error {
 		}
 	}
 
-	filepathRE := regexp.MustCompile(`.*_CloudTrail_[^_]+_([^_]+)Z_`)
 	var startTS string
 	var endTS string
 
@@ -312,17 +382,18 @@ func (oCtx *PluginInstance) openS3(input string) error {
 		inputParams = append(inputParams, params)
 	}
 
-	// Would it make sense to do this concurrently?
-	for _, params := range inputParams {
-		// Fetch the list of keys
-		paginator := s3.NewListObjectsV2Paginator(oCtx.s3.client, &s3.ListObjectsV2Input{
-			Bucket: &oCtx.s3.bucket,
-			Prefix: params.prefix,
-			StartAfter: params.startAfter,
-		})
+	// Devide the inputParams array into chunks and get the keys concurently for all items in a chunk
+	for _, chunk := range chunkListOrigin(inputParams, oCtx.config.S3DownloadConcurrency) {
+		dlErrChan = make(chan error, oCtx.config.S3DownloadConcurrency)
+		for _, params := range chunk {
+			oCtx.s3.DownloadWg.Add(1)
+			go oCtx.listKeys(params, startTS, endTS)
+		}
 
-		for paginator.HasMorePages() {
-			page, err := paginator.NextPage(ctx)
+		oCtx.s3.DownloadWg.Wait()
+
+		select {
+		case err := <-dlErrChan:
 			if err != nil {
 				// Try friendlier error sources first.
 				var aErr smithy.APIError
@@ -337,30 +408,7 @@ func (oCtx *PluginInstance) openS3(input string) error {
 
 				return fmt.Errorf(PluginName + " plugin error: failed to list objects: " + err.Error())
 			}
-			for _, obj := range page.Contents {
-				path := obj.Key
-
-				if startTS != "" {
-					matches := filepathRE.FindStringSubmatch(*path)
-					if matches != nil {
-						pathTS := matches[1]
-						if pathTS < startTS {
-							continue
-						}
-						if endTS != "" && pathTS > endTS {
-							continue
-						}
-					}
-				}
-
-				isCompressed := strings.HasSuffix(*path, ".json.gz")
-				if filepath.Ext(*path) != ".json" && !isCompressed {
-					continue
-				}
-
-				var fi fileInfo = fileInfo{name: *path, isCompressed: isCompressed}
-				oCtx.files = append(oCtx.files, fi)
-			}
+		default:
 		}
 	}
 
@@ -507,8 +555,6 @@ func (oCtx *PluginInstance) openSQS(input string) error {
 
 	return oCtx.getMoreSQSFiles()
 }
-
-var dlErrChan chan error
 
 func (oCtx *PluginInstance) s3Download(downloader *manager.Downloader, name string, dloadSlotNum int) {
 	defer oCtx.s3.DownloadWg.Done()
