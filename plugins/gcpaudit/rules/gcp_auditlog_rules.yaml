@@ -333,7 +333,7 @@
     rawRequest=%gcp.request
   priority: NOTICE
   source: gcp_auditlog
-  tags: [GCP, IAM, 	abuse-elevation-control-mechanism]
+  tags: [GCP, IAM, abuse-elevation-control-mechanism]
 
 
 - rule: GCP IAM service account deleted
@@ -346,7 +346,7 @@
     rawRequest=%gcp.request
   priority: NOTICE
   source: gcp_auditlog
-  tags: [GCP, IAM, 	abuse-elevation-control-mechanism]
+  tags: [GCP, IAM, abuse-elevation-control-mechanism]
 
 - rule: GCP IAM service account modified
   desc: Detect when a service account is modified.
@@ -358,7 +358,7 @@
     rawRequest=%gcp.request
   priority: NOTICE
   source: gcp_auditlog
-  tags: [GCP, IAM, 	abuse-elevation-control-mechanism]
+  tags: [GCP, IAM, abuse-elevation-control-mechanism]
 
 
 - rule: GCP IAM service account key created
@@ -371,7 +371,7 @@
     rawRequest=%gcp.request
   priority: NOTICE
   source: gcp_auditlog
-  tags: [GCP, IAM, 	abuse-elevation-control-mechanism]
+  tags: [GCP, IAM, abuse-elevation-control-mechanism]
 
 
 - rule: GCP IAM service account key deleted
@@ -384,7 +384,7 @@
     rawRequest=%gcp.request
   priority: NOTICE
   source: gcp_auditlog
-  tags: [GCP, IAM, 	abuse-elevation-control-mechanism]
+  tags: [GCP, IAM, abuse-elevation-control-mechanism]
 
 - rule: GCP IAM custom role created
   desc: Detect when an IAM custom role is created.
@@ -396,7 +396,7 @@
     rawRequest=%gcp.request
   priority: NOTICE
   source: gcp_auditlog
-  tags: [GCP, IAM, 	abuse-elevation-control-mechanism]
+  tags: [GCP, IAM, abuse-elevation-control-mechanism]
 
 - rule: GCP IAM custom role modified
   desc: Detect when an IAM custom role is modified.
@@ -408,7 +408,7 @@
     rawRequest=%gcp.request
   priority: NOTICE
   source: gcp_auditlog
-  tags: [GCP, IAM, 	abuse-elevation-control-mechanism]
+  tags: [GCP, IAM, abuse-elevation-control-mechanism]
 
 - rule: GCP IAM policy modified
   desc: Detect when an IAM policy is modified.
@@ -420,7 +420,7 @@
     rawRequest=%gcp.request
   priority: NOTICE
   source: gcp_auditlog
-  tags: [GCP, IAM, 	abuse-elevation-control-mechanism]
+  tags: [GCP, IAM, abuse-elevation-control-mechanism]
 
 
 - rule: GCP cloud function created
@@ -447,7 +447,7 @@
     functionName=%gcp.cloudfunctions.function
   priority: NOTICE
   source: gcp_auditlog
-  tags: [GCP, CloudFunction, 	abuse-elevation-control-mechanism]
+  tags: [GCP, CloudFunction, abuse-elevation-control-mechanism]
 
 - rule: GCP cloud function modified
   desc: Detect when a cloud function is modified.
@@ -461,7 +461,7 @@
     functionName=%gcp.cloudfunctions.function
   priority: NOTICE
   source: gcp_auditlog
-  tags: [GCP, CloudFunction, 	abuse-elevation-control-mechanism]
+  tags: [GCP, CloudFunction, abuse-elevation-control-mechanism]
 
 - rule: GCP KMS keyring created
   desc: Detect when a KMS keyring is created.
@@ -474,7 +474,7 @@
     ringName=%json.value[/resource/labels/key_ring_id]
   priority: NOTICE
   source: gcp_auditlog
-  tags: [GCP, KMS, 	abuse-elevation-control-mechanism]
+  tags: [GCP, KMS, abuse-elevation-control-mechanism]
 
 - rule: GCP KMS created
   desc: Detect when a KMS key is created.
@@ -487,7 +487,7 @@
     keyName=%json.value[/resource/labels/crypto_key_id]
   priority: NOTICE
   source: gcp_auditlog
-  tags: [GCP, KMS, 	abuse-elevation-control-mechanism]
+  tags: [GCP, KMS, abuse-elevation-control-mechanism]
 
 - rule: GCP KMS updated 
   desc: Detect when a KMS key is updated
@@ -501,7 +501,7 @@
     keyName=%json.value[/resource/labels/crypto_key_id]
   priority: NOTICE
   source: gcp_auditlog
-  tags: [GCP, KMS, 	abuse-elevation-control-mechanism]
+  tags: [GCP, KMS, abuse-elevation-control-mechanism]
 
 - rule: GCP KMS deleted
   desc: Detect when a KMS key is deleted
@@ -515,7 +515,7 @@
     keyName=%json.value[/resource/labels/crypto_key_id]
   priority: NOTICE
   source: gcp_auditlog
-  tags: [GCP, KMS, 	abuse-elevation-control-mechanism]
+  tags: [GCP, KMS, abuse-elevation-control-mechanism]
 
 - rule: GCP Pub/Sub topic deleted
   desc: Detect when a GCP Pub/Sub topic has been deleted. This could stop audit logs from being sent to the GCP Audit Log plugin.
