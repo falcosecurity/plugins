@@ -81,7 +81,49 @@
     "eks:vpc-resource-controller",
     "eks:addon-manager",
     ]
--
+
+- list: k8s_sensitive_mount_images
+  items: [
+    falcosecurity/falco, docker.io/falcosecurity/falco, public.ecr.aws/falcosecurity/falco,
+    docker.io/sysdig/sysdig, sysdig/sysdig,
+    gcr.io/google_containers/hyperkube,
+    gcr.io/google_containers/kube-proxy, docker.io/calico/node,
+    docker.io/rook/toolbox, docker.io/cloudnativelabs/kube-router, docker.io/consul,
+    docker.io/datadog/docker-dd-agent, docker.io/datadog/agent, docker.io/docker/ucp-agent, docker.io/gliderlabs/logspout,
+    docker.io/netdata/netdata, docker.io/google/cadvisor, docker.io/prom/node-exporter,
+    amazon/amazon-ecs-agent, prom/node-exporter, amazon/cloudwatch-agent
+  ]
+
+- list: k8s_privileged_images
+  items: [
+    falcosecurity/falco, docker.io/falcosecurity/falco, public.ecr.aws/falcosecurity/falco,
+    docker.io/calico/node, calico/node,
+    docker.io/cloudnativelabs/kube-router,
+    docker.io/docker/ucp-agent,
+    docker.io/mesosphere/mesos-slave,
+    docker.io/rook/toolbox,
+    docker.io/sysdig/sysdig,
+    gcr.io/google_containers/kube-proxy,
+    gcr.io/google-containers/startup-script,
+    gcr.io/projectcalico-org/node,
+    gke.gcr.io/kube-proxy,
+    gke.gcr.io/gke-metadata-server,
+    gke.gcr.io/netd-amd64,
+    gke.gcr.io/watcher-daemonset,
+    gcr.io/google-containers/prometheus-to-sd,
+    k8s.gcr.io/ip-masq-agent-amd64,
+    k8s.gcr.io/kube-proxy,
+    k8s.gcr.io/prometheus-to-sd,
+    registry.k8s.io/ip-masq-agent-amd64,
+    registry.k8s.io/kube-proxy,
+    registry.k8s.io/prometheus-to-sd,
+    quay.io/calico/node,
+    sysdig/sysdig,
+    k8s.gcr.io/dns/k8s-dns-node-cache,
+    registry.k8s.io/dns/k8s-dns-node-cache,
+    mcr.microsoft.com/oss/kubernetes/kube-proxy
+  ]
+
 - rule: Disallowed K8s User
   desc: Detect any k8s operation by users outside of an allowed set of users.
   condition: kevt and non_system_user and not ka.user.name in (allowed_k8s_users) and not ka.user.name in (eks_allowed_k8s_users)
@@ -168,7 +210,7 @@
 - rule: Create Privileged Pod
   desc: >
     Detect an attempt to start a pod with a privileged container
-  condition: kevt and pod and kcreate and ka.req.pod.containers.privileged intersects (true) and not ka.req.pod.containers.image.repository in (falco_privileged_images)
+  condition: kevt and pod and kcreate and ka.req.pod.containers.privileged intersects (true) and not ka.req.pod.containers.image.repository in (k8s_privileged_images)
   output: Pod started with privileged container (user=%ka.user.name pod=%ka.resp.name resource=%ka.target.resource ns=%ka.target.namespace images=%ka.req.pod.containers.image)
   priority: WARNING
   source: k8s_audit
@@ -182,7 +224,7 @@
   desc: >
     Detect an attempt to start a pod with a volume from a sensitive host directory (i.e. /proc).
     Exceptions are made for known trusted images.
-  condition: kevt and pod and kcreate and sensitive_vol_mount and not ka.req.pod.containers.image.repository in (falco_sensitive_mount_images)
+  condition: kevt and pod and kcreate and sensitive_vol_mount and not ka.req.pod.containers.image.repository in (k8s_sensitive_mount_images)
   output: Pod started with sensitive mount (user=%ka.user.name pod=%ka.resp.name ns=%ka.target.namespace resource=%ka.target.resource images=%ka.req.pod.containers.image volumes=%jevt.value[/requestObject/spec/volumes])
   priority: WARNING
   source: k8s_audit
