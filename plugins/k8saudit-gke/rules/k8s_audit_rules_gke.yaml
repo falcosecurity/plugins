@@ -16,7 +16,7 @@
 # limitations under the License.
 #
 
-- required_engine_version: 15
+- required_engine_version: 0.37.0
 
 - required_plugin_versions:
   - name: k8saudit-gke
