@@ -45,13 +45,13 @@ modern_bpf:
 output_timeout: 2000
 plugins:
 - init_config:
-    project_id: "te000-589aa8c5b4314ba934a6"
+    project_id: "your-gcp-project-id"
     fetch_cluster_metadata: false
     max_event_size: 8000000
   library_path: libk8saudit-gke.so
   name: k8saudit-gke
   # open_params: "file://test/pods_create.json"
-  open_params: "falco-gke-audit-sub"
+  open_params: "your-gcp-subscription-id"
 - init_config: ""
   library_path: libjson.so
   name: json
