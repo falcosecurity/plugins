@@ -40,8 +40,6 @@ metrics:
   libbpf_stats_enabled: true
   output_rule: true
   resource_utilization_enabled: true
-modern_bpf:
-  cpus_for_each_syscall_buffer: 2
 output_timeout: 2000
 plugins:
 - init_config:
