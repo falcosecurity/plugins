@@ -40,10 +40,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Install system dependencies
-        run: |
-          apt update -y
-          apt install -y --no-install-recommends pip git jq
-          pip install yq
+        run: wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && chmod +x /usr/bin/yq
 
       - name: Setup plugin config and rules
         id: get-config
@@ -125,7 +122,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Install system dependencies
-        run: pip install yq
+        run:  sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && sudo chmod +x /usr/bin/yq
       
       - name: Setup plugin config and rules
         id: get-config
@@ -181,48 +178,49 @@ jobs:
           sudo mkdir -p /usr/share/falco/plugins
 
           rules_files=$(ls ${{ steps.get-config.outputs.rules_dir }}/*)
-          for rules_file in $rules_files; do
-            deps=$(cat $rules_file | yq -r '.[].required_plugin_versions | select(. != null and . != "")[] | [.name + ":" + .version] | @csv')
+          deps=$(./.github/extract-plugins-deps-from-rulesfile.sh \
+              "${{ inputs.plugin }}" \
+              "$rules_files")
+          echo "Deps: ${deps}"
+          ver_diff=0
+          has_updates=1
+          while [ "$has_updates" -eq 1 ]; do
+            has_updates=0
+            for dep in $deps; do
+              echo "Plugin: ${dep}"
+              plugin_name=$(echo $dep | tr -d '"' | cut -d ':' -f 1)
 
-            ver_diff=0
-            has_updates=1
-            while [ "$has_updates" -eq 1 ]; do
-              has_updates=0
-              for dep in $deps; do
-                plugin_name=$(echo $dep | tr -d '"' | cut -d ':' -f 1)
+              # forcing zero patch version to forbid patch-like dependencies
+              # bumping minor version at every iteration
+              plugin_ver=$(echo $dep | tr -d '"' | cut -d ':' -f 2)
+              plugin_ver_major=$(echo $plugin_ver | cut -d '.' -f 1)
+              plugin_ver_minor=$(expr $(echo $plugin_ver | cut -d '.' -f 2) + $ver_diff)
+              plugin_ver_patch=0 
+              plugin_ver="${plugin_ver_major}.${plugin_ver_minor}.${plugin_ver_patch}"
 
-                # forcing zero patch version to forbid patch-like dependencies
-                # bumping minor version at every iteration
-                plugin_ver=$(echo $dep | tr -d '"' | cut -d ':' -f 2)
-                plugin_ver_major=$(echo $plugin_ver | cut -d '.' -f 1)
-                plugin_ver_minor=$(expr $(echo $plugin_ver | cut -d '.' -f 2) + $ver_diff)
-                plugin_ver_patch=0 
-                plugin_ver="${plugin_ver_major}.${plugin_ver_minor}.${plugin_ver_patch}"
+              set +e pipefail
+              sudo falcoctl artifact install ${plugin_name}:${plugin_ver}
+              if [ $? -eq 0 ]; then
+                echo Installed plugin "${plugin_name}" at version "${plugin_ver}"
+                has_updates=1
+              else
+                echo Can\'t pull plugin "${plugin_name}" at version "${plugin_ver}"
+                echo Attempt installing locally-built plugin "${plugin_name}"...
+                for archive in $(ls /tmp/plugins-${{ inputs.arch }}/${plugin_name}-*); do
+                  echo Extracting archive "$archive"...
+                  mkdir -p tmpdir && pushd tmpdir
+                  tar -xvf $archive
+                  sudo cp -r *.so /usr/share/falco/plugins || true
+                  popd && rm -fr tmpdir
+                done
+              fi
+              set -e pipefail
+            done
+            ver_diff=$(expr $ver_diff + 1)
 
-                set +e pipefail
-                sudo falcoctl artifact install ${plugin_name}:${plugin_ver}
-                if [ $? -eq 0 ]; then
-                  echo Installed plugin "${plugin_name}" at version "${plugin_ver}"
-                  has_updates=1
-                else
-                  echo Can\'t pull plugin "${plugin_name}" at version "${plugin_ver}"
-                  echo Attempt installing locally-built plugin "${plugin_name}"...
-                  for archive in $(ls /tmp/plugins-${{ inputs.arch }}/${plugin_name}-*); do
-                    echo Extracting archive "$archive"...
-                    mkdir -p tmpdir && pushd tmpdir
-                    tar -xvf $archive
-                    sudo cp -r *.so /usr/share/falco/plugins || true
-                    popd && rm -fr tmpdir
-                  done
-                fi
-                set -e pipefail
-              done
-              ver_diff=$(expr $ver_diff + 1)
-
-              ./.github/validate-rules.sh \
-                "${{ inputs.falco-image }}" \
-                "${{ inputs.rules-checker }}" \
-                "${{ steps.get-config.outputs.config_file }}" \
-                "$rules_file"
-            done 
-          done
+            ./.github/validate-rules.sh \
+              "${{ inputs.falco-image }}" \
+              "${{ inputs.rules-checker }}" \
+              "${{ steps.get-config.outputs.config_file }}" \
+              "$rules_files"
+          done 
