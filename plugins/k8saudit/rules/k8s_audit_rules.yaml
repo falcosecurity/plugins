@@ -228,7 +228,7 @@
 
 # These container images are allowed to run with hostnetwork=true
 # TODO: Remove k8s.gcr.io reference after 01/Dec/2023
-- list: falco_hostnetwork_images
+- list: k8s_audit_hostnetwork_images
   items: [
     gcr.io/google-containers/prometheus-to-sd,
     gcr.io/projectcalico-org/typha,
@@ -243,29 +243,29 @@
 # Corresponds to K8s CIS Benchmark 1.7.4
 - rule: Create HostNetwork Pod
   desc: Detect an attempt to start a pod using the host network.
-  condition: kevt and pod and kcreate and ka.req.pod.host_network intersects (true) and not ka.req.pod.containers.image.repository in (falco_hostnetwork_images)
+  condition: kevt and pod and kcreate and ka.req.pod.host_network intersects (true) and not ka.req.pod.containers.image.repository in (k8s_audit_hostnetwork_images)
   output: Pod started using host network (user=%ka.user.name pod=%ka.resp.name resource=%ka.target.resource ns=%ka.target.namespace images=%ka.req.pod.containers.image)
   priority: WARNING
   source: k8s_audit
   tags: [k8s]
 
-- list: falco_hostpid_images
+- list: k8s_audit_hostpid_images
   items: []
 
 - rule: Create HostPid Pod
   desc: Detect an attempt to start a pod using the host pid namespace.
-  condition: kevt and pod and kcreate and ka.req.pod.host_pid intersects (true) and not ka.req.pod.containers.image.repository in (falco_hostpid_images)
+  condition: kevt and pod and kcreate and ka.req.pod.host_pid intersects (true) and not ka.req.pod.containers.image.repository in (k8s_audit_hostpid_images)
   output: Pod started using host pid namespace (user=%ka.user.name pod=%ka.resp.name resource=%ka.target.resource ns=%ka.target.namespace images=%ka.req.pod.containers.image)
   priority: WARNING
   source: k8s_audit
   tags: [k8s]
 
-- list: falco_hostipc_images
+- list: k8s_audit_hostipc_images
   items: []
 
 - rule: Create HostIPC Pod
   desc: Detect an attempt to start a pod using the host ipc namespace.
-  condition: kevt and pod and kcreate and ka.req.pod.host_ipc intersects (true) and not ka.req.pod.containers.image.repository in (falco_hostipc_images)
+  condition: kevt and pod and kcreate and ka.req.pod.host_ipc intersects (true) and not ka.req.pod.containers.image.repository in (k8s_audit_hostipc_images)
   output: Pod started using host ipc namespace (user=%ka.user.name pod=%ka.resp.name resource=%ka.target.resource ns=%ka.target.namespace images=%ka.req.pod.containers.image)
   priority: WARNING
   source: k8s_audit
