@@ -36,7 +36,7 @@
     exceptions: append
 
 # Additional images allowed to run as 'privileged' containers
-- list: k8s_privileged_images
+- list: k8s_audit_privileged_images
   items: [
     gke.gcr.io/netd,
     gke.gcr.io/csi-node-driver-registrar,
@@ -48,7 +48,7 @@
     items: append
 
 # Additional images allowed to run with hostNetwork=true
-- list: falco_hostnetwork_images
+- list: k8s_audit_hostnetwork_images
   items: [
     gcr.io/gke-release/cnrm/recorder,
     gke.gcr.io/csi-node-driver-registrar,
@@ -66,7 +66,7 @@
     items: append
 
 # Additional images allowed to mount sensitivate paths
-- list: k8s_sensitive_mount_images
+- list: k8s_audit_sensitive_mount_images
   items: [
     gke.gcr.io/csi-node-driver-registrar,
     gke.gcr.io/gcp-compute-persistent-disk-csi-driver,

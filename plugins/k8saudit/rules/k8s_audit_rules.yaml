@@ -82,7 +82,7 @@
     "eks:addon-manager",
     ]
 
-- list: k8s_sensitive_mount_images
+- list: k8s_audit_sensitive_mount_images
   items: [
     falcosecurity/falco, docker.io/falcosecurity/falco, public.ecr.aws/falcosecurity/falco,
     docker.io/sysdig/sysdig, sysdig/sysdig,
@@ -94,7 +94,7 @@
     amazon/amazon-ecs-agent, prom/node-exporter, amazon/cloudwatch-agent
   ]
 
-- list: k8s_privileged_images
+- list: k8s_audit_privileged_images
   items: [
     falcosecurity/falco, docker.io/falcosecurity/falco, public.ecr.aws/falcosecurity/falco,
     docker.io/calico/node, calico/node,
@@ -206,7 +206,7 @@
 - rule: Create Privileged Pod
   desc: >
     Detect an attempt to start a pod with a privileged container
-  condition: kevt and pod and kcreate and ka.req.pod.containers.privileged intersects (true) and not ka.req.pod.containers.image.repository in (k8s_privileged_images)
+  condition: kevt and pod and kcreate and ka.req.pod.containers.privileged intersects (true) and not ka.req.pod.containers.image.repository in (k8s_audit_privileged_images)
   output: Pod started with privileged container (user=%ka.user.name pod=%ka.resp.name resource=%ka.target.resource ns=%ka.target.namespace images=%ka.req.pod.containers.image)
   priority: WARNING
   source: k8s_audit
@@ -220,7 +220,7 @@
   desc: >
     Detect an attempt to start a pod with a volume from a sensitive host directory (i.e. /proc).
     Exceptions are made for known trusted images.
-  condition: kevt and pod and kcreate and sensitive_vol_mount and not ka.req.pod.containers.image.repository in (k8s_sensitive_mount_images)
+  condition: kevt and pod and kcreate and sensitive_vol_mount and not ka.req.pod.containers.image.repository in (k8s_audit_sensitive_mount_images)
   output: Pod started with sensitive mount (user=%ka.user.name pod=%ka.resp.name ns=%ka.target.namespace resource=%ka.target.resource images=%ka.req.pod.containers.image volumes=%jevt.value[/requestObject/spec/volumes])
   priority: WARNING
   source: k8s_audit
