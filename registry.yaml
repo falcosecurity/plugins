@@ -402,3 +402,27 @@ plugins:
       extraction:
         supported: true
         sources: [syscall]
+  - name: k8saudit-gke
+    description: Read Kubernetes Audit Events from GKE Clusters
+    authors: The Falco Authors
+    contact: https://falco.org/community
+    url: https://github.com/falcosecurity/plugins/tree/master/plugins/k8saudit-gke
+    rules_url: https://github.com/falcosecurity/plugins/tree/master/plugins/k8saudit-gke/rules
+    license: Apache-2.0
+    signature:
+      cosign:
+        certificate-oidc-issuer: https://token.actions.githubusercontent.com
+        certificate-identity-regexp: https://github.com/falcosecurity/plugins/
+    keywords:
+      - audit
+      - audit-log
+      - audit-events
+      - kubernetes
+      - gke    
+    capabilities:
+      sourcing:
+        supported: true
+        id: 16
+        source: k8s_audit
+      extraction:
+        supported: true
