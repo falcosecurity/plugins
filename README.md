@@ -81,6 +81,7 @@ These comments and the text between them should not be edited by hand -->
 | [box](https://github.com/an1245/falco-plugin-box/) | **Event Sourcing** <br/>ID: 15 <br/>`box` <br/>**Field Extraction** <br/> `box` | Falco plugin providing basic runtime threat detection and auditing logging for Box  <br/><br/> Authors: [Andy](https://github.com/an1245/falco-plugin-box/issues) <br/> License: Apache-2.0 |
 | test | **Event Sourcing** <br/>ID: 999 <br/>`test` | This ID is reserved for source plugin development. Any plugin author can use this ID, but authors can expect events from other developers with this ID. After development is complete, the author should request an actual ID  <br/><br/> Authors: N/A <br/> License: N/A |
 | [k8smeta](https://github.com/falcosecurity/plugins/tree/master/plugins/k8smeta) | **Field Extraction** <br/> `syscall` | Enriche Falco syscall flow with Kubernetes Metadata  <br/><br/> Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
+| [k8saudit-gke](https://github.com/falcosecurity/plugins/tree/master/plugins/k8saudit-gke) | **Event Sourcing** <br/>ID: 16 <br/>`k8s_audit` <br/>**Field Extraction** <br/> `k8s_audit` | Read Kubernetes Audit Events from GKE Clusters  <br/><br/> Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
 
 <!-- REGISTRY:TABLE -->
 
