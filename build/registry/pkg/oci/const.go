@@ -40,15 +40,8 @@ const (
 	RegistryUser       = "REGISTRY_USER"
 	RegistryOCI        = "REGISTRY"
 	RepoGithub         = "REPO_GITHUB"
-	region             = "eu-west-1" // TODO: make it discoverable
-	pluginPrefix       = "plugins/stable/"
-	maxKeys            = 128
 	falcoAuthors       = "The Falco Authors"
-	// Architectures as used in the names of the archives uploaded in the S3 bucket.
-	x86_arch_s3    = "x86_64"
-	arm_aarch64_s3 = "aarch64"
-	// Architectures as used in the OCI manifests. We translate the archs from S3 notation to the OCI one.
-	amd64OCI       = "amd64"
-	arm64OCI       = "arm64"
-	archive_suffix = ".tar.gz"
+	archiveSuffix      = ".tar.gz"
+	amd64Platform      = "linux/amd64"
+	arm64Platform      = "linux/arm64"
 )

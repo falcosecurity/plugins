@@ -82,13 +82,19 @@ func main() {
 		},
 	}
 
+	var (
+		pluginsAMD64Path string
+		pluginsARM64Path string
+		rulesfilesPath   string
+		devTag           string
+	)
 	updateOCIRegistry := &cobra.Command{
 		Use:                   "update-oci-registry <registryFilename>",
 		Short:                 "Update the oci registry starting from the registry file and s3 bucket",
 		Args:                  cobra.ExactArgs(1),
 		DisableFlagsInUseLine: true,
 		RunE: func(c *cobra.Command, args []string) error {
-			status, err := oci.DoUpdateOCIRegistry(opts.Context, args[0])
+			status, err := oci.DoUpdateOCIRegistry(opts.Context, args[0], pluginsAMD64Path, pluginsARM64Path, rulesfilesPath, devTag)
 			if err != nil {
 				return err
 			}
@@ -96,6 +102,12 @@ func main() {
 			return oci.PrintUpdateStatus(status, opts.Output)
 		},
 	}
+
+	ociFlags := updateOCIRegistry.Flags()
+	ociFlags.StringVar(&pluginsAMD64Path, "plugins-amd64-path", "", "Path to plugins for the amd64 architecture")
+	ociFlags.StringVar(&pluginsARM64Path, "plugins-arm64-path", "", "Path to plugins for the arm64 architecture")
+	ociFlags.StringVar(&rulesfilesPath, "rulesfiles-path", "", "Path to rulesfiles")
+	ociFlags.StringVar(&devTag, "dev-tag", "", "Tag for devel versions")
 
 	rootCmd := &cobra.Command{
 		Use:     "registry",

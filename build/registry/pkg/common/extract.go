@@ -59,7 +59,7 @@ func ExtractTarGz(fileName, destDir string) ([]string, error) {
 		switch header.Typeflag {
 		case tar.TypeDir:
 			return nil, fmt.Errorf("unexepected dir inside the archive, expected to find only files without any tree structure")
-		case tar.TypeReg:
+		case tar.TypeReg, tar.TypeSymlink:
 			f := filepath.Join(destDir, filepath.Clean(header.Name))
 			if !strings.HasPrefix(f, filepath.Clean(destDir)+string(os.PathSeparator)) {
 				return nil, fmt.Errorf("illegal file path: %q", f)
