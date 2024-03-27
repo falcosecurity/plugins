@@ -60,4 +60,9 @@ jobs:
     uses: falcosecurity/plugins/.github/workflows/reusable_publish_packages.yaml@master
     with:
       suffix: stable
-    secrets: inherit  
+    secrets: inherit
+
+  publish-oci-artifacts-dev:
+    needs: [ build-plugins-dev, validate-plugins ]
+    uses: ./.github/workflows/reusable-publish-oci-artifacts.yaml
+    secrets: inherit
