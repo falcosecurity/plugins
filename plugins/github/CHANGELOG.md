@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.7.1
+
+* [`d2a7b9a`](https://github.com/falcosecurity/plugins/pull/439/commits/d2a7b9a) fix(plugins/github): add length check in if statement
+
+
 ## v0.6.1
 
 
