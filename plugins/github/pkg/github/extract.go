@@ -72,7 +72,7 @@ func getMatchField(jdata *fastjson.Value, matchField string, fType string) (bool
 
 			res += ","
 		}
-		if res[len(res)-1] == ',' {
+		if len(res) != 0 && res[len(res)-1] == ',' {
 			res = res[0 : len(res)-1]
 		}
 	}
@@ -97,7 +97,7 @@ func getMinerTypes(jdata *fastjson.Value) (bool, string) {
 		res += fmt.Sprintf("%s", t)
 		res += ","
 	}
-	if res[len(res)-1] == ',' {
+	if len(res) != 0 && res[len(res)-1] == ',' {
 		res = res[0 : len(res)-1]
 	}
 
@@ -146,7 +146,7 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 				res += string(fname.GetStringBytes())
 				res += ","
 			}
-			if res[len(res)-1] == ',' {
+			if len(res) != 0 && res[len(res)-1] == ',' {
 				res = res[0 : len(res)-1]
 			}
 		}
@@ -188,7 +188,7 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 					cinfo.GetUint64("line"))
 				res += ","
 			}
-			if res[len(res)-1] == ',' {
+			if len(res) != 0 && res[len(res)-1] == ',' {
 				res = res[0 : len(res)-1]
 			}
 		}
