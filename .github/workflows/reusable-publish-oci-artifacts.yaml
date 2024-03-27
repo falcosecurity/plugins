@@ -1,6 +1,10 @@
-name: Update OCI Artifacts
 on:
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      dev-tag:
+        description: The tag used for oci artifacts published from the main branch.
+        required: false
+        type: string
 
 jobs:
   publish-oci-artifacts:
@@ -14,6 +18,18 @@ jobs:
       matrix: ${{ steps.oci_build.outputs.REGISTRY_UPDATE_STATUS }}
 
     steps:
+      - name: Download x86_64 plugins
+        uses: actions/download-artifact@v3
+        with:
+          name: plugins-x86_64-${{ inputs.suffix }}.tar.gz
+          path: /tmp/plugins-x86_64
+
+      - name: Download aarch64 plugins
+        uses: actions/download-artifact@v3
+        with:
+          name: plugins-aarch64-${{ inputs.suffix }}.tar.gz
+          path: /tmp/plugins-aarch64
+
       - name: Checkout Plugins
         uses: actions/checkout@v3
         with:
@@ -37,7 +53,13 @@ jobs:
           REPO_GITHUB: https://github.com/${{ github.repository_owner }}/plugins.git
         working-directory: build/registry
         run: |
-          REGISTRY_UPDATE_STATUS=$(./bin/registry update-oci-registry ../../registry.yaml)
+          REGISTRY_UPDATE_STATUS=$(./bin/registry update-oci-registry \
+             ../../registry.yaml \
+             --plugins-amd64-path /tmp/plugins-x86_64 \
+             --plugins-arm64-path /tmp/plugins-aarch64
+             --rulesfiles-path /tmp/plugins-x86_64 \
+             --dev-tag ${{ inputs.dev-tag }}
+          )
           echo "REGISTRY_UPDATE_STATUS=${REGISTRY_UPDATE_STATUS}" >> $GITHUB_OUTPUT
 
   # Create signatures of the plugin artifacts as OCI artifacts
@@ -71,4 +93,3 @@ jobs:
 
       - name: Sign the artifacts with GitHub OIDC Token
         run: cosign sign --yes ${{ matrix.value.repository.ref }}@${{ matrix.value.artifact.digest }}
-
