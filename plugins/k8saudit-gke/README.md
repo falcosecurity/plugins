@@ -47,10 +47,10 @@ load_plugins: [k8saudit-gke, json]
 
 **Initialization Config**:
 
-- `project_id`: The Google project ID containing your PubSub topic/subscription.
+- `project_id`: The Google project ID containing your Pub/Sub topic/subscription.
 - `credentials_file`: If non-empty overrides the default GCP credentials file (default: empty)
-- `num_goroutines`: The number of goroutines that each datastructure along the PubSub receive path will spawn (default: 10)
-- `maxout_stand_messages`: The maximum number of unprocessed PubSub messages (default: 1000)
+- `num_goroutines`: The number of goroutines that each datastructure along the Pub/Sub receive path will spawn (default: 10)
+- `maxout_stand_messages`: The maximum number of unprocessed Pub/Sub messages (default: 1000)
 - `fetch_cluster_metadata`: If true then use the Google Container API to fetch cluster metadata labels (default: false)
 - `cache_expiration`: Cluster metadata cache expiration duration in minutes (default: 10)
 - `use_async`: If true then async extraction optimization is enabled (default: true)
@@ -60,28 +60,32 @@ Note: as described in issue [#2475](https://github.com/falcosecurity/falco/issue
 
 **Open Parameters**:
 
-A string which contains the subscriber name for your Google PubSub topic (required).
+A string which contains the subscriber name for your Google Pub/Sub topic (required).
 
-### Setting up a Google PubSub topic and subscription
+### Setting up a Google Pub/Sub topic and subscription
 
-As Google supports publishing messages to a PubSub topic in a different Google project, the following setup with a single PubSub subscription is possible.
+A Pub/Sub topic and subscription can be created in the same Google project as your GKE cluster(s). If you run GKE clusters in different Google projects, this would mean deploying multiple Falco `k8saudit-gke` plugin instances, as the Falco `k8saudit-gke` plugin only supports a single subscription.
 
-PubSub setup:
-- create a PubSub topic (e.g. `falco-gke-audit-topic`) in a separate Google project from the projects containing your GKE clusters
-- create a subscription (e.g. `falco-gke-audit-sub`) to the PubSub topic created above
+Fortunately, Google supports publishing messages to a Pub/Sub topic in a different Google project. Hence it is possible to create a single Pub/Sub topic and subscription with log sinks from different projects routing log entries to it.
+
+Pub/Sub setup:
+- create a Pub/Sub topic (e.g. `falco-gke-audit-topic`), this can be in the same or in a different Google project as your GKE cluster(s)
+- create a subscription (e.g. `falco-gke-audit-sub`) to the Pub/Sub topic created above
 - create a service account and bind the iam role `roles/pubsub.subscriber`
 - provide the credentials file of this service account to the `k8saudit-gke` plugin
 
 Log Router Sinks setup (for each Google project containing GKE clusters):
 - create a logs routing sink (e.g. `falco-gke-audit-sink`) with the following options:
-  - destination: `pubsub.googleapis.com/<your PubSub topic>` (e.g. `pubsub.googleapis.com/<my-google-pubsub-project-id>/topics/falco-gke-audit-topic`)
+  - destination: `pubsub.googleapis.com/<your Pub/Sub topic>` (e.g. `pubsub.googleapis.com/<my-google-pubsub-project-id>/topics/falco-gke-audit-topic`)
   - filter: `logName=~"projects/.+/logs/cloudaudit.googleapis.com%2F(activity|data_access)" AND protoPayload.serviceName="k8s.io"`
   - exclusion filters (optional): e.g. `protoPayload.methodName="io.k8s.coordination.v1.leases.update"` (exclusion filters reduce the number of log entries send to Falco)
 - bind the iam role `roles/pubsub.publisher` to the log sink writer identity
 
+See the official Google [Pub/Sub documentation](https://cloud.google.com/pubsub/docs/overview) for additional information on how to set up Pub/Sub.
+
 ### Cluster resource labels and Google Container API permissions
 
-To fetch cluster metadata from the Google Container API (enabled with the `fetch_cluster_metadata` flag), the serviceaccount used by the `k8saudit-gke` plugin requires the iam rolebinding `roles/container.clusterViewer` for each Google project sending GKE auditlogs to the PubSub topic.
+To fetch cluster metadata from the Google Container API (enabled with the `fetch_cluster_metadata` flag), the serviceaccount used by the `k8saudit-gke` plugin requires the iam rolebinding `roles/container.clusterViewer` for each Google project sending GKE auditlogs to the Pub/Sub topic.
 
 The cluster resource labels are internally added to the `labels` field of the Google `LogEntry.resource` object. These labels in turn are added to the `annotations` field of the reconstructed Kubernetes `audit.k8s.io/v1/Event` object.
 
