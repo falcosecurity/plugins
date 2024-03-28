@@ -57,4 +57,5 @@ jobs:
     uses: ./.github/workflows/reusable-publish-oci-artifacts.yaml
     with:
       dev-tag: main
+      suffix: dev
     secrets: inherit
