@@ -274,7 +274,7 @@ Falco is configured to monitor changes to its configuration files, so there is n
 
 With everything configured, the last step is to test the GCP Audit Logs plugin.
 
-If you read the [plugin rules file](https://github.com/falcosecurity/plugins/blob/master/plugins/gcpaudit/rules/gcp_auditlog_rules.yaml), you will see that there are dozens of different rules that you could test, but to keep it simple we’ll repeat the same test we did earlier and create and delete a Pub/Sub topic. 
+If you read the [plugin rules file](https://github.com/falcosecurity/plugins/blob/main/plugins/gcpaudit/rules/gcp_auditlog_rules.yaml), you will see that there are dozens of different rules that you could test, but to keep it simple we’ll repeat the same test we did earlier and create and delete a Pub/Sub topic. 
 
 Since the VM you created to run Falco does not have `gcloud` installed, the easiest way to do this section is to create a second shell instance either back on your local machine or in Cloud Shell - wherever you originally ran the gcloud commands from.
 

@@ -2,7 +2,7 @@
 
 Using a unique `id` is mandatory to maintain interoperability across all plugins with _event sourcing_ capability. When a plugin is loaded by a compatible application (e.g., Falco), the `id` is used to route events to the correct plugin. Indeed, attempting to load two or more plugins using the same `id` will result in an error.
 
-For this reason, The Falco Project maintains a [public registry of plugins](https://github.com/falcosecurity/plugins/blob/master/README.md#registering-a-new-plugin), which allows the assignment of a unique `id` for your plugin. However, some plugins may not be registered in the public registry. For example, if you are privately developing a plugin for your own use, you might use any `id` you want. To avoid conflicts in these situations, this document mandates general rules regarding `id` assignment and reservation.
+For this reason, The Falco Project maintains a [public registry of plugins](https://github.com/falcosecurity/plugins/blob/main/README.md#registering-a-new-plugin), which allows the assignment of a unique `id` for your plugin. However, some plugins may not be registered in the public registry. For example, if you are privately developing a plugin for your own use, you might use any `id` you want. To avoid conflicts in these situations, this document mandates general rules regarding `id` assignment and reservation.
 
 ## ID Blocks
 
