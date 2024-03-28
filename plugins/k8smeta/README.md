@@ -96,7 +96,7 @@ The plugin doesn't have open params
 
 ### Rules
 
-This plugin doesn't provide any custom rule, you can use the default Falco ruleset and add the necessary `k8smeta` fields. A very simple example rule can be found [here](https://github.com/falcosecurity/plugins/blob/master/plugins/k8smeta/test/rules/example_rule.yaml)
+This plugin doesn't provide any custom rule, you can use the default Falco ruleset and add the necessary `k8smeta` fields. A very simple example rule can be found [here](https://github.com/falcosecurity/plugins/blob/main/plugins/k8smeta/test/rules/example_rule.yaml)
 
 ### Running
 
@@ -123,4 +123,4 @@ cmake ..
 make k8smeta -j10
 ```
 
-To run local tests follow the steps [here](https://github.com/falcosecurity/plugins/blob/master/plugins/k8smeta/test/README.md)
+To run local tests follow the steps [here](https://github.com/falcosecurity/plugins/blob/main/plugins/k8smeta/test/README.md)

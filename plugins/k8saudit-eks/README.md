@@ -3,7 +3,7 @@
 ## Introduction
 
 This plugin extends Falco to support [Kubernetes Audit Events](https://kubernetes.io/docs/tasks/debug-application-cluster/audit/#audit-backends) from AWS EKS clusters as a new data source.
-For more details about what Audit logs are, see the [README of k8saudit plugin](https://github.com/falcosecurity/plugins/blob/master/plugins/k8saudit/README.md).
+For more details about what Audit logs are, see the [README of k8saudit plugin](https://github.com/falcosecurity/plugins/blob/main/plugins/k8saudit/README.md).
 
 ### Functionality
 
@@ -11,7 +11,7 @@ This plugin supports consuming Kubernetes Audit Events stored in Cloudwatch Logs
 
 ## Capabilities
 
-The `k8saudit-eks` uses the field extraction methods of the [`k8saudit`](https://github.com/falcosecurity/plugins/tree/master/plugins/k8saudit) plugin as the format for the Audit Logs is same.
+The `k8saudit-eks` uses the field extraction methods of the [`k8saudit`](https://github.com/falcosecurity/plugins/tree/main/plugins/k8saudit) plugin as the format for the Audit Logs is same.
 
 ### Event Source
 
@@ -122,7 +122,7 @@ A string which contains the name of your EKS Cluster (required).
 
 ### Rules
 
-The `k8saudit-eks` plugin ships with no default rule for test purpose, you can use the same rules than those for `k8saudit` plugin. See [here](https://github.com/falcosecurity/plugins/blob/master/plugins/k8saudit/rules/k8s_audit_rules.yaml).
+The `k8saudit-eks` plugin ships with no default rule for test purpose, you can use the same rules than those for `k8saudit` plugin. See [here](https://github.com/falcosecurity/plugins/blob/main/plugins/k8saudit/rules/k8s_audit_rules.yaml).
 
 
 To test if it works anyway, you can still use this one for example:

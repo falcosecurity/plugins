@@ -1,9 +1,9 @@
 # Release Process
 
-Our release process is automated by a couple of GitHub Actions ([`Update Plugins-dev`](https://github.com/falcosecurity/plugins/blob/master/.github/workflows/push_master.yml) and [`Release Plugins`](https://github.com/falcosecurity/plugins/blob/master/.github/workflows/release.yml)). 
+Our release process is automated by a couple of GitHub Actions ([`Update Plugins-dev`](https://github.com/falcosecurity/plugins/blob/main/.github/workflows/main.yml) and [`Release Plugins`](https://github.com/falcosecurity/plugins/blob/main/.github/workflows/release.yml)). 
 
 The process publishes two types of releases:
-- **dev** builds: the process is fully automated, and it is triggered when changes are merged into `master` branch
+- **dev** builds: the process is fully automated, and it is triggered when changes are merged into `main` branch
 - **stable** builds: the process is automated, but it needs to be manually triggered by tagging a plugin with a release version (see the [section](#Stable-builds) below)
 
 Regardless of the type, if a plugin provides a ruleset, the ruleset is released, too, with the same version number. This may change in the future. Also, see [Versioning a rulset](https://github.com/falcosecurity/rules/blob/main/RELEASE.md#versioning-a-ruleset) guidelines before deciding the release version number.

@@ -121,4 +121,4 @@ The plugin can currently detect when the following types of secrets are committe
 - shopify_private_app_access_token
 - pypi_upload_token
 
-Adding a new secret detection is simply a matter of adding a new entry in the secretsChecks array in [secrets.go](https://github.com/falcosecurity/plugins/blob/master/plugins/github/pkg/github/secrets.go).
+Adding a new secret detection is simply a matter of adding a new entry in the secretsChecks array in [secrets.go](https://github.com/falcosecurity/plugins/blob/main/plugins/github/pkg/github/secrets.go).
