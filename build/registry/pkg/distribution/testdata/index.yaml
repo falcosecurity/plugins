@@ -17,7 +17,7 @@
   registry: ghcr.io
   repository: falcosecurity/plugins/plugin/cloudtrail
   description: Reads Cloudtrail JSON logs from files/S3 and injects as events
-  home: https://github.com/falcosecurity/plugins/tree/master/plugins/cloudtrail
+  home: https://github.com/falcosecurity/plugins/tree/main/plugins/cloudtrail
   keywords:
     - audit
     - user-activity
@@ -29,13 +29,13 @@
     - email: cncf-falco-dev@lists.cncf.io
       name: The Falco Authors
   sources:
-    - https://github.com/falcosecurity/plugins/tree/master/plugins/cloudtrail
+    - https://github.com/falcosecurity/plugins/tree/main/plugins/cloudtrail
 - name: cloudtrail-rules
   type: rulesfile
   registry: ghcr.io
   repository: falcosecurity/plugins/ruleset/cloudtrail
   description: Reads Cloudtrail JSON logs from files/S3 and injects as events
-  home: https://github.com/falcosecurity/plugins/tree/master/plugins/cloudtrail
+  home: https://github.com/falcosecurity/plugins/tree/main/plugins/cloudtrail
   keywords:
     - audit
     - user-activity
@@ -47,13 +47,13 @@
     - email: cncf-falco-dev@lists.cncf.io
       name: The Falco Authors
   sources:
-    - https://github.com/falcosecurity/plugins/tree/master/plugins/cloudtrail/rules
+    - https://github.com/falcosecurity/plugins/tree/main/plugins/cloudtrail/rules
 - name: dummy
   type: plugin
   registry: ghcr.io
   repository: falcosecurity/plugins/plugin/dummy
   description: Reference plugin used to document interface
-  home: https://github.com/falcosecurity/plugins/tree/master/plugins/dummy
+  home: https://github.com/falcosecurity/plugins/tree/main/plugins/dummy
   keywords:
     - dummy
   license: Apache-2.0
@@ -61,13 +61,13 @@
     - email: cncf-falco-dev@lists.cncf.io
       name: The Falco Authors
   sources:
-    - https://github.com/falcosecurity/plugins/tree/master/plugins/dummy
+    - https://github.com/falcosecurity/plugins/tree/main/plugins/dummy
 - name: dummy_c
   type: plugin
   registry: ghcr.io
   repository: falcosecurity/plugins/plugin/dummy_c
   description: Like dummy, but written in C++
-  home: https://github.com/falcosecurity/plugins/tree/master/plugins/dummy_c
+  home: https://github.com/falcosecurity/plugins/tree/main/plugins/dummy_c
   keywords:
     - dummy_c
   license: Apache-2.0
@@ -75,7 +75,7 @@
     - email: cncf-falco-dev@lists.cncf.io
       name: The Falco Authors
   sources:
-    - https://github.com/falcosecurity/plugins/tree/master/plugins/dummy_c
+    - https://github.com/falcosecurity/plugins/tree/main/plugins/dummy_c
 - name: falco-rules
   type: rulesfile
   registry: ghcr.io
@@ -95,7 +95,7 @@
   registry: ghcr.io
   repository: falcosecurity/plugins/plugin/github
   description: Github Webhook Events
-  home: https://github.com/falcosecurity/plugins/tree/master/plugins/github
+  home: https://github.com/falcosecurity/plugins/tree/main/plugins/github
   keywords:
     - audit
     - log-events
@@ -107,13 +107,13 @@
     - email: cncf-falco-dev@lists.cncf.io
       name: The Falco Authors
   sources:
-    - https://github.com/falcosecurity/plugins/tree/master/plugins/github
+    - https://github.com/falcosecurity/plugins/tree/main/plugins/github
 - name: github-rules
   type: rulesfile
   registry: ghcr.io
   repository: falcosecurity/plugins/ruleset/github
   description: Github Webhook Events
-  home: https://github.com/falcosecurity/plugins/tree/master/plugins/github
+  home: https://github.com/falcosecurity/plugins/tree/main/plugins/github
   keywords:
     - audit
     - log-events
@@ -126,13 +126,13 @@
     - email: cncf-falco-dev@lists.cncf.io
       name: The Falco Authors
   sources:
-    - https://github.com/falcosecurity/plugins/tree/master/plugins/github/rules
+    - https://github.com/falcosecurity/plugins/tree/main/plugins/github/rules
 - name: json
   type: plugin
   registry: ghcr.io
   repository: falcosecurity/plugins/plugin/json
   description: Extract values from any JSON payload
-  home: https://github.com/falcosecurity/plugins/tree/master/plugins/json
+  home: https://github.com/falcosecurity/plugins/tree/main/plugins/json
   keywords:
     - json-events
     - json-payload
@@ -143,13 +143,13 @@
     - email: cncf-falco-dev@lists.cncf.io
       name: The Falco Authors
   sources:
-    - https://github.com/falcosecurity/plugins/tree/master/plugins/json
+    - https://github.com/falcosecurity/plugins/tree/main/plugins/json
 - name: k8saudit
   type: plugin
   registry: ghcr.io
   repository: falcosecurity/plugins/plugin/k8saudit
   description: Read Kubernetes Audit Events and monitor Kubernetes Clusters
-  home: https://github.com/falcosecurity/plugins/tree/master/plugins/k8saudit
+  home: https://github.com/falcosecurity/plugins/tree/main/plugins/k8saudit
   keywords:
     - audit
     - audit-log
@@ -161,13 +161,13 @@
     - email: cncf-falco-dev@lists.cncf.io
       name: The Falco Authors
   sources:
-    - https://github.com/falcosecurity/plugins/tree/master/plugins/k8saudit
+    - https://github.com/falcosecurity/plugins/tree/main/plugins/k8saudit
 - name: k8saudit-eks
   type: plugin
   registry: ghcr.io
   repository: falcosecurity/plugins/plugin/k8saudit-eks
   description: Read Kubernetes Audit Events from AWS EKS Clusters
-  home: https://github.com/falcosecurity/plugins/tree/master/plugins/k8saudit-eks
+  home: https://github.com/falcosecurity/plugins/tree/main/plugins/k8saudit-eks
   keywords:
     - audit
     - audit-log
@@ -179,13 +179,13 @@
   license: Apache-2.0
   maintainers: []
   sources:
-    - https://github.com/falcosecurity/plugins/tree/master/plugins/k8saudit-eks
+    - https://github.com/falcosecurity/plugins/tree/main/plugins/k8saudit-eks
 - name: k8saudit-rules
   type: rulesfile
   registry: ghcr.io
   repository: falcosecurity/plugins/ruleset/k8saudit
   description: Read Kubernetes Audit Events and monitor Kubernetes Clusters
-  home: https://github.com/falcosecurity/plugins/tree/master/plugins/k8saudit
+  home: https://github.com/falcosecurity/plugins/tree/main/plugins/k8saudit
   keywords:
     - audit
     - audit-log
@@ -197,20 +197,20 @@
     - email: cncf-falco-dev@lists.cncf.io
       name: The Falco Authors
   sources:
-    - https://github.com/falcosecurity/plugins/tree/master/plugins/k8saudit/rules
+    - https://github.com/falcosecurity/plugins/tree/main/plugins/k8saudit/rules
 - name: okta
   type: plugin
   registry: ghcr.io
   repository: falcosecurity/plugins/plugin/okta
   signature:
     cosign:
-        certificate-oidc-issuer: https://token.actions.githubusercontent.com
-        certificate-oidc-issuer-regexp: ""
-        certificate-identity: ""
-        certificate-identity-regexp: https://github.com/LucaGuerra/cool-falco-ruleset/
-        certificate-github-workflow: ""
+      certificate-oidc-issuer: https://token.actions.githubusercontent.com
+      certificate-oidc-issuer-regexp: ""
+      certificate-identity: ""
+      certificate-identity-regexp: https://github.com/LucaGuerra/cool-falco-ruleset/
+      certificate-github-workflow: ""
   description: Okta Log Events
-  home: https://github.com/falcosecurity/plugins/tree/master/plugins/okta
+  home: https://github.com/falcosecurity/plugins/tree/main/plugins/okta
   keywords:
     - audit
     - log-events
@@ -220,20 +220,20 @@
     - email: cncf-falco-dev@lists.cncf.io
       name: The Falco Authors
   sources:
-    - https://github.com/falcosecurity/plugins/tree/master/plugins/okta
+    - https://github.com/falcosecurity/plugins/tree/main/plugins/okta
 - name: okta-rules
   type: rulesfile
   registry: ghcr.io
   repository: falcosecurity/plugins/ruleset/okta
   signature:
     cosign:
-        certificate-oidc-issuer: https://token.actions.githubusercontent.com
-        certificate-oidc-issuer-regexp: ""
-        certificate-identity: ""
-        certificate-identity-regexp: https://github.com/LucaGuerra/cool-falco-ruleset/
-        certificate-github-workflow: ""
+      certificate-oidc-issuer: https://token.actions.githubusercontent.com
+      certificate-oidc-issuer-regexp: ""
+      certificate-identity: ""
+      certificate-identity-regexp: https://github.com/LucaGuerra/cool-falco-ruleset/
+      certificate-github-workflow: ""
   description: Okta Log Events
-  home: https://github.com/falcosecurity/plugins/tree/master/plugins/okta
+  home: https://github.com/falcosecurity/plugins/tree/main/plugins/okta
   keywords:
     - audit
     - log-events
@@ -244,4 +244,4 @@
     - email: cncf-falco-dev@lists.cncf.io
       name: The Falco Authors
   sources:
-    - https://github.com/falcosecurity/plugins/tree/master/plugins/okta/rules
+    - https://github.com/falcosecurity/plugins/tree/main/plugins/okta/rules
