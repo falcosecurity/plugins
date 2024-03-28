@@ -60,7 +60,7 @@ jobs:
           REGISTRY_UPDATE_STATUS=$(./bin/registry update-oci-registry \
              ../../registry.yaml \
              --plugins-amd64-path /tmp/plugins-x86_64 \
-             --plugins-arm64-path /tmp/plugins-aarch64
+             --plugins-arm64-path /tmp/plugins-aarch64 \
              --rulesfiles-path /tmp/plugins-x86_64 \
              --dev-tag ${{ inputs.dev-tag }}
           )
