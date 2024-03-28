@@ -44,8 +44,8 @@ plugins:
       - audit-log
       - audit-events
       - kubernetes
-    url: https://github.com/falcosecurity/plugins/tree/master/plugins/k8saudit
-    rules_url: https://github.com/falcosecurity/plugins/tree/master/plugins/k8saudit/rules
+    url: https://github.com/falcosecurity/plugins/tree/main/plugins/k8saudit
+    rules_url: https://github.com/falcosecurity/plugins/tree/main/plugins/k8saudit/rules
     license: Apache-2.0
     signature:
       cosign:
@@ -70,8 +70,8 @@ plugins:
       - user-activity
       - api-usage
       - aws
-    url: https://github.com/falcosecurity/plugins/tree/master/plugins/cloudtrail
-    rules_url: https://github.com/falcosecurity/plugins/tree/master/plugins/cloudtrail/rules
+    url: https://github.com/falcosecurity/plugins/tree/main/plugins/cloudtrail
+    rules_url: https://github.com/falcosecurity/plugins/tree/main/plugins/cloudtrail/rules
     license: Apache-2.0
     signature:
       cosign:
@@ -95,7 +95,7 @@ plugins:
       - json-events
       - json-payload
       - extractor
-    url: https://github.com/falcosecurity/plugins/tree/master/plugins/json
+    url: https://github.com/falcosecurity/plugins/tree/main/plugins/json
     license: Apache-2.0
     signature:
       cosign:
@@ -111,7 +111,7 @@ plugins:
     maintainers:
       - name: The Falco Authors
         email: cncf-falco-dev@lists.cncf.io
-    url: https://github.com/falcosecurity/plugins/tree/master/plugins/dummy
+    url: https://github.com/falcosecurity/plugins/tree/main/plugins/dummy
     license: Apache-2.0
     capabilities:
       sourcing:
@@ -127,7 +127,7 @@ plugins:
     maintainers:
       - name: The Falco Authors
         email: cncf-falco-dev@lists.cncf.io
-    url: https://github.com/falcosecurity/plugins/tree/master/plugins/dummy_c
+    url: https://github.com/falcosecurity/plugins/tree/main/plugins/dummy_c
     license: Apache-2.0
     capabilities:
       sourcing:
@@ -182,8 +182,8 @@ plugins:
       - audit
       - log-events
       - okta
-    url: https://github.com/falcosecurity/plugins/tree/master/plugins/okta
-    rules_url: https://github.com/falcosecurity/plugins/tree/master/plugins/okta/rules
+    url: https://github.com/falcosecurity/plugins/tree/main/plugins/okta
+    rules_url: https://github.com/falcosecurity/plugins/tree/main/plugins/okta/rules
     license: Apache-2.0
     signature:
       cosign:
@@ -209,8 +209,8 @@ plugins:
       - webhook
       - github-activity
       - github
-    url: https://github.com/falcosecurity/plugins/tree/master/plugins/github
-    rules_url: https://github.com/falcosecurity/plugins/tree/master/plugins/github/rules
+    url: https://github.com/falcosecurity/plugins/tree/main/plugins/github
+    rules_url: https://github.com/falcosecurity/plugins/tree/main/plugins/github/rules
     license: Apache-2.0
     signature:
       cosign:
@@ -227,8 +227,8 @@ plugins:
     description: Read Kubernetes Audit Events from AWS EKS Clusters
     authors: The Falco Authors
     contact: https://falco.org/community
-    url: https://github.com/falcosecurity/plugins/tree/master/plugins/k8saudit-eks
-    rules_url: https://github.com/falcosecurity/plugins/tree/master/plugins/k8saudit/rules
+    url: https://github.com/falcosecurity/plugins/tree/main/plugins/k8saudit-eks
+    rules_url: https://github.com/falcosecurity/plugins/tree/main/plugins/k8saudit/rules
     license: Apache-2.0
     signature:
       cosign:
@@ -240,7 +240,7 @@ plugins:
       - audit-events
       - kubernetes
       - eks
-      - aws    
+      - aws
     capabilities:
       sourcing:
         supported: true
@@ -300,8 +300,8 @@ plugins:
       - audit-log
       - audit-events
       - gcp
-    url: https://github.com/falcosecurity/plugins/tree/master/plugins/gcpaudit
-    rules_url: https://github.com/falcosecurity/plugins/tree/master/plugins/gcpaudit/rules
+    url: https://github.com/falcosecurity/plugins/tree/main/plugins/gcpaudit
+    rules_url: https://github.com/falcosecurity/plugins/tree/main/plugins/gcpaudit/rules
     license: Apache-2.0
     signature:
       cosign:
@@ -334,7 +334,7 @@ plugins:
       extraction:
         supported: true
   - name: salesforce
-    description: Falco plugin providing basic runtime threat detection and auditing logging for Salesforce 
+    description: Falco plugin providing basic runtime threat detection and auditing logging for Salesforce
     authors: Andy
     contact: https://github.com/an1245/falco-plugin-salesforce/issues
     maintainers:
@@ -354,7 +354,7 @@ plugins:
       extraction:
         supported: true
   - name: box
-    description: Falco plugin providing basic runtime threat detection and auditing logging for Box 
+    description: Falco plugin providing basic runtime threat detection and auditing logging for Box
     authors: Andy
     contact: https://github.com/an1245/falco-plugin-box/issues
     maintainers:
@@ -392,7 +392,7 @@ plugins:
       - kubernetes
       - syscall
       - extractor
-    url: https://github.com/falcosecurity/plugins/tree/master/plugins/k8smeta
+    url: https://github.com/falcosecurity/plugins/tree/main/plugins/k8smeta
     license: Apache-2.0
     signature:
       cosign:
@@ -406,8 +406,8 @@ plugins:
     description: Read Kubernetes Audit Events from GKE Clusters
     authors: The Falco Authors
     contact: https://falco.org/community
-    url: https://github.com/falcosecurity/plugins/tree/master/plugins/k8saudit-gke
-    rules_url: https://github.com/falcosecurity/plugins/tree/master/plugins/k8saudit-gke/rules
+    url: https://github.com/falcosecurity/plugins/tree/main/plugins/k8saudit-gke
+    rules_url: https://github.com/falcosecurity/plugins/tree/main/plugins/k8saudit-gke/rules
     license: Apache-2.0
     signature:
       cosign:
@@ -418,7 +418,7 @@ plugins:
       - audit-log
       - audit-events
       - kubernetes
-      - gke    
+      - gke
     capabilities:
       sourcing:
         supported: true
