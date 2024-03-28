@@ -257,6 +257,7 @@ plugins:
     keywords:
       - audit
       - audit-events
+      - hashicorp
       - nomad
     url: https://github.com/albertollamaso/nomad-plugin/tree/main
     rules_url: https://github.com/albertollamaso/nomad-plugin/tree/main/rules
@@ -371,6 +372,25 @@ plugins:
         supported: true
         id: 15
         source: box
+      extraction:
+        supported: true
+  - name: hashicorp-vault
+    description: Read Hashicorp Vault Events Stream
+    authors: The Falco Authors
+    contact: https://github.com/falcosecurity/plugins/tree/master/plugins/k8saudit-eks
+    keywords:
+      - audit
+      - audit-events
+      - hashicorp
+      - vault
+    url: https://github.com/falcosecurity/plugins/tree/master/plugins/hashicorp-vault
+    rules_url: https://github.com/falcosecurity/plugins/tree/master/plugins/hashicorp-vault/rules
+    license: Apache-2.0
+    capabilities:
+      sourcing:
+        supported: true
+        id: 16
+        source: hashicorpvault
       extraction:
         supported: true
   - name: test
