@@ -62,8 +62,8 @@ jobs:
       suffix: stable
     secrets: inherit
 
-  publish-oci-artifacts-dev:
-    needs: [ build-plugins-dev, validate-plugins ]
+  publish-oci-artifacts:
+    needs: [ build-plugins, validate-plugins ]
     uses: ./.github/workflows/reusable-publish-oci-artifacts.yaml
     with:
       suffix: stable
