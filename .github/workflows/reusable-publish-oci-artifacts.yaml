@@ -5,6 +5,10 @@ on:
         description: The tag used for oci artifacts published from the main branch.
         required: false
         type: string
+      suffix:
+        description: Suffix for uploading packages (dev or stable)
+        required: true
+        type: string
 
 jobs:
   publish-oci-artifacts:
