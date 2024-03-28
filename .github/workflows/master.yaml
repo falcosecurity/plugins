@@ -2,17 +2,17 @@ name: Update Plugins-dev
 
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
   workflow_dispatch:
 
-# Checks if any concurrent jobs is already being executed for master and cancel it.
+# Checks if any concurrent jobs is already being executed for main and cancel it.
 concurrency:
-  group: ci-master
+  group: ci-main
   cancel-in-progress: true
 
 jobs:
   build-plugins-dev:
-    uses: falcosecurity/plugins/.github/workflows/reusable_build_packages.yaml@master
+    uses: falcosecurity/plugins/.github/workflows/reusable_build_packages.yaml@main
     with:
       makecommand: make packages -j4
       suffix: dev
@@ -47,7 +47,7 @@ jobs:
     
   publish-plugins-dev:
     needs: [build-plugins-dev, validate-plugins]
-    uses: falcosecurity/plugins/.github/workflows/reusable_publish_packages.yaml@master
+    uses: falcosecurity/plugins/.github/workflows/reusable_publish_packages.yaml@main
     with:
       suffix: dev
     secrets: inherit

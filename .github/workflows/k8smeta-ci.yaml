@@ -1,11 +1,11 @@
 name: Build K8smeta plugin
 on:
   pull_request:
-    branches: [ master ]
+    branches: [ main ]
     paths:
         - 'plugins/k8smeta/**'
   push:
-    branches: [ master ]
+    branches: [ main ]
     paths:
         - 'plugins/k8smeta/**'
   workflow_dispatch:
