@@ -1,11 +1,11 @@
 name: Build dummy_c plugin
 on:
   pull_request:
-    branches: [ master ]
+    branches: [ main ]
     paths:
         - 'plugins/dummy_c/**'
   push:
-    branches: [ master ]
+    branches: [ main  ]
     paths:
         - 'plugins/dummy_c/**'
   workflow_dispatch:

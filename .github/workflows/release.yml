@@ -31,7 +31,7 @@ jobs:
 
   build-plugins:
     needs: extract-info
-    uses: falcosecurity/plugins/.github/workflows/reusable_build_packages.yaml@master
+    uses: falcosecurity/plugins/.github/workflows/reusable_build_packages.yaml@main
     with:
       makecommand: make release/${{ needs.extract-info.outputs.package }} -j4
       suffix: stable
@@ -57,7 +57,7 @@ jobs:
 
   publish-plugins:
     needs: [build-plugins, validate-plugins]
-    uses: falcosecurity/plugins/.github/workflows/reusable_publish_packages.yaml@master
+    uses: falcosecurity/plugins/.github/workflows/reusable_publish_packages.yaml@main
     with:
       suffix: stable
     secrets: inherit

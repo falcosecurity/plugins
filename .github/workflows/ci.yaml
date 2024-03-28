@@ -2,7 +2,7 @@ name: Build Plugins PR
 
 on:
   pull_request:
-    branches: [ master ]
+    branches: [ main ]
 
 # Checks if any concurrent jobs under the same pull request or branch are being executed
 # NOTE: this will cancel every workflow that is being ran against a PR as group is just the github ref (without the workflow name)
