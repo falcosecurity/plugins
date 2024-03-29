@@ -68,6 +68,11 @@ A Pub/Sub topic and subscription can be created in the same Google project as yo
 
 Fortunately, Google supports publishing messages to a Pub/Sub topic in a different Google project. Hence it is possible to create a single Pub/Sub topic and subscription with log sinks from different projects routing log entries to it.
 
+In case a single Falco `k8saudit-gke` plugin instance is not able to handle your audit log volume, you can use the following Pub/Sub publish and subscribe [patterns](https://cloud.google.com/pubsub/docs/pubsub-basics#choose_a_publish_and_subscribe_pattern) (or a combination of them):
+1) create multiple topics (e.g. one per Google project or GKE cluster) and corresponding subscriptions
+2) create a single topic and multiple subscriptions with different [message filters](https://cloud.google.com/pubsub/docs/subscription-message-filter)
+3) use multiple Falco `k8saudit-gke` plugin instances with a single subscription by enabling [exactly-once delivery](https://cloud.google.com/pubsub/docs/exactly-once-delivery). Only supported within a single cloud region.
+
 Pub/Sub setup:
 - create a Pub/Sub topic (e.g. `falco-gke-audit-topic`), this can be in the same or in a different Google project as your GKE cluster(s)
 - create a subscription (e.g. `falco-gke-audit-sub`) to the Pub/Sub topic created above
