@@ -26,12 +26,7 @@ When we release, we do the following process:
 
 1. When changes are introduced to a plugin (i.e. a PR gets merged) and its version has been bumped, we choose the git tag based on the above convention
 2. A person with repository rights [creates a new release](https://github.com/falcosecurity/plugins/releases) from the GitHub UI
-3. Once the CI has done its job, the tag is live on [Github](https://github.com/falcosecurity/plugins/releases), and the plugin package is published at [download.falco.org](https://download.falco.org/?prefix=plugins/stable)
-
-### Publish OCI artifacts
-
-After releasing one or more plugins in a row, we manually run the [Update OCI Artifacts](https://github.com/falcosecurity/plugins/actions/workflows/upload-oci-artifacts.yaml) workflow in GitHub action. The CI job will check for the latest versions and build and publish the corresponding OCI artifacts.
-
-**Important note**: *This is a manual process to have room to roll back a plugin release. A step that allows manual double-checking is crucial until we have a proper e2e testing suite to ensure our releases do not break users' installations (users may have activated the automatic artifact updating feature provided by falcoctl)*.
-
-
+3. Once the CI has done its job:
+   1. the tag is live on [Github](https://github.com/falcosecurity/plugins/releases);
+   2. the plugin package is published at [download.falco.org](https://download.falco.org/?prefix=plugins/stable);
+   3. the OCI artifact is published at [ghcr.io](https://github.com/orgs/falcosecurity/packages).
