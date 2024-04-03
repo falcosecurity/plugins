@@ -227,6 +227,9 @@ plugins:
     description: Read Kubernetes Audit Events from AWS EKS Clusters
     authors: The Falco Authors
     contact: https://falco.org/community
+    maintainers:
+      - name: The Falco Authors
+        email: cncf-falco-dev@lists.cncf.io
     url: https://github.com/falcosecurity/plugins/tree/main/plugins/k8saudit-eks
     rules_url: https://github.com/falcosecurity/plugins/tree/main/plugins/k8saudit/rules
     license: Apache-2.0
@@ -406,6 +409,9 @@ plugins:
     description: Read Kubernetes Audit Events from GKE Clusters
     authors: The Falco Authors
     contact: https://falco.org/community
+    maintainers:
+      - name: The Falco Authors
+        email: cncf-falco-dev@lists.cncf.io
     url: https://github.com/falcosecurity/plugins/tree/main/plugins/k8saudit-gke
     rules_url: https://github.com/falcosecurity/plugins/tree/main/plugins/k8saudit-gke/rules
     license: Apache-2.0
