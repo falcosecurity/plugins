@@ -26,6 +26,8 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins"
+
 	"github.com/falcosecurity/plugins/build/registry/pkg/common"
 
 	"github.com/blang/semver"
@@ -198,6 +200,7 @@ func handlePlugin(ctx context.Context, cfg *config, plugin *registry.Plugin, oci
 	var err error
 	var filepaths, platforms, tags []string
 	var version string
+	var infoP *plugins.Info
 
 	// Build the reference for the artifact.
 	ref := refFromPluginEntry(cfg, plugin, false)
@@ -212,6 +215,18 @@ func handlePlugin(ctx context.Context, cfg *config, plugin *registry.Plugin, oci
 	}
 
 	if amd64Build != "" {
+		if infoP, err = pluginInfo(filepath.Join(pluginsAMD64, amd64Build)); err != nil {
+			return nil, err
+		}
+
+		// Check that the plugin has the same name as the one we got from the registry.yaml.
+		// If not, we skip it. It could happen that plugins share the same prefix, example k8saudit, k8saudit-gke.
+		if infoP.Name != plugin.Name {
+			// buildName func returned a wrong path starting from the plugin name found in registry.yaml.
+			klog.Warningf("skipping plugin since there is a mismatch in plugin name (%q) and plugin info name(%q)", plugin.Name, infoP.Name)
+			return nil, nil
+		}
+
 		filepaths = append(filepaths, filepath.Join(pluginsAMD64, amd64Build))
 		platforms = append(platforms, amd64Platform)
 	}
@@ -242,24 +257,15 @@ func handlePlugin(ctx context.Context, cfg *config, plugin *registry.Plugin, oci
 		return nil, err
 	}
 
-	// current platform where the CI is running.
-	platform := currentPlatform()
-	for i, p := range platforms {
-		// We need to get the plugin that have been built for the same platform as the one where we are loading it.
-		if p == platform {
-			configLayer, err = pluginConfig(plugin.Name, version, filepaths[i])
-			if err != nil {
-				klog.Errorf("unable to generate config file: %v", err)
-				return nil, err
-			}
-			break
-		}
-		continue
+	if infoP == nil {
+		klog.Warningf("no config layer generated for plugin %q: the plugins has not been build for the current platform %q", plugin.Name, currentPlatform())
+		return nil, nil
 	}
 
-	if configLayer == nil {
-		klog.Warningf("no config layer generated for plugin %q: the plugins has not been build for the current platform %q", plugin.Name, platform)
-		return nil, nil
+	configLayer, err = pluginConfig(plugin.Name, version, infoP)
+	if err != nil {
+		klog.Errorf("unable to generate config file: %v", err)
+		return nil, err
 	}
 
 	klog.Infof("pushing plugin to remote repo with ref %q and tags %q", ref, tags)

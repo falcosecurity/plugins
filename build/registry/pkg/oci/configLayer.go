@@ -23,6 +23,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/falcosecurity/plugin-sdk-go/pkg/loader"
+	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins"
+
 	"github.com/falcosecurity/falcoctl/pkg/oci"
 	"github.com/falcosecurity/plugins/build/registry/pkg/common"
 )
@@ -78,7 +81,25 @@ func rulesfileConfig(name, version, filePath string) (*oci.ArtifactConfig, error
 	return cfg, nil
 }
 
-func pluginConfig(name, version, filePath string) (*oci.ArtifactConfig, error) {
+func pluginConfig(name, version string, pluginInfo *plugins.Info) (*oci.ArtifactConfig, error) {
+	// Check that the name we got from the registry.yaml is the same as the embedded one in the plugin at build time.
+	if name != pluginInfo.Name {
+		return nil, fmt.Errorf("mismatch between name in registry.yaml (%q) and name found in plugin shared object (%q)", name, pluginInfo.Name)
+	}
+
+	cfg := &oci.ArtifactConfig{
+		Name:         name,
+		Version:      version,
+		Dependencies: nil,
+		Requirements: nil,
+	}
+
+	_ = cfg.SetRequirement(common.PluginAPIVersion, pluginInfo.RequiredAPIVersion)
+
+	return cfg, nil
+}
+
+func pluginInfo(filePath string) (*plugins.Info, error) {
 	// Create temp dir.
 	tmpDir, err := os.MkdirTemp("", "registry-oci-")
 	if err != nil {
@@ -90,32 +111,18 @@ func pluginConfig(name, version, filePath string) (*oci.ArtifactConfig, error) {
 		return nil, err
 	}
 
-	cfg := &oci.ArtifactConfig{
-		Name:         name,
-		Version:      version,
-		Dependencies: nil,
-		Requirements: nil,
-	}
-
 	for _, file := range files {
 		// skip files that are not a shared library such as README files.
 		if !strings.HasSuffix(file, ".so") {
 			continue
 		}
-		// Get the requirement for the given file.
-		req, err := pluginRequirement(file)
-		if err != nil && !errors.Is(err, ErrReqNotFound) {
-			return nil, err
+		// Get the plugin info.
+		plugin, err := loader.NewPlugin(file)
+		if err != nil {
+			return nil, fmt.Errorf("unable to open plugin %q: %w", file, err)
 		}
-		// If found add it to the requirements list.
-		if err == nil {
-			_ = cfg.SetRequirement(req.Name, req.Version)
-		}
+		return plugin.Info(), nil
 	}
 
-	if cfg.Requirements == nil {
-		return nil, fmt.Errorf("no requirements found for plugin %q", filePath)
-	}
-
-	return cfg, nil
+	return nil, fmt.Errorf("no plugin found in archive %q", filePath)
 }
