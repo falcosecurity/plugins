@@ -27,7 +27,6 @@ import (
 
 	"github.com/blang/semver"
 	"github.com/falcosecurity/falcoctl/pkg/oci"
-	"github.com/falcosecurity/plugin-sdk-go/pkg/loader"
 	"github.com/falcosecurity/plugins/build/registry/pkg/common"
 )
 
@@ -85,19 +84,5 @@ func rulesfileRequirement(filePath string) (*oci.ArtifactRequirement, error) {
 	return &oci.ArtifactRequirement{
 		Name:    common.EngineVersionKey,
 		Version: reqVer.String(),
-	}, nil
-}
-
-// pluginRequirement given a plugin as a shared library it loads it and gets the api version
-// required by the plugin.
-func pluginRequirement(filePath string) (*oci.ArtifactRequirement, error) {
-	plugin, err := loader.NewPlugin(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("unable to open plugin %q: %w", filePath, err)
-	}
-
-	return &oci.ArtifactRequirement{
-		Name:    common.PluginAPIVersion,
-		Version: plugin.Info().RequiredAPIVersion,
 	}, nil
 }
