@@ -82,6 +82,7 @@ These comments and the text between them should not be edited by hand -->
 | test | **Event Sourcing** <br/>ID: 999 <br/>`test` | This ID is reserved for source plugin development. Any plugin author can use this ID, but authors can expect events from other developers with this ID. After development is complete, the author should request an actual ID  <br/><br/> Authors: N/A <br/> License: N/A |
 | [k8smeta](https://github.com/falcosecurity/plugins/tree/main/plugins/k8smeta) | **Field Extraction** <br/> `syscall` | Enriche Falco syscall flow with Kubernetes Metadata  <br/><br/> Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
 | [k8saudit-gke](https://github.com/falcosecurity/plugins/tree/main/plugins/k8saudit-gke) | **Event Sourcing** <br/>ID: 16 <br/>`k8s_audit` <br/>**Field Extraction** <br/> `k8s_audit` | Read Kubernetes Audit Events from GKE Clusters  <br/><br/> Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
+| [journald](https://github.com/gnosek/falco-journald-plugin) | **Event Sourcing** <br/>ID: 17 <br/>`journal` <br/>**Field Extraction** <br/> `journal` | Read Journald events into Falco  <br/><br/> Authors: [Grzegorz Nosek](https://github.com/gnosek/falco-journald-plugin) <br/> License: Apache-2.0 |
 
 <!-- REGISTRY:TABLE -->
 
