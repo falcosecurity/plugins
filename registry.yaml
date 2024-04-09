@@ -432,3 +432,22 @@ plugins:
         source: k8s_audit
       extraction:
         supported: true
+  - name: journald
+    description: Read Journald events into Falco
+    authors: Grzegorz Nosek
+    contact: https://github.com/gnosek/falco-journald-plugin
+    maintainers:
+      - name: Grzegorz Nosek
+    url: https://github.com/gnosek/falco-journald-plugin
+    license: Apache-2.0
+    keywords:
+      - syslog
+      - systemd
+      - journald
+    capabilities:
+      sourcing:
+        supported: true
+        id: 17
+        source: journal
+      extraction:
+        supported: true
