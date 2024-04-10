@@ -20,7 +20,7 @@
 
 - required_plugin_versions:
   - name: gcpaudit
-    version: 0.3.0
+    version: 0.3.1
   - name: json
     version: 0.7.0
 
