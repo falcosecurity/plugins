@@ -15,9 +15,9 @@ Artifacts will be published at https://download.falco.org/?prefix=plugins/. For 
 
 Since the *plugins* repository is a [monorepo](https://en.wikipedia.org/wiki/Monorepo), we introduced a special convention for tagging release versions, so that we can differentiate among plugins. Git tag MUST respect the following format:
 
-*name*-*version*
+*plugins*/**name**/*v***version** e.x: plugins/cloudtrail/v1.2.3
 
-Where *name* is the plugin name (must match a folder under [./plugins](./plugins)) and *version* is the plugin version to be released (must match the version string declared by the plugin).
+Where **name** is the plugin name (must match a folder under [./plugins](./plugins)) and **version** is the plugin version to be released (must match the version string declared by the plugin).
 
 
 ## Release a plugin (stable build only)

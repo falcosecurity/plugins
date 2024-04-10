@@ -163,13 +163,18 @@ func main() {
 		var hash string
 
 		// get last tag
-		tags, err := git("describe", "--tags", "--abbrev=0", "--match", name+`-[0-9].[0-9].[0-9]*`)
+		// It matches the old tag in "pluginName-version" or the new one "plugins/pluginName/semver"
+		tags, err := git("describe", "--tags", "--abbrev=0", "--match", name+`-[0-9]*`, "--match", "plugins/"+name+"/v*")
 		if err == nil {
 			if len(tags) == 0 {
 				fail(errors.New("no git tag found for: " + name))
 			}
 			lastTag := tags[0]
-			lastVer = strings.Replace(lastTag, name+"-", "", 1)
+			if strings.HasPrefix(lastTag, name) {
+				lastVer = strings.Replace(lastTag, name+"-", "", 1)
+			} else {
+				lastVer = strings.Replace(lastTag, "plugins/"+name+"/v", "", 1)
+			}
 			if !rgxVersion.MatchString(lastVer) {
 				fail(errors.New("plugin latest released version not compatible with SemVer: " + lastTag))
 			}
@@ -200,7 +205,7 @@ func main() {
 
 	} else {
 		// stable versions MUST have a precise tag matching plugin name and version
-		expectedTag := name + "-" + version
+		expectedTag := "plugins/" + name + "/v" + version
 		tags, err := git("--no-pager", "tag", "--points-at", "HEAD")
 		if err != nil {
 			fail(err)
