@@ -18,14 +18,13 @@ jobs:
       package: ${{ steps.regex-match.outputs.group1 }}
       
     steps:
-      - name: Extract semver ℹ️
+      - name: Validate tag ℹ️
         uses: actions-ecosystem/action-regex-match@v2
-        id: regex-match
         with:
           text: ${{ github.ref_name }}
-          regex: '^([a-z]+[a-z0-9_\-]*)-(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?$'
-          
-      - name: Fail on non semver tag
+          regex: '^plugins\/([a-z0-9_-]+)\/v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$'
+
+      - name: Fail on invalid tag
         if: steps.regex-match.outputs.match == ''
         run: exit 1
 
