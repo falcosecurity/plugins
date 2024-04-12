@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /*
-Copyright (C) 2023 The Falco Authors.
+Copyright (C) 2024 The Falco Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ const (
 	PluginName               = "dummy"
 	PluginDescription        = "Reference plugin for educational purposes"
 	PluginContact            = "github.com/falcosecurity/plugins"
-	PluginVersion            = "0.11.1"
+	PluginVersion            = "0.11.2"
 	PluginEventSource        = "dummy"
 )
 
