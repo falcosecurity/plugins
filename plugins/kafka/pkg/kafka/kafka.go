@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	PluginID          uint32 = 999
+	PluginID          uint32 = 18
 	PluginName               = "kafka"
 	PluginDescription        = "Kafka consumer for Falco"
 	PluginContact            = "github.com/ibm/falco-kafka"

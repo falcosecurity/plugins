@@ -451,3 +451,30 @@ plugins:
         source: journal
       extraction:
         supported: true
+  - name: kafka
+    description: |
+      Read events from Kafka topics into Falco
+    authors: Hunter Madison
+    contact: https://falco.org/community
+    maintainers:
+      - name: The Falco Authors
+        email: cncf-falco-dev@lists.cncf.io
+      - name: Hunter Madison
+        email: Hunter.Madison@ibm.com
+    keywords:
+      - events
+      - kafka
+    url: https://github.com/falcosecurity/plugins/tree/main/plugins/kafka
+    rules_url: https://github.com/falcosecurity/plugins/tree/main/plugins/kafka/rules
+    license: Apache-2.0
+    signature:
+      cosign:
+        certificate-oidc-issuer: https://token.actions.githubusercontent.com
+        certificate-identity-regexp: https://github.com/falcosecurity/plugins/
+    capabilities:
+      sourcing:
+        supported: true
+        id: 18
+        source: kafka
+      extraction:
+        supported: false
