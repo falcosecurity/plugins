@@ -40,7 +40,7 @@ const (
 	RegistryUser       = "REGISTRY_USER"
 	RegistryOCI        = "REGISTRY"
 	RepoGithub         = "REPO_GITHUB"
-	falcoAuthors       = "The Falco Authors"
+	FalcoAuthors       = "The Falco Authors"
 	archiveSuffix      = ".tar.gz"
 	amd64Platform      = "linux/amd64"
 	arm64Platform      = "linux/arm64"
