@@ -70,7 +70,8 @@ package/%: clean/% % build/utils/version
 	@echo "$(PLUGIN_NAME) package built"
 # build rules package, if any
 	mkdir -p $(OUTPUT_DIR)/$(PLUGIN_NAME)-rules
-	cp -r plugins/$(PLUGIN_NAME)/rules/* $(OUTPUT_DIR)/$(PLUGIN_NAME)-rules/ && \
+	# symlinks are ignored when creating the rules package. Only regular files are considered.
+	find plugins/$(PLUGIN_NAME)/rules/* -type f -exec cp -t $(OUTPUT_DIR)/$(PLUGIN_NAME)-rules/ {} + && \
 		tar -zcvf $(OUTPUT_DIR)/$(PLUGIN_NAME)-rules-$(PLUGIN_VERSION).tar.gz -C \
 		$(OUTPUT_DIR)/$(PLUGIN_NAME)-rules $$(ls -A ${OUTPUT_DIR}/$(PLUGIN_NAME)-rules) || :
 	@test $(OUTPUT_DIR)/$(PLUGIN_NAME)-rules-$(PLUGIN_VERSION).tar.gz && echo "$(PLUGIN_NAME) rules package built"
