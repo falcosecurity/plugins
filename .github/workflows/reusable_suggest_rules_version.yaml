@@ -86,10 +86,8 @@ jobs:
           rules_dir=${{ steps.get-config.outputs.rules_dir }}
 
           if [ -d "$rules_dir" ]; then
-            rules_files=$(ls $rules_dir/*)
-            for rules_file in $rules_files; do
               ./.github/compare-rule-files.sh \
-                  "$rules_file" \
+                  "$rules_dir" \
                   ${{ steps.get-config.outputs.config_file }} \
                   ${{ inputs.plugin }} \
                   rule_result.txt \
@@ -103,7 +101,6 @@ jobs:
                 fi
                 cat rule_result.txt >> result.txt
               fi
-            done
           fi
 
           if [ -s result.txt ]; then
