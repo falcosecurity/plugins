@@ -101,7 +101,7 @@ SA=serviceAccount:service-abc123@gcp-sa-logging.iam.gserviceaccount.com
 Next, bind the Pub/Sub Publisher role to the to the service account.
 
 ```shell
-gcloud projects add-iam-policy-binding $PROJECT_ID
+gcloud projects add-iam-policy-binding $PROJECT_ID \
 --member=$SA \
 --role=roles/pubsub.publisher
 ```
