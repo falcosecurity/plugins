@@ -182,6 +182,9 @@
 - macro: role
   condition: ka.target.resource=roles
 
+- macro: rolebinding
+  condition: ka.target.resource=rolebindings
+
 - macro: secret
   condition: ka.target.resource=secrets
 
@@ -603,34 +606,66 @@
   source: k8s_audit
   tags: [k8s]
 
-- rule: K8s Role/Clusterrole Created
-  desc: Detect any attempt to create a cluster role/role
-  condition: (kactivity and kcreate and (clusterrole or role) and response_successful)
-  output: K8s Cluster Role Created (user=%ka.user.name role=%ka.target.name resource=%ka.target.resource rules=%ka.req.role.rules resp=%ka.response.code decision=%ka.auth.decision reason=%ka.auth.reason)
+- rule: K8s Role Created
+  desc: Detect any attempt to create a role
+  condition: (kactivity and kcreate and role and response_successful)
+  output: K8s Role Created (user=%ka.user.name role=%ka.target.name ns=%ka.target.namespace resource=%ka.target.resource rules=%ka.req.role.rules resp=%ka.response.code decision=%ka.auth.decision reason=%ka.auth.reason)
   priority: INFO
   source: k8s_audit
   tags: [k8s]
 
-- rule: K8s Role/Clusterrole Deleted
-  desc: Detect any attempt to delete a cluster role/role
-  condition: (kactivity and kdelete and (clusterrole or role) and response_successful)
-  output: K8s Cluster Role Deleted (user=%ka.user.name role=%ka.target.name resource=%ka.target.resource resp=%ka.response.code decision=%ka.auth.decision reason=%ka.auth.reason)
+- rule: K8s Role Deleted
+  desc: Detect any attempt to delete a role
+  condition: (kactivity and kdelete and role and response_successful)
+  output: K8s Role Deleted (user=%ka.user.name role=%ka.target.name ns=%ka.target.namespace resource=%ka.target.resource resp=%ka.response.code decision=%ka.auth.decision reason=%ka.auth.reason)
   priority: INFO
   source: k8s_audit
   tags: [k8s]
 
-- rule: K8s Role/Clusterrolebinding Created
+- rule: K8s ClusterRole Created
+  desc: Detect any attempt to create a cluster role
+  condition: (kactivity and kcreate and clusterrole and response_successful)
+  output: K8s ClusterRole Created (user=%ka.user.name role=%ka.target.name resource=%ka.target.resource rules=%ka.req.role.rules resp=%ka.response.code decision=%ka.auth.decision reason=%ka.auth.reason)
+  priority: INFO
+  source: k8s_audit
+  tags: [k8s]
+
+- rule: K8s ClusterRole Deleted
+  desc: Detect any attempt to delete a cluster role
+  condition: (kactivity and kdelete and clusterrole and response_successful)
+  output: K8s ClusterRole Deleted (user=%ka.user.name role=%ka.target.name resource=%ka.target.resource resp=%ka.response.code decision=%ka.auth.decision reason=%ka.auth.reason)
+  priority: INFO
+  source: k8s_audit
+  tags: [k8s]
+
+- rule: K8s RoleBinding Created
+  desc: Detect any attempt to create a rolebinding
+  condition: (kactivity and kcreate and rolebinding and response_successful)
+  output: K8s RoleBinding Created (user=%ka.user.name binding=%ka.target.name ns=%ka.target.namespace resource=%ka.target.resource subjects=%ka.req.binding.subjects role=%ka.req.binding.role resp=%ka.response.code decision=%ka.auth.decision reason=%ka.auth.reason)
+  priority: INFO
+  source: k8s_audit
+  tags: [k8s]
+
+- rule: K8s RoleBinding Deleted
+  desc: Detect any attempt to delete a rolebinding
+  condition: (kactivity and kdelete and rolebinding and response_successful)
+  output: K8s RoleBinding Deleted (user=%ka.user.name binding=%ka.target.name ns=%ka.target.namespace resource=%ka.target.resource resp=%ka.response.code decision=%ka.auth.decision reason=%ka.auth.reason)
+  priority: INFO
+  source: k8s_audit
+  tags: [k8s]
+
+- rule: K8s ClusterRoleBinding Created
   desc: Detect any attempt to create a clusterrolebinding
   condition: (kactivity and kcreate and clusterrolebinding and response_successful)
-  output: K8s Cluster Role Binding Created (user=%ka.user.name binding=%ka.target.name resource=%ka.target.resource subjects=%ka.req.binding.subjects role=%ka.req.binding.role resp=%ka.response.code decision=%ka.auth.decision reason=%ka.auth.reason)
+  output: K8s ClusterRoleBinding Created (user=%ka.user.name binding=%ka.target.name resource=%ka.target.resource subjects=%ka.req.binding.subjects role=%ka.req.binding.role resp=%ka.response.code decision=%ka.auth.decision reason=%ka.auth.reason)
   priority: INFO
   source: k8s_audit
   tags: [k8s]
 
-- rule: K8s Role/Clusterrolebinding Deleted
+- rule: K8s ClusterRoleBinding Deleted
   desc: Detect any attempt to delete a clusterrolebinding
   condition: (kactivity and kdelete and clusterrolebinding and response_successful)
-  output: K8s Cluster Role Binding Deleted (user=%ka.user.name binding=%ka.target.name resource=%ka.target.resource resp=%ka.response.code decision=%ka.auth.decision reason=%ka.auth.reason)
+  output: K8s ClusterRoleBinding Deleted (user=%ka.user.name binding=%ka.target.name resource=%ka.target.resource resp=%ka.response.code decision=%ka.auth.decision reason=%ka.auth.reason)
   priority: INFO
   source: k8s_audit
   tags: [k8s]
