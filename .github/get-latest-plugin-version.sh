@@ -23,4 +23,4 @@ fi
 
 echo Setting plugin version for "${PLUGIN}" to $latest_ver
 echo "version=$latest_ver" >> $GITHUB_OUTPUT
-echo "ref=${PLUGIN}-$latest_ver" >> $GITHUB_OUTPUT
+echo "ref=${latest_tag}" >> $GITHUB_OUTPUT
