@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.9.0
+
+* [`029593e`](https://github.com/falcosecurity/plugins/commit/029593e) fix(plugins/k8saudit/rules): split rbac rules by individual rbac object
+
+
+## v0.8.0
+
+* [`24e9f22`](https://github.com/falcosecurity/plugins/commit/24e9f22) update(plugins/k8s_audit): rename more falco_ lists
+
+* [`0879a81`](https://github.com/falcosecurity/plugins/commit/0879a81) update(plugins/k8s_audit): k8s_* -> k8s_audit_*
+
+* [`2c4a275`](https://github.com/falcosecurity/plugins/commit/2c4a275) cleanup(plugins/k8s_audit): make the rulesefile self-referenced
+
+* [`ef07168`](https://github.com/falcosecurity/plugins/commit/ef07168) chore(k8saudit): add k8saudit-gke as plugin alternative
+
+* [`0c21c8a`](https://github.com/falcosecurity/plugins/commit/0c21c8a) update(k8saudit/docs): add k8s configuration files
+
+
+## v0.7.0
+
+* [`028fa19`](https://github.com/falcosecurity/plugins/commit/028fa19) feat(plugins/k8saudit/rules) add detection for portforwarding
+
+
 ## v0.6.1
 
 
