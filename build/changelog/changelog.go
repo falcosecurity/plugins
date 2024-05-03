@@ -47,10 +47,12 @@ func git(args ...string) (output []string, err error) {
 }
 
 // an empty string matches the last tag with no match filtering
-func gitGetLatestTagWithMatch(match string) (string, error) {
+func gitGetLatestTagWithMatch(match []string) (string, error) {
 	args := []string{"describe", "--tags", "--abbrev=0"}
 	if len(match) > 0 {
-		args = append(args, "--match", match)
+		for _, m := range match {
+			args = append(args, "--match", m)
+		}
 	}
 	tags, err := git(args...)
 	if err != nil {
@@ -109,13 +111,14 @@ func main() {
 
 	// if from is not specified, we use the latest tag matching the plugin name
 	if len(from) == 0 {
-		match := ""
+		match := []string{}
 		if len(plugin) > 0 {
-			match = plugin + "-[0-9].[0-9].[0-9]*"
+			match = append(match, "plugins/"+plugin+"/v[0-9].[0-9].[0-9]*")
+			match = append(match, plugin+"-[0-9].[0-9].[0-9]*")
 		}
 		tag, err := gitGetLatestTagWithMatch(match)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "not tag with match '"+match+"' not found, using commits from whole history:", err.Error())
+			fmt.Fprintln(os.Stderr, "no matching tag found for plugin '"+plugin+"', using commits from whole history:", err.Error())
 		} else {
 			from = tag
 		}
@@ -127,15 +130,22 @@ func main() {
 		fail(err)
 	}
 
-	var rgx *regexp.Regexp
+	var rgx, rgxAlt *regexp.Regexp
 	if len(plugin) > 0 {
 		// craft a regex to filter all plugin-related commits that follow
 		// the conventional commit format
 		rgx, _ = regexp.Compile("^[a-f0-9]+ [a-zA-Z]+\\(([a-zA-Z\\/]+\\/)?" + plugin + "(\\/[a-zA-Z\\/]+)?\\):.*")
+
+		// alternative plugin name used as scope
+		if plugin == "k8saudit" {
+			pluginAlt := "k8s_audit"
+			rgxAlt, _ = regexp.Compile("^[a-f0-9]+ [a-zA-Z]+\\(([a-zA-Z\\/]+\\/)?" + pluginAlt + "(\\/[a-zA-Z\\/]+)?\\):.*")
+		}
 	}
 
 	for _, c := range commits {
-		if len(c) > 0 && (rgx == nil || rgx.MatchString(c)) {
+		if len(c) > 0 && (rgx == nil || rgx.MatchString(c) ||
+			(rgxAlt != nil && rgxAlt.MatchString(c))) {
 			fmt.Println(formatCommitLine(c) + "\n")
 		}
 	}
