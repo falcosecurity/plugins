@@ -130,7 +130,7 @@ func main() {
 		fail(err)
 	}
 
-	var rgx, rgxAlt *regexp.Regexp
+	var rgx, rgxAlt, rgxDeps *regexp.Regexp
 	if len(plugin) > 0 {
 		// craft a regex to filter all plugin-related commits that follow
 		// the conventional commit format
@@ -141,11 +141,15 @@ func main() {
 			pluginAlt := "k8s_audit"
 			rgxAlt, _ = regexp.Compile("^[a-f0-9]+ [a-zA-Z]+\\(([a-zA-Z\\/]+\\/)?" + pluginAlt + "(\\/[a-zA-Z\\/]+)?\\):.*")
 		}
+
+		// craft a regex to filter all plugin-related dependabot commits
+		rgxDeps, _ = regexp.Compile("^[a-f0-9]+ build\\(deps\\):.*" + plugin + "$")
 	}
 
 	for _, c := range commits {
 		if len(c) > 0 && (rgx == nil || rgx.MatchString(c) ||
-			(rgxAlt != nil && rgxAlt.MatchString(c))) {
+			(rgxAlt != nil && rgxAlt.MatchString(c)) ||
+			rgxDeps.MatchString(c)) {
 			fmt.Println(formatCommitLine(c) + "\n")
 		}
 	}
