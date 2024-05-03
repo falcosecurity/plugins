@@ -24,10 +24,17 @@ tool=./build/changelog/bin/changelog
 
 to=""
 from=""
-tags="$(git tag -l | grep ${plugin}-[0-9].[0-9].[0-9] | grep -v ${plugin}-[0-9].[0-9].[0-9]-rc | sort -r)"
+tags="$(git tag -l | grep -e ${plugin}-[0-9].[0-9].[0-9] -e ${plugin}/v[0-9].[0-9].[0-9] | grep -v ${plugin}-[0-9].[0-9].[0-9]-rc | sort -r)"
 
 # print title
 echo "# Changelog"
+echo ""
+
+# generate entry for upcoming tag
+head="$(git rev-parse HEAD)"
+echo "## dev"
+echo ""
+${tool} --from="" --to=${head} --plugin=${plugin}
 echo ""
 
 # generate entry for each tag
@@ -35,7 +42,13 @@ for tag in $tags
 do
     from=$tag
     if [ ! -z "$to" ]; then
-        ver="$(echo ${to} | sed -e s/^${plugin}-// -e s/^/v/)"
+        ver=""
+        # support both the old and new tag formats
+        if [[ $to == plugins/* ]]; then
+            ver="$(echo ${to} | sed -e s/^plugins\\/${plugin}\\///)"
+        else
+            ver="$(echo ${to} | sed -e s/^${plugin}-// -e s/^/v/)"
+        fi
         echo "## ${ver}" 
         echo ""
         ${tool} --from=${from} --to=${to} --plugin=${plugin}
