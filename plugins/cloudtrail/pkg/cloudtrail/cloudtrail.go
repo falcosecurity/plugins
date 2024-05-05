@@ -32,13 +32,13 @@ import (
 	"io"
 	"math"
 
-	"github.com/alecthomas/jsonschema"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/source"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/symbols/extract"
 	_ "github.com/falcosecurity/plugin-sdk-go/pkg/sdk/symbols/progress"
+	"github.com/invopop/jsonschema"
 	"github.com/valyala/fastjson"
 )
 
