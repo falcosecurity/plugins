@@ -29,7 +29,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math"
 
 	"github.com/alecthomas/jsonschema"
@@ -48,7 +48,7 @@ const (
 	PluginName               = "cloudtrail"
 	PluginDescription        = "reads cloudtrail JSON data saved to file in the directory specified in the settings"
 	PluginContact            = "github.com/falcosecurity/plugins/"
-	PluginVersion            = "0.12.0"
+	PluginVersion            = "0.12.1"
 	PluginEventSource        = "aws_cloudtrail"
 )
 
@@ -155,7 +155,7 @@ func (p *Plugin) String(evt sdk.EventReader) (string, error) {
 	var user string
 	var err error
 
-	data, err := ioutil.ReadAll(evt.Reader())
+	data, err := io.ReadAll(evt.Reader())
 	if err != nil {
 		return "", err
 	}
@@ -216,7 +216,7 @@ func (p *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 	// Decode the json, but only if we haven't done it yet for this event
 	if evt.EventNum() != p.jdataEvtnum {
 		// Read the event data
-		data, err := ioutil.ReadAll(evt.Reader())
+		data, err := io.ReadAll(evt.Reader())
 		if err != nil {
 			return err
 		}
