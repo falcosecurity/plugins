@@ -31,6 +31,18 @@ import (
 	auditv1 "k8s.io/apiserver/pkg/apis/audit/v1"
 )
 
+// ConvertLogEntry converts a logging.LogEntry and an audit.AuditLog into an auditv1.Event.
+//
+// Parameters:
+//   - logEntry: A pointer to a logging.LogEntry representing the log entry to convert.
+//   - auditLog: A pointer to an audit.AuditLog representing the audit log to convert.
+//
+// Returns:
+//   - *auditv1.Event: The generated k8s audit event.
+//   - error: An error if the conversion fails.
+//
+// Note: This function is exposed for internal use and may lack formal documentation or signature guarantees.
+// Use it with caution and at your own risk.
 func (p *Plugin) ConvertLogEntry(logEntry *logging.LogEntry, auditLog *audit.AuditLog) (*auditv1.Event, error) {
 	timestampMicro := metav1.NewMicroTime(logEntry.ReceiveTimestamp.AsTime())
 
