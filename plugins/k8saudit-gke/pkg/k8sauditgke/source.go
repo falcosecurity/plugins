@@ -160,7 +160,7 @@ func (p *Plugin) processAuditLogEntry(logEntry *logging.LogEntry, auditLog *audi
 		}
 	}
 
-	event, err := p.convertLogEntry(logEntry, auditLog)
+	event, err := p.ConvertLogEntry(logEntry, auditLog)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert log entry: %v", err)
 	}
