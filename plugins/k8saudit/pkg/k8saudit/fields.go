@@ -46,6 +46,16 @@ func (k *Plugin) Fields() []sdk.FieldEntry {
 		},
 		{
 			Type: "string",
+			Name: "ka.auth.openshift.decision",
+			Desc: "The authentication decision of the openshfit apiserver extention. Only available on openshift clusters",
+		},
+		{
+			Type: "string",
+			Name: "ka.auth.openshift.username",
+			Desc: "The user name performing the openshift authentication operation. Only available on openshift clusters",
+		},
+		{
+			Type: "string",
 			Name: "ka.user.name",
 			Desc: "The user name performing the request",
 		},

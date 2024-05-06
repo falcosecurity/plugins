@@ -129,6 +129,10 @@ func (e *Plugin) ExtractFromJSON(req sdk.ExtractRequest, jsonValue *fastjson.Val
 		return e.extractFromKeys(req, jsonValue, "annotations", "authorization.k8s.io/decision")
 	case "ka.auth.reason":
 		return e.extractFromKeys(req, jsonValue, "annotations", "authorization.k8s.io/reason")
+	case "ka.auth.openshift.decision":
+		return e.extractFromKeys(req, jsonValue, "annotations", "authentication.openshift.io/decision")
+	case "ka.auth.openshift.username":
+		return e.extractFromKeys(req, jsonValue, "annotations", "authentication.openshift.io/username")
 	case "ka.user.name":
 		return e.extractFromKeys(req, jsonValue, "user", "username")
 	case "ka.user.groups":
