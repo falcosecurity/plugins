@@ -31,7 +31,7 @@ import (
 	auditv1 "k8s.io/apiserver/pkg/apis/audit/v1"
 )
 
-func (p *Plugin) convertLogEntry(logEntry *logging.LogEntry, auditLog *audit.AuditLog) (*auditv1.Event, error) {
+func (p *Plugin) ConvertLogEntry(logEntry *logging.LogEntry, auditLog *audit.AuditLog) (*auditv1.Event, error) {
 	timestampMicro := metav1.NewMicroTime(logEntry.ReceiveTimestamp.AsTime())
 
 	verb := p.getVerb(auditLog.MethodName)
