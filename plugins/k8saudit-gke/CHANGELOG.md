@@ -1,9 +1,8 @@
 # Changelog
 
-## v0.1.2
+## v0.2.0
 
 * [`06814a7`](https://github.com/falcosecurity/plugins/commit/06814a7) plugins(k8saudit-gke): export ConvertLogEntry method
-
 
 ## v0.1.1
 
