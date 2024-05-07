@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.12.1
+
+* [`39e37fb`](https://github.com/falcosecurity/plugins/commit/39e37fb) chore(cloudtrail): replace moved package
+
+* [`2770cbe`](https://github.com/falcosecurity/plugins/commit/2770cbe) chore(cloudtrail): update Go and dependencies
+
+## v0.12.0
+
+* [`b31948c`](https://github.com/falcosecurity/plugins/commit/b31948c) refactor(cloudtrail): Get S3 keys concurrently
+
+* [`9920d35`](https://github.com/falcosecurity/plugins/commit/9920d35) feat(cloudtrail): support accounts for org trails
+
+* [`746ea98`](https://github.com/falcosecurity/plugins/commit/746ea98) feat(cloudtrail): Support for organization trails
+
+* [`9a1f86a`](https://github.com/falcosecurity/plugins/commit/9a1f86a) feat(cloudtrail): Add generic additionalEventData field
+
+* [`0e4a687`](https://github.com/falcosecurity/plugins/commit/0e4a687) feat(cloudtrail): Add ct.response and ct.request field
+
+
+## v0.11.0
+
+
+## v0.10.0
+
+
 ## v0.9.1
 
 * [`16306f2`](https://github.com/falcosecurity/plugins/commit/16306f2) update(cloudtrail): bump version to 0.9.1
