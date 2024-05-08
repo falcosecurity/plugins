@@ -18,7 +18,7 @@ jobs:
     strategy:
       matrix:
         arch: [x86_64, aarch64]
-    container: golang:1.21
+    container: golang:1.22
     steps:
       - name: Install deps
         run: |
