@@ -25,6 +25,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/falcosecurity/plugins/build/registry/pkg/registry"
 	"github.com/spf13/pflag"
 )
 
@@ -83,6 +84,21 @@ func gitListCommits(from, to string) ([]string, error) {
 	return logs, nil
 }
 
+func pluginSource(pname string) string {
+	reg, err := registry.LoadRegistryFromFile("registry.yaml")
+	if err != nil {
+		fail(fmt.Errorf("an error occurred while loading registry entries from file %q: %v", "registry.yaml", err))
+	}
+
+	for _, plugin := range reg.Plugins {
+		if plugin.Name == pname && plugin.Capabilities.Sourcing.Supported {
+			return plugin.Capabilities.Sourcing.Source
+		}
+	}
+
+	return ""
+}
+
 func fail(err error) {
 	fmt.Printf("error: %s\n", err)
 	os.Exit(1)
@@ -130,16 +146,16 @@ func main() {
 		fail(err)
 	}
 
-	var rgx, rgxAlt, rgxDeps *regexp.Regexp
+	var rgx, rgxSource, rgxDeps *regexp.Regexp
 	if len(plugin) > 0 {
 		// craft a regex to filter all plugin-related commits that follow
 		// the conventional commit format
 		rgx, _ = regexp.Compile("^[a-f0-9]+ [a-zA-Z]+\\(([a-zA-Z\\/]+\\/)?" + plugin + "(\\/[a-zA-Z\\/]+)?\\):.*")
 
-		// alternative plugin name used as scope
-		if plugin == "k8saudit" {
-			pluginAlt := "k8s_audit"
-			rgxAlt, _ = regexp.Compile("^[a-f0-9]+ [a-zA-Z]+\\(([a-zA-Z\\/]+\\/)?" + pluginAlt + "(\\/[a-zA-Z\\/]+)?\\):.*")
+		// use source name of the plugin as well, if it has sourcing capabilities
+		pluginSource := pluginSource(plugin)
+		if pluginSource != "" {
+			rgxSource, _ = regexp.Compile("^[a-f0-9]+ [a-zA-Z]+\\(([a-zA-Z\\/]+\\/)?" + pluginSource + "(\\/[a-zA-Z\\/]+)?\\):.*")
 		}
 
 		// craft a regex to filter all plugin-related dependabot commits
@@ -148,7 +164,7 @@ func main() {
 
 	for _, c := range commits {
 		if len(c) > 0 && (rgx == nil || rgx.MatchString(c) ||
-			(rgxAlt != nil && rgxAlt.MatchString(c)) ||
+			(rgxSource != nil && rgxSource.MatchString(c)) ||
 			rgxDeps.MatchString(c)) {
 			fmt.Println(formatCommitLine(c) + "\n")
 		}
