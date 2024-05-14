@@ -41,6 +41,7 @@ const (
 	RegistryOCI        = "REGISTRY"
 	RepoGithub         = "REPO_GITHUB"
 	FalcoAuthors       = "The Falco Authors"
+	PluginsRepo        = "https://github.com/falcosecurity/plugins"
 	archiveSuffix      = ".tar.gz"
 	amd64Platform      = "linux/amd64"
 	arm64Platform      = "linux/arm64"

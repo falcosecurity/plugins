@@ -3,13 +3,13 @@ package validateRegistry
 import (
 	"context"
 	"fmt"
-
 	"github.com/falcosecurity/falcoctl/pkg/oci/authn"
 	ocipuller "github.com/falcosecurity/falcoctl/pkg/oci/puller"
 	"github.com/falcosecurity/plugins/build/registry/pkg/oci"
 	"github.com/falcosecurity/plugins/build/registry/pkg/registry"
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
+	"strings"
 )
 
 func NewValidateRegistry(ctx context.Context) *cobra.Command {
@@ -38,7 +38,7 @@ func validateRegistry(ctx context.Context, registryFile string) error {
 	// For each plugin in the registry index, look for new ones to be released, and publish them.
 	for _, plugin := range reg.Plugins {
 		// Filter out plugins that are not owned by falcosecurity.
-		if plugin.Authors != oci.FalcoAuthors {
+		if !strings.HasPrefix(plugin.URL, oci.PluginsRepo) {
 			klog.V(2).Infof("skipping plugin %q with authors %q: it is not maintained by %q",
 				plugin.Name, plugin.Authors, oci.FalcoAuthors)
 			continue

@@ -165,10 +165,10 @@ func tagsFromVersion(version *semver.Version) []string {
 func handleArtifact(ctx context.Context, cfg *config, plugin *registry.Plugin, ociClient remote.Client,
 	pluginsAMD64, pluginsARM64, rulesfiles, devTag string) ([]registry.ArtifactPushMetadata, []registry.ArtifactPushMetadata, error) {
 	// Filter out plugins that are not owned by falcosecurity.
-	if plugin.Authors != FalcoAuthors {
+	if !strings.HasPrefix(plugin.URL, PluginsRepo) {
 		sepString := strings.Repeat("#", 15)
-		klog.V(2).Info("%s %s %s", sepString, plugin.Name, sepString)
-		klog.V(2).Infof("skipping plugin %q with authors %q: it is not maintained by %q",
+		klog.Info("%s %s %s", sepString, plugin.Name, sepString)
+		klog.Infof("skipping plugin %q with authors %q: it is not maintained by %q",
 			plugin.Name, plugin.Authors, FalcoAuthors)
 		return nil, nil, nil
 	}
