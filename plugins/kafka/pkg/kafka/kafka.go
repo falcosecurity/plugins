@@ -17,8 +17,8 @@ import (
 const (
 	PluginID          uint32 = 18
 	PluginName               = "kafka"
-	PluginDescription        = "Kafka consumer for Falco"
-	PluginContact            = "github.com/ibm/falco-kafka"
+	PluginDescription        = "Read events from Kafka topics into Falco"
+	PluginContact            = "github.com/falcosecurity/plugins"
 	PluginVersion            = "0.1.0"
 	PluginEventSource        = "kafka"
 )
