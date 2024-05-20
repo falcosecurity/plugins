@@ -172,6 +172,15 @@ func (e *Plugin) ExtractFromJSON(req sdk.ExtractRequest, jsonValue *fastjson.Val
 		return e.extractFromKeys(req, jsonValue, "objectRef", "resource")
 	case "ka.target.subresource":
 		return e.extractFromKeys(req, jsonValue, "objectRef", "subresource")
+	case "ka.target.pod.name":
+		resource := string(jsonValue.Get("objectRef").Get("resource").GetStringBytes())
+		if resource == "pods" {
+			subresource := string(jsonValue.Get("objectRef").Get("subresource").GetStringBytes())
+			if subresource == "" {
+				// if pods; return pod name
+				return e.extractFromKeys(req, jsonValue, "responseObject", "metadata", "name")
+			}
+		}
 	case "ka.req.binding.subjects":
 		return e.extractFromKeys(req, jsonValue, "requestObject", "subjects")
 	case "ka.req.binding.role":
