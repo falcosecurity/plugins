@@ -383,6 +383,8 @@ func (e *Plugin) ExtractFromJSON(req sdk.ExtractRequest, jsonValue *fastjson.Val
 		return e.extractFromKeys(req, jsonValue, "userAgent")
 	case "ka.sourceips":
 		return e.extractRulesField(req, jsonValue, "sourceIPs")
+	case "ka.cluster.name":
+		return e.extractFromKeys(req, jsonValue, "annotations", "cluster_name")
 	default:
 		return fmt.Errorf("unsupported extraction field: %s", req.Field())
 	}
