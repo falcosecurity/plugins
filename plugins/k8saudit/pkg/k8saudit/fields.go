@@ -445,5 +445,10 @@ func (k *Plugin) Fields() []sdk.FieldEntry {
 				IsIndex:    true,
 			},
 		},
+		{
+			Type: "string",
+			Name: "ka.cluster.name",
+			Desc: "The name of the k8s cluster",
+		},
 	}
 }
