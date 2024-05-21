@@ -110,6 +110,11 @@ func (k *Plugin) Fields() []sdk.FieldEntry {
 			Desc: "The target object subresource",
 		},
 		{
+			Type: "string",
+			Name: "ka.target.pod.name",
+			Desc: "The target pod name",
+		},
+		{
 			Type:   "string",
 			Name:   "ka.req.binding.subjects",
 			Desc:   "When the request object refers to a cluster role binding, the subject (e.g. account/users) being linked by the binding",
