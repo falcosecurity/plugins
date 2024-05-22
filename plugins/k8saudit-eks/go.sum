@@ -6,11 +6,10 @@ github.com/aws/aws-sdk-go v1.44.112/go.mod h1:y4AeaBuwd2Lk+GepC1E9v0qOiTws0MIWAX
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/falcosecurity/plugin-sdk-go v0.6.0/go.mod h1:YNeijGR1gojfv1CV17WoQMGeCheTJdCwTgShPpPpgFA=
 github.com/falcosecurity/plugin-sdk-go v0.7.3 h1:nmlBUmeAgEhcEHhSDWeEYgD9WdiHR9uMWyog5Iv7GIA=
 github.com/falcosecurity/plugin-sdk-go v0.7.3/go.mod h1:NP+y22DYOS+G3GDXIXNmzf0CBL3nfPPMoQuHvAzfitQ=
-github.com/falcosecurity/plugins/plugins/k8saudit v0.0.0-20221013103017-8f1a599ad3eb h1:BvPQc0mDh1MpmdfBZi2rKHD4EOc5xpUnyXIJrNFhUqo=
-github.com/falcosecurity/plugins/plugins/k8saudit v0.0.0-20221013103017-8f1a599ad3eb/go.mod h1:3mX8c5Cs76ThGuAdPynYn8qfEtfry7GuIaJ1cZZ0gVc=
+github.com/falcosecurity/plugins/plugins/k8saudit v0.10.0 h1:k51XbdedKrC0IE2FNKy8ggnLgZsBnOlQfOp9ntgjmPw=
+github.com/falcosecurity/plugins/plugins/k8saudit v0.10.0/go.mod h1:mtRjS4nO6pRrfu6z8bZlKBmualy769c4laGYOd1nYRs=
 github.com/falcosecurity/plugins/shared/go/aws/cloudwatchlogs v0.0.0-20221004205118-1db426496417 h1:FMv0J1KYRK/LqX+arUu4BQKz+3nQyp3SzECYsF6JR48=
 github.com/falcosecurity/plugins/shared/go/aws/cloudwatchlogs v0.0.0-20221004205118-1db426496417/go.mod h1:CYl1dfwy+MAU+4rvPydDdGkYWwEalaHx/SHMQyx8GJ8=
 github.com/falcosecurity/plugins/shared/go/aws/session v0.0.0-20220824115709-c23dc2a4657e h1:j0EyTnxAjWmq+2wakNIiP4r0HTerB1PvsahgUaMzflU=
