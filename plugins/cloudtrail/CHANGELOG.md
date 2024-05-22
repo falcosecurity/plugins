@@ -1,10 +1,18 @@
 # Changelog
 
+## v0.12.2
+
+* [`63b7093`](https://github.com/falcosecurity/plugins/commit/63b7093) chore(plugin/cloudtrail): bump cloudtrail version to 0.10.0
+
+
 ## v0.12.1
 
-* [`39e37fb`](https://github.com/falcosecurity/plugins/commit/39e37fb) chore(cloudtrail): replace moved package
+* [`c4ed2ca`](https://github.com/falcosecurity/plugins/commit/c4ed2ca) chore(plugins/cloudtrail): update changelog
 
-* [`2770cbe`](https://github.com/falcosecurity/plugins/commit/2770cbe) chore(cloudtrail): update Go and dependencies
+* [`d775f53`](https://github.com/falcosecurity/plugins/commit/d775f53) chore(cloudtrail): replace moved package
+
+* [`f43ca43`](https://github.com/falcosecurity/plugins/commit/f43ca43) chore(cloudtrail): update Go and dependencies
+
 
 ## v0.12.0
 

@@ -1,14 +1,12 @@
 # Changelog
 
-# v 0.11.0
+## v0.10.0
 
-* Added a case for AppInstance alternate ID to capture in-scope application most explicit description.
-* Replaced okta.app with okta.target.app.alternateid in okta_rules.yaml
+* [`6c0d1bc`](https://github.com/falcosecurity/plugins/commit/6c0d1bc) update(plugins/okta): bump version to 0.10.0
 
-# v 0.9.0
 
-* Add `refresh_interval` parameter
-* Add deduplication method to improve the count of MFA attempts
+## v0.9.0
+
 
 ## v0.8.1
 

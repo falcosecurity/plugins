@@ -1,11 +1,24 @@
 # Changelog
 
+## v0.10.0
+
+* [`5e23552`](https://github.com/falcosecurity/plugins/commit/5e23552) chore(plugins/k8saudit): use rc tag
+
+* [`ab63a13`](https://github.com/falcosecurity/plugins/commit/ab63a13) feat(plugins/k8saudit): extract pod name
+
+* [`31c2f53`](https://github.com/falcosecurity/plugins/commit/31c2f53) feat(plugins/k8saudit): extract cluster name
+
+
 ## v0.9.0
 
-* [`029593e`](https://github.com/falcosecurity/plugins/commit/029593e) fix(plugins/k8saudit/rules): split rbac rules by individual rbac object
+* [`42fcdae`](https://github.com/falcosecurity/plugins/commit/42fcdae) chore(plugins/k8saudit): bump plugin version to 0.9.0
+
+* [`472fd1f`](https://github.com/falcosecurity/plugins/commit/472fd1f) fix(plugins/k8saudit/rules): split rbac rules by individual rbac object
 
 
 ## v0.8.0
+
+* [`4a3da48`](https://github.com/falcosecurity/plugins/commit/4a3da48) chore(k8saudit): bump version to 0.8.0 to release rule changes
 
 * [`24e9f22`](https://github.com/falcosecurity/plugins/commit/24e9f22) update(plugins/k8s_audit): rename more falco_ lists
 
@@ -19,8 +32,6 @@
 
 
 ## v0.7.0
-
-* [`028fa19`](https://github.com/falcosecurity/plugins/commit/028fa19) feat(plugins/k8saudit/rules) add detection for portforwarding
 
 
 ## v0.6.1
@@ -135,6 +146,8 @@
 * [`7386f82`](https://github.com/falcosecurity/plugins/commit/7386f82) refactor(plugins/k8saudit): create package directory
 
 * [`bf61ca8`](https://github.com/falcosecurity/plugins/commit/bf61ca8) chore(k8saudit): move ruleset to plugin folder
+
+* [`5af2b92`](https://github.com/falcosecurity/plugins/commit/5af2b92) new(rules/k8s_audit): add rules to detect pods sharing host pid and IPC names...
 
 * [`d2cfa30`](https://github.com/falcosecurity/plugins/commit/d2cfa30) refactor(plugins/k8saudit): do not return <NA> on missing field values
 
