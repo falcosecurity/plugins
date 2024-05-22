@@ -1,8 +1,32 @@
 # Changelog
 
+## v0.7.4
+
+
+## v0.7.3
+
+* [`9298bcb`](https://github.com/falcosecurity/plugins/commit/9298bcb) update(github): bump version to 0.7.3
+
+* [`6f7ef79`](https://github.com/falcosecurity/plugins/commit/6f7ef79) build(deps): bump golang.org/x/net in /plugins/github
+
+
+## v0.7.2
+
+* [`f37dd74`](https://github.com/falcosecurity/plugins/commit/f37dd74) chore(github): bump version to 0.7.2
+
+
 ## v0.7.1
 
-* [`d2a7b9a`](https://github.com/falcosecurity/plugins/pull/439/commits/d2a7b9a) fix(plugins/github): add length check in if statement
+* [`b0a2735`](https://github.com/falcosecurity/plugins/commit/b0a2735) fix(plugins/github): add length check in if statement
+
+* [`5e2953f`](https://github.com/falcosecurity/plugins/commit/5e2953f) build(deps): bump google.golang.org/protobuf in /plugins/github
+
+
+## v0.7.0
+
+* [`3a7f1b1`](https://github.com/falcosecurity/plugins/commit/3a7f1b1) fix(plugins/github): add a check that before and after commit IDs aren't null...
+
+* [`81ccd91`](https://github.com/falcosecurity/plugins/commit/81ccd91) build(deps): bump golang.org/x/net in /plugins/github
 
 
 ## v0.6.1
@@ -26,6 +50,8 @@
 
 
 ## v0.5.1
+
+* [`f1bd3b4`](https://github.com/falcosecurity/plugins/commit/f1bd3b4) build(deps): bump golang.org/x/net in /plugins/github
 
 
 ## v0.5.0

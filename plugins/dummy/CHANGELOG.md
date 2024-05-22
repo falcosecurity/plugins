@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.11.3
+
+
+## v0.11.2
+
+* [`3e04dc2`](https://github.com/falcosecurity/plugins/commit/3e04dc2) update(dummy): bump version for ci testing purpose
+
+
+## v0.11.0
+
+* [`4fafb03`](https://github.com/falcosecurity/plugins/commit/4fafb03) chore(dummy): bump version
+
+
+## v0.10.0
+
+
 ## v0.9.1
 
 * [`8c60832`](https://github.com/falcosecurity/plugins/commit/8c60832) update(plugins/dummy): update version to 0.10.0-rc1
