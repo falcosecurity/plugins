@@ -39,7 +39,7 @@ const (
 	PluginName                = "github"
 	PluginDescription         = "Reads github webhook events, by listening on a socket or by reading events from disk"
 	PluginContact             = "github.com/falcosecurity/plugins"
-	PluginVersion             = "0.7.3"
+	PluginVersion             = "0.7.4"
 	PluginEventSource         = "github"
 	ExtractEventSource        = "github"
 )

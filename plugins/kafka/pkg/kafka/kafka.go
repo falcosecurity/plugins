@@ -5,13 +5,14 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"os"
+	"time"
+
 	"github.com/alecthomas/jsonschema"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/source"
 	"github.com/segmentio/kafka-go"
-	"os"
-	"time"
 )
 
 const (
@@ -19,7 +20,7 @@ const (
 	PluginName               = "kafka"
 	PluginDescription        = "Read events from Kafka topics into Falco"
 	PluginContact            = "github.com/falcosecurity/plugins"
-	PluginVersion            = "0.1.0"
+	PluginVersion            = "0.1.1"
 	PluginEventSource        = "kafka"
 )
 
