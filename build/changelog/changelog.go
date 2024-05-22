@@ -129,8 +129,8 @@ func main() {
 	if len(from) == 0 {
 		match := []string{}
 		if len(plugin) > 0 {
-			match = append(match, "plugins/"+plugin+"/v[0-9].[0-9].[0-9]*")
-			match = append(match, plugin+"-[0-9].[0-9].[0-9]*")
+			match = append(match, "plugins/"+plugin+"/v[0-9]*.[0-9]*.[0-9]*")
+			match = append(match, plugin+"-[0-9]*.[0-9]*.[0-9]*")
 		}
 		tag, err := gitGetLatestTagWithMatch(match)
 		if err != nil {
