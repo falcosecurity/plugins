@@ -24,7 +24,7 @@ tool=./build/changelog/bin/changelog
 
 to=""
 from=""
-tags="$(git tag -l | grep -e ${plugin}-[0-9].[0-9].[0-9] -e ${plugin}/v[0-9].[0-9].[0-9] | grep -v ${plugin}-[0-9].[0-9].[0-9]-rc | sort -r)"
+tags="$(git tag -l | grep -E -e ${plugin}-[0-9]+.[0-9]+.[0-9]+ -e ${plugin}/v[0-9]+.[0-9]+.[0-9]+ | grep -E -v ${plugin}-[0-9]+.[0-9]+.[0-9]+-rc | sort -V -r)"
 
 # print title
 echo "# Changelog"
