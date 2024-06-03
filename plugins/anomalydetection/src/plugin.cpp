@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
 Copyright (C) 2024 The Falco Authors.
 
@@ -12,7 +13,6 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-
 */
 
 #include "plugin.h"
@@ -47,7 +47,7 @@ bool anomalydetection::init(falcosecurity::init_input& in)
         m_exepath = m_thread_table.get_field(t.fields(), "exe_path", st::SS_PLUGIN_ST_STRING);
         m_exe_writable = m_thread_table.get_field(t.fields(), "exe_writable", st::SS_PLUGIN_ST_BOOL);
         m_exe_upper_layer = m_thread_table.get_field(t.fields(), "exe_upper_layer", st::SS_PLUGIN_ST_BOOL);
-        // m_exe_from_memfd = m_thread_table.get_field(t.fields(), "exe_from_memfd", st::SS_PLUGIN_ST_BOOL); // missing in libs define_static_field
+        m_exe_from_memfd = m_thread_table.get_field(t.fields(), "exe_from_memfd", st::SS_PLUGIN_ST_BOOL); // missing in libs define_static_field
         // m_args = m_thread_table.get_field(t.fields(), "args", TBD);
         // m_env = m_thread_table.get_field(t.fields(), "env", TBD);
         m_container_id = m_thread_table.get_field(t.fields(), "container_id", st::SS_PLUGIN_ST_STRING);
