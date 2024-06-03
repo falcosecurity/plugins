@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /*
 Copyright (C) 2024 The Falco Authors.
 
@@ -12,7 +13,6 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-
 */
 
 #pragma once
@@ -137,7 +137,7 @@ class anomalydetection
     falcosecurity::table_field m_exepath; ///< full executable path
     falcosecurity::table_field m_exe_writable;
     falcosecurity::table_field m_exe_upper_layer; ///< True if the executable file belongs to upper layer in overlayfs
-    // falcosecurity::table_field m_exe_from_memfd;	///< True if the executable is stored in fileless memory referenced by memfd
+    falcosecurity::table_field m_exe_from_memfd;	///< True if the executable is stored in fileless memory referenced by memfd
     falcosecurity::table_field m_args; ///< Command line arguments (e.g. "-d1")
     falcosecurity::table_field m_env; ///< Environment variables
     falcosecurity::table_field m_container_id; ///< heuristic-based container id

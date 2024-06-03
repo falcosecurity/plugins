@@ -17,9 +17,10 @@ message(STATUS "Fetching libs at 'https://github.com/falcosecurity/libs.git'")
 FetchContent_Declare(
   libs
   GIT_REPOSITORY https://github.com/falcosecurity/libs.git
-  GIT_TAG 844b275c52ee0ae5dab928c1d2f1a1b529a15ce7
+  GIT_TAG c6ff3d0731c6873c4fa9bf8df57480fe833aa710
   CONFIGURE_COMMAND "" BUILD_COMMAND "")
 
 FetchContent_MakeAvailable(libs)
 set(LIBS_INCLUDE "${libs_SOURCE_DIR}")
-message(STATUS "Using xxhash include at '${LIBS_INCLUDE}'")
+set(LIBS_DIR "${libs_SOURCE_DIR}")
+message(STATUS "Using libs include at '${LIBS_INCLUDE}'")

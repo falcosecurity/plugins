@@ -15,5 +15,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#define XXH_INLINE_ALL
-#include <xxhash.h>
+#pragma once
+
+#define PLUGIN_PATH "${CMAKE_BINARY_DIR}/libanomalydetection.so"
