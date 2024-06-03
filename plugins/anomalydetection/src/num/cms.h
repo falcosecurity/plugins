@@ -13,7 +13,6 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-
 */
 
 #include "xxhash_ext.h"
@@ -36,36 +35,43 @@ template<typename T>
 class cms 
 {
 private:
-    T** sketch;
-    uint64_t d; // d / Rows / number of hash functions
-    uint64_t w; // w / Cols / number of buckets
+    std::unique_ptr<std::unique_ptr<T[]>[]> sketch;
+    uint64_t d_; // d / Rows / number of hash functions
+    uint64_t w_; // w / Cols / number of buckets
+    double gamma_; // Error probability (e.g. 0.001)
+    double eps_; // Relative error (e.g. 0.0001)
 
 public:
     cms(double gamma, double eps) 
     {
-        d = static_cast<uint64_t>(std::ceil(std::log(1.0 / gamma))); // Error probability (e.g. 0.001) -> determine d / Rows / number of hash functions
-        w = static_cast<uint64_t>(std::ceil(std::exp(1) / eps)); // Relative error (e.g. 0.0001) -> determine w / Cols / number of buckets
-        sketch = new T*[d];
-        for (uint64_t i = 0; i < d; ++i) 
+        d_ = static_cast<uint64_t>(std::ceil(std::log(1.0 / gamma))); // -> determine Rows / number of hash functions
+        w_ = static_cast<uint64_t>(std::ceil(std::exp(1) / eps)); // -> determine Cols / number of buckets
+        gamma_ = gamma;
+        eps_ = eps;
+        sketch = std::make_unique<std::unique_ptr<T[]>[]>(d_);
+        for (uint64_t i = 0; i < d_; ++i) 
         {
-            sketch[i] = new T[w];
-        }
-        // Init to 0
-        for (uint64_t i = 0; i < d; ++i) {
-            std::fill(sketch[i], sketch[i] + w, (T)0);
+            sketch[i] = std::make_unique<T[]>(w_);
+            std::fill(sketch[i].get(), sketch[i].get() + w_, static_cast<T>(0)); // Init to 0
         }
     }
 
-    ~cms() 
+    // Overloaded constructor
+    cms(uint64_t d, uint64_t w)
     {
-        for (uint64_t i = 0; i < d; ++i) 
+        d_ = d;
+        w_ = w;
+        gamma_ = 1.0 / std::exp(d); // -> reverse calculate error probability from Rows / number of hash functions 
+        eps_ = std::exp(1) / w; // -> reverse calculate relative error from Cols / number of buckets
+        sketch = std::make_unique<std::unique_ptr<T[]>[]>(d_);
+        for (uint64_t i = 0; i < d_; ++i) 
         {
-            delete[] sketch[i];
+            sketch[i] = std::make_unique<T[]>(w_);
+            std::fill(sketch[i].get(), sketch[i].get() + w_, static_cast<T>(0)); // Init to 0
         }
-        delete[] sketch;
     }
 
-    uint64_t hash_XXH3_seed(std::string value, uint64_t seed) const 
+    uint64_t hash_XXH3_seed(std::string value, uint64_t seed) const
     {
         // using https://raw.githubusercontent.com/Cyan4973/xxHash/v0.8.2/xxhash.h
         // Requirement: Need fast and reliable independent hash functions.
@@ -73,26 +79,26 @@ public:
         return hash;
     }
 
-    void update(std::string value, T count) 
+    void update(std::string value, T count)
     {
         // Update counts for each hash function.
         // Note: d is typically very small (e.g. < 10)
-        for (uint64_t seed = 0; seed < d; ++seed)
+        for (uint64_t seed = 0; seed < d_; ++seed)
         {
             // Map the hash value to an index of the current sketch Row by taking the modulo of the hash value, where w is the number of buckets.
             // Simply loop over d, which is the number of hash functions, to obtain a seed in order to use independent hash functions for each Row.
-            sketch[seed][hash_XXH3_seed(value, seed) % w] += count;
+            sketch[seed][hash_XXH3_seed(value, seed) % w_] += count;
         }
     }
 
-    T update_estimate(std::string value, T count) const 
+    T update_estimate(std::string value, T count) const
     {
         std::vector<T> estimates;
         // Same as the update function, but also returns the minimum count as an estimate.
         // Note: d is typically very small (e.g. < 10)
-        for (uint64_t seed = 0; seed < d; ++seed)
+        for (uint64_t seed = 0; seed < d_; ++seed)
         {
-            T index = hash_XXH3_seed(value, seed) % w;
+            T index = hash_XXH3_seed(value, seed) % w_;
             sketch[seed][index] += count;
             estimates.push_back(sketch[seed][index]);
         }
@@ -100,26 +106,26 @@ public:
         return min_element != estimates.end() ? *min_element : T();
     }
 
-    T estimate(std::string value) const 
+    T estimate(std::string value) const
     {
         std::vector<T> estimates;
         // Return the minimum count across hash functions as an estimate.
         // Note: d is typically very small (e.g. < 10)
-        for (uint64_t seed = 0; seed < d; ++seed)
+        for (uint64_t seed = 0; seed < d_; ++seed)
         {
-            T index = hash_XXH3_seed(value, seed) % w;
+            T index = hash_XXH3_seed(value, seed) % w_;
             estimates.push_back(sketch[seed][index]);
         }
         auto min_element = std::min_element(estimates.begin(), estimates.end());
         return min_element != estimates.end() ? *min_element : T();
     }
 
-    T get_item(uint64_t row, uint64_t col) const 
+    T get_item(uint64_t row, uint64_t col) const
     {
-        if (row >= 0 && row < d && col >= 0 && col < w) 
+        if (row >= 0 && row < d_ && col >= 0 && col < w_) 
         {
             return sketch[row][col];
-        } else 
+        } else
         {
             return T();
         }
@@ -127,22 +133,36 @@ public:
 
     size_t get_size_bytes() const 
     {
-        return d * w * sizeof(T);
+        return d_ * w_ * sizeof(T);
     }
 
-    std::pair<uint64_t, uint64_t> get_dimensions() const 
+    std::pair<uint64_t, uint64_t> get_dimensions() const
     {
-        return std::make_pair(d, w);
+        return std::make_pair(d_, w_);
     }
 
-    uint64_t get_d() const 
+    // Return Rows / number of hash functions 
+    uint64_t get_d() const
     {
-        return d;
+        return d_;
     }
 
-    uint64_t get_w() const 
+    // Return Cols / number of buckets
+    uint64_t get_w() const
     {
-        return w;
+        return w_;
+    }
+
+    // Return error probability
+    double get_gamma() const
+    {
+        return gamma_;
+    }
+
+    // Return relative error
+    double get_eps() const
+    {
+        return eps_;
     }
 
     cms(cms&&) noexcept = default;
