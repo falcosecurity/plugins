@@ -532,16 +532,14 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 	case "ct.resources":
 		var resources string = ""
 		rlist := jdata.GetArray("resources")
-		if rlist == nil {
+		if rlist == nil || len(rlist) == 0 {
 			return false, ""
 		}
 		for _, resource := range rlist {
 			resources += string(resource.MarshalTo(nil))
 			resources += ","
 		}
-		if resources[len(resources)-1] == ',' {
-			resources = resources[0 : len(resources)-1]
-		}
+		resources = strings.TrimSuffix(resources, ",")
 		if resources == "" {
 			return false, ""
 		}
