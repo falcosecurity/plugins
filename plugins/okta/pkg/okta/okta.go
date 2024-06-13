@@ -114,6 +114,7 @@ type Plugin struct {
 	CacheExpiration  uint64 `json:"cache_expiration" jsonschema:"title=Cache Expiration,description=TTL in seconds for keys in cache for MFA events (default: 600)"`
 	CacheUserMaxSize uint64 `json:"cache_usermaxsize" jsonschema:"title=Cache User Max Size,description=Max size by user for the cache (default: 200)"`
 	RefreshInterval  uint64 `json:"refresh_interval" jsonschema:"title=Refresh Interval,description=Delay in seconds between two calls to the Okta API (default: 10)"`
+	UseAsync         bool   `json:"useAsync" jsonschema:"title=Use async extraction,description=If true then async extraction optimization is enabled (Default: true),default=true"`
 	lastLogEvent     LogEvent
 	lastEventNum     uint64
 	cache            gcache.Cache
