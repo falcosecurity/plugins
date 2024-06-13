@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.4.0
+
+* [`77d1d6`](https://github.com/falcosecurity/plugins/commit/77d1d6) feat(plugins/gcpaudit): introduce optional UseAsync field in gcpaudit plugin
+
 ## v0.3.3
 
 
