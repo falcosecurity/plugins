@@ -20,7 +20,7 @@ const (
 	PluginName               = "kafka"
 	PluginDescription        = "Read events from Kafka topics into Falco"
 	PluginContact            = "github.com/falcosecurity/plugins"
-	PluginVersion            = "0.1.1"
+	PluginVersion            = "0.1.2"
 	PluginEventSource        = "kafka"
 )
 
