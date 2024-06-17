@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /*
-Copyright (C) 2023 The Falco Authors.
+Copyright (C) 2024 The Falco Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -40,7 +40,7 @@ const (
 	PluginName        = "json"
 	PluginDescription = "implements extracting arbitrary fields from inputs formatted as JSON"
 	PluginContact     = "github.com/falcosecurity/plugins/"
-	PluginVersion     = "0.7.2"
+	PluginVersion     = "0.7.3"
 )
 
 type Plugin struct {
