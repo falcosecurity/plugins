@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /*
-Copyright (C) 2023 The Falco Authors.
+Copyright (C) 2024 The Falco Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ const (
 	PluginName                = "github"
 	PluginDescription         = "Reads github webhook events, by listening on a socket or by reading events from disk"
 	PluginContact             = "github.com/falcosecurity/plugins"
-	PluginVersion             = "0.7.4"
+	PluginVersion             = "0.7.5"
 	PluginEventSource         = "github"
 	ExtractEventSource        = "github"
 )
