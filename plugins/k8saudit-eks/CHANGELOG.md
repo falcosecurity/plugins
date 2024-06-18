@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.5.1
+
+* [`7310bbe`](https://github.com/falcosecurity/plugins/commit/7310bbe4) update(plugins/k8saudit-eks): upgrade sdk and deps
+
+
 ## v0.5.0
 
 * [`24e9f22`](https://github.com/falcosecurity/plugins/commit/24e9f229) update(plugins/k8s_audit): rename more falco_ lists
