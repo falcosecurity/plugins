@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.3.1
+
+* [`b90a491`](https://github.com/falcosecurity/plugins/commit/b90a4917) update(plugins/k8saudit-gke): upgrade sdk and deps
+
+
 ## v0.3.0
 
 
