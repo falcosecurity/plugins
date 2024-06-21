@@ -20,13 +20,18 @@ limitations under the License.
 #include <falcosecurity/sdk.h>
 #include "num/cms.h"
 #include "plugin_consts.h"
+#include "plugin_utils.h"
+#include "plugin_sinsp_filterchecks.h"
 #include <driver/ppm_events_public.h> // Temporary workaround to avoid redefining syscalls PPME events and risking being out of sync
 
 #include <thread>
 #include <atomic>
 #include <chrono>
 #include <unordered_map>
+#include <unordered_set>
 #include <sstream>
+
+# define UINT32_MAX		(4294967295U)
 
 class anomalydetection
 {
@@ -35,6 +40,7 @@ class anomalydetection
     enum anomalydetection_fields
     {
         ANOMALYDETECTION_COUNT_MIN_SKETCH_COUNT = 0,
+        ANOMALYDETECTION_COUNT_MIN_SKETCH_BEHAVIOR_PROFILE_CONCAT_STR,
         ANOMALYDETECTION_FIELD_MAX
     };
 
@@ -57,11 +63,9 @@ class anomalydetection
         return PLUGIN_REQUIRED_API_VERSION;
     }
 
-    // todo
-    // falcosecurity::init_schema get_init_schema();
+    falcosecurity::init_schema get_init_schema();
 
-    // todo
-    // void parse_init_config(nlohmann::json& config_json);
+    void parse_init_config(nlohmann::json& config_json);
 
     bool init(falcosecurity::init_input& in);
 
@@ -113,14 +117,20 @@ class anomalydetection
     // required; standard plugin API
     bool parse_event(const falcosecurity::parse_event_input& in);
 
+    // Custom helper function within event parsing
+    bool extract_filterchecks_concat_profile(int64_t thread_id, const falcosecurity::table_reader &tr, const std::vector<plugin_sinsp_filterchecks_field>& fields, std::string& behavior_profile_concat_str);
+
     private:
 
-    uint32_t m_default_n_sketches = 3;
-    double m_default_gamma = 0.001; // Error probability -> determine d / Rows / number of hash functions
-    double m_default_eps = 0.0001;   // Relative error -> determine w / Cols / number of buckets 
+    bool m_count_min_sketch_enabled = false;
+    uint32_t m_n_sketches = 0;
+    std::vector<std::vector<double>> m_gamma_eps;
+    std::vector<std::vector<uint64_t>> m_rows_cols; // If set supersedes m_gamma_eps
+    std::vector<std::vector<plugin_sinsp_filterchecks_field>> m_behavior_profiles_fields;
+    std::vector<std::unordered_set<ppm_event_code>> m_behavior_profiles_event_codes;
+
     // Plugin managed state table
     std::vector<std::unique_ptr<plugin::anomalydetection::num::cms<uint64_t>>> m_count_min_sketches;
-    std::string m_last_behavior_profile;
 
     // required; standard plugin API
     std::string m_lasterr;
@@ -128,7 +138,7 @@ class anomalydetection
     falcosecurity::table m_thread_table;
     // Accessors to the fixed fields of falcosecurity/libs' thread table -> non comprehensive re-definition of sinsp_threadinfo
     // Reference in falcosecurity/libs: userspace/libsinsp/threadinfo.h
-    falcosecurity::table_field m_tid;  ///< The id of this thread
+    falcosecurity::table_field m_tid; ///< The id of this thread
     falcosecurity::table_field m_pid; ///< The id of the process containing this thread. In single thread threads, this is equal to tid.
     falcosecurity::table_field m_ptid; ///< The id of the process that started this thread.
     falcosecurity::table_field m_sid; ///< The session id of the process containing this thread.
@@ -137,14 +147,16 @@ class anomalydetection
     falcosecurity::table_field m_exepath; ///< full executable path
     falcosecurity::table_field m_exe_writable;
     falcosecurity::table_field m_exe_upper_layer; ///< True if the executable file belongs to upper layer in overlayfs
-    falcosecurity::table_field m_exe_from_memfd;	///< True if the executable is stored in fileless memory referenced by memfd
+    falcosecurity::table_field m_exe_from_memfd; ///< True if the executable is stored in fileless memory referenced by memfd
     falcosecurity::table_field m_args; ///< Command line arguments (e.g. "-d1")
     falcosecurity::table_field m_env; ///< Environment variables
     falcosecurity::table_field m_container_id; ///< heuristic-based container id
+    falcosecurity::table_field m_uid; ///< user uid
     falcosecurity::table_field m_user; ///< user infos
+    falcosecurity::table_field m_loginuid; ///< auid
     falcosecurity::table_field m_loginuser; ///< loginuser infos (auid)
     falcosecurity::table_field m_group; ///< group infos
-    falcosecurity::table_field m_vtid;  ///< The virtual id of this thread.
+    falcosecurity::table_field m_vtid; ///< The virtual id of this thread.
     falcosecurity::table_field m_vpid; ///< The virtual id of the process containing this thread. In single thread threads, this is equal to vtid.
     falcosecurity::table_field m_vpgid; // The virtual process group id, as seen from its pid namespace
     falcosecurity::table_field m_tty; ///< Number of controlling terminal

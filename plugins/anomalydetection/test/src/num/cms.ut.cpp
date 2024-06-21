@@ -47,7 +47,6 @@ TEST(plugin_anomalydetection, plugin_anomalydetection_cms_dim)
 
 TEST(plugin_anomalydetection, plugin_anomalydetection_cms_update_estimate)
 {
-
     double gamma = 0.001;
     double epsilon = 0.0001;
 
@@ -61,12 +60,10 @@ TEST(plugin_anomalydetection, plugin_anomalydetection_cms_update_estimate)
 
     EXPECT_EQ(cms.estimate(test_str), 3);
     EXPECT_EQ(cms.estimate(test_str2), 0);
-
 }
 
 TEST_F(sinsp_with_test_input, plugin_anomalydetection_filterchecks_fields)
 {
-
     std::shared_ptr<sinsp_plugin> plugin_owner;
     filter_check_list pl_flist;
     ASSERT_PLUGIN_INITIALIZATION(plugin_owner, pl_flist)
@@ -98,7 +95,15 @@ TEST_F(sinsp_with_test_input, plugin_anomalydetection_filterchecks_fields)
 	ASSERT_EQ(get_field_as_string(evt, "proc.name"), "test-exe");
 
     // /* Check anomalydetection plugin filter fields */
-    ASSERT_TRUE(field_exists(evt, "anomalydetection.count_min_sketch", pl_flist));
-    ASSERT_EQ(get_field_as_string(evt, "anomalydetection.count_min_sketch", pl_flist), "1");
+    ASSERT_TRUE(field_exists(evt, "anomaly.count_min_sketch", pl_flist));
+    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch", pl_flist), "1");
+    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch[0]", pl_flist), "1");
+    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch[1]", pl_flist), "0");
+    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch[2]", pl_flist), "0");
 
+    ASSERT_TRUE(field_exists(evt, "anomaly.count_min_sketch.profile", pl_flist));
+    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile", pl_flist), "test-exeinit/bin/test-exe/sbin/init34818initinit2010120");
+    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile[0]", pl_flist), "test-exeinit/bin/test-exe/sbin/init34818initinit2010120");
+    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile[1]", pl_flist), "test-exeinit/bin/test-exe34818initinit");
+    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile[2]", pl_flist), "");
 }

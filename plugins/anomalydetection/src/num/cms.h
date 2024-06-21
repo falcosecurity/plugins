@@ -98,7 +98,7 @@ public:
         // Note: d is typically very small (e.g. < 10)
         for (uint64_t seed = 0; seed < d_; ++seed)
         {
-            T index = hash_XXH3_seed(value, seed) % w_;
+            uint64_t index = hash_XXH3_seed(value, seed) % w_;
             sketch[seed][index] += count;
             estimates.push_back(sketch[seed][index]);
         }
@@ -113,7 +113,7 @@ public:
         // Note: d is typically very small (e.g. < 10)
         for (uint64_t seed = 0; seed < d_; ++seed)
         {
-            T index = hash_XXH3_seed(value, seed) % w_;
+            uint64_t index = hash_XXH3_seed(value, seed) % w_;
             estimates.push_back(sketch[seed][index]);
         }
         auto min_element = std::min_element(estimates.begin(), estimates.end());
@@ -166,10 +166,10 @@ public:
     }
 
     cms(cms&&) noexcept = default;
-	cms(const cms&) = default;
-	cms& operator=(cms&&) noexcept = default;
-	cms& operator=(const cms&) = default;
-	cms() = delete;
+    cms(const cms&) = default;
+    cms& operator=(cms&&) noexcept = default;
+    cms& operator=(const cms&) = default;
+    cms() = delete;
 };
 
 } // namespace plugin::anomalydetection::num

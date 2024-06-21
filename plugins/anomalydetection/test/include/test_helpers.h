@@ -15,8 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#define INIT_CONFIG                                                            \
-    "{\"count_min_sketch\":\"{\"n_sketches\":3}\"}"
+#define INIT_CONFIG "{\"count_min_sketch\":{\"enabled\":true,\"n_sketches\":3,\"gamma_eps\":[[0.001,0.0001],[0.001,0.0001],[0.001,0.0001]],\"behavior_profiles\":[{\"fields\":\"%container.id %proc.name %proc.aname[1] %proc.aname[2] %proc.aname[3] %proc.exepath %proc.pexepath %proc.aexepath[2] %proc.tty %proc.vpgid.name %proc.sname %proc.pid %proc.ppid %proc.sid %proc.vpgid %proc.vpid %proc.pvid %proc.apid[1]\",\"event_codes\":[293,331]},{\"fields\":\"%container.id %proc.name %proc.aname[1] %proc.aname[2] %proc.aname[3] %proc.exepath %proc.tty %proc.vpgid.name %proc.sname %fd.name\",\"event_codes\":[3,307,327]},{\"fields\":\"%container.id %proc.args\",\"event_codes\":[293,331]}]}}"
 
 #define ASSERT_PLUGIN_INITIALIZATION(p_o, p_l)                                 \
     {                                                                          \

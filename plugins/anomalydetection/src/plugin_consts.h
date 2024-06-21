@@ -25,7 +25,7 @@ limitations under the License.
 #define PLUGIN_VERSION "0.1.0"
 #define PLUGIN_DESCRIPTION "Enhance {syscall} event analysis by incorporating anomaly detection estimates for probabilistic filtering."
 #define PLUGIN_CONTACT "github.com/falcosecurity/plugins"
-#define PLUGIN_REQUIRED_API_VERSION "3.5.0"
+#define PLUGIN_REQUIRED_API_VERSION "3.6.0"
 #define PLUGIN_LOG_PREFIX "[anomalydetection]"
 
 ///////////////////////////
