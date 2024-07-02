@@ -236,7 +236,8 @@ bool anomalydetection::init(falcosecurity::init_input& in)
         m_exe_writable = m_thread_table.get_field(t.fields(), "exe_writable", st::SS_PLUGIN_ST_BOOL);
         m_exe_upper_layer = m_thread_table.get_field(t.fields(), "exe_upper_layer", st::SS_PLUGIN_ST_BOOL);
         m_exe_from_memfd = m_thread_table.get_field(t.fields(), "exe_from_memfd", st::SS_PLUGIN_ST_BOOL);
-        // m_args = m_thread_table.get_field(t.fields(), "args", TBD);
+        m_args = m_thread_table.get_field(t.fields(), "args", st::SS_PLUGIN_ST_TABLE);
+        m_args_value = t.get_subtable_field(m_thread_table, m_args, "value", st::SS_PLUGIN_ST_STRING);
         // m_env = m_thread_table.get_field(t.fields(), "env", TBD);
         m_container_id = m_thread_table.get_field(t.fields(), "container_id", st::SS_PLUGIN_ST_STRING);
         // m_user = m_thread_table.get_field(t.fields(), "user", TBD);
@@ -355,6 +356,8 @@ bool anomalydetection::extract(const falcosecurity::extract_fields_input& in)
 
 bool anomalydetection::extract_filterchecks_concat_profile(int64_t thread_id, const falcosecurity::table_reader &tr, const std::vector<plugin_sinsp_filterchecks_field>& fields, std::string& behavior_profile_concat_str)
 {
+    using st = falcosecurity::state_value_type;
+
     auto thread_entry = m_thread_table.get_entry(tr, thread_id);
 
     // Create a concatenated string formed out of each field per behavior profile
@@ -411,6 +414,26 @@ bool anomalydetection::extract_filterchecks_concat_profile(int64_t thread_id, co
                 }
                 break;
             }
+        case plugin_sinsp_filterchecks::TYPE_ARGS:
+        {
+            const char* arg = nullptr;
+            auto args_table = m_thread_table.get_subtable(tr, m_args, thread_entry, st::SS_PLUGIN_ST_INT64);
+            args_table.iterate_entries(tr, [this, &tr, &arg, &tstr](const falcosecurity::table_entry& e)
+                {
+                    arg = nullptr;
+                    m_args_value.read_value(tr, e, arg);
+                    if (!tstr.empty())
+                    {
+                        tstr += " ";
+                    }
+                    if (arg)
+                    {
+                        tstr += arg;
+                    }
+                    return true;
+                });
+            break;
+        }
         case plugin_sinsp_filterchecks::TYPE_EXE:
             m_exe.read_value(tr, thread_entry, tstr);
             break;

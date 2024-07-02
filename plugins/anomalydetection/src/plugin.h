@@ -149,6 +149,7 @@ class anomalydetection
     falcosecurity::table_field m_exe_upper_layer; ///< True if the executable file belongs to upper layer in overlayfs
     falcosecurity::table_field m_exe_from_memfd; ///< True if the executable is stored in fileless memory referenced by memfd
     falcosecurity::table_field m_args; ///< Command line arguments (e.g. "-d1")
+    falcosecurity::table_field m_args_value; ///< String value entry from the args array
     falcosecurity::table_field m_env; ///< Environment variables
     falcosecurity::table_field m_container_id; ///< heuristic-based container id
     falcosecurity::table_field m_uid; ///< user uid
