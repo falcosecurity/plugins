@@ -355,12 +355,7 @@ bool anomalydetection::extract(const falcosecurity::extract_fields_input& in)
 
 bool anomalydetection::extract_filterchecks_concat_profile(int64_t thread_id, const falcosecurity::table_reader &tr, const std::vector<plugin_sinsp_filterchecks_field>& fields, std::string& behavior_profile_concat_str)
 {
-    falcosecurity::table_entry thread_entry = m_thread_table.get_entry(tr, thread_id);
-
-    if(thread_entry == nullptr)
-    {
-        return false;
-    }
+    auto thread_entry = m_thread_table.get_entry(tr, thread_id);
 
     // Create a concatenated string formed out of each field per behavior profile
     // No concept of null fields (instead its always an empty string) compared to libsinsp
@@ -370,8 +365,6 @@ bool anomalydetection::extract_filterchecks_concat_profile(int64_t thread_id, co
         uint32_t tuint32 = UINT32_MAX;
         int64_t tint64 = -1;
         int64_t ptid = -1;
-        falcosecurity::table_entry lineage;
-        falcosecurity::table_entry leader;
         switch(field.id)
         {
         case plugin_sinsp_filterchecks::TYPE_CONTAINER_ID:
@@ -381,10 +374,12 @@ bool anomalydetection::extract_filterchecks_concat_profile(int64_t thread_id, co
             m_comm.read_value(tr, thread_entry, tstr);
             break;
         case plugin_sinsp_filterchecks::TYPE_PNAME:
+        {
             m_ptid.read_value(tr, thread_entry, ptid);
-            lineage = m_thread_table.get_entry(tr, ptid);
+            auto lineage = m_thread_table.get_entry(tr, ptid);
             m_comm.read_value(tr, lineage, tstr);
             break;
+        }
         case plugin_sinsp_filterchecks::TYPE_ANAME:
             {
                 // todo: check implications of main thread as it's part of the libs implementation
@@ -398,7 +393,7 @@ bool anomalydetection::extract_filterchecks_concat_profile(int64_t thread_id, co
                 {
                     try
                     {
-                        lineage = m_thread_table.get_entry(tr, ptid);
+                        auto lineage = m_thread_table.get_entry(tr, ptid);
                         if(j == (field.argid - 1))
                         {
                             m_comm.read_value(tr, lineage, tstr);
@@ -420,10 +415,12 @@ bool anomalydetection::extract_filterchecks_concat_profile(int64_t thread_id, co
             m_exe.read_value(tr, thread_entry, tstr);
             break;
         case plugin_sinsp_filterchecks::TYPE_PEXE:
+        {
             m_ptid.read_value(tr, thread_entry, ptid);
-            lineage = m_thread_table.get_entry(tr, ptid);
+            auto lineage = m_thread_table.get_entry(tr, ptid);
             m_exe.read_value(tr, lineage, tstr);
             break;
+        }
         case plugin_sinsp_filterchecks::TYPE_AEXE:
             {
                 if(field.argid < 1)
@@ -436,7 +433,7 @@ bool anomalydetection::extract_filterchecks_concat_profile(int64_t thread_id, co
                 {
                     try
                     {
-                        lineage = m_thread_table.get_entry(tr, ptid);
+                        auto lineage = m_thread_table.get_entry(tr, ptid);
                         if(j == (field.argid - 1))
                         {
                             m_exe.read_value(tr, lineage, tstr);
@@ -458,10 +455,12 @@ bool anomalydetection::extract_filterchecks_concat_profile(int64_t thread_id, co
             m_exepath.read_value(tr, thread_entry, tstr);
             break;
         case plugin_sinsp_filterchecks::TYPE_PEXEPATH:
+        {
             m_ptid.read_value(tr, thread_entry, ptid);
-            lineage = m_thread_table.get_entry(tr, ptid);
+            auto lineage = m_thread_table.get_entry(tr, ptid);
             m_exepath.read_value(tr, lineage, tstr);
             break;
+        }
         case plugin_sinsp_filterchecks::TYPE_AEXEPATH:
             {
                 if(field.argid < 1)
@@ -474,7 +473,7 @@ bool anomalydetection::extract_filterchecks_concat_profile(int64_t thread_id, co
                 {
                     try
                     {
-                        lineage = m_thread_table.get_entry(tr, ptid);
+                        auto lineage = m_thread_table.get_entry(tr, ptid);
                         if(j == (field.argid - 1))
                         {
                             m_exepath.read_value(tr, lineage, tstr);
@@ -504,11 +503,13 @@ bool anomalydetection::extract_filterchecks_concat_profile(int64_t thread_id, co
             tstr = std::to_string(tint64);
             break;
         case plugin_sinsp_filterchecks::TYPE_PPID:
-            m_ptid.read_value(tr, thread_entry, ptid);
-            lineage = m_thread_table.get_entry(tr, ptid);
-            m_pid.read_value(tr, lineage, tint64);
-            tstr = std::to_string(tint64);
-            break;
+            {
+                m_ptid.read_value(tr, thread_entry, ptid);
+                auto lineage = m_thread_table.get_entry(tr, ptid);
+                m_pid.read_value(tr, lineage, tint64);
+                tstr = std::to_string(tint64);
+                break;
+            }
         case plugin_sinsp_filterchecks::TYPE_APID:
             {
                 if(field.argid < 1)
@@ -521,7 +522,7 @@ bool anomalydetection::extract_filterchecks_concat_profile(int64_t thread_id, co
                 {
                     try
                     {
-                        lineage = m_thread_table.get_entry(tr, ptid);
+                        auto lineage = m_thread_table.get_entry(tr, ptid);
                         if(j == (field.argid - 1))
                         {
                             m_pid.read_value(tr, lineage, tint64);
@@ -544,11 +545,13 @@ bool anomalydetection::extract_filterchecks_concat_profile(int64_t thread_id, co
             tstr = std::to_string(tint64);
             break;
         case plugin_sinsp_filterchecks::TYPE_PVPID:
-            m_ptid.read_value(tr, thread_entry, ptid);
-            lineage = m_thread_table.get_entry(tr, ptid);
-            m_vpid.read_value(tr, lineage, tint64);
-            tstr = std::to_string(tint64);
-            break;
+            {
+                m_ptid.read_value(tr, thread_entry, ptid);
+                auto lineage = m_thread_table.get_entry(tr, ptid);
+                m_vpid.read_value(tr, lineage, tint64);
+                tstr = std::to_string(tint64);
+                break;
+            }
         case plugin_sinsp_filterchecks::TYPE_SID:
             m_sid.read_value(tr, thread_entry, tint64);
             tstr = std::to_string(tint64);
@@ -559,25 +562,27 @@ bool anomalydetection::extract_filterchecks_concat_profile(int64_t thread_id, co
                 int64_t sid;
                 m_sid.read_value(tr, thread_entry, sid);
                 m_ptid.read_value(tr, thread_entry, ptid);
-                leader = thread_entry;
+                falcosecurity::table_entry last_entry(nullptr, nullptr, nullptr);
+                falcosecurity::table_entry* leader = &thread_entry;
                 for(uint32_t j = 0; j < 9; j++)
                 {
                     try
                     {
-                        lineage = m_thread_table.get_entry(tr, ptid);
+                        auto lineage = m_thread_table.get_entry(tr, ptid);
                         m_sid.read_value(tr, lineage, tint64);
                         if(sid != tint64)
                         {
                             break;
                         }
                         m_ptid.read_value(tr, lineage, ptid);
-                        leader = lineage;
+                        last_entry = std::move(lineage);
+                        leader = &last_entry;
                     }
                     catch(const std::exception& e)
                     {
                     }
                 }
-                m_comm.read_value(tr, leader, tstr);
+                m_comm.read_value(tr, *leader, tstr);
                 break;
             }
         case plugin_sinsp_filterchecks::TYPE_VPGID:
@@ -589,25 +594,27 @@ bool anomalydetection::extract_filterchecks_concat_profile(int64_t thread_id, co
                 int64_t vpgid;
                 m_vpgid.read_value(tr, thread_entry, vpgid);
                 m_ptid.read_value(tr, thread_entry, ptid);
-                leader = thread_entry;
+                falcosecurity::table_entry last_entry(nullptr, nullptr, nullptr);
+                falcosecurity::table_entry* leader = &thread_entry;
                 for(uint32_t j = 0; j < 5; j++)
                 {
                     try
                     {
-                        lineage = m_thread_table.get_entry(tr, ptid);
+                        auto lineage = m_thread_table.get_entry(tr, ptid);
                         m_vpgid.read_value(tr, lineage, tint64);
                         if(vpgid != tint64)
                         {
                             break;
                         }
                         m_ptid.read_value(tr, lineage, ptid);
-                        leader = lineage;
+                        last_entry = std::move(lineage);
+                        leader = &last_entry;
                     }
                     catch(const std::exception& e)
                     {
                     }
                 }
-                m_comm.read_value(tr, leader, tstr);
+                m_comm.read_value(tr, *leader, tstr);
                 break;
             }
         default:
