@@ -27,6 +27,7 @@ limitations under the License.
 #include <sstream>
 #include <re2/re2.h>
 #include <fstream>
+#include <filesystem>
 
 #define ADD_MODIFY_TABLE_ENTRY(_resource_name, _resource_table)                \
     if(resource_kind.compare(_resource_name) == 0)                             \
@@ -50,6 +51,38 @@ limitations under the License.
 
 // This is the regex needed to extract the pod_uid from the cgroup
 static re2::RE2 pattern(RGX_POD, re2::RE2::POSIX);
+
+std::string get_pod_uid_from_cgroup_string(const std::string& cgroup_first_line)
+{
+    // We set the pod uid to `""` if we are not able to extract it.
+    std::string pod_uid = "";
+
+    // Here `cgroup_first_line` can have 2 layouts:
+    //
+    // 1 - If it arrives from our driver -> `controller=cgroup_path`
+    // Example:
+    // `cpuset=/kubelet.slice/kubelet-kubepods.slice/kubelet-kubepods-pod05869489-8c7f-45dc-9abd-1b1620787bb1.slice/cri-containerd-2f92446a3fbfd0b7a73457b45e96c75a25c5e44e7b1bcec165712b906551c261.scope\0`
+    //
+    // 2 - If it arrives from the /proc scan -> `hierarchy
+    // ID:controller:cgroup_path` Check if the cgroup version is relevant here
+    // or not...
+    // todo!: i'm not sure if all controllers have the same format in cgroupv1
+    if(re2::RE2::PartialMatch(cgroup_first_line, pattern, &pod_uid))
+    {
+        // Here `pod_uid` could have 2 possible layouts:
+        // - (driver cgroup) pod05869489-8c7f-45dc-9abd-1b1620787bb1
+        // - (driver systemd) pod05869489_8c7f_45dc_9abd_1b1620787bb1
+
+        // As a first thing we remove the "pod" prefix from `pod_uid`
+        pod_uid.erase(0, 3);
+
+        // Then we convert `_` into `-` if we are in `systemd` notation.
+        // The final `pod_uid` layout will be:
+        // 05869489-8c7f-45dc-9abd-1b1620787bb1
+        std::replace(pod_uid.begin(), pod_uid.end(), '_', '-');
+    }
+    return pod_uid;
+}
 
 //////////////////////////
 // General plugin API
@@ -219,6 +252,75 @@ void my_plugin::parse_init_config(nlohmann::json& config_json)
     }
 }
 
+void my_plugin::do_initial_proc_scan()
+{
+    std::filesystem::directory_iterator dir_iter;
+    std::string proc_root = m_host_proc + "/proc";
+    try
+    {
+        SPDLOG_DEBUG("Start the /proc scan under: '{}'", proc_root);
+        dir_iter = std::filesystem::directory_iterator(proc_root);
+    }
+    catch(std::filesystem::filesystem_error& err)
+    {
+        SPDLOG_ERROR("cannot iter over '{}' for initial proc scan: {}",
+                     proc_root, err.what());
+        return;
+    }
+
+    int64_t tid = 0;
+    std::string proc_path = "";
+    std::string cgroup_line = "";
+    for(const auto& entry : dir_iter)
+    {
+        auto file_name = entry.path().filename();
+        // The file_name here should be `1`,`2` so the thread id, not the
+        // process id. We should exclude other directories or files like
+        // `bootconfig`,`vmstat`, ...
+
+        if(!entry.is_directory() ||
+           (tid = strtol(file_name.c_str(), NULL, 10)) == 0)
+        {
+            // skip if not a tid directory.
+            continue;
+        }
+
+        // Example of the path: `/proc/1/cgroup`
+        proc_path = std::string(proc_root)
+                            .append("/")
+                            .append(file_name.c_str())
+                            .append("/cgroup");
+        SPDLOG_TRACE("Try to scan under: '{}'", proc_path);
+
+        std::ifstream file(proc_path);
+
+        if(file.is_open())
+        {
+            // Read the first line from the file
+            if(std::getline(file, cgroup_line))
+            {
+                // todo!: check the cgroupv1 layout
+                std::string pod_uid =
+                        get_pod_uid_from_cgroup_string(cgroup_line);
+                if(!pod_uid.empty())
+                {
+                    m_thread_id_pod_uid_map[tid] = pod_uid;
+                }
+            }
+            else
+            {
+                SPDLOG_WARN("cannot retrieve the cgroup first line for '{}'",
+                            proc_path);
+            }
+            file.close();
+        }
+        else
+        {
+            SPDLOG_WARN("cannot open '{}'", proc_path);
+        }
+    }
+}
+
 bool my_plugin::init(falcosecurity::init_input& in)
 {
     using st = falcosecurity::state_value_type;
@@ -268,6 +370,12 @@ bool my_plugin::init(falcosecurity::init_input& in)
         SPDLOG_CRITICAL(m_lasterr);
         return false;
     }
+
+    // Here we do /proc scan to catch the pod_uid from already running
+    // processes.
+    // We cannot populate the sinsp thread table because when we call `init` it
+    // is still empty. The /proc scan in sinsp is done after the plugin init.
+    do_initial_proc_scan();
     return true;
 }
 
@@ -934,7 +1042,16 @@ bool my_plugin::extract(const falcosecurity::extract_fields_input& in)
     // The process is not into a pod, stop here.
     if(pod_uid.empty())
     {
-        return false;
+        // We try to obtain the pod_uid from our internal cache populated during
+        // the initial /proc scan
+        auto it = m_thread_id_pod_uid_map.find(thread_id);
+        if(it == m_thread_id_pod_uid_map.end())
+        {
+            return false;
+        }
+        // The ideal thing would be to write it in the sinsp thread table but in
+        // the extraction phase we don't have a table writer.
+        pod_uid = it->second;
     }
 
     // Try to find the entry associated with the pod_uid
@@ -1204,19 +1321,17 @@ static inline sinsp_param get_syscall_evt_param(void* evt, uint32_t num_param)
                     dataoffset};
 }
 
-bool inline my_plugin::extract_pod_uid(
+bool inline my_plugin::parse_process_events(
         const falcosecurity::parse_event_input& in)
 {
     auto res_param = get_syscall_evt_param(in.get_event_reader().get_buf(),
                                            EXECVE_CLONE_RES_PARAM_IDX);
 
-    // - For execve/execveat we exclude failed syscall events
-    // - For clone/fork/clone3 we exclude failed syscall events (ret<0) and
-    // caller events (ret>0).
-    //   When the new thread is in a container in libsinsp we only parse the
-    //   child exit event, so we can do the same thing here. In the child the
-    //   return value is `0`.
-    if(*((uint64_t*)(res_param.param_pointer)) != 0)
+    // - For execve/execveat we exclude failed syscall events (ret<0)
+    // - For clone/fork/vfork/clone3 we exclude failed syscall events (ret<0)
+    int64_t ret = 0;
+    memcpy(&ret, res_param.param_pointer, sizeof(ret));
+    if(ret < 0)
     {
         return false;
     }
@@ -1242,24 +1357,7 @@ bool inline my_plugin::extract_pod_uid(
     // cpuset=/kubelet.slice/kubelet-kubepods.slice/kubelet-kubepods-pod05869489-8c7f-45dc-9abd-1b1620787bb1.slice/cri-containerd-2f92446a3fbfd0b7a73457b45e96c75a25c5e44e7b1bcec165712b906551c261.scope\0
     // So we can put it in a string and apply our regex.
     std::string cgroup_first_charbuf = (char*)cgroup_param.param_pointer;
-
-    // We set the pod uid to `""` if we are not able to extract it.
-    std::string pod_uid = "";
-
-    if(re2::RE2::PartialMatch(cgroup_first_charbuf, pattern, &pod_uid))
-    {
-        // Here `pod_uid` could have 2 possible layouts:
-        // - (driver cgroup) pod05869489-8c7f-45dc-9abd-1b1620787bb1
-        // - (driver systemd) pod05869489_8c7f_45dc_9abd_1b1620787bb1
-
-        // As a first thing we remove the "pod" prefix from `pod_uid`
-        pod_uid.erase(0, 3);
-
-        // Then we convert `_` into `-` if we are in `systemd` notation.
-        // The final `pod_uid` layout will be:
-        // 05869489-8c7f-45dc-9abd-1b1620787bb1
-        std::replace(pod_uid.begin(), pod_uid.end(), '_', '-');
-    }
+    std::string pod_uid = get_pod_uid_from_cgroup_string(cgroup_first_charbuf);
 
     // retrieve thread entry associated with the event tid
     auto& tr = in.get_table_reader();
@@ -1287,7 +1385,7 @@ bool my_plugin::parse_event(const falcosecurity::parse_event_input& in)
     case PPME_SYSCALL_FORK_20_X:
     case PPME_SYSCALL_VFORK_20_X:
     case PPME_SYSCALL_CLONE3_X:
-        return extract_pod_uid(in);
+        return parse_process_events(in);
     default:
         SPDLOG_ERROR("received an unknown event type {}",
                      int32_t(evt.get_type()));

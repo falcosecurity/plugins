@@ -126,6 +126,8 @@ class my_plugin
 
     bool init(falcosecurity::init_input& in);
 
+    void do_initial_proc_scan();
+
     //////////////////////////
     // Async capability
     //////////////////////////
@@ -235,7 +237,8 @@ class my_plugin
 
     bool inline parse_async_event(const falcosecurity::parse_event_input& in);
 
-    bool inline extract_pod_uid(const falcosecurity::parse_event_input& in);
+    bool inline parse_process_events(
+            const falcosecurity::parse_event_input& in);
 
     bool parse_event(const falcosecurity::parse_event_input& in);
 
@@ -251,6 +254,8 @@ class my_plugin
     std::string m_collector_port;
     std::string m_node_name;
     std::string m_ca_PEM_encoding;
+    // todo!: populate it when parsing the config.
+    std::string m_host_proc;
 
     // State tables
     std::unordered_map<std::string, resource_layout> m_pod_table;
@@ -261,6 +266,7 @@ class my_plugin
     std::unordered_map<std::string, resource_layout>
             m_replication_controller_table;
     std::unordered_map<std::string, resource_layout> m_deamonset_table;
+    std::unordered_map<int64_t, std::string> m_thread_id_pod_uid_map;
 
     // Last error of the plugin
     std::string m_lasterr;

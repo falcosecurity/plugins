@@ -77,7 +77,7 @@ plugins:
       # name of the node on which the Falco instance is running. (required)
       nodeName: kind-control-plane
       # verbosity level for the plugin logger (optional)
-      verbosity: warn # (default: info)
+      verbosity: warning # (default: info)
       # path to the PEM encoding of the server root certificates. (optional)
       # Used to open an authanticated GRPC channel with the collector.
       # If empty the connection will be insecure.
