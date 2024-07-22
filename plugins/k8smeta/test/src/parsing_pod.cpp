@@ -46,7 +46,20 @@ limitations under the License.
     int64_t p1_vpid = 1;                                                       \
                                                                                \
     std::string expected_pod_uid = "5eaeeca9-2277-460b-a4bf-5a0783f6d49f";     \
-    auto evt = generate_clone_x_event(                                         \
+                                                                               \
+    /* We generate a clone exit event for the parent. */                       \
+    /* This is parsed but the pod_uid is not extracted. */                     \
+    auto evt = generate_clone_x_event(p1_tid, INIT_TID, INIT_PID, INIT_PTID,   \
+                                      0, INIT_TID, INIT_PTID, "init",          \
+                                      {"cpuset=/"}, event);                    \
+    ASSERT_EQ(evt->get_type(), event);                                         \
+    auto init_thread_entry = thread_table->get_entry(INIT_TID);                \
+    ASSERT_NE(init_thread_entry, nullptr);                                     \
+    std::string pod_uid;                                                       \
+    init_thread_entry->get_dynamic_field(fieldacc, pod_uid);                   \
+    ASSERT_EQ(pod_uid, "");                                                    \
+                                                                               \
+    evt = generate_clone_x_event(                                              \
             0, p1_tid, p1_pid, p1_ptid, PPM_CL_CHILD_IN_PIDNS, p1_vtid,        \
             p1_vpid, "bash",                                                   \
             {"cpuset=/kubepods/besteffort/pod" + expected_pod_uid +            \
@@ -55,10 +68,9 @@ limitations under the License.
             event);                                                            \
     ASSERT_EQ(evt->get_type(), event);                                         \
                                                                                \
-    auto init_thread_entry = thread_table->get_entry(p1_tid);                  \
-    ASSERT_NE(init_thread_entry, nullptr);                                     \
-    std::string pod_uid;                                                       \
-    init_thread_entry->get_dynamic_field(fieldacc, pod_uid);                   \
+    auto p1_tid_entry = thread_table->get_entry(p1_tid);                       \
+    ASSERT_NE(p1_tid_entry, nullptr);                                          \
+    p1_tid_entry->get_dynamic_field(fieldacc, pod_uid);                        \
     ASSERT_EQ(pod_uid, expected_pod_uid);
 
 #define EXECVE_EXECVEAT_TEST(event)                                            \
@@ -333,4 +345,61 @@ TEST_F(sinsp_with_test_input, plugin_k8s_check_thread_entry_is_removed)
 
     // Now we should have only one entry in the thread table
     ASSERT_EQ(thread_table->entries_count(), 1);
+}
+
+TEST_F(sinsp_with_test_input, plugin_k8s_parse_parent_clone)
+{
+    std::shared_ptr<sinsp_plugin> plugin_owner;
+    filter_check_list pl_flist;
+    ASSERT_PLUGIN_INITIALIZATION(plugin_owner, pl_flist)
+
+    add_default_init_thread();
+    open_inspector();
+
+    auto &reg = m_inspector.get_table_registry();
+    auto thread_table = reg->get_table<int64_t>(THREAD_TABLE_NAME);
+    auto field =
+            thread_table->dynamic_fields()->fields().find(POD_UID_FIELD_NAME);
+    auto fieldacc = field->second.new_accessor<std::string>();
+
+    int64_t p1_tid = 2;
+    int64_t p1_pid = 2;
+    int64_t p1_ptid = INIT_TID;
+    int64_t p1_vtid = 1;
+    int64_t p1_vpid = 1;
+    int64_t p2_tid = 3;
+
+    // Create process p1, that is a child of init
+    std::string expected_pod_uid = "5eaeeca9-2277-460b-a4bf-5a0783f6d49f";
+    generate_clone_x_event(0, p1_tid, p1_pid, p1_ptid, PPM_CL_CHILD_IN_PIDNS,
+                           p1_vtid, p1_vpid, "bash",
+                           {"cpuset=/kubepods/besteffort/pod" +
+                            expected_pod_uid +
+                            "/691e0ffb65010b2b611f3a15b7f76c48466192e673e156f38"
+                            "bd2f8e25acd6bbc"},
+                           PPME_SYSCALL_CLONE_20_X);
+    auto p1_thread_entry = thread_table->get_entry(p1_tid);
+    ASSERT_NE(p1_thread_entry, nullptr);
+    std::string pod_uid = "";
+    p1_thread_entry->get_dynamic_field(fieldacc, pod_uid);
+    ASSERT_EQ(pod_uid, expected_pod_uid);
+
+    // we clear the pod_uid manually so we check that the pod_uid will be
+    // populated by the next clone parent event.
+    std::string empty_pod_uid = "";
+    p1_thread_entry->set_dynamic_field(fieldacc, empty_pod_uid);
+    p1_thread_entry->get_dynamic_field(fieldacc, pod_uid);
+    ASSERT_EQ(pod_uid, empty_pod_uid);
+
+    // Clone parent exit event for p1
+    generate_clone_x_event(p2_tid, p1_tid, p1_pid, p1_ptid,
+                           PPM_CL_CHILD_IN_PIDNS, p1_vtid, p1_vpid, "bash",
+                           {"cpuset=/kubepods/besteffort/pod" +
+                            expected_pod_uid +
+                            "/691e0ffb65010b2b611f3a15b7f76c48466192e673e156f38"
+                            "bd2f8e25acd6bbc"},
+                           PPME_SYSCALL_CLONE_20_X);
+    // We have again the pod_uid for the parent thread
+    p1_thread_entry->get_dynamic_field(fieldacc, pod_uid);
+    ASSERT_EQ(pod_uid, expected_pod_uid);
 }
