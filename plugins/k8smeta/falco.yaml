@@ -11,6 +11,7 @@ plugins:
       collectorHostname: localhost
       nodeName: kind-control-plane
       verbosity: critical
+      hostProc: /host
 
 stdout_output:
   enabled: true

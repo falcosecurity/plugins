@@ -21,7 +21,7 @@ limitations under the License.
 #define INIT_CONFIG                                                            \
     "{\"collectorHostname\":\"localhost\",\"collectorPort\": "                 \
     "45000,\"nodeName\":\"control-plane\",\"verbosity\":"                      \
-    "\"info\"}"
+    "\"info\", \"hostProc\":\"\"}"
 
 #define ASSERT_STRING_SETS(a, b)                                               \
     {                                                                          \

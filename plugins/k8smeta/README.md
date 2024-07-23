@@ -70,18 +70,23 @@ plugins:
     # path to the plugin .so file
     library_path: libk8smeta.so
     init_config:
-      # port exposed by the k8s-metacollector (required)
-      collectorPort: 45000
-      # hostname exposed by the k8s-metacollector (required)
-      collectorHostname: localhost
-      # name of the node on which the Falco instance is running. (required)
-      nodeName: kind-control-plane
-      # verbosity level for the plugin logger (optional)
-      verbosity: warning # (default: info)
-      # path to the PEM encoding of the server root certificates. (optional)
+      # port exposed by the k8s-metacollector
+      collectorPort: 45000 # (required)
+      # hostname exposed by the k8s-metacollector
+      collectorHostname: localhost # (required)
+      # name of the node on which the Falco instance is running.
+      nodeName: kind-control-plane # (required)
+      # verbosity level for the plugin logger
+      verbosity: warning # (optional, default: info)
+      # path to the PEM encoding of the server root certificates.
       # Used to open an authanticated GRPC channel with the collector.
       # If empty the connection will be insecure.
-      caPEMBundle: /etc/ssl/certs/ca-certificates.crt 
+      caPEMBundle: /etc/ssl/certs/ca-certificates.crt # (optional)
+      # The plugin needs to scan the '/proc' of the host on which is running.
+      # In Falco usually we put the host '/proc' folder under '/host/proc' so
+      # the the default for this config is '/host'.
+      # The path used here must not have a final '/'.
+      hostProc: /host  # (optional, default: /host)
 
 load_plugins: [k8smeta]
 ```

@@ -92,3 +92,15 @@ TEST_F(sinsp_with_test_input, plugin_k8s_env_variable)
                                        err));
     ASSERT_EQ(err, "");
 }
+
+TEST_F(sinsp_with_test_input, plugin_k8s_with_host_proc)
+{
+    auto plugin_owner = m_inspector.register_plugin(PLUGIN_PATH);
+    ASSERT_TRUE(plugin_owner.get());
+    std::string err;
+
+    ASSERT_NO_THROW(plugin_owner->init(R"(
+{"collectorHostname":"localhost","collectorPort":45000,"nodeName":"kind-control-plane", "hostProc": "/host"})",
+                                       err));
+    ASSERT_EQ(err, "");
+}
