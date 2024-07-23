@@ -478,3 +478,23 @@ plugins:
         source: kafka
       extraction:
         supported: false
+- name: gitlab
+    description: Falco plugin providing basic runtime threat detection and auditing logging for GitLab 
+    authors: Andy
+    contact: https://github.com/an1245/falco-plugin-gitlab/issues
+    maintainers:
+      - name: Andy
+    keywords:
+      - audit
+      - log-events
+      - gitlab
+    url: https://github.com/an1245/falco-plugin-gitlab
+    rules_url: https://github.com/an1245/falco-plugin-gitlab/tree/main/rules
+    license: Apache-2.0
+    capabilities:
+      sourcing:
+        supported: true
+        id: 19
+        source: gitlab
+      extraction:
+        supported: true
