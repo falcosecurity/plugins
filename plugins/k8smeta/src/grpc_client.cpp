@@ -45,7 +45,7 @@ K8sMetaClient::K8sMetaClient(const std::string& node_name,
     sel.set_nodename(node_name);
     sel.clear_resourcekinds();
 
-    /// todo! one day we could expose them to the user.
+    /// todo!: one day we could expose them to the user.
     (*sel.mutable_resourcekinds())["Pod"] = "true";
     (*sel.mutable_resourcekinds())["Namespace"] = "true";
     (*sel.mutable_resourcekinds())["Deployment"] = "true";

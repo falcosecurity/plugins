@@ -20,5 +20,5 @@ To run only some tests you need to use the test binary directly
 
 ```bash
 # from the `build` directory
-sudo ./libs_tests/libsinsp/test/unit-test-libsinsp --gtest_filter='*plugin_k8s_PPME_SYSCALL_CLONE3_X_parse'
+./libs_tests/libsinsp/test/unit-test-libsinsp --gtest_filter='*plugin_k8s_PPME_SYSCALL_CLONE3_X_parse'
 ```

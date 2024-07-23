@@ -18,6 +18,8 @@ limitations under the License.
 #include <gtest/gtest.h>
 #include <test/helpers/threads_helpers.h>
 #include <re2/re2.h>
+#include <filesystem>
+#include <fstream>
 
 // Obtained from the plugin folder
 #include <k8smeta_tests/plugin_test_var.h>
@@ -203,9 +205,9 @@ TEST_F(sinsp_with_test_input, plugin_k8s_pod_uid_regex)
              "b59ce319955234d0b051a93dac5efa8fc07df08d8b0188195b434174efc44e73."
              "scope"});
     init_thread_entry->get_dynamic_field(fieldacc, pod_uid);
-    // We are not able to extract something valid from the cgroup so we set the
-    // pod_uid to `""` in the plugin
-    ASSERT_EQ(pod_uid, "");
+    // We are not able to extract something valid from the last call so the
+    // pod_uid is unchanged
+    ASSERT_EQ(pod_uid, expected_pod_uid);
 }
 
 // Check that the plugin defines a new field called "pod_uid" in the `init`
@@ -401,5 +403,122 @@ TEST_F(sinsp_with_test_input, plugin_k8s_parse_parent_clone)
                            PPME_SYSCALL_CLONE_20_X);
     // We have again the pod_uid for the parent thread
     p1_thread_entry->get_dynamic_field(fieldacc, pod_uid);
+    ASSERT_EQ(pod_uid, expected_pod_uid);
+}
+
+TEST_F(sinsp_with_test_input, plugin_k8s_proc_scan_in_the_plugin)
+{
+    std::shared_ptr<sinsp_plugin> plugin_owner;
+    filter_check_list pl_flist;
+    ASSERT_PLUGIN_INITIALIZATION(plugin_owner, pl_flist)
+
+    // We do a real /proc scan in the plugin while in sinsp we don't do that.
+    add_default_init_thread();
+    open_inspector();
+
+    // We create a random clone event to trigger the parsing logic.
+    generate_clone_x_event(0, 2, 2, INIT_TID);
+
+    // The plugin shouldn't crash during the parsing logic of the previous event
+}
+
+#define PLUGIN_PROC_SCAN_UNDER_TMP_PROC                                        \
+    int32_t mock_tid = (1 << 16) - 1;                                          \
+    std::string mock_proc_dir = "/tmp/proc/" + std::to_string(mock_tid);       \
+    std::string mock_proc_cgroup = mock_proc_dir + "/cgroup";                  \
+    std::string expected_pod_uid = "1d34c7bb-7d94-4f00-bed9-fe4eca61d446";     \
+                                                                               \
+    std::error_code ec;                                                        \
+    std::filesystem::path fullPath = std::filesystem::path(mock_proc_dir);     \
+    if(!std::filesystem::create_directories(fullPath, ec))                     \
+    {                                                                          \
+        FAIL() << "unable to create the mock dir: " << mock_proc_dir           \
+               << ". Error: " << ec.message();                                 \
+    }                                                                          \
+                                                                               \
+    std::ofstream cgroup_file(mock_proc_cgroup);                               \
+    if(!cgroup_file.is_open())                                                 \
+    {                                                                          \
+        FAIL() << "cannot open: " << mock_proc_cgroup                          \
+               << ". Errno: " << strerror(errno);                              \
+    }                                                                          \
+                                                                               \
+    cgroup_file << "0::/kubepods/besteffort/pod" + expected_pod_uid +          \
+                           "/fc16540dcd776bb475437b722c";                      \
+    if(cgroup_file.fail())                                                     \
+    {                                                                          \
+        FAIL() << "cannot write to: " << mock_proc_cgroup                      \
+               << ". Errno: " << strerror(errno);                              \
+    }                                                                          \
+    cgroup_file.close();                                                       \
+                                                                               \
+    std::string plugin_init_config =                                           \
+            "{\"collectorHostname\":\"localhost\",\"collectorPort\": "         \
+            "45000,\"nodeName\":\"control-plane\",\"verbosity\":"              \
+            "\"info\", \"hostProc\":\"/tmp\"}";                                \
+    std::shared_ptr<sinsp_plugin> plugin_owner;                                \
+    filter_check_list pl_flist;                                                \
+    plugin_owner = m_inspector.register_plugin(PLUGIN_PATH);                   \
+    ASSERT_TRUE(plugin_owner.get());                                           \
+    std::string err;                                                           \
+    ASSERT_TRUE(plugin_owner->init(plugin_init_config, err))                   \
+            << "err: " << err;                                                 \
+    pl_flist.add_filter_check(m_inspector.new_generic_filtercheck());          \
+    pl_flist.add_filter_check(sinsp_plugin::new_filtercheck(plugin_owner));    \
+                                                                               \
+    std::filesystem::path mock_proc = std::filesystem::path("/tmp/proc");      \
+    ASSERT_EQ(std::filesystem::remove_all(mock_proc), 3);
+
+TEST_F(sinsp_with_test_input, plugin_k8s_proc_scan_mismatch)
+{
+    PLUGIN_PROC_SCAN_UNDER_TMP_PROC
+
+    // We do a real /proc scan in the plugin while in sinsp we don't do that.
+    // Now the plugin cache has one entry while sinps has no entry. we want to
+    // see how exceptions are handled during the parsing logic.
+    add_default_init_thread();
+    open_inspector();
+
+    // We create a random clone event to trigger the parsing logic.
+    generate_clone_x_event(0, 2, 2, INIT_TID);
+}
+
+TEST_F(sinsp_with_test_input, plugin_k8s_pod_uid_population_from_proc)
+{
+    PLUGIN_PROC_SCAN_UNDER_TMP_PROC
+
+    add_default_init_thread();
+    add_simple_thread(mock_tid, mock_tid, INIT_TID);
+
+    // Open test inspector
+    open_inspector();
+
+    // we add a new thread manually to the thread table and we check its pod_uid
+    auto tinfo = m_inspector.get_thread_ref(mock_tid);
+    ASSERT_TRUE(tinfo);
+    auto &reg = m_inspector.get_table_registry();
+    auto thread_table = reg->get_table<int64_t>(THREAD_TABLE_NAME);
+    auto field =
+            thread_table->dynamic_fields()->fields().find(POD_UID_FIELD_NAME);
+    auto fieldacc = field->second.new_accessor<std::string>();
+
+    std::string pod_uid = "";
+    tinfo->get_dynamic_field(fieldacc, pod_uid);
+    ASSERT_EQ(pod_uid, "");
+
+    // Now we try to generate a random event from this thread
+    // but this is not parsed by the plugin so the pod_uid is not extracted
+    generate_random_event(mock_tid);
+
+    tinfo->get_dynamic_field(fieldacc, pod_uid);
+    ASSERT_EQ(pod_uid, "");
+
+    // Now if we generate an event that is parsed by the plugin
+    // the pod_uid should be extracted
+    generate_execve_enter_and_exit_event(0, mock_tid, mock_tid, mock_tid,
+                                         INIT_TID);
+
+    // The pod_uid is populated thanks to the plugin internal cache
+    tinfo->get_dynamic_field(fieldacc, pod_uid);
     ASSERT_EQ(pod_uid, expected_pod_uid);
 }

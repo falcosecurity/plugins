@@ -254,7 +254,6 @@ class my_plugin
     std::string m_collector_port;
     std::string m_node_name;
     std::string m_ca_PEM_encoding;
-    // todo!: populate it when parsing the config.
     std::string m_host_proc;
 
     // State tables
@@ -268,6 +267,9 @@ class my_plugin
     std::unordered_map<std::string, resource_layout> m_deamonset_table;
     std::unordered_map<int64_t, std::string> m_thread_id_pod_uid_map;
 
+    // The first time we parse an event we populate the sinsp thread table and
+    // we set it to true
+    bool m_sinsp_proc_populated = false;
     // Last error of the plugin
     std::string m_lasterr;
     // Accessor to the thread table

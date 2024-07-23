@@ -674,15 +674,3 @@ TEST_F(sinsp_with_test_input, plugin_k8s_update_a_pod)
               "10.16.1.20");
     m_inspector.close();
 }
-
-////////////////////////////////////
-// Missing tests
-//////////////////////////////////
-
-/// todo! Add some tests
-
-// add a test on a resource without the `/labels` key.
-
-// Check on a scap file
-
-// Read a scap-file/huge json file and evaluate perf

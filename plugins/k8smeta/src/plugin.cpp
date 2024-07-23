@@ -63,10 +63,12 @@ std::string get_pod_uid_from_cgroup_string(const std::string& cgroup_first_line)
     // Example:
     // `cpuset=/kubelet.slice/kubelet-kubepods.slice/kubelet-kubepods-pod05869489-8c7f-45dc-9abd-1b1620787bb1.slice/cri-containerd-2f92446a3fbfd0b7a73457b45e96c75a25c5e44e7b1bcec165712b906551c261.scope\0`
     //
-    // 2 - If it arrives from the /proc scan -> `hierarchy
-    // ID:controller:cgroup_path` Check if the cgroup version is relevant here
-    // or not...
-    // todo!: i'm not sure if all controllers have the same format in cgroupv1
+    // 2 - If it arrives from the /proc scan ->
+    // `hierarchyID:controller:cgroup_path`
+    // Example (cgroup v2):
+    // `0::/kubepods.slice/kubepods-besteffort.slice/kubepods-besteffort-pod93f64796_43b9_468d_b77b_c652c985d5e0.slice`
+    // Example (cgroup v1):
+    // `12:perf_event:/kubepods.slice/kubepods-besteffort.slice/kubepods-besteffort-pod93f64796_43b9_468d_b77b_c652c985d5e0.slice`
     if(re2::RE2::PartialMatch(cgroup_first_line, pattern, &pod_uid))
     {
         // Here `pod_uid` could have 2 possible layouts:
@@ -90,7 +92,6 @@ std::string get_pod_uid_from_cgroup_string(const std::string& cgroup_first_line)
 
 falcosecurity::init_schema my_plugin::get_init_schema()
 {
-    /// todo!: check config names
     falcosecurity::init_schema init_schema;
     init_schema.schema_type =
             falcosecurity::init_schema_type::SS_PLUGIN_SCHEMA_JSON;
@@ -134,6 +135,11 @@ falcosecurity::init_schema my_plugin::get_init_schema()
 			"type": "string",
 			"title": "The path to the PEM encoding of the server root certificates",
 			"description": "The path to the PEM encoding of the server root certificates. E.g. '/etc/ssl/certs/ca-certificates.crt'"
+		},
+		"hostProc": {
+			"type": "string",
+			"title": "Path to reach the '/proc' folder we want to scan.",
+			"description": "The plugin needs to scan the '/proc' of the host on which is running. In Falco usually we put the host '/proc' folder under '/host/proc' so the the default for this config is '/host'. The path used here must not have a final '/'."
 		}
 	},
 	"additionalProperties": false,
@@ -189,7 +195,7 @@ void my_plugin::parse_init_config(nlohmann::json& config_json)
         config_json.at(nlohmann::json::json_pointer(NODENAME_PATH))
                 .get_to(nodename_string);
 
-        // todo!: remove it when we solved in Falco
+        // todo!: Solved in Falco 0.37.0 wait until Falco 0.36.2 is barely used
         // This is just a simple workaround until we solve the Falco issue
         // If the provided string is an env variable we use the content
         // of the env variable
@@ -250,6 +256,17 @@ void my_plugin::parse_init_config(nlohmann::json& config_json)
             }
         }
     }
+
+    if(config_json.contains(nlohmann::json::json_pointer(HOST_PROC_PATH)))
+    {
+        config_json.at(nlohmann::json::json_pointer(HOST_PROC_PATH))
+                .get_to(m_host_proc);
+    }
+    else
+    {
+        // Default value
+        m_host_proc = "/host";
+    }
 }
 
 void my_plugin::do_initial_proc_scan()
@@ -258,7 +275,7 @@ void my_plugin::do_initial_proc_scan()
     std::string proc_root = m_host_proc + "/proc";
     try
     {
-        SPDLOG_DEBUG("Start the /proc scan under: '{}'", proc_root);
+        SPDLOG_INFO("Start the process scan under: '{}'", proc_root);
         dir_iter = std::filesystem::directory_iterator(proc_root);
     }
     catch(std::filesystem::filesystem_error& err)
@@ -290,7 +307,6 @@ void my_plugin::do_initial_proc_scan()
                             .append("/")
                             .append(file_name.c_str())
                             .append("/cgroup");
-        SPDLOG_TRACE("Try to scan under: '{}'", proc_path);
 
         std::ifstream file(proc_path);
 
@@ -299,26 +315,33 @@ void my_plugin::do_initial_proc_scan()
             // Read the first line from the file
             if(std::getline(file, cgroup_line))
             {
-                // todo!: check the cgroupv1 layout
                 std::string pod_uid =
                         get_pod_uid_from_cgroup_string(cgroup_line);
                 if(!pod_uid.empty())
                 {
                     m_thread_id_pod_uid_map[tid] = pod_uid;
+                    SPDLOG_TRACE("Found thread with tid '{}' and pod uid '{}'",
+                                 tid, pod_uid);
                 }
             }
             else
             {
-                SPDLOG_WARN("cannot retrieve the cgroup first line for '{}'",
-                            proc_path);
+                SPDLOG_WARN("cannot retrieve the cgroup first line for '{}'. "
+                            "Error: {}. Skip it",
+                            proc_path,
+                            file.eof() ? "Empty file" : strerror(errno));
             }
             file.close();
         }
         else
         {
-            SPDLOG_WARN("cannot open '{}'", proc_path);
+            SPDLOG_WARN("cannot open '{}'. Error: {}. Skip it.", proc_path,
+                        strerror(errno));
         }
     }
+    SPDLOG_INFO(
+            "Process scan correctly completed. Found '{}' threads inside pods.",
+            m_thread_id_pod_uid_map.size());
 }
 
 bool my_plugin::init(falcosecurity::init_input& in)
@@ -653,7 +676,7 @@ bool inline my_plugin::extract_name_from_meta(
         nlohmann::json& meta_json, falcosecurity::extract_request& req)
 {
     std::string resource_name;
-    // todo! Possible optimization here and in some other places, some paths
+    // todo!: Possible optimization here and in some other places, some paths
     // should always be there.
     if(!meta_json.contains(nlohmann::json::json_pointer(NAME_PATH)))
     {
@@ -1042,15 +1065,22 @@ bool my_plugin::extract(const falcosecurity::extract_fields_input& in)
     // The process is not into a pod, stop here.
     if(pod_uid.empty())
     {
-        // We try to obtain the pod_uid from our internal cache populated during
-        // the initial /proc scan
+        // If we fall here and our cache is empty, it means that probably we are
+        // not in a pod.
+        if(m_thread_id_pod_uid_map.empty())
+        {
+            return false;
+        }
+
+        // If the cache is not empty we try to search the pod_uid in the cache.
+        // There could be cases in which we first call an extract and then a
+        // parse so the sinsp table is not yet populated with the content of our
+        // cache and so we need to use it here.
         auto it = m_thread_id_pod_uid_map.find(thread_id);
         if(it == m_thread_id_pod_uid_map.end())
         {
             return false;
         }
-        // The ideal thing would be to write it in the sinsp thread table but in
-        // the extraction phase we don't have a table writer.
         pod_uid = it->second;
     }
 
@@ -1336,7 +1366,7 @@ bool inline my_plugin::parse_process_events(
         return false;
     }
 
-    /// todo! Possible optimization, we can set the pod_uid only if we are in a
+    /// todo!: Possible optimization, we can set the pod_uid only if we are in a
     /// container
     // but we need to access the `m_flags` field to understand if we are in a
     // container or not. It's also true that if we enable this plugin we are in
@@ -1359,14 +1389,19 @@ bool inline my_plugin::parse_process_events(
     std::string cgroup_first_charbuf = (char*)cgroup_param.param_pointer;
     std::string pod_uid = get_pod_uid_from_cgroup_string(cgroup_first_charbuf);
 
-    // retrieve thread entry associated with the event tid
-    auto& tr = in.get_table_reader();
-    auto thread_entry = m_thread_table.get_entry(
-            tr, (int64_t)in.get_event_reader().get_tid());
+    // If we don't have a pod_uid we don't need to populate the table
+    if(pod_uid != "")
+    {
+        // retrieve thread entry associated with the event tid
+        auto& tr = in.get_table_reader();
+        auto thread_entry = m_thread_table.get_entry(
+                tr, (int64_t)in.get_event_reader().get_tid());
 
-    // Write the pod_uid into the entry
-    auto& tw = in.get_table_writer();
-    m_pod_uid_field.write_value(tw, thread_entry, (const char*)pod_uid.c_str());
+        // Write the pod_uid into the entry
+        auto& tw = in.get_table_writer();
+        m_pod_uid_field.write_value(tw, thread_entry,
+                                    (const char*)pod_uid.c_str());
+    }
     return true;
 }
 
@@ -1374,6 +1409,40 @@ bool my_plugin::parse_event(const falcosecurity::parse_event_input& in)
 {
     // NOTE: today in the libs framework, parsing errors are not logged
     auto& evt = in.get_event_reader();
+
+    // Workaround: the parsing is the unique place where we can populate the
+    // sinsp thread table. The first time we call parse we populate the sinsp
+    // table and we clear our internal cache.
+    if(!m_sinsp_proc_populated)
+    {
+        auto& tr = in.get_table_reader();
+        auto& tw = in.get_table_writer();
+        falcosecurity::table_entry thread_entry;
+
+        SPDLOG_INFO("Update the framework state with the plugin cache. The "
+                    "cache has '{}' "
+                    "elements",
+                    m_thread_id_pod_uid_map.size());
+
+        for(auto it = m_thread_id_pod_uid_map.begin();
+            it != m_thread_id_pod_uid_map.end(); it++)
+        {
+            try
+            {
+                thread_entry = m_thread_table.get_entry(tr, (int64_t)it->first);
+                m_pod_uid_field.write_value(tw, thread_entry,
+                                            (const char*)it->second.c_str());
+            }
+            catch(falcosecurity::plugin_exception e)
+            {
+                SPDLOG_WARN("Thead id '{}' with pod_uid '{}' is not found "
+                            "inside the framework table. Skip it.",
+                            it->first, it->second);
+            }
+        }
+        m_thread_id_pod_uid_map.clear();
+        m_sinsp_proc_populated = true;
+    }
 
     switch(evt.get_type())
     {
