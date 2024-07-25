@@ -81,6 +81,10 @@ public:
 
     void update(std::string value, T count)
     {
+        if (value.empty())
+        {
+            return;
+        }
         // Update counts for each hash function.
         // Note: d is typically very small (e.g. < 10)
         for (uint64_t seed = 0; seed < d_; ++seed)
@@ -93,6 +97,10 @@ public:
 
     T update_estimate(std::string value, T count) const
     {
+        if (value.empty())
+        {
+            return T();
+        }
         std::vector<T> estimates;
         // Same as the update function, but also returns the minimum count as an estimate.
         // Note: d is typically very small (e.g. < 10)
@@ -108,6 +116,10 @@ public:
 
     T estimate(std::string value) const
     {
+        if (value.empty())
+        {
+            return T();
+        }
         std::vector<T> estimates;
         // Return the minimum count across hash functions as an estimate.
         // Note: d is typically very small (e.g. < 10)

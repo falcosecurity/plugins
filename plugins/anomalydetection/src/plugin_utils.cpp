@@ -125,44 +125,44 @@ static const filtercheck_field_info sinsp_filter_check_fields[] =
 	{PT_CHARBUF, EPF_NONE, PF_NA, "container.ip", "Container ip address", "The container's / pod's primary ip address as retrieved from the container engine. Only ipv4 addresses are tracked. Consider container.cni.json (CRI use case) for logging ip addresses for each network interface. In instances of userspace container engine lookup delays, this field may not be available yet."},
 	{PT_CHARBUF, EPF_NONE, PF_NA, "container.cni.json", "Container's / pod's CNI result json", "The container's / pod's CNI result field from the respective pod status info. It contains ip addresses for each network interface exposed as unparsed escaped JSON string. Supported for CRI container engine (containerd, cri-o runtimes), optimized for containerd (some non-critical JSON keys removed). Useful for tracking ips (ipv4 and ipv6, dual-stack support) for each network interface (multi-interface support). In instances of userspace container engine lookup delays, this field may not be available yet."},
 	{PT_INT64, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_ID, "fd.num", "FD Number", "the unique number identifying the file descriptor."},
-	{PT_CHARBUF, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_DEC, "fd.type", "FD Type", "type of FD. Can be 'file', 'directory', 'ipv4', 'ipv6', 'unix', 'pipe', 'event', 'signalfd', 'eventpoll', 'inotify'  'signalfd' or 'memfd'."},
-	{PT_CHARBUF, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_DEC, "fd.typechar", "FD Type Char", "type of FD as a single character. Can be 'f' for file, 4 for IPv4 socket, 6 for IPv6 socket, 'u' for unix socket, p for pipe, 'e' for eventfd, 's' for signalfd, 'l' for eventpoll, 'i' for inotify, 'b' for bpf, 'u' for userfaultd, 'r' for io_uring, 'm' for memfd ,'o' for unknown."},
+	{PT_CHARBUF, EPF_NONE, PF_DEC, "fd.type", "FD Type", "type of FD. Can be 'file', 'directory', 'ipv4', 'ipv6', 'unix', 'pipe', 'event', 'signalfd', 'eventpoll', 'inotify'  'signalfd' or 'memfd'."},
+	{PT_CHARBUF, EPF_NONE, PF_DEC, "fd.typechar", "FD Type Char", "type of FD as a single character. Can be 'f' for file, 4 for IPv4 socket, 6 for IPv6 socket, 'u' for unix socket, p for pipe, 'e' for eventfd, 's' for signalfd, 'l' for eventpoll, 'i' for inotify, 'b' for bpf, 'u' for userfaultd, 'r' for io_uring, 'm' for memfd ,'o' for unknown."},
 	{PT_CHARBUF, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_NA, "fd.name", "FD Name", "FD full name. If the fd is a file, this field contains the full path. If the FD is a socket, this field contain the connection tuple."},
 	{PT_CHARBUF, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_NA, "fd.directory", "FD Directory", "If the fd is a file, the directory that contains it."},
 	{PT_CHARBUF, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_NA, "fd.filename", "FD Filename", "If the fd is a file, the filename without the path."},
-	{PT_IPADDR, EPF_ANOMALY_PLUGIN | EPF_FILTER_ONLY | EPF_NO_RHS | EPF_NO_TRANSFORMER, PF_NA, "fd.ip", "FD IP Address", "matches the ip address (client or server) of the fd."},
-	{PT_IPADDR, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_NA, "fd.cip", "FD Client Address", "client IP address."},
-	{PT_IPADDR, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_NA, "fd.sip", "FD Server Address", "server IP address."},
-	{PT_IPADDR, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_NA, "fd.lip", "FD Local Address", "local IP address."},
-	{PT_IPADDR, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_NA, "fd.rip", "FD Remote Address", "remote IP address."},
-	{PT_PORT, EPF_ANOMALY_PLUGIN | EPF_FILTER_ONLY | EPF_NO_RHS | EPF_NO_TRANSFORMER, PF_DEC, "fd.port", "FD Port", "matches the port (either client or server) of the fd."},
-	{PT_PORT, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_DEC, "fd.cport", "FD Client Port", "for TCP/UDP FDs, the client port."},
-	{PT_PORT, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_DEC, "fd.sport", "FD Server Port", "for TCP/UDP FDs, server port."},
-	{PT_PORT, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_DEC, "fd.lport", "FD Local Port", "for TCP/UDP FDs, the local port."},
-	{PT_PORT, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_DEC, "fd.rport", "FD Remote Port", "for TCP/UDP FDs, the remote port."},
-	{PT_CHARBUF, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_NA, "fd.l4proto", "FD IP Protocol", "the IP protocol of a socket. Can be 'tcp', 'udp', 'icmp' or 'raw'."},
-	{PT_CHARBUF, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_NA, "fd.sockfamily", "FD Socket Family", "the socket family for socket events. Can be 'ip' or 'unix'."},
+	{PT_IPADDR, EPF_FILTER_ONLY | EPF_NO_RHS | EPF_NO_TRANSFORMER, PF_NA, "fd.ip", "FD IP Address", "matches the ip address (client or server) of the fd."},
+	{PT_IPADDR, EPF_NONE, PF_NA, "fd.cip", "FD Client Address", "client IP address."},
+	{PT_IPADDR, EPF_NONE, PF_NA, "fd.sip", "FD Server Address", "server IP address."},
+	{PT_IPADDR, EPF_NONE, PF_NA, "fd.lip", "FD Local Address", "local IP address."},
+	{PT_IPADDR, EPF_NONE, PF_NA, "fd.rip", "FD Remote Address", "remote IP address."},
+	{PT_PORT, EPF_FILTER_ONLY | EPF_NO_RHS | EPF_NO_TRANSFORMER, PF_DEC, "fd.port", "FD Port", "matches the port (either client or server) of the fd."},
+	{PT_PORT, EPF_NONE, PF_DEC, "fd.cport", "FD Client Port", "for TCP/UDP FDs, the client port."},
+	{PT_PORT, EPF_NONE, PF_DEC, "fd.sport", "FD Server Port", "for TCP/UDP FDs, server port."},
+	{PT_PORT, EPF_NONE, PF_DEC, "fd.lport", "FD Local Port", "for TCP/UDP FDs, the local port."},
+	{PT_PORT, EPF_NONE, PF_DEC, "fd.rport", "FD Remote Port", "for TCP/UDP FDs, the remote port."},
+	{PT_CHARBUF, EPF_NONE, PF_NA, "fd.l4proto", "FD IP Protocol", "the IP protocol of a socket. Can be 'tcp', 'udp', 'icmp' or 'raw'."},
+	{PT_CHARBUF, EPF_NONE, PF_NA, "fd.sockfamily", "FD Socket Family", "the socket family for socket events. Can be 'ip' or 'unix'."},
 	{PT_BOOL, EPF_NONE, PF_NA, "fd.is_server", "FD Server", "'true' if the process owning this FD is the server endpoint in the connection."},
 	{PT_CHARBUF, EPF_NONE, PF_NA, "fd.uid", "FD ID", "a unique identifier for the FD, created by chaining the FD number and the thread ID."},
 	{PT_CHARBUF, EPF_NONE, PF_NA, "fd.containername", "FD Container Name", "chaining of the container ID and the FD name. Useful when trying to identify which container an FD belongs to."},
 	{PT_CHARBUF, EPF_NONE, PF_NA, "fd.containerdirectory", "FD Container Directory", "chaining of the container ID and the directory name. Useful when trying to identify which container a directory belongs to."},
 	{PT_PORT, EPF_FILTER_ONLY | EPF_NO_RHS | EPF_NO_TRANSFORMER, PF_NA, "fd.proto", "FD Protocol", "matches the protocol (either client or server) of the fd."},
-	{PT_CHARBUF, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_NA, "fd.cproto", "FD Client Protocol", "for TCP/UDP FDs, the client protocol."},
-	{PT_CHARBUF, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_NA, "fd.sproto", "FD Server Protocol", "for TCP/UDP FDs, server protocol."},
-	{PT_CHARBUF, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_NA, "fd.lproto", "FD Local Protocol", "for TCP/UDP FDs, the local protocol."},
-	{PT_CHARBUF, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_NA, "fd.rproto", "FD Remote Protocol", "for TCP/UDP FDs, the remote protocol."},
-	{PT_IPNET, EPF_ANOMALY_PLUGIN | EPF_FILTER_ONLY | EPF_NO_RHS | EPF_NO_TRANSFORMER, PF_NA, "fd.net", "FD IP Network", "matches the IP network (client or server) of the fd."},
-	{PT_IPNET, EPF_ANOMALY_PLUGIN | EPF_FILTER_ONLY | EPF_NO_RHS | EPF_NO_TRANSFORMER, PF_NA, "fd.cnet", "FD Client Network", "matches the client IP network of the fd."},
-	{PT_IPNET, EPF_ANOMALY_PLUGIN | EPF_FILTER_ONLY | EPF_NO_RHS | EPF_NO_TRANSFORMER, PF_NA, "fd.snet", "FD Server Network", "matches the server IP network of the fd."},
-	{PT_IPNET, EPF_ANOMALY_PLUGIN | EPF_FILTER_ONLY | EPF_NO_RHS | EPF_NO_TRANSFORMER, PF_NA, "fd.lnet", "FD Local Network", "matches the local IP network of the fd."},
-	{PT_IPNET, EPF_ANOMALY_PLUGIN | EPF_FILTER_ONLY | EPF_NO_RHS | EPF_NO_TRANSFORMER, PF_NA, "fd.rnet", "FD Remote Network", "matches the remote IP network of the fd."},
+	{PT_CHARBUF, EPF_NONE, PF_NA, "fd.cproto", "FD Client Protocol", "for TCP/UDP FDs, the client protocol."},
+	{PT_CHARBUF, EPF_NONE, PF_NA, "fd.sproto", "FD Server Protocol", "for TCP/UDP FDs, server protocol."},
+	{PT_CHARBUF, EPF_NONE, PF_NA, "fd.lproto", "FD Local Protocol", "for TCP/UDP FDs, the local protocol."},
+	{PT_CHARBUF, EPF_NONE, PF_NA, "fd.rproto", "FD Remote Protocol", "for TCP/UDP FDs, the remote protocol."},
+	{PT_IPNET, EPF_FILTER_ONLY | EPF_NO_RHS | EPF_NO_TRANSFORMER, PF_NA, "fd.net", "FD IP Network", "matches the IP network (client or server) of the fd."},
+	{PT_IPNET, EPF_FILTER_ONLY | EPF_NO_RHS | EPF_NO_TRANSFORMER, PF_NA, "fd.cnet", "FD Client Network", "matches the client IP network of the fd."},
+	{PT_IPNET, EPF_FILTER_ONLY | EPF_NO_RHS | EPF_NO_TRANSFORMER, PF_NA, "fd.snet", "FD Server Network", "matches the server IP network of the fd."},
+	{PT_IPNET, EPF_FILTER_ONLY | EPF_NO_RHS | EPF_NO_TRANSFORMER, PF_NA, "fd.lnet", "FD Local Network", "matches the local IP network of the fd."},
+	{PT_IPNET, EPF_FILTER_ONLY | EPF_NO_RHS | EPF_NO_TRANSFORMER, PF_NA, "fd.rnet", "FD Remote Network", "matches the remote IP network of the fd."},
 	{PT_BOOL, EPF_NONE, PF_NA, "fd.connected", "FD Connected", "for TCP/UDP FDs, 'true' if the socket is connected."},
 	{PT_BOOL, EPF_NONE, PF_NA, "fd.name_changed", "FD Name Changed", "True when an event changes the name of an fd used by this event. This can occur in some cases such as udp connections where the connection tuple changes."},
 	{PT_CHARBUF, EPF_NO_RHS | EPF_NO_TRANSFORMER, PF_NA, "fd.cip.name", "FD Client Domain Name", "Domain name associated with the client IP address."},
 	{PT_CHARBUF, EPF_NO_RHS | EPF_NO_TRANSFORMER, PF_NA, "fd.sip.name", "FD Server Domain Name", "Domain name associated with the server IP address."},
 	{PT_CHARBUF, EPF_NO_RHS | EPF_NO_TRANSFORMER, PF_NA, "fd.lip.name", "FD Local Domain Name", "Domain name associated with the local IP address."},
 	{PT_CHARBUF, EPF_NO_RHS | EPF_NO_TRANSFORMER, PF_NA, "fd.rip.name", "FD Remote Domain Name", "Domain name associated with the remote IP address."},
-	{PT_INT32, EPF_NONE, PF_HEX, "fd.dev", "FD Device", "device number (major/minor) containing the referenced file"},
+	{PT_INT32, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_HEX, "fd.dev", "FD Device", "device number (major/minor) containing the referenced file"},
 	{PT_INT32, EPF_NONE, PF_DEC, "fd.dev.major", "FD Major Device", "major device number containing the referenced file"},
 	{PT_INT32, EPF_NONE, PF_DEC, "fd.dev.minor", "FD Minor Device", "minor device number containing the referenced file"},
 	{PT_INT64, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_DEC, "fd.ino", "FD Inode Number", "inode number of the referenced file"},
@@ -216,13 +216,20 @@ const std::vector<plugin_sinsp_filterchecks_field> get_profile_fields(const std:
                     argid = std::stoi(rawfield.substr(start_pos + 1, end_pos - start_pos - 1));
                 }
             }
-            if ((sinsp_filter_check_fields[i].m_flags & EPF_ANOMALY_PLUGIN) && std::string(sinsp_filter_check_fields[i].m_name) == fieldname)
+            if (std::string(sinsp_filter_check_fields[i].m_name) == fieldname)
             {
-                fields.emplace_back(plugin_sinsp_filterchecks_field{
-                    id,
-                    argid,
-                    argname
-                });
+				if ((sinsp_filter_check_fields[i].m_flags & EPF_ANOMALY_PLUGIN))
+				{
+					fields.emplace_back(plugin_sinsp_filterchecks_field{
+						id,
+						argid,
+						argname
+                	});
+				} else
+				{
+					plugin_anomalydetection::utils::log_error("Remove the following unsupported behavior profile field: '" + fieldname + "' exiting...");
+					exit(1);
+				}
             }
             argid = 0;
             argname.clear();
