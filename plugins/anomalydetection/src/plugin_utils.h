@@ -21,6 +21,7 @@ limitations under the License.
 #include <regex>
 #include <unordered_set>
 #include "plugin_sinsp_filterchecks.h"
+#include "plugin_consts.h"
 
 typedef struct plugin_sinsp_filterchecks_field
 {
@@ -36,5 +37,10 @@ namespace plugin_anomalydetection::utils
     //
     // No need for performance optimization atm as the typical use case is to have less than 3-8 sketches
     const std::vector<plugin_sinsp_filterchecks_field> get_profile_fields(const std::string& behavior_profile);
+
+    inline void log_error(std::string err_mess)
+    {
+        printf("%s %s\n", PLUGIN_LOG_PREFIX, err_mess.c_str());
+    }
 
 } // plugin_anomalydetection::utils

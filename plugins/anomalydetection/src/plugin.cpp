@@ -162,6 +162,16 @@ void anomalydetection::parse_init_config(nlohmann::json& config_json)
         if (config_json.contains(behavior_profiles_pointer) && config_json[behavior_profiles_pointer].is_array())
         {
             const auto& behavior_profiles = config_json[behavior_profiles_pointer];
+            const std::vector<ppm_event_code> supported_codes_fd_profile = {
+                PPME_SYSCALL_OPEN_X,
+                PPME_SOCKET_ACCEPT_5_X,
+                PPME_SOCKET_ACCEPT4_6_X,
+                PPME_SYSCALL_CREAT_X,
+                PPME_SOCKET_CONNECT_X,
+                PPME_SYSCALL_OPENAT_2_X,
+                PPME_SYSCALL_OPENAT2_X,
+                PPME_SYSCALL_OPEN_BY_HANDLE_AT_X
+            };
             for (const auto& profile : behavior_profiles)
             {
                 std::vector<plugin_sinsp_filterchecks_field> filter_check_fields;
@@ -172,6 +182,19 @@ void anomalydetection::parse_init_config(nlohmann::json& config_json)
                     for (const auto& code : profile["event_codes"])
                     {
                         codes.insert((ppm_event_code)code.get<uint64_t>());
+                    }
+                    /* Some rudimentary initial checks to ensure profiles with %fd fields are applied on fd related events only */
+                    if (profile["fields"].get<std::string>().find("%fd") != std::string::npos)
+                    {
+                        for (const auto& code : codes)
+                        {
+                            if (std::find(supported_codes_fd_profile .begin(), supported_codes_fd_profile .end(), code) == supported_codes_fd_profile .end())
+                            {
+                                log_error("Current behavior profile: " + profile["fields"].get<std::string>());
+                                log_error("The above behavior profile contains '%fd' related fields for non fd related event codes, read the docs for help, exiting...");
+                                exit(1);
+                            }
+                        }
                     }
                 }
                 m_behavior_profiles_fields.emplace_back(filter_check_fields);
@@ -226,6 +249,13 @@ bool anomalydetection::init(falcosecurity::init_input& in)
         // Accessor to falcosecurity/libs' thread table (process cache / core state engine)
         m_thread_table = t.get_table(THREAD_TABLE_NAME, st::SS_PLUGIN_ST_INT64);
         // Define accessors to falcosecurity/libs' thread table fields
+
+        /* Subtables */
+        m_args = m_thread_table.get_field(t.fields(), "args", st::SS_PLUGIN_ST_TABLE);
+        m_env = m_thread_table.get_field(t.fields(), "env", st::SS_PLUGIN_ST_TABLE);
+        m_fds = m_thread_table.get_field(t.fields(), "file_descriptors", st::SS_PLUGIN_ST_TABLE);
+
+        /* proc related */
         m_tid = m_thread_table.get_field(t.fields(), "tid", st::SS_PLUGIN_ST_INT64);
         m_pid = m_thread_table.get_field(t.fields(), "pid", st::SS_PLUGIN_ST_INT64);
         m_ptid = m_thread_table.get_field(t.fields(), "ptid", st::SS_PLUGIN_ST_INT64);
@@ -236,18 +266,41 @@ bool anomalydetection::init(falcosecurity::init_input& in)
         m_exe_writable = m_thread_table.get_field(t.fields(), "exe_writable", st::SS_PLUGIN_ST_BOOL);
         m_exe_upper_layer = m_thread_table.get_field(t.fields(), "exe_upper_layer", st::SS_PLUGIN_ST_BOOL);
         m_exe_from_memfd = m_thread_table.get_field(t.fields(), "exe_from_memfd", st::SS_PLUGIN_ST_BOOL);
-        m_args = m_thread_table.get_field(t.fields(), "args", st::SS_PLUGIN_ST_TABLE);
         m_args_value = t.get_subtable_field(m_thread_table, m_args, "value", st::SS_PLUGIN_ST_STRING);
-        // m_env = m_thread_table.get_field(t.fields(), "env", TBD);
-        m_container_id = m_thread_table.get_field(t.fields(), "container_id", st::SS_PLUGIN_ST_STRING);
-        // m_user = m_thread_table.get_field(t.fields(), "user", TBD);
-        // m_loginuser = m_thread_table.get_field(t.fields(), "loginuser", TBD);
-        // m_group = m_thread_table.get_field(t.fields(), "group", TBD);
+        m_env_value = t.get_subtable_field(m_thread_table, m_env, "value", st::SS_PLUGIN_ST_STRING);
         m_vtid = m_thread_table.get_field(t.fields(), "vtid", st::SS_PLUGIN_ST_INT64);
         m_vpid = m_thread_table.get_field(t.fields(), "vpid", st::SS_PLUGIN_ST_INT64);
         m_vpgid = m_thread_table.get_field(t.fields(), "vpgid", st::SS_PLUGIN_ST_INT64);
         m_tty = m_thread_table.get_field(t.fields(), "tty", st::SS_PLUGIN_ST_UINT32);
         m_cwd = m_thread_table.get_field(t.fields(), "cwd", st::SS_PLUGIN_ST_STRING);
+
+        /* user related */
+        // Not available until the next libs plugins API expansion
+
+        // m_user = m_thread_table.get_field(t.fields(), "user", TBD);
+        // m_loginuser = m_thread_table.get_field(t.fields(), "loginuser", TBD);
+        // m_group = m_thread_table.get_field(t.fields(), "group", TBD);
+
+        /* fd or fs related */
+        // m_fd_type_value = t.get_subtable_field(m_thread_table, m_fds, "type", st::SS_PLUGIN_ST_UINT32); // todo fix, likely type issue given its of type scap_fd_type
+        m_fd_openflags_value = t.get_subtable_field(m_thread_table, m_fds, "open_flags", st::SS_PLUGIN_ST_UINT32);
+        // m_fd_sockinfo_value = t.get_subtable_field(m_thread_table, m_fds, "sock_info", st::SS_PLUGIN_ST_UINT32); // todo fix, likely type issue given its of type sinsp_sockinfo
+        m_fd_name_value = t.get_subtable_field(m_thread_table, m_fds, "name", st::SS_PLUGIN_ST_STRING);
+        m_fd_nameraw_value = t.get_subtable_field(m_thread_table, m_fds, "name_raw", st::SS_PLUGIN_ST_STRING);
+        m_fd_oldname_value = t.get_subtable_field(m_thread_table, m_fds, "old_name", st::SS_PLUGIN_ST_STRING);
+        m_fd_flags_value = t.get_subtable_field(m_thread_table, m_fds, "flags", st::SS_PLUGIN_ST_UINT32);
+        m_fd_dev_value = t.get_subtable_field(m_thread_table, m_fds, "dev", st::SS_PLUGIN_ST_UINT32);
+        m_fd_mount_id_value = t.get_subtable_field(m_thread_table, m_fds, "mount_id", st::SS_PLUGIN_ST_UINT32);
+        m_fd_ino_value = t.get_subtable_field(m_thread_table, m_fds, "ino", st::SS_PLUGIN_ST_UINT64);
+        m_fd_pid_value = t.get_subtable_field(m_thread_table, m_fds, "pid", st::SS_PLUGIN_ST_INT64);
+        m_fd_fd_value = t.get_subtable_field(m_thread_table, m_fds, "fd", st::SS_PLUGIN_ST_INT64);
+
+        /* container related */
+        m_container_id = m_thread_table.get_field(t.fields(), "container_id", st::SS_PLUGIN_ST_STRING);
+
+        /* Custom fields */
+        m_lastevent_fd_field = m_thread_table.add_field(
+                t.fields(), "lastevent_fd", st::SS_PLUGIN_ST_INT64);
     }
     catch(falcosecurity::plugin_exception e)
     {
@@ -318,7 +371,8 @@ bool anomalydetection::extract(const falcosecurity::extract_fields_input& in)
 {
     auto& req = in.get_extract_request();
     auto& tr = in.get_table_reader();
-    int64_t thread_id = in.get_event_reader().get_tid();
+    auto& evt = in.get_event_reader();
+    int64_t thread_id = evt.get_tid();
     uint64_t count_min_sketch_estimate = 0;
     std::string behavior_profile_concat_str;
     auto index = req.get_arg_index();
@@ -330,14 +384,14 @@ bool anomalydetection::extract(const falcosecurity::extract_fields_input& in)
     switch(req.get_field_id())
     {
     case ANOMALYDETECTION_COUNT_MIN_SKETCH_COUNT:
-        if(extract_filterchecks_concat_profile(thread_id, tr, m_behavior_profiles_fields[index], behavior_profile_concat_str))
+        if(extract_filterchecks_concat_profile(evt, tr, m_behavior_profiles_fields[index], behavior_profile_concat_str))
         {
             count_min_sketch_estimate = m_count_min_sketches[index].get()->estimate(behavior_profile_concat_str);
             req.set_value(count_min_sketch_estimate, true);
         }
         return true;
     case ANOMALYDETECTION_COUNT_MIN_SKETCH_BEHAVIOR_PROFILE_CONCAT_STR:
-        if(extract_filterchecks_concat_profile(thread_id, tr, m_behavior_profiles_fields[index], behavior_profile_concat_str))
+        if(extract_filterchecks_concat_profile(evt, tr, m_behavior_profiles_fields[index], behavior_profile_concat_str))
         {
             req.set_value(behavior_profile_concat_str, true);
         }
@@ -354,17 +408,19 @@ bool anomalydetection::extract(const falcosecurity::extract_fields_input& in)
 // Parse capability
 //////////////////////////
 
-bool anomalydetection::extract_filterchecks_concat_profile(int64_t thread_id, const falcosecurity::table_reader &tr, const std::vector<plugin_sinsp_filterchecks_field>& fields, std::string& behavior_profile_concat_str)
+bool anomalydetection::extract_filterchecks_concat_profile(const falcosecurity::event_reader &evt, const falcosecurity::table_reader &tr, const std::vector<plugin_sinsp_filterchecks_field>& fields, std::string& behavior_profile_concat_str)
 {
     using st = falcosecurity::state_value_type;
 
+    int64_t thread_id = evt.get_tid();
     auto thread_entry = m_thread_table.get_entry(tr, thread_id);
 
     // Create a concatenated string formed out of each field per behavior profile
     // No concept of null fields (instead its always an empty string) compared to libsinsp
     for (const auto& field : fields)
     {
-        std::string tstr;
+        std::string tstr = "";
+        uint64_t tuint64 = UINT64_MAX;
         uint32_t tuint32 = UINT32_MAX;
         int64_t tint64 = -1;
         int64_t ptid = -1;
@@ -684,6 +740,222 @@ bool anomalydetection::extract_filterchecks_concat_profile(int64_t thread_id, co
             m_comm.read_value(tr, *leader, tstr);
             break;
         }
+
+        //
+        // fd or fs related
+        //
+
+        // todo implement fallbacks from null fd table entry aka extract from evt args
+
+        case plugin_sinsp_filterchecks::TYPE_FDNUM:
+        {
+            switch(evt.get_type())
+            {
+            case PPME_SYSCALL_OPEN_X:
+            case PPME_SOCKET_ACCEPT_5_X:
+            case PPME_SOCKET_ACCEPT4_6_X:
+            case PPME_SYSCALL_CREAT_X:
+            case PPME_SOCKET_CONNECT_X:
+            case PPME_SYSCALL_OPENAT_2_X:
+            case PPME_SYSCALL_OPENAT2_X:
+            case PPME_SYSCALL_OPEN_BY_HANDLE_AT_X:
+            {
+                auto fd_table = m_thread_table.get_subtable(
+                    tr, m_fds, thread_entry,
+                    st::SS_PLUGIN_ST_INT64);
+                m_lastevent_fd_field.read_value(tr, thread_entry, tint64);
+                tstr = std::to_string(tint64);
+                break;
+            }
+            default:
+                // Clear the entire profile when invoking the fd related profile for non fd syscalls
+                behavior_profile_concat_str.clear();
+            }
+            break;
+        }
+        case plugin_sinsp_filterchecks::TYPE_FDNAME:
+        {
+            switch(evt.get_type())
+            {
+            case PPME_SYSCALL_OPEN_X:
+            case PPME_SOCKET_ACCEPT_5_X:
+            case PPME_SOCKET_ACCEPT4_6_X:
+            case PPME_SYSCALL_CREAT_X:
+            case PPME_SOCKET_CONNECT_X:
+            case PPME_SYSCALL_OPENAT_2_X:
+            case PPME_SYSCALL_OPENAT2_X:
+            case PPME_SYSCALL_OPEN_BY_HANDLE_AT_X:
+            {
+                auto fd_table = m_thread_table.get_subtable(
+                    tr, m_fds, thread_entry,
+                    st::SS_PLUGIN_ST_INT64);
+                m_lastevent_fd_field.read_value(tr, thread_entry, tint64);
+                auto fd_entry = fd_table.get_entry(tr, tint64);
+                m_fd_name_value.read_value(tr, fd_entry, tstr);
+                break;
+            }
+            default:
+                // Clear the entire profile when invoking the fd related profile for non fd syscalls
+                behavior_profile_concat_str.clear();
+            }
+            break;
+        }
+        case plugin_sinsp_filterchecks::TYPE_DIRECTORY:
+        {
+            switch(evt.get_type())
+            {
+            case PPME_SYSCALL_OPEN_X:
+            case PPME_SYSCALL_CREAT_X:
+            case PPME_SYSCALL_OPENAT_2_X:
+            case PPME_SYSCALL_OPENAT2_X:
+            case PPME_SYSCALL_OPEN_BY_HANDLE_AT_X:
+            {
+                auto fd_table = m_thread_table.get_subtable(
+                    tr, m_fds, thread_entry,
+                    st::SS_PLUGIN_ST_INT64);
+                m_lastevent_fd_field.read_value(tr, thread_entry, tint64);
+                auto fd_entry = fd_table.get_entry(tr, tint64);
+                m_fd_name_value.read_value(tr, fd_entry, tstr);
+                size_t pos = tstr.find_last_of('/');
+                if (pos != std::string::npos)
+                {
+                    tstr = tstr.substr(0, pos);
+                }
+                break;
+            }
+            case PPME_SOCKET_ACCEPT_5_X:
+            case PPME_SOCKET_ACCEPT4_6_X:
+            case PPME_SOCKET_CONNECT_X:
+            {
+                break;
+            }
+            default:
+                // Clear the entire profile when invoking the fd related profile for non fd syscalls
+                behavior_profile_concat_str.clear();
+            }
+            break;
+        }
+        case plugin_sinsp_filterchecks::TYPE_FILENAME:
+        {
+            switch(evt.get_type())
+            {
+            case PPME_SYSCALL_OPEN_X:
+            case PPME_SYSCALL_CREAT_X:
+            case PPME_SYSCALL_OPENAT_2_X:
+            case PPME_SYSCALL_OPENAT2_X:
+            case PPME_SYSCALL_OPEN_BY_HANDLE_AT_X:
+            {
+                auto fd_table = m_thread_table.get_subtable(
+                    tr, m_fds, thread_entry,
+                    st::SS_PLUGIN_ST_INT64);
+                m_lastevent_fd_field.read_value(tr, thread_entry, tint64);
+                auto fd_entry = fd_table.get_entry(tr, tint64);
+                m_fd_name_value.read_value(tr, fd_entry, tstr);
+                size_t pos = tstr.find_last_of('/');
+                if (pos != std::string::npos)
+                {
+                    tstr = tstr.substr(pos + 1);
+                }
+                break;
+            }
+            case PPME_SOCKET_ACCEPT_5_X:
+            case PPME_SOCKET_ACCEPT4_6_X:
+            case PPME_SOCKET_CONNECT_X:
+            {
+                break;
+            }
+            default:
+                // Clear the entire profile when invoking the fd related profile for non fd syscalls
+                behavior_profile_concat_str.clear();
+            }
+            break;
+        }
+        case plugin_sinsp_filterchecks::TYPE_INO:
+        {
+            switch(evt.get_type())
+            {
+            case PPME_SYSCALL_OPEN_X:
+            case PPME_SOCKET_ACCEPT_5_X:
+            case PPME_SOCKET_ACCEPT4_6_X:
+            case PPME_SYSCALL_CREAT_X:
+            case PPME_SOCKET_CONNECT_X:
+            case PPME_SYSCALL_OPENAT_2_X:
+            case PPME_SYSCALL_OPENAT2_X:
+            case PPME_SYSCALL_OPEN_BY_HANDLE_AT_X:
+            {
+                auto fd_table = m_thread_table.get_subtable(
+                    tr, m_fds, thread_entry,
+                    st::SS_PLUGIN_ST_INT64);
+                m_lastevent_fd_field.read_value(tr, thread_entry, tint64);
+                auto fd_entry = fd_table.get_entry(tr, tint64);
+                m_fd_ino_value.read_value(tr, fd_entry, tint64);
+                tstr = std::to_string(tint64);
+                break;
+            }
+            default:
+                // Clear the entire profile when invoking the fd related profile for non fd syscalls
+                behavior_profile_concat_str.clear();
+            }
+            break;
+        }
+        case plugin_sinsp_filterchecks::TYPE_DEV:
+        {
+            switch(evt.get_type())
+            {
+            case PPME_SYSCALL_OPEN_X:
+            case PPME_SOCKET_ACCEPT_5_X:
+            case PPME_SOCKET_ACCEPT4_6_X:
+            case PPME_SYSCALL_CREAT_X:
+            case PPME_SOCKET_CONNECT_X:
+            case PPME_SYSCALL_OPENAT_2_X:
+            case PPME_SYSCALL_OPENAT2_X:
+            case PPME_SYSCALL_OPEN_BY_HANDLE_AT_X:
+            {
+                auto fd_table = m_thread_table.get_subtable(
+                    tr, m_fds, thread_entry,
+                    st::SS_PLUGIN_ST_INT64);
+                m_lastevent_fd_field.read_value(tr, thread_entry, tint64);
+                auto fd_entry = fd_table.get_entry(tr, tint64);
+                m_fd_dev_value.read_value(tr, fd_entry, tuint32);
+                tstr = std::to_string(tuint32);
+                break;
+            }
+            default:
+                // Clear the entire profile when invoking the fd related profile for non fd syscalls
+                behavior_profile_concat_str.clear();
+            }
+            break;
+        }
+        case plugin_sinsp_filterchecks::TYPE_FDNAMERAW:
+        {
+            switch(evt.get_type())
+            {
+            case PPME_SYSCALL_OPEN_X:
+            case PPME_SYSCALL_CREAT_X:
+            case PPME_SYSCALL_OPENAT_2_X:
+            case PPME_SYSCALL_OPENAT2_X:
+            case PPME_SYSCALL_OPEN_BY_HANDLE_AT_X:
+            {
+                auto fd_table = m_thread_table.get_subtable(
+                    tr, m_fds, thread_entry,
+                    st::SS_PLUGIN_ST_INT64);
+                m_lastevent_fd_field.read_value(tr, thread_entry, tint64);
+                auto fd_entry = fd_table.get_entry(tr, tint64);
+                m_fd_nameraw_value.read_value(tr, fd_entry, tstr);
+                break;
+            }
+            case PPME_SOCKET_ACCEPT_5_X:
+            case PPME_SOCKET_ACCEPT4_6_X:
+            case PPME_SOCKET_CONNECT_X:
+            {
+                break;
+            }
+            default:
+                // Clear the entire profile when invoking the fd related profile for non fd syscalls
+                behavior_profile_concat_str.clear();
+            }
+            break;
+        }
         default:
             break;
         }
@@ -692,21 +964,110 @@ bool anomalydetection::extract_filterchecks_concat_profile(int64_t thread_id, co
     return true;
 }
 
+// Adopted from the k8smeta plugin, obtain a param from a sinsp event
+static inline sinsp_param get_syscall_evt_param(void* evt, uint32_t num_param)
+{
+    uint32_t dataoffset = 0;
+    // pointer to the lengths array inside the event.
+    auto len = (uint16_t*)((uint8_t*)evt +
+                           sizeof(falcosecurity::_internal::ss_plugin_event));
+    for(uint32_t j = 0; j < num_param; j++)
+    {
+        // sum lengths of the previous params.
+        dataoffset += len[j];
+    }
+    return {.param_len = len[num_param],
+            .param_pointer =
+                    ((uint8_t*)&len
+                             [((falcosecurity::_internal::ss_plugin_event*)evt)
+                                      ->nparams]) +
+                    dataoffset};
+}
+
 bool anomalydetection::parse_event(const falcosecurity::parse_event_input& in)
 {
     auto& evt = in.get_event_reader();
     auto& tr = in.get_table_reader();
+    auto& tw = in.get_table_writer();
+    int64_t thread_id = evt.get_tid();
 
     // note: Plugin event parsing guaranteed to happen after libs' `sinsp_parser::process_event` has finished.
     // Needs to stay in sync w/ libs updates.
     // Ultimately gated by `base_syscalls` restrictions if Falco is used w/ `base_syscalls`.
+
+
+    // The plugin currently cannot access for examle m_lastevent_fd from libs
+    // Write this info to tinfo within the plugin
+    switch(evt.get_type())
+    {
+    case PPME_SYSCALL_OPEN_X: // fd param 0
+    case PPME_SOCKET_ACCEPT_5_X:
+    case PPME_SOCKET_ACCEPT4_6_X:
+    case PPME_SYSCALL_CREAT_X:
+    {
+        auto res_param = get_syscall_evt_param(in.get_event_reader().get_buf(),
+                                           0);
+        if (res_param.param_pointer == nullptr)
+        {
+            return false;
+        }
+
+        int64_t fd = *(int64_t*)(res_param.param_pointer);
+        auto thread_entry = m_thread_table.get_entry(tr, thread_id);
+        m_lastevent_fd_field.write_value(tw, thread_entry, fd);
+        break;
+    }
+    case PPME_SOCKET_CONNECT_X: // fd param 2
+    {
+        auto res_param = get_syscall_evt_param(in.get_event_reader().get_buf(),
+                                           2);
+        if (res_param.param_pointer == nullptr)
+        {
+            return false;
+        }
+        int64_t fd = *(int64_t*)(res_param.param_pointer);
+        auto thread_entry = m_thread_table.get_entry(tr, thread_id);
+        m_lastevent_fd_field.write_value(tw, thread_entry, fd);
+        break;
+    }
+    case PPME_SYSCALL_OPENAT_2_X: // fd param 0
+    case PPME_SYSCALL_OPENAT2_X:
+    {
+        auto res_param = get_syscall_evt_param(in.get_event_reader().get_buf(),
+                                           0);
+        if (res_param.param_pointer == nullptr)
+        {
+            return false;
+        }
+        int64_t fd = *(int64_t*)(res_param.param_pointer);
+        auto thread_entry = m_thread_table.get_entry(tr, thread_id);
+        m_lastevent_fd_field.write_value(tw, thread_entry, fd);
+        break;
+    }
+    case PPME_SYSCALL_OPEN_BY_HANDLE_AT_X:
+    {
+        auto res_param = get_syscall_evt_param(in.get_event_reader().get_buf(),
+                                           0);
+        if (res_param.param_pointer == nullptr)
+        {
+            return false;
+        }
+        int64_t fd = *(int64_t*)(res_param.param_pointer);
+        auto thread_entry = m_thread_table.get_entry(tr, thread_id);
+        m_lastevent_fd_field.write_value(tw, thread_entry, fd);
+        break;
+    }
+    default:
+        break;
+    }
+
+    // Loop over behavior profiles, extract profile fields and update the count_min_sketch counts.
     int i = 0;
     std::string behavior_profile_concat_str;
     for(const auto& set : m_behavior_profiles_event_codes)
     {
         if(set.find((ppm_event_code)evt.get_type()) != set.end())
         {
-            int64_t thread_id = in.get_event_reader().get_tid();
             if(thread_id <= 0)
             {
                 return false;
@@ -714,7 +1075,7 @@ bool anomalydetection::parse_event(const falcosecurity::parse_event_input& in)
             try
             {
                 behavior_profile_concat_str.clear();
-                if (i < m_n_sketches && extract_filterchecks_concat_profile(thread_id, tr, m_behavior_profiles_fields[i], behavior_profile_concat_str) && !behavior_profile_concat_str.empty())
+                if (i < m_n_sketches && extract_filterchecks_concat_profile(evt, tr, m_behavior_profiles_fields[i], behavior_profile_concat_str) && !behavior_profile_concat_str.empty())
                 {
                     m_count_min_sketches[i].get()->update(behavior_profile_concat_str, (uint64_t)1);
                 }
