@@ -31,7 +31,13 @@ limitations under the License.
 #include <unordered_set>
 #include <sstream>
 
-# define UINT32_MAX		(4294967295U)
+#define UINT32_MAX (4294967295U)
+
+struct sinsp_param
+{
+    uint16_t param_len;
+    uint8_t* param_pointer;
+};
 
 class anomalydetection
 {
@@ -74,7 +80,7 @@ class anomalydetection
 
     std::string get_last_error() { return m_lasterr; }
 
-    void log_error(std::string err_mess);
+    static void log_error(std::string err_mess);
 
     //////////////////////////
     // Extract capability
@@ -118,7 +124,7 @@ class anomalydetection
     bool parse_event(const falcosecurity::parse_event_input& in);
 
     // Custom helper function within event parsing
-    bool extract_filterchecks_concat_profile(int64_t thread_id, const falcosecurity::table_reader &tr, const std::vector<plugin_sinsp_filterchecks_field>& fields, std::string& behavior_profile_concat_str);
+    bool extract_filterchecks_concat_profile(const falcosecurity::event_reader &evt, const falcosecurity::table_reader &tr, const std::vector<plugin_sinsp_filterchecks_field>& fields, std::string& behavior_profile_concat_str);
 
     private:
 
@@ -136,8 +142,13 @@ class anomalydetection
     std::string m_lasterr;
     // required; standard plugin API; accessor to falcosecurity/libs' thread table
     falcosecurity::table m_thread_table;
-    // Accessors to the fixed fields of falcosecurity/libs' thread table -> non comprehensive re-definition of sinsp_threadinfo
-    // Reference in falcosecurity/libs: userspace/libsinsp/threadinfo.h
+
+    /* Subtables */
+    falcosecurity::table_field m_args; ///< args subtable
+    falcosecurity::table_field m_env; ///< env variables subtable
+    falcosecurity::table_field m_fds; ///< fd subtable
+
+    /* proc related */
     falcosecurity::table_field m_tid; ///< The id of this thread
     falcosecurity::table_field m_pid; ///< The id of the process containing this thread. In single thread threads, this is equal to tid.
     falcosecurity::table_field m_ptid; ///< The id of the process that started this thread.
@@ -148,20 +159,41 @@ class anomalydetection
     falcosecurity::table_field m_exe_writable;
     falcosecurity::table_field m_exe_upper_layer; ///< True if the executable file belongs to upper layer in overlayfs
     falcosecurity::table_field m_exe_from_memfd; ///< True if the executable is stored in fileless memory referenced by memfd
-    falcosecurity::table_field m_args; ///< Command line arguments (e.g. "-d1")
-    falcosecurity::table_field m_args_value; ///< String value entry from the args array
-    falcosecurity::table_field m_env; ///< Environment variables
-    falcosecurity::table_field m_container_id; ///< heuristic-based container id
-    falcosecurity::table_field m_uid; ///< user uid
-    falcosecurity::table_field m_user; ///< user infos
-    falcosecurity::table_field m_loginuid; ///< auid
-    falcosecurity::table_field m_loginuser; ///< loginuser infos (auid)
+    falcosecurity::table_field m_args_value; ///< Value entry to command line arguments (e.g. "-d1") from the args array
+    falcosecurity::table_field m_env_value; ///< Value entry
     falcosecurity::table_field m_group; ///< group infos
     falcosecurity::table_field m_vtid; ///< The virtual id of this thread.
     falcosecurity::table_field m_vpid; ///< The virtual id of the process containing this thread. In single thread threads, this is equal to vtid.
     falcosecurity::table_field m_vpgid; // The virtual process group id, as seen from its pid namespace
     falcosecurity::table_field m_tty; ///< Number of controlling terminal
     falcosecurity::table_field m_cwd; ///< current working directory
+
+    /* user related */
+    // Not available until the next libs plugins API expansion
+    falcosecurity::table_field m_uid; ///< user uid
+    falcosecurity::table_field m_user; ///< user infos
+    falcosecurity::table_field m_loginuid; ///< auid
+    falcosecurity::table_field m_loginuser; ///< loginuser infos (auid)
+
+    /* fd or fs related */
+    falcosecurity::table_field m_fd_type_value; // todo fix
+    falcosecurity::table_field m_fd_openflags_value;
+    falcosecurity::table_field m_fd_sockinfo_value; // todo fix
+    falcosecurity::table_field m_fd_name_value;
+    falcosecurity::table_field m_fd_nameraw_value;
+    falcosecurity::table_field m_fd_oldname_value;
+    falcosecurity::table_field m_fd_flags_value;
+    falcosecurity::table_field m_fd_dev_value;
+    falcosecurity::table_field m_fd_mount_id_value;
+    falcosecurity::table_field m_fd_ino_value;
+    falcosecurity::table_field m_fd_pid_value;
+    falcosecurity::table_field m_fd_fd_value;
+
+    /* container related */
+    falcosecurity::table_field m_container_id; ///< heuristic-based container id
+
+    /* Custom write/read fields*/
+    falcosecurity::table_field m_lastevent_fd_field; // todo expose via plugin API
 };
 
 // required; standard plugin API
