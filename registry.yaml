@@ -478,7 +478,7 @@ plugins:
         source: kafka
       extraction:
         supported: false
-- name: gitlab
+  - name: gitlab
     description: Falco plugin providing basic runtime threat detection and auditing logging for GitLab 
     authors: Andy
     contact: https://github.com/an1245/falco-plugin-gitlab/issues
