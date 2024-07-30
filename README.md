@@ -85,6 +85,7 @@ These comments and the text between them should not be edited by hand -->
 | [journald](https://github.com/gnosek/falco-journald-plugin) | **Event Sourcing** <br/>ID: 17 <br/>`journal` <br/>**Field Extraction** <br/> `journal` | Read Journald events into Falco  <br/><br/> Authors: [Grzegorz Nosek](https://github.com/gnosek/falco-journald-plugin) <br/> License: Apache-2.0 |
 | [kafka](https://github.com/falcosecurity/plugins/tree/main/plugins/kafka) | **Event Sourcing** <br/>ID: 18 <br/>`kafka` | Read events from Kafka topics into Falco
   <br/><br/> Authors: [Hunter Madison](https://falco.org/community) <br/> License: Apache-2.0 |
+| [gitlab](https://github.com/an1245/falco-plugin-gitlab) | **Event Sourcing** <br/>ID: 19 <br/>`gitlab` <br/>**Field Extraction** <br/> `gitlab` | Falco plugin providing basic runtime threat detection and auditing logging for GitLab  <br/><br/> Authors: [Andy](https://github.com/an1245/falco-plugin-gitlab/issues) <br/> License: Apache-2.0 |
 
 <!-- REGISTRY:TABLE -->
 
