@@ -6,7 +6,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -91,7 +91,7 @@ TEST_F(sinsp_with_test_input, plugin_anomalydetection_filterchecks_fields)
     add_event_advance_ts(increasing_ts(), parent_tid, PPME_SYSCALL_CLONE_20_X, 20, parent_pid, "bash", empty_bytebuf, parent_pid, parent_tid, null_pid, "", fdlimit, pgft_maj, pgft_min, (uint32_t)12088, (uint32_t)7208, (uint32_t)0, "init", scap_const_sized_buffer{cgroupsv.data(), cgroupsv.size()}, (uint32_t)(PPM_CL_CLONE_CHILD_CLEARTID | PPM_CL_CLONE_CHILD_SETTID | PPM_CL_CLONE_NEWPID | PPM_CL_CHILD_IN_PIDNS), (uint32_t)1000, (uint32_t)1000, parent_pid, parent_tid);
     add_event_advance_ts(increasing_ts(), child_tid, PPME_SYSCALL_CLONE_20_X, 20, (uint64_t)0, "bash", empty_bytebuf, child_pid, child_tid, parent_tid, "", fdlimit, pgft_maj, pgft_min, (uint32_t)12088, (uint32_t)3764, (uint32_t)0, "init", scap_const_sized_buffer{cgroupsv.data(), cgroupsv.size()}, (uint32_t)(PPM_CL_CLONE_CHILD_CLEARTID | PPM_CL_CLONE_CHILD_SETTID | PPM_CL_CLONE_NEWPID | PPM_CL_CHILD_IN_PIDNS), (uint32_t)1000, (uint32_t)1000, child_pid, child_tid);
     add_event_advance_ts(increasing_ts(), child_tid, PPME_SYSCALL_EXECVE_19_E, 1, "/bin/test-exe");
-    evt = add_event_advance_ts(increasing_ts(), child_tid, PPME_SYSCALL_EXECVE_19_X, 27, (int64_t)0, "/bin/test-exe", scap_const_sized_buffer{argsv.data(), argsv.size()}, child_tid, child_pid, parent_tid, "", fdlimit, pgft_maj, pgft_min, (uint32_t)29612, (uint32_t)4, (uint32_t)0, "test-exe", scap_const_sized_buffer{cgroupsv.data(), cgroupsv.size()}, scap_const_sized_buffer{envv.data(), envv.size()}, (int32_t)34818, parent_pid, loginuid, (int32_t) PPM_EXE_WRITABLE, parent_pid, parent_pid, parent_pid, exe_ino, ctime, mtime, euid);
+    evt = add_event_advance_ts(increasing_ts(), child_tid, PPME_SYSCALL_EXECVE_19_X, 27, (int64_t)0, "/bin/test-exe", scap_const_sized_buffer{argsv.data(), argsv.size()}, child_tid, child_pid, parent_tid, "", fdlimit, pgft_maj, pgft_min, (uint32_t)29612, (uint32_t)4, (uint32_t)0, "test-exe", scap_const_sized_buffer{cgroupsv.data(), cgroupsv.size()}, scap_const_sized_buffer{envv.data(), envv.size()}, (int32_t)34818, child_tid, loginuid, (uint32_t) (PPM_EXE_WRITABLE | PPM_EXE_UPPER_LAYER), parent_pid, parent_pid, parent_pid, exe_ino, ctime, mtime, euid);
 
     ASSERT_EQ(get_field_as_string(evt, "proc.name"), "test-exe");
 
@@ -103,10 +103,10 @@ TEST_F(sinsp_with_test_input, plugin_anomalydetection_filterchecks_fields)
     ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch[2]", pl_flist), "1");
 
     ASSERT_TRUE(field_exists(evt, "anomaly.count_min_sketch.profile", pl_flist));
-    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile", pl_flist), "test-exeinit/bin/test-exe/sbin/init3481820");
-    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile[0]", pl_flist), "test-exeinit/bin/test-exe/sbin/init3481820");
+    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile", pl_flist), "1024204816762626980000045881676262698000004577110229/home/user/bin/test-exe -c 'echo aGVsbG8K | base64 -d'test-exeinit/bin/test-exe/sbin/init3481820");
+    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile[0]", pl_flist), "1024204816762626980000045881676262698000004577110229/home/user/bin/test-exe -c 'echo aGVsbG8K | base64 -d'test-exeinit/bin/test-exe/sbin/init3481820");
     ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile[1]", pl_flist), "");
-    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile[2]", pl_flist), "test-exe -c 'echo aGVsbG8K | base64 -d'test-exetest-exeinit20201/bin/test-exe/bin/test-exe/sbin/init1init0init");
+    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile[2]", pl_flist), "test-exe -c 'echo aGVsbG8K | base64 -d'test-exe -c 'echo aGVsbG8K | base64 -d'initinittest-exetest-exeinit20201/bin/test-exe/bin/test-exe/sbin/init20test-exe/bin/test-exe/bin/test-exe0init/sbin/init/sbin/init");
 }
 
 TEST_F(sinsp_with_test_input, plugin_anomalydetection_filterchecks_fields_proc_lineage)
@@ -118,7 +118,7 @@ TEST_F(sinsp_with_test_input, plugin_anomalydetection_filterchecks_fields_proc_l
     uint64_t pgid = 9999;
     uint32_t loginuid = UINT32_MAX - 1, euid = 2000U;
     scap_const_sized_buffer empty_bytebuf = {.buf = nullptr, .size = 0};
-    std::vector<std::string> args = {"-c", "'echo aGVsbG8K | base64 -d'"};
+    std::vector<std::string> args = {"-c", "cat test"};
     std::string argsv = test_utils::to_null_delimited(args);
     /* Instantiate the default tree */
     DEFAULT_TREE
@@ -129,13 +129,14 @@ TEST_F(sinsp_with_test_input, plugin_anomalydetection_filterchecks_fields_proc_l
 
     add_event_advance_ts(increasing_ts(), p5_t1_tid, PPME_SYSCALL_EXECVE_19_E, 1, "/usr/bin/p5_t1_exepath");
     add_event_advance_ts(increasing_ts(), p5_t1_tid, PPME_SYSCALL_EXECVE_19_X, 27, (int64_t)0, "/usr/bin/p5_t1_exepath", scap_const_sized_buffer{argsv.data(), argsv.size()}, p5_t1_tid, p5_t1_tid, p5_t1_ptid, "", not_relevant_64, not_relevant_64, not_relevant_64, (uint32_t)29612, (uint32_t)4, (uint32_t)0, "p5_t1_comm", empty_bytebuf, empty_bytebuf, (int32_t)34818, pgid, loginuid, (int32_t) PPM_EXE_WRITABLE, not_relevant_64, not_relevant_64, not_relevant_64, not_relevant_64, not_relevant_64, not_relevant_64, euid);
+    args = {"-c", "'echo aGVsbG8K | base64 -d'"};
     add_event_advance_ts(increasing_ts(), p6_t1_tid, PPME_SYSCALL_EXECVE_19_E, 1, "/usr/bin/p6_t1_exepath");
     auto evt = add_event_advance_ts(increasing_ts(), p6_t1_tid, PPME_SYSCALL_EXECVE_19_X, 27, (int64_t)0, "/usr/bin/p6_t1_exepath", scap_const_sized_buffer{argsv.data(), argsv.size()}, p6_t1_tid, p6_t1_tid, p6_t1_ptid, "", not_relevant_64, not_relevant_64, not_relevant_64, (uint32_t)29612, (uint32_t)4, (uint32_t)0, "p6_t1_comm", empty_bytebuf, empty_bytebuf, (int32_t)34818, pgid, loginuid, (int32_t) PPM_EXE_WRITABLE, not_relevant_64, not_relevant_64, not_relevant_64, not_relevant_64, not_relevant_64, not_relevant_64, euid);
 
-    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile[2]", pl_flist), "p6_t1_comm -c 'echo aGVsbG8K | base64 -d'p6_t1_commp6_t1_commp5_t1_commp4_t1_commp3_t1_commp2_t1_comminit8787827672251/usr/bin/p6_t1_exepath/usr/bin/p6_t1_exepath/usr/bin/p5_t1_exepath/usr/bin/p4_t1_exepath/usr/bin/p3_t1_exepath/usr/bin/p2_t1_exepath/sbin/init9999p5_t1_comm0init");
+    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile[2]", pl_flist), "p6_t1_comm -c cat testp6_t1_comm -c cat testp5_t1_comm -c cat testp5_t1_comm -c cat testp6_t1_commp6_t1_commp5_t1_commp4_t1_commp3_t1_commp2_t1_comminit8787827672251/usr/bin/p6_t1_exepath/usr/bin/p6_t1_exepath/usr/bin/p5_t1_exepath/usr/bin/p4_t1_exepath/usr/bin/p3_t1_exepath/usr/bin/p2_t1_exepath/sbin/init9999p5_t1_comm/usr/bin/p5_t1_exepath/usr/bin/p5_t1_exepath0init/sbin/init/sbin/init");
 }
 
-TEST_F(sinsp_with_test_input, plugin_anomalydetection_filterchecks_fields_fd_fs_files)
+TEST_F(sinsp_with_test_input, plugin_anomalydetection_filterchecks_fields_fd)
 {
     std::shared_ptr<sinsp_plugin> plugin_owner;
     filter_check_list pl_flist;
@@ -166,24 +167,24 @@ TEST_F(sinsp_with_test_input, plugin_anomalydetection_filterchecks_fields_fd_net
 
     open_inspector();
     sinsp_evt* evt = NULL;
-	sinsp_fdinfo* fdinfo = NULL;
-	int64_t client_fd = 8;
+    sinsp_fdinfo* fdinfo = NULL;
+    int64_t client_fd = 8;
     int64_t return_value = 0;
 
     add_event_advance_ts(increasing_ts(), 1, PPME_SOCKET_SOCKET_E, 3, (uint32_t) PPM_AF_INET, (uint32_t) SOCK_STREAM, (uint32_t) 0);
-	add_event_advance_ts(increasing_ts(), 1, PPME_SOCKET_SOCKET_X, 1, client_fd);
+    add_event_advance_ts(increasing_ts(), 1, PPME_SOCKET_SOCKET_X, 1, client_fd);
 
-	sockaddr_in client = test_utils::fill_sockaddr_in(DEFAULT_CLIENT_PORT, DEFAULT_IPV4_CLIENT_STRING);
-	sockaddr_in server = test_utils::fill_sockaddr_in(DEFAULT_SERVER_PORT, DEFAULT_IPV4_SERVER_STRING);
+    sockaddr_in client = test_utils::fill_sockaddr_in(DEFAULT_CLIENT_PORT, DEFAULT_IPV4_CLIENT_STRING);
+    sockaddr_in server = test_utils::fill_sockaddr_in(DEFAULT_SERVER_PORT, DEFAULT_IPV4_SERVER_STRING);
 
-	std::vector<uint8_t> server_sockaddr = test_utils::pack_sockaddr(reinterpret_cast<sockaddr*>(&server));
-	evt = add_event_advance_ts(increasing_ts(), 1, PPME_SOCKET_CONNECT_E, 2, client_fd, scap_const_sized_buffer{server_sockaddr.data(), server_sockaddr.size()});
-	std::vector<uint8_t> socktuple = test_utils::pack_socktuple(reinterpret_cast<sockaddr*>(&client), reinterpret_cast<sockaddr*>(&server));
-	evt = add_event_advance_ts(increasing_ts(), 1, PPME_SOCKET_CONNECT_X, 3, return_value, scap_const_sized_buffer{socktuple.data(), socktuple.size()}, client_fd);
+    std::vector<uint8_t> server_sockaddr = test_utils::pack_sockaddr(reinterpret_cast<sockaddr*>(&server));
+    evt = add_event_advance_ts(increasing_ts(), 1, PPME_SOCKET_CONNECT_E, 2, client_fd, scap_const_sized_buffer{server_sockaddr.data(), server_sockaddr.size()});
+    std::vector<uint8_t> socktuple = test_utils::pack_socktuple(reinterpret_cast<sockaddr*>(&client), reinterpret_cast<sockaddr*>(&server));
+    evt = add_event_advance_ts(increasing_ts(), 1, PPME_SOCKET_CONNECT_X, 3, return_value, scap_const_sized_buffer{socktuple.data(), socktuple.size()}, client_fd);
 
-	/* We are able to recover the fdinfo in the connect exit event even when interleaved */
-	fdinfo = evt->get_fd_info();
-	ASSERT_NE(fdinfo, nullptr);
+    /* We are able to recover the fdinfo in the connect exit event even when interleaved */
+    fdinfo = evt->get_fd_info();
+    ASSERT_NE(fdinfo, nullptr);
 
     ASSERT_EQ(get_field_as_string(evt, "fd.connected"), "true");
     ASSERT_EQ(get_field_as_string(evt, "fd.name"), "172.40.111.222:54321->142.251.111.147:443");

@@ -159,6 +159,12 @@ class anomalydetection
     falcosecurity::table_field m_exe_writable;
     falcosecurity::table_field m_exe_upper_layer; ///< True if the executable file belongs to upper layer in overlayfs
     falcosecurity::table_field m_exe_from_memfd; ///< True if the executable is stored in fileless memory referenced by memfd
+    falcosecurity::table_field m_exe_ino;
+    falcosecurity::table_field m_exe_ino_ctime;
+    falcosecurity::table_field m_exe_ino_mtime; 
+    // falcosecurity::table_field m_cap_permitted; // todo fix
+    // falcosecurity::table_field m_cap_inheritable; // todo fix
+    // falcosecurity::table_field m_cap_effective; // todo fix
     falcosecurity::table_field m_args_value; ///< Value entry to command line arguments (e.g. "-d1") from the args array
     falcosecurity::table_field m_env_value; ///< Value entry
     falcosecurity::table_field m_group; ///< group infos
@@ -175,10 +181,10 @@ class anomalydetection
     falcosecurity::table_field m_loginuid; ///< auid
     falcosecurity::table_field m_loginuser; ///< loginuser infos (auid)
 
-    /* fd or fs related */
-    falcosecurity::table_field m_fd_type_value; // todo fix
+    /* fd related */
+    // falcosecurity::table_field m_fd_type_value; // todo fix
     falcosecurity::table_field m_fd_openflags_value;
-    falcosecurity::table_field m_fd_sockinfo_value; // todo fix
+    // falcosecurity::table_field m_fd_sockinfo_value; // todo fix
     falcosecurity::table_field m_fd_name_value;
     falcosecurity::table_field m_fd_nameraw_value;
     falcosecurity::table_field m_fd_oldname_value;
@@ -187,7 +193,7 @@ class anomalydetection
     falcosecurity::table_field m_fd_mount_id_value;
     falcosecurity::table_field m_fd_ino_value;
     falcosecurity::table_field m_fd_pid_value;
-    falcosecurity::table_field m_fd_fd_value;
+    // falcosecurity::table_field m_fd_fd_value; // todo fix
 
     /* container related */
     falcosecurity::table_field m_container_id; ///< heuristic-based container id

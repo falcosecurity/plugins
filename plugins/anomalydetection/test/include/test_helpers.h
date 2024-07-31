@@ -16,11 +16,11 @@ limitations under the License.
 */
 
 #define INIT_CONFIG "{\"count_min_sketch\":{\"enabled\":true,\"n_sketches\":3,\"gamma_eps\":[[0.001,0.0001],[0.001,0.0001],[0.001,0.0001]],\"behavior_profiles\":[\
-{\"fields\":\"%container.id %proc.name %proc.pname %proc.exepath %proc.pexepath %proc.tty %proc.vpid %proc.pvid]\",\
+{\"fields\":\"%container.id %proc.is_vpgid_leader %proc.is_sid_leader %proc.exe_ino %proc.exe_ino.ctime %proc.exe_ino.mtime %proc.is_exe_writable %proc.is_exe_upper_layer %proc.is_exe_from_memfd %proc.cmdnargs %proc.cmdlenargs %proc.env[HOME] %proc.exeline %proc.name %proc.pname %proc.exepath %proc.pexepath %proc.tty %proc.vpid %proc.pvid]\",\
 \"event_codes\":[293,331]},\
-{\"fields\":\"%proc.pid %fd.num %fd.name %fd.directory %fd.filename %fd.dev %fd.ino %fd.nameraw %fs.path.name %fs.path.nameraw\",\
+{\"fields\":\"%proc.pid %fd.num %fd.name %fd.directory %fd.filename %fd.dev %fd.ino %fd.nameraw\",\
 \"event_codes\":[3,307,327,23]},\
-{\"fields\":\"%container.id %proc.cmdline %proc.name %proc.aname[0] %proc.aname[1] %proc.aname[2] %proc.aname[3] %proc.aname[4] %proc.aname[5] %proc.aname[6] %proc.aname[7] %proc.pid %proc.apid[0] %proc.apid[1] %proc.apid[2] %proc.apid[3] %proc.apid[4] %proc.apid[5] %proc.apid[6] %proc.apid[7] %proc.exepath %proc.aexepath[0] %proc.aexepath[1] %proc.aexepath[2] %proc.aexepath[3] %proc.aexepath[4] %proc.aexepath[5] %proc.aexepath[6] %proc.aexepath[7] %proc.vpgid %proc.vpgid.name %proc.sid %proc.sname\",\
+{\"fields\":\"%container.id %proc.cmdline %proc.acmdline %proc.pcmdline %proc.acmdline[1] %proc.name %proc.aname[0] %proc.aname[1] %proc.aname[2] %proc.aname[3] %proc.aname[4] %proc.aname[5] %proc.aname[6] %proc.aname[7] %proc.pid %proc.apid[0] %proc.apid[1] %proc.apid[2] %proc.apid[3] %proc.apid[4] %proc.apid[5] %proc.apid[6] %proc.apid[7] %proc.exepath %proc.aexepath[0] %proc.aexepath[1] %proc.aexepath[2] %proc.aexepath[3] %proc.aexepath[4] %proc.aexepath[5] %proc.aexepath[6] %proc.aexepath[7] %proc.vpgid %proc.vpgid.name %proc.vpgid.exe %proc.vpgid.exepath %proc.sid %proc.sname %proc.sid.exe %proc.sid.exepath\",\
 \"event_codes\":[293,331]}]}}"
 
 #define ASSERT_PLUGIN_INITIALIZATION(p_o, p_l)                                 \
