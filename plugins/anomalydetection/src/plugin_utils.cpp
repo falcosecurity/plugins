@@ -36,10 +36,10 @@ static const filtercheck_field_info sinsp_filter_check_fields[] =
 	{PT_UINT64, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_DEC, "proc.cmdnargs", "Number of Command Line args", "The number of command line args (proc.args)."},
 	{PT_UINT64, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_DEC, "proc.cmdlenargs", "Total Count of Characters in Command Line args", "The total count of characters / length of the command line args (proc.args) combined excluding whitespaces between args."},
 	{PT_CHARBUF, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_NA, "proc.exeline", "Executable Command Line", "The full command line, with exe as first argument (proc.exe + proc.args) when starting the process generating the event."},
-	{PT_CHARBUF, EPF_ARG_ALLOWED, PF_NA, "proc.env", "Environment", "The environment variables of the process generating the event as concatenated string 'ENV_NAME=value ENV_NAME1=value1'. Can also be used to extract the value of a known env variable, e.g. proc.env[ENV_NAME]."},
+	{PT_CHARBUF, EPF_ANOMALY_PLUGIN | EPF_ARG_ALLOWED, PF_NA, "proc.env", "Environment", "The environment variables of the process generating the event as concatenated string 'ENV_NAME=value ENV_NAME1=value1'. Can also be used to extract the value of a known env variable, e.g. proc.env[ENV_NAME]."},
 	{PT_CHARBUF, EPF_ARG_ALLOWED | EPF_NO_RHS | EPF_NO_TRANSFORMER, PF_NA, "proc.aenv", "Ancestor Environment", "[EXPERIMENTAL] This field can be used in three flavors: (1) as a filter checking all parents, e.g. 'proc.aenv contains xyz', which is similar to the familiar 'proc.aname contains xyz' approach, (2) checking the `proc.env` of a specified level of the parent, e.g. 'proc.aenv[2]', which is similar to the familiar 'proc.aname[2]' approach, or (3) checking the first matched value of a known ENV_NAME in the parent lineage, such as 'proc.aenv[ENV_NAME]' (across a max of 20 ancestor levels). This field may be deprecated or undergo breaking changes in future releases. Please use it with caution."},
 	{PT_CHARBUF, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_NA, "proc.cwd", "Current Working Directory", "The current working directory of the event."},
-	{PT_INT64, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_ID, "proc.loginshellid", "Login Shell ID", "The pid of the oldest shell among the ancestors of the current process, if there is one. This field can be used to separate different user sessions."},
+	{PT_INT64, EPF_NONE, PF_ID, "proc.loginshellid", "Login Shell ID", "The pid of the oldest shell among the ancestors of the current process, if there is one. This field can be used to separate different user sessions."},
 	{PT_UINT32, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_ID, "proc.tty", "Process TTY", "The controlling terminal of the process. 0 for processes without a terminal."},
 	{PT_INT64, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_ID, "proc.pid", "Process ID", "The id of the process generating the event."},
 	{PT_INT64, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_ID, "proc.ppid", "Parent Process ID", "The pid of the parent of the process generating the event."},
@@ -69,9 +69,9 @@ static const filtercheck_field_info sinsp_filter_check_fields[] =
 	{PT_ABSTIME, EPF_NONE, PF_DEC, "proc.exe_ino.ctime_duration_proc_start", "Number of nanoseconds between ctime exe file and proc clone ts", "Number of nanoseconds between modifying status of executable image and spawning a new process using the changed executable image."},
 	{PT_ABSTIME, EPF_NONE, PF_DEC, "proc.exe_ino.ctime_duration_pidns_start", "Number of nanoseconds between pidns start ts and ctime exe file", "Number of nanoseconds between PID namespace start ts and ctime exe file if PID namespace start predates ctime."},
 	{PT_UINT64, EPF_NONE, PF_DEC, "proc.pidns_init_start_ts", "Start ts of pid namespace", "Start of PID namespace (container or non container pid namespace) as epoch timestamp in nanoseconds."},
-	{PT_CHARBUF, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_NA, "thread.cap_permitted", "Permitted capabilities", "The permitted capabilities set"},
-	{PT_CHARBUF, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_NA, "thread.cap_inheritable", "Inheritable capabilities", "The inheritable capabilities set"},
-	{PT_CHARBUF, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_NA, "thread.cap_effective", "Effective capabilities", "The effective capabilities set"},
+	{PT_CHARBUF, EPF_NONE, PF_NA, "thread.cap_permitted", "Permitted capabilities", "The permitted capabilities set"},
+	{PT_CHARBUF, EPF_NONE, PF_NA, "thread.cap_inheritable", "Inheritable capabilities", "The inheritable capabilities set"},
+	{PT_CHARBUF, EPF_NONE, PF_NA, "thread.cap_effective", "Effective capabilities", "The effective capabilities set"},
 	{PT_BOOL, EPF_NONE, PF_NA, "proc.is_container_healthcheck", "Process Is Container Healthcheck", "'true' if this process is running as a part of the container's health check."},
 	{PT_BOOL, EPF_NONE, PF_NA, "proc.is_container_liveness_probe", "Process Is Container Liveness", "'true' if this process is running as a part of the container's liveness probe."},
 	{PT_BOOL, EPF_NONE, PF_NA, "proc.is_container_readiness_probe", "Process Is Container Readiness", "'true' if this process is running as a part of the container's readiness probe."},
@@ -168,12 +168,12 @@ static const filtercheck_field_info sinsp_filter_check_fields[] =
 	{PT_INT64, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_DEC, "fd.ino", "FD Inode Number", "inode number of the referenced file"},
 	{PT_CHARBUF, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_NA, "fd.nameraw", "FD Name Raw", "FD full name raw. Just like fd.name, but only used if fd is a file path. File path is kept raw with limited sanitization and without deriving the absolute path."},
 	{PT_CHARBUF, EPF_IS_LIST | EPF_ARG_ALLOWED | EPF_NO_RHS | EPF_NO_TRANSFORMER, PF_DEC, "fd.types", "FD Type", "List of FD types in used. Can be passed an fd number e.g. fd.types[0] to get the type of stdout as a single item list."},
-    {PT_CHARBUF, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_NA, "fs.path.name", "Path for Filesystem-related operation", "For any event type that deals with a filesystem path, the path the file syscall is operating on. This path is always fully resolved, prepending the thread cwd when needed."},
-    {PT_CHARBUF, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_NA, "fs.path.nameraw", "Raw path for Filesystem-related operation", "For any event type that deals with a filesystem path, the path the file syscall is operating on. This path is always the path provided to the syscall and may not be fully resolved."},
-    {PT_CHARBUF, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_NA, "fs.path.source", "Source path for Filesystem-related operation", "For any event type that deals with a filesystem path, and specifically for a source and target like mv, cp, etc, the source path the file syscall is operating on. This path is always fully resolved, prepending the thread cwd when needed."},
-    {PT_CHARBUF, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_NA, "fs.path.sourceraw", "Source path for Filesystem-related operation", "For any event type that deals with a filesystem path, and specifically for a source and target like mv, cp, etc, the source path the file syscall is operating on. This path is always the path provided to the syscall and may not be fully resolved."},
-    {PT_CHARBUF, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_NA, "fs.path.target", "Target path for Filesystem-related operation", "For any event type that deals with a filesystem path, and specifically for a target and target like mv, cp, etc, the target path the file syscall is operating on. This path is always fully resolved, prepending the thread cwd when needed."},
-    {PT_CHARBUF, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_NA, "fs.path.targetraw", "Target path for Filesystem-related operation", "For any event type that deals with a filesystem path, and specifically for a target and target like mv, cp, etc, the target path the file syscall is operating on. This path is always the path provided to the syscall and may not be fully resolved."},
+	{PT_CHARBUF, EPF_NONE, PF_NA, "fs.path.name", "Path for Filesystem-related operation", "For any event type that deals with a filesystem path, the path the file syscall is operating on. This path is always fully resolved, prepending the thread cwd when needed."},
+	{PT_CHARBUF, EPF_NONE, PF_NA, "fs.path.nameraw", "Raw path for Filesystem-related operation", "For any event type that deals with a filesystem path, the path the file syscall is operating on. This path is always the path provided to the syscall and may not be fully resolved."},
+	{PT_CHARBUF, EPF_NONE, PF_NA, "fs.path.source", "Source path for Filesystem-related operation", "For any event type that deals with a filesystem path, and specifically for a source and target like mv, cp, etc, the source path the file syscall is operating on. This path is always fully resolved, prepending the thread cwd when needed."},
+	{PT_CHARBUF, EPF_NONE, PF_NA, "fs.path.sourceraw", "Source path for Filesystem-related operation", "For any event type that deals with a filesystem path, and specifically for a source and target like mv, cp, etc, the source path the file syscall is operating on. This path is always the path provided to the syscall and may not be fully resolved."},
+	{PT_CHARBUF, EPF_NONE, PF_NA, "fs.path.target", "Target path for Filesystem-related operation", "For any event type that deals with a filesystem path, and specifically for a target and target like mv, cp, etc, the target path the file syscall is operating on. This path is always fully resolved, prepending the thread cwd when needed."},
+	{PT_CHARBUF, EPF_NONE, PF_NA, "fs.path.targetraw", "Target path for Filesystem-related operation", "For any event type that deals with a filesystem path, and specifically for a target and target like mv, cp, etc, the target path the file syscall is operating on. This path is always the path provided to the syscall and may not be fully resolved."},
 };
 
 // Temporary workaround; not as robust as libsinsp/eventformatter; 
@@ -185,57 +185,67 @@ namespace plugin_anomalydetection::utils
 {
 const std::vector<plugin_sinsp_filterchecks_field> get_profile_fields(const std::string& behavior_profile)
 {
-    std::vector<plugin_sinsp_filterchecks_field> fields;
-    std::regex pattern(R"(%(\S+))");
-    std::sregex_iterator iter(behavior_profile.begin(), behavior_profile.end(), pattern);
-    std::sregex_iterator end;
+	std::vector<plugin_sinsp_filterchecks_field> fields;
+	std::regex pattern(R"(%(\S+))");
+	std::sregex_iterator iter(behavior_profile.begin(), behavior_profile.end(), pattern);
+	std::sregex_iterator end;
 
-    plugin_sinsp_filterchecks::check_type id;
-    std::string fieldname;
-    std::int32_t argid = 0;
-    std::string argname = "";
+	plugin_sinsp_filterchecks::check_type id;
+	std::string fieldname;
+	std::int32_t argid = 0;
+	std::string argname = "";
 
-    while (iter != end)
-    {
-        auto rawfield = iter->str().substr(1);
-        std::string fieldname = rawfield;
-        for (size_t i = 0; i < sizeof(sinsp_filter_check_fields) / sizeof(sinsp_filter_check_fields[0]); ++i)
-        {
-            id = static_cast<plugin_sinsp_filterchecks::check_type>(i);
-            if(id == plugin_sinsp_filterchecks::TYPE_APID ||
-                id == plugin_sinsp_filterchecks::TYPE_ANAME ||
-                id == plugin_sinsp_filterchecks::TYPE_AEXE ||
-                id == plugin_sinsp_filterchecks::TYPE_AEXEPATH ||
-                id == plugin_sinsp_filterchecks::TYPE_ACMDLINE)
-            {
-                size_t start_pos = rawfield.find('[');
-                size_t end_pos = rawfield.find(']');
-                if (start_pos != std::string::npos && end_pos != std::string::npos)
-                {
-                    fieldname = rawfield.substr(0, start_pos);
-                    argid = std::stoi(rawfield.substr(start_pos + 1, end_pos - start_pos - 1));
-                }
-            }
-            if (std::string(sinsp_filter_check_fields[i].m_name) == fieldname)
-            {
+	while (iter != end)
+	{
+		auto rawfield = iter->str().substr(1);
+		std::string fieldname = rawfield;
+		for (size_t i = 0; i < sizeof(sinsp_filter_check_fields) / sizeof(sinsp_filter_check_fields[0]); ++i)
+		{
+			id = static_cast<plugin_sinsp_filterchecks::check_type>(i);
+			if(id == plugin_sinsp_filterchecks::TYPE_ENV ||
+				id == plugin_sinsp_filterchecks::TYPE_APID ||
+				id == plugin_sinsp_filterchecks::TYPE_ANAME ||
+				id == plugin_sinsp_filterchecks::TYPE_AEXE ||
+				id == plugin_sinsp_filterchecks::TYPE_AEXEPATH ||
+				id == plugin_sinsp_filterchecks::TYPE_ACMDLINE)
+			{
+				size_t start_pos = rawfield.find('[');
+				size_t end_pos = rawfield.find(']');
+				if (start_pos != std::string::npos && end_pos != std::string::npos)
+				{
+					fieldname = rawfield.substr(0, start_pos);
+					std::string arg_str = rawfield.substr(start_pos + 1, end_pos - start_pos - 1);
+					if (!arg_str.empty())
+					{
+						argname = rawfield.substr(start_pos + 1, end_pos - start_pos - 1);
+						if (std::all_of(argname.begin(), argname.end(), ::isdigit))
+						{
+							argid = std::stoi(rawfield.substr(start_pos + 1, end_pos - start_pos - 1));
+							argname.clear();
+						}
+					}
+				}
+			}
+			if (std::string(sinsp_filter_check_fields[i].m_name) == fieldname)
+			{
 				if ((sinsp_filter_check_fields[i].m_flags & EPF_ANOMALY_PLUGIN))
 				{
 					fields.emplace_back(plugin_sinsp_filterchecks_field{
 						id,
 						argid,
 						argname
-                	});
+					});
 				} else
 				{
 					plugin_anomalydetection::utils::log_error("Remove the following unsupported behavior profile field: '" + fieldname + "' exiting...");
 					exit(1);
 				}
-            }
-            argid = 0;
-            argname.clear();
-        }
-        ++iter;
-    }
-    return fields;
+			}
+			argid = 0;
+			argname.clear();
+		}
+		++iter;
+	}
+	return fields;
 }
 }

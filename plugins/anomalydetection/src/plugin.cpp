@@ -266,6 +266,9 @@ bool anomalydetection::init(falcosecurity::init_input& in)
         m_exe_writable = m_thread_table.get_field(t.fields(), "exe_writable", st::SS_PLUGIN_ST_BOOL);
         m_exe_upper_layer = m_thread_table.get_field(t.fields(), "exe_upper_layer", st::SS_PLUGIN_ST_BOOL);
         m_exe_from_memfd = m_thread_table.get_field(t.fields(), "exe_from_memfd", st::SS_PLUGIN_ST_BOOL);
+        m_exe_ino = m_thread_table.get_field(t.fields(), "exe_ino", st::SS_PLUGIN_ST_UINT64);
+        m_exe_ino_ctime = m_thread_table.get_field(t.fields(), "exe_ino_ctime", st::SS_PLUGIN_ST_UINT64);
+        m_exe_ino_mtime = m_thread_table.get_field(t.fields(), "exe_ino_mtime", st::SS_PLUGIN_ST_UINT64);
         m_args_value = t.get_subtable_field(m_thread_table, m_args, "value", st::SS_PLUGIN_ST_STRING);
         m_env_value = t.get_subtable_field(m_thread_table, m_env, "value", st::SS_PLUGIN_ST_STRING);
         m_vtid = m_thread_table.get_field(t.fields(), "vtid", st::SS_PLUGIN_ST_INT64);
@@ -281,7 +284,7 @@ bool anomalydetection::init(falcosecurity::init_input& in)
         // m_loginuser = m_thread_table.get_field(t.fields(), "loginuser", TBD);
         // m_group = m_thread_table.get_field(t.fields(), "group", TBD);
 
-        /* fd or fs related */
+        /* fd related */
         // m_fd_type_value = t.get_subtable_field(m_thread_table, m_fds, "type", st::SS_PLUGIN_ST_UINT32); // todo fix, likely type issue given its of type scap_fd_type
         m_fd_openflags_value = t.get_subtable_field(m_thread_table, m_fds, "open_flags", st::SS_PLUGIN_ST_UINT32);
         // m_fd_sockinfo_value = t.get_subtable_field(m_thread_table, m_fds, "sock_info", st::SS_PLUGIN_ST_UINT32); // todo fix, likely type issue given its of type sinsp_sockinfo
@@ -293,7 +296,7 @@ bool anomalydetection::init(falcosecurity::init_input& in)
         m_fd_mount_id_value = t.get_subtable_field(m_thread_table, m_fds, "mount_id", st::SS_PLUGIN_ST_UINT32);
         m_fd_ino_value = t.get_subtable_field(m_thread_table, m_fds, "ino", st::SS_PLUGIN_ST_UINT64);
         m_fd_pid_value = t.get_subtable_field(m_thread_table, m_fds, "pid", st::SS_PLUGIN_ST_INT64);
-        m_fd_fd_value = t.get_subtable_field(m_thread_table, m_fds, "fd", st::SS_PLUGIN_ST_INT64);
+        // m_fd_fd_value = t.get_subtable_field(m_thread_table, m_fds, "fd", st::SS_PLUGIN_ST_INT64);
 
         /* container related */
         m_container_id = m_thread_table.get_field(t.fields(), "container_id", st::SS_PLUGIN_ST_STRING);
@@ -423,6 +426,7 @@ bool anomalydetection::extract_filterchecks_concat_profile(const falcosecurity::
         uint64_t tuint64 = UINT64_MAX;
         uint32_t tuint32 = UINT32_MAX;
         int64_t tint64 = -1;
+        bool tbool;
         int64_t ptid = -1;
         switch(field.id)
         {
@@ -490,6 +494,34 @@ bool anomalydetection::extract_filterchecks_concat_profile(const falcosecurity::
                 });
             break;
         }
+        case plugin_sinsp_filterchecks::TYPE_CMDNARGS:
+        {
+            const char* arg = nullptr;
+            size_t c = 0;
+            auto args_table = m_thread_table.get_subtable(tr, m_args, thread_entry, st::SS_PLUGIN_ST_INT64);
+            args_table.iterate_entries(tr, [this, &c](const falcosecurity::table_entry& e)
+                {
+                    c++;
+                    return true;
+                });
+            tstr = std::to_string(c);
+            break;
+        }
+        case plugin_sinsp_filterchecks::TYPE_CMDLENARGS:
+        {
+            const char* arg = nullptr;
+            size_t c = 0;
+            auto args_table = m_thread_table.get_subtable(tr, m_args, thread_entry, st::SS_PLUGIN_ST_INT64);
+            args_table.iterate_entries(tr, [this, &tr, &arg, &c](const falcosecurity::table_entry& e)
+                {
+                    arg = nullptr;
+                    m_args_value.read_value(tr, e, arg);
+                    c+=std::strlen(arg);
+                    return true;
+                });
+            tstr = std::to_string(c);
+            break;
+        }
         case plugin_sinsp_filterchecks::TYPE_CMDLINE:
         {
             m_comm.read_value(tr, thread_entry, tstr);
@@ -509,6 +541,91 @@ bool anomalydetection::extract_filterchecks_concat_profile(const falcosecurity::
                     }
                     return true;
                 });
+            break;
+        }
+        case plugin_sinsp_filterchecks::TYPE_PCMDLINE:
+        {
+            m_ptid.read_value(tr, thread_entry, ptid);
+            auto lineage = m_thread_table.get_entry(tr, ptid);
+            m_comm.read_value(tr, lineage, tstr);
+            const char* arg = nullptr;
+            auto args_table = m_thread_table.get_subtable(tr, m_args, lineage, st::SS_PLUGIN_ST_INT64);
+            args_table.iterate_entries(tr, [this, &tr, &arg, &tstr](const falcosecurity::table_entry& e)
+                {
+                    arg = nullptr;
+                    m_args_value.read_value(tr, e, arg);
+                    if (!tstr.empty())
+                    {
+                        tstr += " ";
+                    }
+                    if (arg)
+                    {
+                        tstr += arg;
+                    }
+                    return true;
+                });
+            break;
+        }
+        case plugin_sinsp_filterchecks::TYPE_ACMDLINE:
+        {
+            if(field.argid < 1)
+            {
+                m_comm.read_value(tr, thread_entry, tstr);
+                const char* arg = nullptr;
+                auto args_table = m_thread_table.get_subtable(tr, m_args, thread_entry, st::SS_PLUGIN_ST_INT64);
+                args_table.iterate_entries(tr, [this, &tr, &arg, &tstr](const falcosecurity::table_entry& e)
+                    {
+                        arg = nullptr;
+                        m_args_value.read_value(tr, e, arg);
+                        if (!tstr.empty())
+                        {
+                            tstr += " ";
+                        }
+                        if (arg)
+                        {
+                            tstr += arg;
+                        }
+                        return true;
+                    });
+                break;
+            }
+            m_ptid.read_value(tr, thread_entry, ptid);
+            for(uint32_t j = 0; j < field.argid; j++)
+            {
+                try
+                {
+                    auto lineage = m_thread_table.get_entry(tr, ptid);
+                    if(j == (field.argid - 1))
+                    {
+                        m_comm.read_value(tr, lineage, tstr);
+                        const char* arg = nullptr;
+                        auto args_table = m_thread_table.get_subtable(tr, m_args, lineage, st::SS_PLUGIN_ST_INT64);
+                        args_table.iterate_entries(tr, [this, &tr, &arg, &tstr](const falcosecurity::table_entry& e)
+                            {
+                                arg = nullptr;
+                                m_args_value.read_value(tr, e, arg);
+                                if (!tstr.empty())
+                                {
+                                    tstr += " ";
+                                }
+                                if (arg)
+                                {
+                                    tstr += arg;
+                                }
+                                return true;
+                            });
+                        break;
+                    }
+                    if(ptid == 1)
+                    {
+                        break;
+                    }
+                    m_ptid.read_value(tr, lineage, ptid);
+                }
+                catch(const std::exception& e)
+                {
+                }
+            }
             break;
         }
         case plugin_sinsp_filterchecks::TYPE_EXELINE:
@@ -679,7 +796,6 @@ bool anomalydetection::extract_filterchecks_concat_profile(const falcosecurity::
             m_sid.read_value(tr, thread_entry, tint64);
             tstr = std::to_string(tint64);
             break;
-        // todo better unit tests and double check the parent lineage traversal fields in general
         case plugin_sinsp_filterchecks::TYPE_SNAME:
         {
             int64_t sid;
@@ -706,6 +822,62 @@ bool anomalydetection::extract_filterchecks_concat_profile(const falcosecurity::
                 }
             }
             m_comm.read_value(tr, *leader, tstr);
+            break;
+        }
+        case plugin_sinsp_filterchecks::TYPE_SID_EXE:
+        {
+            int64_t sid;
+            m_sid.read_value(tr, thread_entry, sid);
+            m_ptid.read_value(tr, thread_entry, ptid);
+            falcosecurity::table_entry last_entry(nullptr, nullptr, nullptr);
+            falcosecurity::table_entry* leader = &thread_entry;
+            for(uint32_t j = 0; j < 9; j++)
+            {
+                try
+                {
+                    auto lineage = m_thread_table.get_entry(tr, ptid);
+                    m_sid.read_value(tr, lineage, tint64);
+                    if(sid != tint64)
+                    {
+                        break;
+                    }
+                    m_ptid.read_value(tr, lineage, ptid);
+                    last_entry = std::move(lineage);
+                    leader = &last_entry;
+                }
+                catch(const std::exception& e)
+                {
+                }
+            }
+            m_exe.read_value(tr, *leader, tstr);
+            break;
+        }
+        case plugin_sinsp_filterchecks::TYPE_SID_EXEPATH:
+        {
+            int64_t sid;
+            m_sid.read_value(tr, thread_entry, sid);
+            m_ptid.read_value(tr, thread_entry, ptid);
+            falcosecurity::table_entry last_entry(nullptr, nullptr, nullptr);
+            falcosecurity::table_entry* leader = &thread_entry;
+            for(uint32_t j = 0; j < 9; j++)
+            {
+                try
+                {
+                    auto lineage = m_thread_table.get_entry(tr, ptid);
+                    m_sid.read_value(tr, lineage, tint64);
+                    if(sid != tint64)
+                    {
+                        break;
+                    }
+                    m_ptid.read_value(tr, lineage, ptid);
+                    last_entry = std::move(lineage);
+                    leader = &last_entry;
+                }
+                catch(const std::exception& e)
+                {
+                }
+            }
+            m_exepath.read_value(tr, *leader, tstr);
             break;
         }
         case plugin_sinsp_filterchecks::TYPE_VPGID:
@@ -740,9 +912,165 @@ bool anomalydetection::extract_filterchecks_concat_profile(const falcosecurity::
             m_comm.read_value(tr, *leader, tstr);
             break;
         }
+        case plugin_sinsp_filterchecks::TYPE_VPGID_EXE:
+        {
+            int64_t vpgid;
+            m_vpgid.read_value(tr, thread_entry, vpgid);
+            m_ptid.read_value(tr, thread_entry, ptid);
+            falcosecurity::table_entry last_entry(nullptr, nullptr, nullptr);
+            falcosecurity::table_entry* leader = &thread_entry;
+            for(uint32_t j = 0; j < 5; j++)
+            {
+                try
+                {
+                    auto lineage = m_thread_table.get_entry(tr, ptid);
+                    m_vpgid.read_value(tr, lineage, tint64);
+                    if(vpgid != tint64)
+                    {
+                        break;
+                    }
+                    m_ptid.read_value(tr, lineage, ptid);
+                    last_entry = std::move(lineage);
+                    leader = &last_entry;
+                }
+                catch(const std::exception& e)
+                {
+                }
+            }
+            m_exe.read_value(tr, *leader, tstr);
+            break;
+        }
+        case plugin_sinsp_filterchecks::TYPE_VPGID_EXEPATH:
+        {
+            int64_t vpgid;
+            m_vpgid.read_value(tr, thread_entry, vpgid);
+            m_ptid.read_value(tr, thread_entry, ptid);
+            falcosecurity::table_entry last_entry(nullptr, nullptr, nullptr);
+            falcosecurity::table_entry* leader = &thread_entry;
+            for(uint32_t j = 0; j < 5; j++)
+            {
+                try
+                {
+                    auto lineage = m_thread_table.get_entry(tr, ptid);
+                    m_vpgid.read_value(tr, lineage, tint64);
+                    if(vpgid != tint64)
+                    {
+                        break;
+                    }
+                    m_ptid.read_value(tr, lineage, ptid);
+                    last_entry = std::move(lineage);
+                    leader = &last_entry;
+                }
+                catch(const std::exception& e)
+                {
+                }
+            }
+            m_exepath.read_value(tr, *leader, tstr);
+            break;
+        }
+        case plugin_sinsp_filterchecks::TYPE_ENV:
+        {
+            const char* env = nullptr;
+            auto env_table = m_thread_table.get_subtable(tr, m_env, thread_entry, st::SS_PLUGIN_ST_INT64);
+            auto argname = field.argname;
+            if(!argname.empty())
+            {
+                size_t nlen = argname.length();
+                env_table.iterate_entries(tr, [this, &tr, &env, &tstr, &nlen, &argname](const falcosecurity::table_entry& e)
+                {
+                    env = nullptr;
+                    std::string env_var;
+                    m_env_value.read_value(tr, e, env);
+                    if (env != nullptr)
+                    {
+                        env_var = std::string(env);
+                    }
+                    if((env_var.length() > (nlen + 1)) && (env_var[nlen] == '=') &&
+			!env_var.compare(0, nlen, argname))
+                    {
+                        size_t first = env_var.find_first_not_of(' ', nlen + 1);
+                        size_t last = env_var.find_last_not_of(' ');
+                        tstr = env_var.substr(first, last - first + 1);
+                    }
+                    return true;
+                });
+            } else
+            {
+                env_table.iterate_entries(tr, [this, &tr, &env, &tstr](const falcosecurity::table_entry& e)
+                    {
+                        env = nullptr;
+                        m_env_value.read_value(tr, e, env);
+                        if (!tstr.empty())
+                        {
+                            tstr += " ";
+                        }
+                        if (env)
+                        {
+                            tstr += env;
+                        }
+                        return true;
+                    });
+            }
+            break;
+        }
+        case plugin_sinsp_filterchecks::TYPE_IS_EXE_WRITABLE:
+        {
+            m_exe_writable.read_value(tr, thread_entry, tbool);
+            tstr = std::to_string(tbool);
+            break;
+        }
+        case plugin_sinsp_filterchecks::TYPE_IS_EXE_UPPER_LAYER:
+        {
+            m_exe_upper_layer.read_value(tr, thread_entry, tbool);
+            tstr = std::to_string(tbool);
+            break;
+        }
+        case plugin_sinsp_filterchecks::TYPE_IS_EXE_FROM_MEMFD:
+        {
+            m_exe_from_memfd.read_value(tr, thread_entry, tbool);
+            tstr = std::to_string(tbool);
+            break;
+        }
+        case plugin_sinsp_filterchecks::TYPE_EXE_INO:
+        {
+            m_exe_ino.read_value(tr, thread_entry, tuint64);
+            tstr = std::to_string(tuint64);
+            break;
+        }
+        case plugin_sinsp_filterchecks::TYPE_EXE_INO_CTIME:
+        {
+            m_exe_ino_ctime.read_value(tr, thread_entry, tuint64);
+            tstr = std::to_string(tuint64);
+            break;
+        }
+        case plugin_sinsp_filterchecks::TYPE_EXE_INO_MTIME:
+        {
+            m_exe_ino_mtime.read_value(tr, thread_entry, tuint64);
+            tstr = std::to_string(tuint64);
+            break;
+        }
+        case plugin_sinsp_filterchecks::TYPE_IS_SID_LEADER:
+        {
+            uint64_t vpid;
+            m_sid.read_value(tr, thread_entry, tint64);
+            m_vpid.read_value(tr, thread_entry, vpid);
+            tbool = tint64 == vpid;
+            tstr = std::to_string(tbool);
+            break;
+        }
+        case plugin_sinsp_filterchecks::TYPE_IS_VPGID_LEADER:
+        {
+            uint64_t vpid;
+            m_vpgid.read_value(tr, thread_entry, tint64);
+            m_vpid.read_value(tr, thread_entry, vpid);
+            tbool = tint64 == vpid;
+            tstr = std::to_string(tbool);
+            break;
+        }
+
 
         //
-        // fd or fs related
+        // fd related
         //
 
         // todo implement fallbacks from null fd table entry aka extract from evt args
