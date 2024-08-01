@@ -322,7 +322,7 @@ bool anomalydetection::init(falcosecurity::init_input& in)
         {
             uint64_t rows = m_rows_cols[i][0];
             uint64_t cols = m_rows_cols[i][1];
-            m_count_min_sketches.push_back(std::make_unique<plugin::anomalydetection::num::cms<uint64_t>>(rows, cols));
+            m_count_min_sketches.lock()->push_back(std::make_unique<plugin::anomalydetection::num::cms<uint64_t>>(rows, cols));
         }
     } else if (m_gamma_eps.size() == m_n_sketches && m_rows_cols.empty())
     {
@@ -330,7 +330,7 @@ bool anomalydetection::init(falcosecurity::init_input& in)
         {
             double gamma = m_gamma_eps[i][0];
             double eps = m_gamma_eps[i][1];
-            m_count_min_sketches.push_back(std::make_unique<plugin::anomalydetection::num::cms<uint64_t>>(gamma, eps));
+            m_count_min_sketches.lock()->push_back(std::make_unique<plugin::anomalydetection::num::cms<uint64_t>>(gamma, eps));
         }
     } else
     {
@@ -389,7 +389,7 @@ bool anomalydetection::extract(const falcosecurity::extract_fields_input& in)
     case ANOMALYDETECTION_COUNT_MIN_SKETCH_COUNT:
         if(extract_filterchecks_concat_profile(evt, tr, m_behavior_profiles_fields[index], behavior_profile_concat_str))
         {
-            count_min_sketch_estimate = m_count_min_sketches[index].get()->estimate(behavior_profile_concat_str);
+            count_min_sketch_estimate = m_count_min_sketches.lock()->at(index).get()->estimate(behavior_profile_concat_str);
             req.set_value(count_min_sketch_estimate, true);
         }
         return true;
@@ -1405,7 +1405,7 @@ bool anomalydetection::parse_event(const falcosecurity::parse_event_input& in)
                 behavior_profile_concat_str.clear();
                 if (i < m_n_sketches && extract_filterchecks_concat_profile(evt, tr, m_behavior_profiles_fields[i], behavior_profile_concat_str) && !behavior_profile_concat_str.empty())
                 {
-                    m_count_min_sketches[i].get()->update(behavior_profile_concat_str, (uint64_t)1);
+                    m_count_min_sketches.lock()->at(i).get()->update(behavior_profile_concat_str, (uint64_t)1);
                 }
             }
             catch(falcosecurity::plugin_exception e)

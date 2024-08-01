@@ -22,6 +22,7 @@ limitations under the License.
 #include <cmath>
 #include <vector>
 #include <algorithm>
+#include <memory>
 
 /*
 CountMinSketch Powered Probabilistic Counting and Filtering
