@@ -17,11 +17,13 @@ limitations under the License.
 
 #pragma once
 
-#include <falcosecurity/sdk.h>
 #include "num/cms.h"
 #include "plugin_consts.h"
 #include "plugin_utils.h"
+#include "plugin_mutex.h"
 #include "plugin_sinsp_filterchecks.h"
+
+#include <falcosecurity/sdk.h>
 #include <driver/ppm_events_public.h> // Temporary workaround to avoid redefining syscalls PPME events and risking being out of sync
 
 #include <thread>
@@ -136,7 +138,7 @@ class anomalydetection
     std::vector<std::unordered_set<ppm_event_code>> m_behavior_profiles_event_codes;
 
     // Plugin managed state table
-    std::vector<std::unique_ptr<plugin::anomalydetection::num::cms<uint64_t>>> m_count_min_sketches;
+    plugin_anomalydetection::Mutex<std::vector<std::unique_ptr<plugin::anomalydetection::num::cms<uint64_t>>>> m_count_min_sketches;
 
     // required; standard plugin API
     std::string m_lasterr;
@@ -176,10 +178,10 @@ class anomalydetection
 
     /* user related */
     // Not available until the next libs plugins API expansion
-    falcosecurity::table_field m_uid; ///< user uid
-    falcosecurity::table_field m_user; ///< user infos
-    falcosecurity::table_field m_loginuid; ///< auid
-    falcosecurity::table_field m_loginuser; ///< loginuser infos (auid)
+    // falcosecurity::table_field m_uid; ///< user uid
+    // falcosecurity::table_field m_user; ///< user infos
+    // falcosecurity::table_field m_loginuid; ///< auid
+    // falcosecurity::table_field m_loginuser; ///< loginuser infos (auid)
 
     /* fd related */
     // falcosecurity::table_field m_fd_type_value; // todo fix

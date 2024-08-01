@@ -17,11 +17,13 @@ limitations under the License.
 
 #pragma once
 
-#include <falcosecurity/sdk.h>
-#include <regex>
-#include <unordered_set>
 #include "plugin_sinsp_filterchecks.h"
 #include "plugin_consts.h"
+
+#include <falcosecurity/sdk.h>
+
+#include <regex>
+#include <unordered_set>
 
 typedef struct plugin_sinsp_filterchecks_field
 {

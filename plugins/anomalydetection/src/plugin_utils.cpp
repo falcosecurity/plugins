@@ -15,7 +15,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#include <falcosecurity/sdk.h>
 #include "plugin_utils.h"
 
 static const filtercheck_field_info sinsp_filter_check_fields[] =
