@@ -103,10 +103,10 @@ TEST_F(sinsp_with_test_input, plugin_anomalydetection_filterchecks_fields)
     ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch[2]", pl_flist), "1");
 
     ASSERT_TRUE(field_exists(evt, "anomaly.count_min_sketch.profile", pl_flist));
-    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile", pl_flist), "1024204816762626980000045881676262698000004577110229/home/user/bin/test-exe -c 'echo aGVsbG8K | base64 -d'test-exeinit/bin/test-exe/sbin/init3481820");
-    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile[0]", pl_flist), "1024204816762626980000045881676262698000004577110229/home/user/bin/test-exe -c 'echo aGVsbG8K | base64 -d'test-exeinit/bin/test-exe/sbin/init3481820");
+    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile", pl_flist), "1024204816762626980000045881676262698000004577110229/home/user/bin/test-exe -c 'echo aGVsbG8K | base64 -d'test-exeinit/bin/test-exe/sbin/init34818201");
+    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile[0]", pl_flist), "1024204816762626980000045881676262698000004577110229/home/user/bin/test-exe -c 'echo aGVsbG8K | base64 -d'test-exeinit/bin/test-exe/sbin/init34818201");
     ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile[1]", pl_flist), "");
-    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile[2]", pl_flist), "test-exe -c 'echo aGVsbG8K | base64 -d'test-exe -c 'echo aGVsbG8K | base64 -d'initinittest-exetest-exeinit20201/bin/test-exe/bin/test-exe/sbin/init20test-exe/bin/test-exe/bin/test-exe0init/sbin/init/sbin/init");
+    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile[2]", pl_flist), "test-exeinit/bin/test-exe/sbin/init/bin/test-exe/sbin/inittest-exe -c 'echo aGVsbG8K | base64 -d'test-exe -c 'echo aGVsbG8K | base64 -d'initinittest-exetest-exeinit20201/bin/test-exe/bin/test-exe/sbin/init20test-exe/bin/test-exe/bin/test-exe0init/sbin/init/sbin/init");
 }
 
 TEST_F(sinsp_with_test_input, plugin_anomalydetection_filterchecks_fields_proc_lineage)
@@ -133,7 +133,7 @@ TEST_F(sinsp_with_test_input, plugin_anomalydetection_filterchecks_fields_proc_l
     add_event_advance_ts(increasing_ts(), p6_t1_tid, PPME_SYSCALL_EXECVE_19_E, 1, "/usr/bin/p6_t1_exepath");
     auto evt = add_event_advance_ts(increasing_ts(), p6_t1_tid, PPME_SYSCALL_EXECVE_19_X, 27, (int64_t)0, "/usr/bin/p6_t1_exepath", scap_const_sized_buffer{argsv.data(), argsv.size()}, p6_t1_tid, p6_t1_tid, p6_t1_ptid, "", not_relevant_64, not_relevant_64, not_relevant_64, (uint32_t)29612, (uint32_t)4, (uint32_t)0, "p6_t1_comm", empty_bytebuf, empty_bytebuf, (int32_t)34818, pgid, loginuid, (int32_t) PPM_EXE_WRITABLE, not_relevant_64, not_relevant_64, not_relevant_64, not_relevant_64, not_relevant_64, not_relevant_64, euid);
 
-    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile[2]", pl_flist), "p6_t1_comm -c cat testp6_t1_comm -c cat testp5_t1_comm -c cat testp5_t1_comm -c cat testp6_t1_commp6_t1_commp5_t1_commp4_t1_commp3_t1_commp2_t1_comminit8787827672251/usr/bin/p6_t1_exepath/usr/bin/p6_t1_exepath/usr/bin/p5_t1_exepath/usr/bin/p4_t1_exepath/usr/bin/p3_t1_exepath/usr/bin/p2_t1_exepath/sbin/init9999p5_t1_comm/usr/bin/p5_t1_exepath/usr/bin/p5_t1_exepath0init/sbin/init/sbin/init");
+    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile[2]", pl_flist), "p6_t1_commp5_t1_commp4_t1_commp3_t1_commp2_t1_comminit/usr/bin/p6_t1_exepath/usr/bin/p5_t1_exepath/p4_t1_exepath/p3_t1_exepath/p2_t1_exepath/sbin/init/usr/bin/p6_t1_exepath/usr/bin/p5_t1_exepath/usr/bin/p4_t1_exepath/usr/bin/p3_t1_exepath/usr/bin/p2_t1_exepath/sbin/initp6_t1_comm -c cat testp6_t1_comm -c cat testp5_t1_comm -c cat testp5_t1_comm -c cat testp6_t1_commp6_t1_commp5_t1_commp4_t1_commp3_t1_commp2_t1_comminit8787827672251/usr/bin/p6_t1_exepath/usr/bin/p6_t1_exepath/usr/bin/p5_t1_exepath/usr/bin/p4_t1_exepath/usr/bin/p3_t1_exepath/usr/bin/p2_t1_exepath/sbin/init9999p5_t1_comm/usr/bin/p5_t1_exepath/usr/bin/p5_t1_exepath0init/sbin/init/sbin/init");
 }
 
 TEST_F(sinsp_with_test_input, plugin_anomalydetection_filterchecks_fields_fd)
@@ -193,7 +193,7 @@ TEST_F(sinsp_with_test_input, plugin_anomalydetection_filterchecks_fields_fd_net
     ASSERT_EQ(get_field_as_string(evt, "fd.cip"), "172.40.111.222");
     ASSERT_EQ(get_field_as_string(evt, "fd.sip"), "142.251.111.147");
     ASSERT_EQ(get_field_as_string(evt, "fd.num"), "8");
-    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile[1]", pl_flist), "18172.40.111.222:54321->142.251.111.147:44300");
+    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile[1]", pl_flist), "1172.40.111.222:54321142.251.111.147:4438172.40.111.222:54321->142.251.111.147:44300");
 
     client = test_utils::fill_sockaddr_in(DEFAULT_CLIENT_PORT, DEFAULT_IPV4_CLIENT_STRING);
     std::vector<uint8_t> st = test_utils::pack_socktuple(reinterpret_cast<sockaddr*>(&client), reinterpret_cast<sockaddr*>(&server));
@@ -207,5 +207,5 @@ TEST_F(sinsp_with_test_input, plugin_anomalydetection_filterchecks_fields_fd_net
     ASSERT_EQ(get_field_as_string(evt, "fd.lip"), "142.251.111.147");
     ASSERT_EQ(get_field_as_string(evt, "fd.cip"), "172.40.111.222");
     ASSERT_EQ(get_field_as_string(evt, "fd.sip"), "142.251.111.147");
-    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile[1]", pl_flist), "16172.40.111.222:54321->142.251.111.147:44300");
+    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile[1]", pl_flist), "1172.40.111.222:54321142.251.111.147:4436172.40.111.222:54321->142.251.111.147:44300");
 }
