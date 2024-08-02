@@ -173,6 +173,11 @@ static const filtercheck_field_info sinsp_filter_check_fields[] =
 	{PT_CHARBUF, EPF_NONE, PF_NA, "fs.path.sourceraw", "Source path for Filesystem-related operation", "For any event type that deals with a filesystem path, and specifically for a source and target like mv, cp, etc, the source path the file syscall is operating on. This path is always the path provided to the syscall and may not be fully resolved."},
 	{PT_CHARBUF, EPF_NONE, PF_NA, "fs.path.target", "Target path for Filesystem-related operation", "For any event type that deals with a filesystem path, and specifically for a target and target like mv, cp, etc, the target path the file syscall is operating on. This path is always fully resolved, prepending the thread cwd when needed."},
 	{PT_CHARBUF, EPF_NONE, PF_NA, "fs.path.targetraw", "Target path for Filesystem-related operation", "For any event type that deals with a filesystem path, and specifically for a target and target like mv, cp, etc, the target path the file syscall is operating on. This path is always the path provided to the syscall and may not be fully resolved."},
+	{PT_CHARBUF, EPF_ANOMALY_PLUGIN | EPF_ARG_REQUIRED, PF_NA, "custom.proc.aname.lineage.join", "Custom concat lineage", "[Incubating] String concatenate the process lineage to achieve better performance. This is a custom plugin specific field for the anomaly behavior profiles only. It may be dperecated in the future."},
+	{PT_CHARBUF, EPF_ANOMALY_PLUGIN | EPF_ARG_REQUIRED, PF_NA, "custom.proc.aexe.lineage.join", "Custom concat lineage", "[Incubating] String concatenate the process lineage to achieve better performance. This is a custom plugin specific field for the anomaly behavior profiles only. It may be dperecated in the future."},
+	{PT_CHARBUF, EPF_ANOMALY_PLUGIN | EPF_ARG_REQUIRED, PF_NA, "custom.proc.aexepath.lineage.join", "Custom concat lineage", "[Incubating] String concatenate the process lineage to achieve better performance. This is a custom plugin specific field for the anomaly behavior profiles only. It may be dperecated in the future."},
+	{PT_CHARBUF, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_NA, "custom.fd.name.part1", "Custom fd 'ip:port' part1", "[Incubating] For fd related network events only. Part 1 as string of the ip tuple in the format 'ip:port', e.g '172.40.111.222:54321' given fd.name '172.40.111.222:54321->142.251.111.147:443'. It may be dperecated in the future."},
+	{PT_CHARBUF, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_NA, "custom.fd.name.part2", "Custom fd 'ip:port' part1", "[Incubating] For fd related network events only. Part 2 as string of the ip tuple in the format 'ip:port', e.g.'142.251.111.147:443' given fd.name '172.40.111.222:54321->142.251.111.147:443'. This is a custom plugin specific field for the anomaly behavior profiles only. It may be dperecated in the future."},
 };
 
 // Temporary workaround; not as robust as libsinsp/eventformatter; 
@@ -196,8 +201,10 @@ const std::vector<plugin_sinsp_filterchecks_field> get_profile_fields(const std:
 
 	while (iter != end)
 	{
+		// todo revisit this helper
 		auto rawfield = iter->str().substr(1);
 		std::string fieldname = rawfield;
+		bool found_match = false;
 		for (size_t i = 0; i < sizeof(sinsp_filter_check_fields) / sizeof(sinsp_filter_check_fields[0]); ++i)
 		{
 			id = static_cast<plugin_sinsp_filterchecks::check_type>(i);
@@ -206,7 +213,11 @@ const std::vector<plugin_sinsp_filterchecks_field> get_profile_fields(const std:
 				id == plugin_sinsp_filterchecks::TYPE_ANAME ||
 				id == plugin_sinsp_filterchecks::TYPE_AEXE ||
 				id == plugin_sinsp_filterchecks::TYPE_AEXEPATH ||
-				id == plugin_sinsp_filterchecks::TYPE_ACMDLINE)
+				id == plugin_sinsp_filterchecks::TYPE_ACMDLINE ||
+				id == plugin_sinsp_filterchecks::TYPE_CUSTOM_ANAME_LINEAGE_CONCAT||
+				id == plugin_sinsp_filterchecks::TYPE_CUSTOM_AEXE_LINEAGE_CONCAT ||
+				id == plugin_sinsp_filterchecks::TYPE_CUSTOM_AEXEPATH_LINEAGE_CONCAT
+				)
 			{
 				size_t start_pos = rawfield.find('[');
 				size_t end_pos = rawfield.find(']');
@@ -227,8 +238,17 @@ const std::vector<plugin_sinsp_filterchecks_field> get_profile_fields(const std:
 			}
 			if (std::string(sinsp_filter_check_fields[i].m_name) == fieldname)
 			{
+				found_match = true;
 				if ((sinsp_filter_check_fields[i].m_flags & EPF_ANOMALY_PLUGIN))
 				{
+					if ((id == plugin_sinsp_filterchecks::TYPE_CUSTOM_ANAME_LINEAGE_CONCAT||
+						id == plugin_sinsp_filterchecks::TYPE_CUSTOM_AEXE_LINEAGE_CONCAT ||
+						id == plugin_sinsp_filterchecks::TYPE_CUSTOM_AEXEPATH_LINEAGE_CONCAT) 
+						&& argid == 0)
+					{
+						plugin_anomalydetection::utils::log_error("Usage of behavior profile field: '" + fieldname + "' requires an argument greater than 0 indicating the level of parent lineage traversal, e.g. '%custom.proc.aname.lineage.join[7]' or '%custom.proc.aexe.lineage.join[7]' or '%custom.proc.aexepath.lineage.join[7]' exiting...");
+                        exit(1);
+					}
 					fields.emplace_back(plugin_sinsp_filterchecks_field{
 						id,
 						argid,
@@ -242,6 +262,11 @@ const std::vector<plugin_sinsp_filterchecks_field> get_profile_fields(const std:
 			}
 			argid = 0;
 			argname.clear();
+		}
+		if (!found_match)
+		{
+			plugin_anomalydetection::utils::log_error("Remove the following invalid or mistyped behavior profile field: '" + fieldname + "' exiting...");
+			exit(1);
 		}
 		++iter;
 	}
