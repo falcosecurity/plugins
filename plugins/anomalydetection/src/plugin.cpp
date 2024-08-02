@@ -1284,6 +1284,158 @@ bool anomalydetection::extract_filterchecks_concat_profile(const falcosecurity::
             }
             break;
         }
+
+        //
+        // Custom behavior profile short-cut fields
+        //
+
+        case plugin_sinsp_filterchecks::TYPE_CUSTOM_ANAME_LINEAGE_CONCAT:
+        {
+            if(field.argid < 1)
+            {
+                break;
+            }
+            m_comm.read_value(tr, thread_entry, tstr);
+            m_ptid.read_value(tr, thread_entry, ptid);
+            std::string tstr2;
+            for(uint32_t j = 0; j < field.argid; j++)
+            {
+                try
+                {
+                    auto lineage = m_thread_table.get_entry(tr, ptid);
+                    m_comm.read_value(tr, lineage, tstr2);
+                    tstr += tstr2;
+                    tstr2.clear();
+                    if(j == (field.argid - 1))
+                    {
+                        break;
+                    }
+                    if(ptid == 1)
+                    {
+                        break;
+                    }
+                    m_ptid.read_value(tr, lineage, ptid);
+                }
+                catch(const std::exception& e)
+                {
+                }
+            }
+            break;
+        }
+        case plugin_sinsp_filterchecks::TYPE_CUSTOM_AEXE_LINEAGE_CONCAT:
+        {
+            if(field.argid < 1)
+            {
+                break;
+            }
+            m_exe.read_value(tr, thread_entry, tstr);
+            m_ptid.read_value(tr, thread_entry, ptid);
+            std::string tstr2;
+            for(uint32_t j = 0; j < field.argid; j++)
+            {
+                try
+                {
+                    auto lineage = m_thread_table.get_entry(tr, ptid);
+                    m_exe.read_value(tr, lineage, tstr2);
+                    tstr += tstr2;
+                    tstr2.clear();
+                    if(j == (field.argid - 1))
+                    {
+                        break;
+                    }
+                    if(ptid == 1)
+                    {
+                        break;
+                    }
+                    m_ptid.read_value(tr, lineage, ptid);
+                }
+                catch(const std::exception& e)
+                {
+                }
+            }
+            break;
+        }
+        case plugin_sinsp_filterchecks::TYPE_CUSTOM_AEXEPATH_LINEAGE_CONCAT:
+        {
+            if(field.argid < 1)
+            {
+                break;
+            }
+            m_exepath.read_value(tr, thread_entry, tstr);
+            m_ptid.read_value(tr, thread_entry, ptid);
+            std::string tstr2;
+            for(uint32_t j = 0; j < field.argid; j++)
+            {
+                try
+                {
+                    auto lineage = m_thread_table.get_entry(tr, ptid);
+                    m_exepath.read_value(tr, lineage, tstr2);
+                    tstr += tstr2;
+                    tstr2.clear();
+                    if(j == (field.argid - 1))
+                    {
+                        break;
+                    }
+                    if(ptid == 1)
+                    {
+                        break;
+                    }
+                    m_ptid.read_value(tr, lineage, ptid);
+                }
+                catch(const std::exception& e)
+                {
+                }
+            }
+            break;
+        }
+        case plugin_sinsp_filterchecks::TYPE_CUSTOM_FDNAME_PART1:
+        case plugin_sinsp_filterchecks::TYPE_CUSTOM_FDNAME_PART2:
+        {
+            switch(evt.get_type())
+            {
+            case PPME_SYSCALL_OPEN_X:
+            case PPME_SYSCALL_CREAT_X:
+            case PPME_SYSCALL_OPENAT_2_X:
+            case PPME_SYSCALL_OPENAT2_X:
+            case PPME_SYSCALL_OPEN_BY_HANDLE_AT_X:
+            {
+                break;
+            }
+            case PPME_SOCKET_ACCEPT_5_X:
+            case PPME_SOCKET_ACCEPT4_6_X:
+            case PPME_SOCKET_CONNECT_X:
+            {
+                auto fd_table = m_thread_table.get_subtable(
+                    tr, m_fds, thread_entry,
+                    st::SS_PLUGIN_ST_INT64);
+                m_lastevent_fd_field.read_value(tr, thread_entry, tint64);
+                auto fd_entry = fd_table.get_entry(tr, tint64);
+                m_fd_name_value.read_value(tr, fd_entry, tstr);
+                std::string delimiter = "->";
+                size_t pos = tstr.find(delimiter);
+                if (pos != std::string::npos) 
+                {
+                    if (field.id == plugin_sinsp_filterchecks::TYPE_CUSTOM_FDNAME_PART1)
+                    {
+                        tstr = tstr.substr(0, pos);
+
+                    } else
+                    {
+                        tstr = tstr.substr(pos + delimiter.length());
+                    }
+                } else
+                {
+                    tstr.clear();
+                }
+                break;
+            }
+            default:
+                // Clear the entire profile when invoking the fd related profile for non fd syscalls
+                behavior_profile_concat_str.clear();
+            }
+            break;
+        }
+
         default:
             break;
         }
