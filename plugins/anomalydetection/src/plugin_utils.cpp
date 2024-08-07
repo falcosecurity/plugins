@@ -180,13 +180,189 @@ static const filtercheck_field_info sinsp_filter_check_fields[] =
 	{PT_CHARBUF, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_NA, "custom.fd.name.part2", "Custom fd 'ip:port' part1", "[Incubating] For fd related network events only. Part 2 as string of the ip tuple in the format 'ip:port', e.g.'142.251.111.147:443' given fd.name '172.40.111.222:54321->142.251.111.147:443'. This is a custom plugin specific field for the anomaly behavior profiles only. It may be dperecated in the future."},
 };
 
-// Temporary workaround; not as robust as libsinsp/eventformatter; 
-// ideally the plugin API exposes more libsinsp functionality in the near-term
-//
-// No need for performance optimization atm as the typical use case is to have 
-// less than 3-8 sketches
+
 namespace plugin_anomalydetection::utils
 {
+
+// Adopter from libs, custom hand-rolled for performance reasons
+static inline void rewind_to_parent_path(const char* targetbase, char** tc, const char** pc, uint32_t delta)
+{
+	if(*tc <= targetbase + 1)
+	{
+		(*pc) += delta;
+		return;
+	}
+
+	(*tc)--;
+
+	while((*tc) >= targetbase + 1 && *((*tc) - 1) != '/')
+	{
+		(*tc)--;
+	}
+
+	(*pc) += delta;
+}
+
+// Adopter from libs
+struct g_invalidchar
+{
+	bool operator()(char c) const
+	{
+		// Exclude all non-printable characters and control characters while
+		// including a wide range of languages (emojis, cyrillic, chinese etc)
+		return !(isprint((unsigned)c));
+	}
+};
+
+// Adopter from libs, custom hand-rolled for performance reasons
+static inline void copy_and_sanitize_path(char* target, char* targetbase, const char *path, char separator)
+{
+	char* tc = target;
+	const char* pc = path;
+	g_invalidchar ic;
+	const bool empty_base = target == targetbase;
+
+	while(true)
+	{
+		if(*pc == 0)
+		{
+			*tc = 0;
+
+			//
+			// If the path ends with a separator, remove it, as the OS does.
+			// Properly manage case where path is just "/".
+			//
+			if((tc > (targetbase + 1)) && (*(tc - 1) == separator))
+			{
+				*(tc - 1) = 0;
+			}
+
+			return;
+		}
+
+		if(ic(*pc))
+		{
+			//
+			// Invalid char, substitute with a '.'
+			//
+			*tc = '.';
+			tc++;
+			pc++;
+		}
+		else
+		{
+			//
+			// If path begins with '.' or '.' is the first char after a '/'
+			//
+			if(*pc == '.' && (tc == targetbase || *(tc - 1) == separator))
+			{
+				//
+				// '../', rewind to the previous separator
+				//
+				if(*(pc + 1) == '.' && *(pc + 2) == separator)
+				{
+					rewind_to_parent_path(targetbase, &tc, &pc, 3);
+				}
+				//
+				// '..', with no separator.
+				// This is valid if we are at the end of the string, and in that case we rewind.
+				//
+				else if(*(pc + 1) == '.' && *(pc + 2) == 0)
+				{
+					rewind_to_parent_path(targetbase, &tc, &pc, 2);
+				}
+				//
+				// './', just skip it
+				//
+				else if(*(pc + 1) == separator)
+				{
+					pc += 2;
+				}
+				//
+				// '.', with no separator.
+				// This is valid if we are at the end of the string, and in that case we rewind.
+				//
+				else if(*(pc + 1) == 0)
+				{
+					pc++;
+				}
+				//
+				// Otherwise, we leave the string intact.
+				//
+				else
+				{
+					*tc = *pc;
+					pc++;
+					tc++;
+				}
+			}
+			else if(*pc == separator)
+			{
+				//
+				// separator:
+				// * if the last char is already a separator, skip it
+				// * if we are back at targetbase but targetbase was not empty before, it means we
+				//   fully rewinded back to targetbase and the string is now empty. Skip separator.
+				//   Example: "/foo/../a" -> "/a" BUT "foo/../a" -> "a"
+				//   -> Otherwise: "foo/../a" -> "/a"
+				//
+				if((tc > targetbase && *(tc - 1) == separator) || (tc == targetbase && !empty_base))
+				{
+					pc++;
+				}
+				else
+				{
+					*tc = *pc;
+					tc++;
+					pc++;
+				}
+			}
+			else
+			{
+				//
+				// Normal char, copy it
+				//
+				*tc = *pc;
+				tc++;
+				pc++;
+			}
+		}
+	}
+}
+
+// Adopter from libs, custom hand-rolled for performance reasons
+static inline bool concatenate_paths_(char* target, uint32_t targetlen, const char* path1, uint32_t len1,
+				      const char* path2, uint32_t len2)
+{
+	if(targetlen < (len1 + len2 + 1))
+	{
+		strlcpy(target, "/PATH_TOO_LONG", targetlen);
+		return false;
+	}
+
+	if(len2 != 0 && path2[0] != '/')
+	{
+		memcpy(target, path1, len1);
+		copy_and_sanitize_path(target + len1, target, path2, '/');
+		return true;
+	}
+	else
+	{
+		target[0] = 0;
+		copy_and_sanitize_path(target, target, path2, '/');
+		return false;
+	}
+}
+
+// Adopter from libs, custom hand-rolled for performance reasons
+std::string concatenate_paths(std::string_view path1, std::string_view path2)
+{
+	char fullpath[SCAP_MAX_PATH_SIZE];
+	concatenate_paths_(fullpath, SCAP_MAX_PATH_SIZE, path1.data(), (uint32_t)path1.length(), path2.data(),
+				  path2.size());
+	return std::string(fullpath);
+}
+
 const std::vector<plugin_sinsp_filterchecks_field> get_profile_fields(const std::string& behavior_profile)
 {
 	std::vector<plugin_sinsp_filterchecks_field> fields;

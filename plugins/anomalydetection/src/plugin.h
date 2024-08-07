@@ -34,6 +34,7 @@ limitations under the License.
 #include <sstream>
 
 #define UINT32_MAX (4294967295U)
+#define PPM_AT_FDCWD -100
 
 struct sinsp_param
 {
@@ -125,9 +126,10 @@ class anomalydetection
     // required; standard plugin API
     bool parse_event(const falcosecurity::parse_event_input& in);
 
-    // Custom helper function within event parsing
+    // Custom helper functions within event parsing
     bool extract_filterchecks_concat_profile(const falcosecurity::event_reader &evt, const falcosecurity::table_reader &tr, const std::vector<plugin_sinsp_filterchecks_field>& fields, std::string& behavior_profile_concat_str);
-
+    std::string extract_filterchecks_evt_params_fallbacks(const falcosecurity::event_reader &evt, const plugin_sinsp_filterchecks_field& field, const std::string& cwd = "");
+    
     private:
 
     bool m_count_min_sketch_enabled = false;

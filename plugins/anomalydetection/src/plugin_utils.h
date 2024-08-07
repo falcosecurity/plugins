@@ -25,6 +25,8 @@ limitations under the License.
 #include <regex>
 #include <unordered_set>
 
+#define SCAP_MAX_PATH_SIZE 1024
+
 typedef struct plugin_sinsp_filterchecks_field
 {
     plugin_sinsp_filterchecks::check_type id;
@@ -34,6 +36,9 @@ typedef struct plugin_sinsp_filterchecks_field
 
 namespace plugin_anomalydetection::utils
 {
+    // Adopter from libs, custom hand-rolled for performance reasons
+    std::string concatenate_paths(std::string_view path1, std::string_view path2);
+
     // Temporary workaround; not as robust as libsinsp/eventformatter; 
     // ideally the plugin API exposes more libsinsp functionality in the near-term
     //
