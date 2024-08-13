@@ -17,6 +17,9 @@ limitations under the License.
 
 #include "plugin.h"
 
+#include <optional>
+#include <filesystem>
+
 void anomalydetection::log_error(std::string err_mess)
 {
     printf("%s %s\n", PLUGIN_LOG_PREFIX, err_mess.c_str());
@@ -411,18 +414,321 @@ bool anomalydetection::extract(const falcosecurity::extract_fields_input& in)
 // Parse capability
 //////////////////////////
 
+// Adopted from the k8smeta plugin, obtain a param from a sinsp event
+static inline sinsp_param get_syscall_evt_param(void* evt, uint32_t num_param)
+{
+    uint32_t dataoffset = 0;
+    // pointer to the lengths array inside the event.
+    auto len = (uint16_t*)((uint8_t*)evt +
+                           sizeof(falcosecurity::_internal::ss_plugin_event));
+    for(uint32_t j = 0; j < num_param; j++)
+    {
+        // sum lengths of the previous params.
+        dataoffset += len[j];
+    }
+    return {.param_len = len[num_param],
+            .param_pointer =
+                    ((uint8_t*)&len
+                             [((falcosecurity::_internal::ss_plugin_event*)evt)
+                                      ->nparams]) +
+                    dataoffset};
+}
+
+std::string anomalydetection::extract_filterchecks_evt_params_fallbacks(const falcosecurity::event_reader &evt, const plugin_sinsp_filterchecks_field& field, const std::string& cwd)
+{
+    using st = falcosecurity::state_value_type;
+
+    std::string tstr;
+    uint64_t tuint64 = UINT64_MAX;
+    uint32_t tuint32 = UINT32_MAX;
+    int64_t tint64 = -1;
+    bool tbool;
+    int64_t ptid = -1;
+    switch(field.id)
+    {
+
+    //
+    // fd related
+    //
+
+    case plugin_sinsp_filterchecks::TYPE_FDNUM:
+    {
+        switch(evt.get_type())
+        {
+        case PPME_SYSCALL_OPEN_X:
+        case PPME_SYSCALL_CREAT_X:
+        case PPME_SYSCALL_OPENAT_2_X:
+        case PPME_SYSCALL_OPENAT2_X:
+        case PPME_SYSCALL_OPEN_BY_HANDLE_AT_X:
+        case PPME_SOCKET_ACCEPT_5_X:
+        case PPME_SOCKET_ACCEPT4_6_X:
+        {
+            auto res_param = get_syscall_evt_param(evt.get_buf(),
+                                                0);
+            if (res_param.param_pointer == nullptr)
+            {
+                return tstr;
+            }
+            int64_t fd = *(int64_t*)(res_param.param_pointer);
+            tstr = std::to_string(fd);
+            break;
+        }
+        case PPME_SOCKET_CONNECT_X:
+        {
+            auto res_param = get_syscall_evt_param(evt.get_buf(),
+                                                2);
+            if (res_param.param_pointer == nullptr)
+            {
+                return tstr;
+            }
+            int64_t fd = *(int64_t*)(res_param.param_pointer);
+            tstr = std::to_string(fd);
+            break;
+        }
+        default:
+            break;
+        }
+        break;
+    }
+    case plugin_sinsp_filterchecks::TYPE_FDNAME:
+    case plugin_sinsp_filterchecks::TYPE_DIRECTORY:
+    case plugin_sinsp_filterchecks::TYPE_FILENAME:
+    {
+        switch(evt.get_type())
+        {
+        case PPME_SYSCALL_OPEN_X:
+        case PPME_SYSCALL_CREAT_X:
+            {
+                auto res_param = get_syscall_evt_param(evt.get_buf(),
+                                                1);
+                if (res_param.param_pointer == nullptr)
+                {
+                    return tstr;
+                }
+                tstr = (char*)(res_param.param_pointer);
+                if(!std::filesystem::path(tstr).is_absolute())
+                {
+                    tstr = plugin_anomalydetection::utils::concatenate_paths(cwd, tstr);
+                } else
+                {
+                    // concatenate_paths takes care of resolving the path
+                    tstr = plugin_anomalydetection::utils::concatenate_paths("", tstr);
+                }
+            }
+            break;
+        case PPME_SYSCALL_OPENAT_2_X:
+        case PPME_SYSCALL_OPENAT2_X:
+            {
+                auto res_param = get_syscall_evt_param(evt.get_buf(),
+                                                2);
+                if (res_param.param_pointer == nullptr)
+                {
+                    return tstr;
+                }
+                tstr = (char*)(res_param.param_pointer);
+                // cwd passed to the function here is the name extracted from the dirfd
+                tstr = plugin_anomalydetection::utils::concatenate_paths(cwd, tstr);
+            }
+            break;
+        case PPME_SYSCALL_OPEN_BY_HANDLE_AT_X:
+            {
+                auto res_param = get_syscall_evt_param(evt.get_buf(),
+                                                3);
+                if (res_param.param_pointer == nullptr)
+                {
+                    return tstr;
+                }
+                tstr = (char*)(res_param.param_pointer);
+                tstr = plugin_anomalydetection::utils::concatenate_paths("", tstr);
+            }
+            break;
+        case PPME_SOCKET_ACCEPT_5_X:
+        case PPME_SOCKET_ACCEPT4_6_X:
+        case PPME_SOCKET_CONNECT_X:
+        {
+            // todo fix fallbacks as we lack access to sockinfo and it's highly more sophisticated / complex
+            // auto res_param = get_syscall_evt_param(evt.get_buf(),
+            //                                     1);
+            // if (res_param.param_pointer == nullptr)
+            // {
+            //     return tstr;
+            // }
+            break;
+        }
+        default:
+            break;
+        }
+        break;
+    }
+    case plugin_sinsp_filterchecks::TYPE_INO:
+    {
+        switch(evt.get_type())
+        {
+        case PPME_SYSCALL_OPEN_X:
+        case PPME_SYSCALL_CREAT_X:
+            {
+                auto res_param = get_syscall_evt_param(evt.get_buf(),
+                                                5);
+                if (res_param.param_pointer == nullptr)
+                {
+                    return tstr;
+                }
+                uint64_t ino = *(uint64_t*)(res_param.param_pointer);
+                tstr = std::to_string(ino);
+            }
+            break;
+        case PPME_SYSCALL_OPENAT_2_X:
+        case PPME_SYSCALL_OPENAT2_X:
+            {
+                auto res_param = get_syscall_evt_param(evt.get_buf(),
+                                                7);
+                if (res_param.param_pointer == nullptr)
+                {
+                    return tstr;
+                }
+                uint64_t ino = *(uint64_t*)(res_param.param_pointer);
+                tstr = std::to_string(ino);
+            }
+            break;
+        case PPME_SYSCALL_OPEN_BY_HANDLE_AT_X:
+            {
+                auto res_param = get_syscall_evt_param(evt.get_buf(),
+                                                5);
+                if (res_param.param_pointer == nullptr)
+                {
+                    return tstr;
+                }
+                uint64_t ino = *(uint64_t*)(res_param.param_pointer);
+                tstr = std::to_string(ino);
+            }
+            break;
+        default:
+            break;
+        }
+        break;
+    }
+    case plugin_sinsp_filterchecks::TYPE_DEV:
+    {
+        switch(evt.get_type())
+        {
+        case PPME_SYSCALL_OPEN_X:
+        case PPME_SYSCALL_CREAT_X:
+            {
+                auto res_param = get_syscall_evt_param(evt.get_buf(),
+                                                4);
+                if (res_param.param_pointer == nullptr)
+                {
+                    return tstr;
+                }
+                uint32_t dev = *(uint32_t*)(res_param.param_pointer);
+                tstr = std::to_string(dev);
+            }
+            break;
+        case PPME_SYSCALL_OPENAT_2_X:
+        case PPME_SYSCALL_OPENAT2_X:
+            {
+                auto res_param = get_syscall_evt_param(evt.get_buf(),
+                                                6);
+                if (res_param.param_pointer == nullptr)
+                {
+                    return tstr;
+                }
+                uint32_t dev = *(uint32_t*)(res_param.param_pointer);
+                tstr = std::to_string(dev);
+            }
+            break;
+        case PPME_SYSCALL_OPEN_BY_HANDLE_AT_X:
+            {
+                auto res_param = get_syscall_evt_param(evt.get_buf(),
+                                                4);
+                if (res_param.param_pointer == nullptr)
+                {
+                    return tstr;
+                }
+                uint32_t dev = *(uint32_t*)(res_param.param_pointer);
+                tstr = std::to_string(dev);
+            }
+            break;
+        default:
+            break;
+        }
+        break;
+    }
+    case plugin_sinsp_filterchecks::TYPE_FDNAMERAW:
+    {
+        switch(evt.get_type())
+        {
+        case PPME_SYSCALL_OPEN_X:
+        case PPME_SYSCALL_CREAT_X:
+            {
+                auto res_param = get_syscall_evt_param(evt.get_buf(),
+                                                1);
+                if (res_param.param_pointer == nullptr)
+                {
+                    return tstr;
+                }
+                tstr = (char*)(res_param.param_pointer);
+            }
+            break;
+        case PPME_SYSCALL_OPENAT_2_X:
+        case PPME_SYSCALL_OPENAT2_X:
+            {
+                auto res_param = get_syscall_evt_param(evt.get_buf(),
+                                                2);
+                if (res_param.param_pointer == nullptr)
+                {
+                    return tstr;
+                }
+                tstr = (char*)(res_param.param_pointer);
+            }
+            break;
+        case PPME_SYSCALL_OPEN_BY_HANDLE_AT_X:
+            {
+                auto res_param = get_syscall_evt_param(evt.get_buf(),
+                                                3);
+                if (res_param.param_pointer == nullptr)
+                {
+                    return tstr;
+                }
+                tstr = (char*)(res_param.param_pointer);
+            }
+            break;
+        default:
+            break;
+        }
+        break;
+    }
+    default:
+        break;
+    }
+    return tstr;
+}
+
 bool anomalydetection::extract_filterchecks_concat_profile(const falcosecurity::event_reader &evt, const falcosecurity::table_reader &tr, const std::vector<plugin_sinsp_filterchecks_field>& fields, std::string& behavior_profile_concat_str)
 {
     using st = falcosecurity::state_value_type;
 
     int64_t thread_id = evt.get_tid();
-    auto thread_entry = m_thread_table.get_entry(tr, thread_id);
+    std::string tstr;
+    std::optional<falcosecurity::table_entry> thread_entry_opt;
+    try
+    {
+        thread_entry_opt = m_thread_table.get_entry(tr, thread_id);
+    } catch (const std::exception& e)
+    {
+        for (const auto& field : fields)
+        {
+            behavior_profile_concat_str += extract_filterchecks_evt_params_fallbacks(evt, field);
+        }
+        return true;
+    }
+    auto& thread_entry = thread_entry_opt.value();
 
     // Create a concatenated string formed out of each field per behavior profile
     // No concept of null fields (instead its always an empty string) compared to libsinsp
     for (const auto& field : fields)
     {
-        std::string tstr = "";
+        tstr.clear();
         uint64_t tuint64 = UINT64_MAX;
         uint32_t tuint32 = UINT32_MAX;
         int64_t tint64 = -1;
@@ -1073,8 +1379,6 @@ bool anomalydetection::extract_filterchecks_concat_profile(const falcosecurity::
         // fd related
         //
 
-        // todo implement fallbacks from null fd table entry aka extract from evt args
-
         case plugin_sinsp_filterchecks::TYPE_FDNUM:
         {
             switch(evt.get_type())
@@ -1088,11 +1392,12 @@ bool anomalydetection::extract_filterchecks_concat_profile(const falcosecurity::
             case PPME_SYSCALL_OPENAT2_X:
             case PPME_SYSCALL_OPEN_BY_HANDLE_AT_X:
             {
-                auto fd_table = m_thread_table.get_subtable(
-                    tr, m_fds, thread_entry,
-                    st::SS_PLUGIN_ST_INT64);
                 m_lastevent_fd_field.read_value(tr, thread_entry, tint64);
                 tstr = std::to_string(tint64);
+                if (tstr.empty())
+                {
+                    tstr = extract_filterchecks_evt_params_fallbacks(evt, field);
+                }
                 break;
             }
             default:
@@ -1105,84 +1410,232 @@ bool anomalydetection::extract_filterchecks_concat_profile(const falcosecurity::
         {
             switch(evt.get_type())
             {
-            case PPME_SYSCALL_OPEN_X:
             case PPME_SOCKET_ACCEPT_5_X:
             case PPME_SOCKET_ACCEPT4_6_X:
-            case PPME_SYSCALL_CREAT_X:
             case PPME_SOCKET_CONNECT_X:
-            case PPME_SYSCALL_OPENAT_2_X:
-            case PPME_SYSCALL_OPENAT2_X:
             case PPME_SYSCALL_OPEN_BY_HANDLE_AT_X:
             {
-                auto fd_table = m_thread_table.get_subtable(
+                try
+                {
+                    auto fd_table = m_thread_table.get_subtable(
                     tr, m_fds, thread_entry,
                     st::SS_PLUGIN_ST_INT64);
-                m_lastevent_fd_field.read_value(tr, thread_entry, tint64);
-                auto fd_entry = fd_table.get_entry(tr, tint64);
-                m_fd_name_value.read_value(tr, fd_entry, tstr);
+                    m_lastevent_fd_field.read_value(tr, thread_entry, tint64);
+                    auto fd_entry = fd_table.get_entry(tr, tint64);
+                    m_fd_name_value.read_value(tr, fd_entry, tstr);
+                }
+                catch(const std::exception& e)
+                {
+                }
+                if (tstr.empty())
+                {
+                    tstr = extract_filterchecks_evt_params_fallbacks(evt, field);
+                }
+                break;
+            }
+            case PPME_SYSCALL_OPEN_X:
+            case PPME_SYSCALL_CREAT_X:
+            {
+                try
+                {
+                    auto fd_table = m_thread_table.get_subtable(
+                    tr, m_fds, thread_entry,
+                    st::SS_PLUGIN_ST_INT64);
+                    m_lastevent_fd_field.read_value(tr, thread_entry, tint64);
+                    auto fd_entry = fd_table.get_entry(tr, tint64);
+                    m_fd_name_value.read_value(tr, fd_entry, tstr);
+                }
+                catch(const std::exception& e)
+                {
+                }
+                if (tstr.empty())
+                {
+                    std::string cwd;
+                    m_cwd.read_value(tr, thread_entry, cwd);
+                    tstr = extract_filterchecks_evt_params_fallbacks(evt, field, cwd);
+                }
+                break;
+            }
+            case PPME_SYSCALL_OPENAT_2_X:
+            case PPME_SYSCALL_OPENAT2_X:
+            {
+                try
+                {
+                    auto fd_table = m_thread_table.get_subtable(
+                    tr, m_fds, thread_entry,
+                    st::SS_PLUGIN_ST_INT64);
+                    m_lastevent_fd_field.read_value(tr, thread_entry, tint64);
+                    auto fd_entry = fd_table.get_entry(tr, tint64);
+                    m_fd_name_value.read_value(tr, fd_entry, tstr);
+                }
+                catch(const std::exception& e)
+                {
+                }
+                if (tstr.empty())
+                {
+                    auto res_param = get_syscall_evt_param(evt.get_buf(),
+                                                1);
+                    std::string cwd;
+                    if (res_param.param_pointer != nullptr)
+                    {
+                        int64_t dirfd = *(uint64_t*)(res_param.param_pointer);
+                        try
+                        {
+                            auto fd_table = m_thread_table.get_subtable(
+                            tr, m_fds, thread_entry,
+                            st::SS_PLUGIN_ST_INT64);
+                            auto fd_entry = fd_table.get_entry(tr, dirfd);
+                            if (dirfd == PPM_AT_FDCWD)
+                            {
+                                m_cwd.read_value(tr, thread_entry, cwd);
+
+                            } else
+                            {
+                                m_fd_name_value.read_value(tr, fd_entry, cwd);
+                            }
+                        }
+                        catch(const std::exception& e)
+                        {
+                        }
+                    }
+                    tstr = extract_filterchecks_evt_params_fallbacks(evt, field, cwd);
+                }
                 break;
             }
             default:
                 // Clear the entire profile when invoking the fd related profile for non fd syscalls
                 behavior_profile_concat_str.clear();
+                break;
             }
             break;
         }
         case plugin_sinsp_filterchecks::TYPE_DIRECTORY:
-        {
-            switch(evt.get_type())
-            {
-            case PPME_SYSCALL_OPEN_X:
-            case PPME_SYSCALL_CREAT_X:
-            case PPME_SYSCALL_OPENAT_2_X:
-            case PPME_SYSCALL_OPENAT2_X:
-            case PPME_SYSCALL_OPEN_BY_HANDLE_AT_X:
-            {
-                auto fd_table = m_thread_table.get_subtable(
-                    tr, m_fds, thread_entry,
-                    st::SS_PLUGIN_ST_INT64);
-                m_lastevent_fd_field.read_value(tr, thread_entry, tint64);
-                auto fd_entry = fd_table.get_entry(tr, tint64);
-                m_fd_name_value.read_value(tr, fd_entry, tstr);
-                size_t pos = tstr.find_last_of('/');
-                if (pos != std::string::npos)
-                {
-                    tstr = tstr.substr(0, pos);
-                }
-                break;
-            }
-            case PPME_SOCKET_ACCEPT_5_X:
-            case PPME_SOCKET_ACCEPT4_6_X:
-            case PPME_SOCKET_CONNECT_X:
-            {
-                break;
-            }
-            default:
-                // Clear the entire profile when invoking the fd related profile for non fd syscalls
-                behavior_profile_concat_str.clear();
-            }
-            break;
-        }
         case plugin_sinsp_filterchecks::TYPE_FILENAME:
         {
             switch(evt.get_type())
             {
             case PPME_SYSCALL_OPEN_X:
             case PPME_SYSCALL_CREAT_X:
-            case PPME_SYSCALL_OPENAT_2_X:
-            case PPME_SYSCALL_OPENAT2_X:
-            case PPME_SYSCALL_OPEN_BY_HANDLE_AT_X:
             {
-                auto fd_table = m_thread_table.get_subtable(
+                try
+                {
+                    auto fd_table = m_thread_table.get_subtable(
                     tr, m_fds, thread_entry,
                     st::SS_PLUGIN_ST_INT64);
-                m_lastevent_fd_field.read_value(tr, thread_entry, tint64);
-                auto fd_entry = fd_table.get_entry(tr, tint64);
-                m_fd_name_value.read_value(tr, fd_entry, tstr);
+                    m_lastevent_fd_field.read_value(tr, thread_entry, tint64);
+                    auto fd_entry = fd_table.get_entry(tr, tint64);
+                    m_fd_name_value.read_value(tr, fd_entry, tstr);
+                }
+                catch(const std::exception& e)
+                {
+                }
+                if (tstr.empty())
+                {
+                    std::string cwd;
+                    m_cwd.read_value(tr, thread_entry, cwd);
+                    tstr = extract_filterchecks_evt_params_fallbacks(evt, field, cwd);
+                }
                 size_t pos = tstr.find_last_of('/');
                 if (pos != std::string::npos)
                 {
-                    tstr = tstr.substr(pos + 1);
+                    if (field.id == plugin_sinsp_filterchecks::TYPE_DIRECTORY)
+                    {
+                        tstr = tstr.substr(0, pos);
+                    } else
+                    {
+
+                        tstr = tstr.substr(pos + 1);
+                    }
+                }
+                break;
+            }
+            case PPME_SYSCALL_OPEN_BY_HANDLE_AT_X:
+            {
+                try
+                {
+                    auto fd_table = m_thread_table.get_subtable(
+                    tr, m_fds, thread_entry,
+                    st::SS_PLUGIN_ST_INT64);
+                    m_lastevent_fd_field.read_value(tr, thread_entry, tint64);
+                    auto fd_entry = fd_table.get_entry(tr, tint64);
+                    m_fd_name_value.read_value(tr, fd_entry, tstr);
+                }
+                catch(const std::exception& e)
+                {
+                }
+                if (tstr.empty())
+                {
+                    tstr = extract_filterchecks_evt_params_fallbacks(evt, field);
+                }
+                size_t pos = tstr.find_last_of('/');
+                if (pos != std::string::npos)
+                {
+                    if (field.id == plugin_sinsp_filterchecks::TYPE_DIRECTORY)
+                    {
+                        tstr = tstr.substr(0, pos);
+                    } else
+                    {
+
+                        tstr = tstr.substr(pos + 1);
+                    }
+                }
+                break;
+            }
+            case PPME_SYSCALL_OPENAT_2_X:
+            case PPME_SYSCALL_OPENAT2_X:
+            {
+                try
+                {
+                    auto fd_table = m_thread_table.get_subtable(
+                    tr, m_fds, thread_entry,
+                    st::SS_PLUGIN_ST_INT64);
+                    m_lastevent_fd_field.read_value(tr, thread_entry, tint64);
+                    auto fd_entry = fd_table.get_entry(tr, tint64);
+                    m_fd_name_value.read_value(tr, fd_entry, tstr);
+                }
+                catch(const std::exception& e)
+                {
+                }
+                if (tstr.empty())
+                {
+                    auto res_param = get_syscall_evt_param(evt.get_buf(),
+                                                1);
+                    std::string cwd;
+                    if (res_param.param_pointer != nullptr)
+                    {
+                        int64_t dirfd = *(uint64_t*)(res_param.param_pointer);
+                        try
+                        {
+                            auto fd_table = m_thread_table.get_subtable(
+                            tr, m_fds, thread_entry,
+                            st::SS_PLUGIN_ST_INT64);
+                            auto fd_entry = fd_table.get_entry(tr, dirfd);
+                            if (dirfd == PPM_AT_FDCWD)
+                            {
+                                m_cwd.read_value(tr, thread_entry, cwd);
+
+                            } else
+                            {
+                                m_fd_name_value.read_value(tr, fd_entry, cwd);
+                            }
+                        }
+                        catch(const std::exception& e)
+                        {
+                        }
+                    }
+                    tstr = extract_filterchecks_evt_params_fallbacks(evt, field, cwd);
+                }
+                size_t pos = tstr.find_last_of('/');
+                if (pos != std::string::npos)
+                {
+                    if (field.id == plugin_sinsp_filterchecks::TYPE_DIRECTORY)
+                    {
+                        tstr = tstr.substr(0, pos);
+                    } else
+                    {
+
+                        tstr = tstr.substr(pos + 1);
+                    }
                 }
                 break;
             }
@@ -1195,6 +1648,7 @@ bool anomalydetection::extract_filterchecks_concat_profile(const falcosecurity::
             default:
                 // Clear the entire profile when invoking the fd related profile for non fd syscalls
                 behavior_profile_concat_str.clear();
+                break;
             }
             break;
         }
@@ -1203,26 +1657,40 @@ bool anomalydetection::extract_filterchecks_concat_profile(const falcosecurity::
             switch(evt.get_type())
             {
             case PPME_SYSCALL_OPEN_X:
-            case PPME_SOCKET_ACCEPT_5_X:
-            case PPME_SOCKET_ACCEPT4_6_X:
             case PPME_SYSCALL_CREAT_X:
-            case PPME_SOCKET_CONNECT_X:
             case PPME_SYSCALL_OPENAT_2_X:
             case PPME_SYSCALL_OPENAT2_X:
             case PPME_SYSCALL_OPEN_BY_HANDLE_AT_X:
             {
-                auto fd_table = m_thread_table.get_subtable(
+                try
+                {
+                    auto fd_table = m_thread_table.get_subtable(
                     tr, m_fds, thread_entry,
                     st::SS_PLUGIN_ST_INT64);
-                m_lastevent_fd_field.read_value(tr, thread_entry, tint64);
-                auto fd_entry = fd_table.get_entry(tr, tint64);
-                m_fd_ino_value.read_value(tr, fd_entry, tint64);
-                tstr = std::to_string(tint64);
+                    m_lastevent_fd_field.read_value(tr, thread_entry, tint64);
+                    auto fd_entry = fd_table.get_entry(tr, tint64);
+                    m_fd_ino_value.read_value(tr, fd_entry, tint64);
+                    tstr = std::to_string(tint64);
+                }
+                catch(const std::exception& e)
+                {
+                }
+                if (tstr.empty())
+                {
+                    tstr = extract_filterchecks_evt_params_fallbacks(evt, field);
+                }
+                break;
+            }
+            case PPME_SOCKET_ACCEPT_5_X:
+            case PPME_SOCKET_ACCEPT4_6_X:
+            case PPME_SOCKET_CONNECT_X:
+            {
                 break;
             }
             default:
                 // Clear the entire profile when invoking the fd related profile for non fd syscalls
                 behavior_profile_concat_str.clear();
+                break;
             }
             break;
         }
@@ -1231,26 +1699,40 @@ bool anomalydetection::extract_filterchecks_concat_profile(const falcosecurity::
             switch(evt.get_type())
             {
             case PPME_SYSCALL_OPEN_X:
-            case PPME_SOCKET_ACCEPT_5_X:
-            case PPME_SOCKET_ACCEPT4_6_X:
             case PPME_SYSCALL_CREAT_X:
-            case PPME_SOCKET_CONNECT_X:
             case PPME_SYSCALL_OPENAT_2_X:
             case PPME_SYSCALL_OPENAT2_X:
             case PPME_SYSCALL_OPEN_BY_HANDLE_AT_X:
             {
-                auto fd_table = m_thread_table.get_subtable(
+                try
+                {
+                    auto fd_table = m_thread_table.get_subtable(
                     tr, m_fds, thread_entry,
                     st::SS_PLUGIN_ST_INT64);
-                m_lastevent_fd_field.read_value(tr, thread_entry, tint64);
-                auto fd_entry = fd_table.get_entry(tr, tint64);
-                m_fd_dev_value.read_value(tr, fd_entry, tuint32);
-                tstr = std::to_string(tuint32);
+                    m_lastevent_fd_field.read_value(tr, thread_entry, tint64);
+                    auto fd_entry = fd_table.get_entry(tr, tint64);
+                    m_fd_dev_value.read_value(tr, fd_entry, tuint32);
+                    tstr = std::to_string(tuint32);
+                }
+                catch(const std::exception& e)
+                {
+                }
+                if (tstr.empty())
+                {
+                    tstr = extract_filterchecks_evt_params_fallbacks(evt, field);
+                }
+                break;
+            }
+            case PPME_SOCKET_ACCEPT_5_X:
+            case PPME_SOCKET_ACCEPT4_6_X:
+            case PPME_SOCKET_CONNECT_X:
+            {
                 break;
             }
             default:
                 // Clear the entire profile when invoking the fd related profile for non fd syscalls
                 behavior_profile_concat_str.clear();
+                break;
             }
             break;
         }
@@ -1264,12 +1746,22 @@ bool anomalydetection::extract_filterchecks_concat_profile(const falcosecurity::
             case PPME_SYSCALL_OPENAT2_X:
             case PPME_SYSCALL_OPEN_BY_HANDLE_AT_X:
             {
-                auto fd_table = m_thread_table.get_subtable(
+                try
+                {
+                    auto fd_table = m_thread_table.get_subtable(
                     tr, m_fds, thread_entry,
                     st::SS_PLUGIN_ST_INT64);
-                m_lastevent_fd_field.read_value(tr, thread_entry, tint64);
-                auto fd_entry = fd_table.get_entry(tr, tint64);
-                m_fd_nameraw_value.read_value(tr, fd_entry, tstr);
+                    m_lastevent_fd_field.read_value(tr, thread_entry, tint64);
+                    auto fd_entry = fd_table.get_entry(tr, tint64);
+                    m_fd_nameraw_value.read_value(tr, fd_entry, tstr);
+                }
+                catch(const std::exception& e)
+                {
+                }
+                if (tstr.empty())
+                {
+                    tstr = extract_filterchecks_evt_params_fallbacks(evt, field);
+                }
                 break;
             }
             case PPME_SOCKET_ACCEPT_5_X:
@@ -1281,6 +1773,7 @@ bool anomalydetection::extract_filterchecks_concat_profile(const falcosecurity::
             default:
                 // Clear the entire profile when invoking the fd related profile for non fd syscalls
                 behavior_profile_concat_str.clear();
+                break;
             }
             break;
         }
@@ -1405,12 +1898,22 @@ bool anomalydetection::extract_filterchecks_concat_profile(const falcosecurity::
             case PPME_SOCKET_ACCEPT4_6_X:
             case PPME_SOCKET_CONNECT_X:
             {
-                auto fd_table = m_thread_table.get_subtable(
+                try
+                {
+                    auto fd_table = m_thread_table.get_subtable(
                     tr, m_fds, thread_entry,
                     st::SS_PLUGIN_ST_INT64);
-                m_lastevent_fd_field.read_value(tr, thread_entry, tint64);
-                auto fd_entry = fd_table.get_entry(tr, tint64);
-                m_fd_name_value.read_value(tr, fd_entry, tstr);
+                    m_lastevent_fd_field.read_value(tr, thread_entry, tint64);
+                    auto fd_entry = fd_table.get_entry(tr, tint64);
+                    m_fd_name_value.read_value(tr, fd_entry, tstr);
+                }
+                catch(const std::exception& e)
+                {
+                }
+                if (tstr.empty())
+                {
+                    tstr = extract_filterchecks_evt_params_fallbacks(evt, field);
+                }
                 std::string delimiter = "->";
                 size_t pos = tstr.find(delimiter);
                 if (pos != std::string::npos) 
@@ -1432,6 +1935,7 @@ bool anomalydetection::extract_filterchecks_concat_profile(const falcosecurity::
             default:
                 // Clear the entire profile when invoking the fd related profile for non fd syscalls
                 behavior_profile_concat_str.clear();
+                break;
             }
             break;
         }
@@ -1442,26 +1946,6 @@ bool anomalydetection::extract_filterchecks_concat_profile(const falcosecurity::
         behavior_profile_concat_str += tstr;
     }
     return true;
-}
-
-// Adopted from the k8smeta plugin, obtain a param from a sinsp event
-static inline sinsp_param get_syscall_evt_param(void* evt, uint32_t num_param)
-{
-    uint32_t dataoffset = 0;
-    // pointer to the lengths array inside the event.
-    auto len = (uint16_t*)((uint8_t*)evt +
-                           sizeof(falcosecurity::_internal::ss_plugin_event));
-    for(uint32_t j = 0; j < num_param; j++)
-    {
-        // sum lengths of the previous params.
-        dataoffset += len[j];
-    }
-    return {.param_len = len[num_param],
-            .param_pointer =
-                    ((uint8_t*)&len
-                             [((falcosecurity::_internal::ss_plugin_event*)evt)
-                                      ->nparams]) +
-                    dataoffset};
 }
 
 bool anomalydetection::parse_event(const falcosecurity::parse_event_input& in)
@@ -1484,6 +1968,9 @@ bool anomalydetection::parse_event(const falcosecurity::parse_event_input& in)
     case PPME_SOCKET_ACCEPT_5_X:
     case PPME_SOCKET_ACCEPT4_6_X:
     case PPME_SYSCALL_CREAT_X:
+    case PPME_SYSCALL_OPENAT_2_X: // fd param 0
+    case PPME_SYSCALL_OPENAT2_X:
+    case PPME_SYSCALL_OPEN_BY_HANDLE_AT_X:
     {
         auto res_param = get_syscall_evt_param(in.get_event_reader().get_buf(),
                                            0);
@@ -1501,33 +1988,6 @@ bool anomalydetection::parse_event(const falcosecurity::parse_event_input& in)
     {
         auto res_param = get_syscall_evt_param(in.get_event_reader().get_buf(),
                                            2);
-        if (res_param.param_pointer == nullptr)
-        {
-            return false;
-        }
-        int64_t fd = *(int64_t*)(res_param.param_pointer);
-        auto thread_entry = m_thread_table.get_entry(tr, thread_id);
-        m_lastevent_fd_field.write_value(tw, thread_entry, fd);
-        break;
-    }
-    case PPME_SYSCALL_OPENAT_2_X: // fd param 0
-    case PPME_SYSCALL_OPENAT2_X:
-    {
-        auto res_param = get_syscall_evt_param(in.get_event_reader().get_buf(),
-                                           0);
-        if (res_param.param_pointer == nullptr)
-        {
-            return false;
-        }
-        int64_t fd = *(int64_t*)(res_param.param_pointer);
-        auto thread_entry = m_thread_table.get_entry(tr, thread_id);
-        m_lastevent_fd_field.write_value(tw, thread_entry, fd);
-        break;
-    }
-    case PPME_SYSCALL_OPEN_BY_HANDLE_AT_X:
-    {
-        auto res_param = get_syscall_evt_param(in.get_event_reader().get_buf(),
-                                           0);
         if (res_param.param_pointer == nullptr)
         {
             return false;

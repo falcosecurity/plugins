@@ -146,16 +146,86 @@ TEST_F(sinsp_with_test_input, plugin_anomalydetection_filterchecks_fields_fd)
     sinsp_evt *evt;
     open_inspector();
 
+    uint64_t ino = 777;
     int64_t fd = 4;
     add_event(increasing_ts(), 3, PPME_SYSCALL_OPEN_E, 3, "/tmp/subdir1/subdir2/subdir3/subdir4/../../the_file", 0, 0);
-    add_event_advance_ts(increasing_ts(), 3, PPME_SYSCALL_OPEN_X, 6, fd, "/tmp/some_other_file", 0, 0, 0, (uint64_t) 0);
+    add_event_advance_ts(increasing_ts(), 3, PPME_SYSCALL_OPEN_X, 6, fd, "/tmp/../../../some_other_file", 0, 0, 0, ino);
     fd = 5;
     add_event(increasing_ts(), 3, PPME_SYSCALL_OPEN_E, 3, "/tmp/subdir1/subdir2/subdir3/subdir4/../../the_file2", 0, 0);
-    evt = add_event_advance_ts(increasing_ts(), 3, PPME_SYSCALL_OPEN_X, 6, fd, "/tmp/some_other_file2", 0, 0, 0, (uint64_t) 0);
+    evt = add_event_advance_ts(increasing_ts(), 3, PPME_SYSCALL_OPEN_X, 6, fd, "/tmp/../../../some_other_file2", 0, 0, 0, ino);
     ASSERT_EQ(get_field_as_string(evt, "fd.num"), "5");
     ASSERT_EQ(get_field_as_string(evt, "fd.name"), "/tmp/subdir1/subdir2/the_file2");
     ASSERT_EQ(get_field_as_string(evt, "fd.directory"), "/tmp/subdir1/subdir2");
-    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile[1]", pl_flist), "-15/tmp/subdir1/subdir2/the_file2/tmp/subdir1/subdir2the_file200/tmp/subdir1/subdir2/subdir3/subdir4/../../the_file2");
+    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile[1]", pl_flist), "-15/tmp/subdir1/subdir2/the_file2/tmp/subdir1/subdir2the_file20777/tmp/subdir1/subdir2/subdir3/subdir4/../../the_file2");
+
+    evt = NULL;
+    uint64_t dirfd = 3, new_fd = 100;
+    add_event_advance_ts(increasing_ts(), 1, PPME_SYSCALL_OPENAT2_E, 5, dirfd, "<NA>", 0, 0, 0);
+    evt = add_event_advance_ts(increasing_ts(), 1, PPME_SYSCALL_OPENAT2_X, 8, new_fd, dirfd, "/tmp/dir1/../the_file", 0, 0, 0, 0, ino);
+    ASSERT_EQ(get_field_as_string(evt, "proc.pid"), "1");
+    ASSERT_EQ(get_field_as_string(evt, "fd.name"), "/tmp/the_file");
+    ASSERT_EQ(get_field_as_string(evt, "fd.nameraw"), "/tmp/dir1/../the_file");
+    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile[1]", pl_flist), "1100/tmp/the_file/tmpthe_file0777/tmp/dir1/../the_file");
+
+    evt = NULL;
+    fd = 4;
+    int64_t mountfd = 5;
+    add_event_advance_ts(increasing_ts(), 1, PPME_SYSCALL_OPEN_BY_HANDLE_AT_E, 0);
+    evt = add_event_advance_ts(increasing_ts(), 1, PPME_SYSCALL_OPEN_BY_HANDLE_AT_X, 6, fd, mountfd, PPM_O_RDWR, "/tmp/open_handle.txt", 0, ino);
+    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile[1]", pl_flist), "14/tmp/open_handle.txt/tmpopen_handle.txt0777/tmp/open_handle.txt");
+}
+
+TEST_F(sinsp_with_test_input, plugin_anomalydetection_filterchecks_fields_fd_null_fd_table)
+{
+    std::shared_ptr<sinsp_plugin> plugin_owner;
+    filter_check_list pl_flist;
+    ASSERT_PLUGIN_INITIALIZATION(plugin_owner, pl_flist)
+    add_default_init_thread();
+
+    sinsp_evt *evt;
+    open_inspector();
+
+    uint64_t ino = 777;
+    int64_t fd = 4;
+    add_event(increasing_ts(), 1, PPME_SYSCALL_OPEN_E, 3, "subdir1//../the_file2", 0, 0);
+    evt = add_event_advance_ts(increasing_ts(), 1, PPME_SYSCALL_OPEN_X, 6, fd, "subdir1//../the_file2", 0, 0, 0, ino);
+
+    sinsp_fdinfo* fdinfo = evt->get_thread_info()->get_fd(fd);
+    ASSERT_EQ(get_field_as_string(evt, "fd.num"), "4");
+    ASSERT_EQ(get_field_as_string(evt, "fd.name"), "/root/the_file2");
+    ASSERT_EQ(get_field_as_string(evt, "proc.cwd"), "/root/");
+    fdinfo->m_name.clear();
+    fdinfo->m_name_raw.clear();
+    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile[1]", pl_flist), "14/root/the_file2/rootthe_file20777subdir1//../the_file2");
+
+    evt = NULL;
+    uint64_t dirfd = 8, new_fd = 100;
+    fd = 8;
+    add_event(increasing_ts(), 1, PPME_SYSCALL_OPEN_E, 3, "/tmp/subdir1/subdir2/../the_file2", 0, 0);
+    evt = add_event_advance_ts(increasing_ts(), 1, PPME_SYSCALL_OPEN_X, 6, fd, "/tmp/subdir1/subdir2/../the_file2", 0, 0, 0, ino);
+    add_event_advance_ts(increasing_ts(), 1, PPME_SYSCALL_OPENAT2_E, 5, dirfd, "subdir1//../the_file", 0, 0, 0);
+    evt = add_event_advance_ts(increasing_ts(), 1, PPME_SYSCALL_OPENAT2_X, 8, new_fd, dirfd, "subdir1//../the_file", 0, 0, 0, 0, ino);
+    ASSERT_EQ(get_field_as_string(evt, "fd.num"), "100");
+    ASSERT_EQ(get_field_as_string(evt, "fd.name"), "/tmp/subdir1/the_file2/the_file");
+    ASSERT_EQ(get_field_as_string(evt, "fs.path.name"), "/root/the_file"); // todo fix in libs as its wrong
+    ASSERT_EQ(get_field_as_string(evt, "proc.cwd"), "/root/");
+    fdinfo = evt->get_thread_info()->get_fd(new_fd);
+    fdinfo->m_name.clear();
+    fdinfo->m_name_raw.clear();
+    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile[1]", pl_flist), "1100/tmp/subdir1/the_file/tmp/subdir1the_file0777subdir1//../the_file");
+
+    evt = NULL;
+    fd = 4;
+    int64_t mountfd = 5;
+    add_event_advance_ts(increasing_ts(), 1, PPME_SYSCALL_OPEN_BY_HANDLE_AT_E, 0);
+    evt = add_event_advance_ts(increasing_ts(), 1, PPME_SYSCALL_OPEN_BY_HANDLE_AT_X, 6, fd, mountfd, PPM_O_RDWR, "/tmp/open_handle.txt", 0, ino);
+    ASSERT_EQ(get_field_as_string(evt, "fd.num"), "4");
+    ASSERT_EQ(get_field_as_string(evt, "fd.name"), "/tmp/open_handle.txt");
+    ASSERT_EQ(get_field_as_string(evt, "proc.cwd"), "/root/");
+    fdinfo = evt->get_thread_info()->get_fd(fd);
+    fdinfo->m_name.clear();
+    fdinfo->m_name_raw.clear();
+    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile[1]", pl_flist), "14/tmp/open_handle.txt/tmpopen_handle.txt0777/tmp/open_handle.txt");
 }
 
 TEST_F(sinsp_with_test_input, plugin_anomalydetection_filterchecks_fields_fd_network)
@@ -193,7 +263,7 @@ TEST_F(sinsp_with_test_input, plugin_anomalydetection_filterchecks_fields_fd_net
     ASSERT_EQ(get_field_as_string(evt, "fd.cip"), "172.40.111.222");
     ASSERT_EQ(get_field_as_string(evt, "fd.sip"), "142.251.111.147");
     ASSERT_EQ(get_field_as_string(evt, "fd.num"), "8");
-    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile[1]", pl_flist), "1172.40.111.222:54321142.251.111.147:4438172.40.111.222:54321->142.251.111.147:44300");
+    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile[1]", pl_flist), "1172.40.111.222:54321142.251.111.147:4438172.40.111.222:54321->142.251.111.147:443");
 
     client = test_utils::fill_sockaddr_in(DEFAULT_CLIENT_PORT, DEFAULT_IPV4_CLIENT_STRING);
     std::vector<uint8_t> st = test_utils::pack_socktuple(reinterpret_cast<sockaddr*>(&client), reinterpret_cast<sockaddr*>(&server));
@@ -207,5 +277,52 @@ TEST_F(sinsp_with_test_input, plugin_anomalydetection_filterchecks_fields_fd_net
     ASSERT_EQ(get_field_as_string(evt, "fd.lip"), "142.251.111.147");
     ASSERT_EQ(get_field_as_string(evt, "fd.cip"), "172.40.111.222");
     ASSERT_EQ(get_field_as_string(evt, "fd.sip"), "142.251.111.147");
-    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile[1]", pl_flist), "1172.40.111.222:54321142.251.111.147:4436172.40.111.222:54321->142.251.111.147:44300");
+    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile[1]", pl_flist), "1172.40.111.222:54321142.251.111.147:4436172.40.111.222:54321->142.251.111.147:443");
+}
+
+TEST_F(sinsp_with_test_input, plugin_anomalydetection_filterchecks_fields_fd_network_null_fd_table)
+{
+    std::shared_ptr<sinsp_plugin> plugin_owner;
+    filter_check_list pl_flist;
+    ASSERT_PLUGIN_INITIALIZATION(plugin_owner, pl_flist)
+    add_default_init_thread();
+
+    open_inspector();
+    sinsp_evt* evt = NULL;
+    sinsp_fdinfo* fdinfo = NULL;
+    int64_t client_fd = 8;
+    int64_t return_value = 0;
+
+    add_event_advance_ts(increasing_ts(), 1, PPME_SOCKET_SOCKET_E, 3, (uint32_t) PPM_AF_INET, (uint32_t) SOCK_STREAM, (uint32_t) 0);
+    add_event_advance_ts(increasing_ts(), 1, PPME_SOCKET_SOCKET_X, 1, client_fd);
+
+    sockaddr_in client = test_utils::fill_sockaddr_in(DEFAULT_CLIENT_PORT, DEFAULT_IPV4_CLIENT_STRING);
+    sockaddr_in server = test_utils::fill_sockaddr_in(DEFAULT_SERVER_PORT, DEFAULT_IPV4_SERVER_STRING);
+
+    std::vector<uint8_t> server_sockaddr = test_utils::pack_sockaddr(reinterpret_cast<sockaddr*>(&server));
+    evt = add_event_advance_ts(increasing_ts(), 1, PPME_SOCKET_CONNECT_E, 2, client_fd, scap_const_sized_buffer{server_sockaddr.data(), server_sockaddr.size()});
+    std::vector<uint8_t> socktuple = test_utils::pack_socktuple(reinterpret_cast<sockaddr*>(&client), reinterpret_cast<sockaddr*>(&server));
+    evt = add_event_advance_ts(increasing_ts(), 1, PPME_SOCKET_CONNECT_X, 3, return_value, scap_const_sized_buffer{socktuple.data(), socktuple.size()}, client_fd);
+
+    /* We are able to recover the fdinfo in the connect exit event even when interleaved */
+    fdinfo = evt->get_fd_info();
+    fdinfo->m_name.clear();
+    fdinfo->m_name_raw.clear();
+    ASSERT_NE(fdinfo, nullptr);
+    ASSERT_EQ(get_field_as_string(evt, "fd.num"), "8");
+    // no fallbacks atm
+    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile[1]", pl_flist), "18");
+
+    client = test_utils::fill_sockaddr_in(DEFAULT_CLIENT_PORT, DEFAULT_IPV4_CLIENT_STRING);
+    std::vector<uint8_t> st = test_utils::pack_socktuple(reinterpret_cast<sockaddr*>(&client), reinterpret_cast<sockaddr*>(&server));
+
+    int64_t new_connected_fd = 6;
+    add_event_advance_ts(increasing_ts(), 1, PPME_SOCKET_ACCEPT_5_E, 0);
+    add_event_advance_ts(increasing_ts(), 1, PPME_SOCKET_ACCEPT_5_X, 5, new_connected_fd, scap_const_sized_buffer{st.data(), st.size()}, (uint8_t) 0, (uint32_t) 0, (uint32_t) 5);
+    fdinfo = evt->get_fd_info();
+    fdinfo->m_name.clear();
+    fdinfo->m_name_raw.clear();
+    ASSERT_EQ(get_field_as_string(evt, "fd.num"), "6");
+    // no fallbacks atm
+    ASSERT_EQ(get_field_as_string(evt, "anomaly.count_min_sketch.profile[1]", pl_flist), "16");
 }
