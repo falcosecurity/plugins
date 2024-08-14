@@ -43,10 +43,34 @@ private:
     double eps_; // Relative error (e.g. 0.0001)
 
 public:
+    static uint64_t calculate_d_rows_from_gamma(double gamma)
+    {
+        // -> determine Rows / number of hash functions
+        return static_cast<uint64_t>(std::ceil(std::log(1.0 / gamma)));
+    }
+
+    static double calculate_gamma_rows_from_d(uint64_t d)
+    {
+        // -> reverse calculate error probability from Rows / number of hash functions
+        return 1.0 / std::exp(d);
+    }
+
+    static uint64_t calculate_w_cols_buckets_from_eps(double eps)
+    {
+        // -> determine Cols / number of buckets
+        return static_cast<uint64_t>(std::ceil(std::exp(1) / eps));
+    }
+
+    static double calculate_eps_cols_buckets_from_w(uint64_t w)
+    {
+        // -> reverse calculate relative error from Cols / number of buckets
+        return std::exp(1) / w;
+    }
+
     cms(double gamma, double eps) 
     {
-        d_ = static_cast<uint64_t>(std::ceil(std::log(1.0 / gamma))); // -> determine Rows / number of hash functions
-        w_ = static_cast<uint64_t>(std::ceil(std::exp(1) / eps)); // -> determine Cols / number of buckets
+        d_ = calculate_d_rows_from_gamma(gamma); // -> determine Rows / number of hash functions
+        w_ = calculate_w_cols_buckets_from_eps(eps); // -> determine Cols / number of buckets
         gamma_ = gamma;
         eps_ = eps;
         sketch = std::make_unique<std::unique_ptr<T[]>[]>(d_);
@@ -62,8 +86,8 @@ public:
     {
         d_ = d;
         w_ = w;
-        gamma_ = 1.0 / std::exp(d); // -> reverse calculate error probability from Rows / number of hash functions 
-        eps_ = std::exp(1) / w; // -> reverse calculate relative error from Cols / number of buckets
+        gamma_ = calculate_gamma_rows_from_d(d); // -> reverse calculate error probability from Rows / number of hash functions 
+        eps_ = calculate_eps_cols_buckets_from_w(w); // -> reverse calculate relative error from Cols / number of buckets
         sketch = std::make_unique<std::unique_ptr<T[]>[]>(d_);
         for (uint64_t i = 0; i < d_; ++i) 
         {
@@ -147,6 +171,11 @@ public:
     size_t get_size_bytes() const 
     {
         return d_ * w_ * sizeof(T);
+    }
+
+    static size_t get_size_bytes(uint64_t d, uint64_t w)
+    {
+        return d * w * sizeof(T);
     }
 
     std::pair<uint64_t, uint64_t> get_dimensions() const
