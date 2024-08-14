@@ -136,13 +136,25 @@ void anomalydetection::parse_init_config(nlohmann::json& config_json)
         auto gamma_eps_pointer = nlohmann::json::json_pointer("/count_min_sketch/gamma_eps");
         if (config_json.contains(gamma_eps_pointer) && config_json[gamma_eps_pointer].is_array())
         {
+            int i = 0;
             for (const auto& array : config_json[gamma_eps_pointer])
             {
                 if (array.is_array() && array.size() == 2)
                 {
                     std::vector<double> sub_array = {array[0].get<double>(), array[1].get<double>()};
-                    m_gamma_eps.emplace_back(sub_array);
+                    log_error("Count min sketch data structure number (" 
+                    + std::to_string(i+1) + ") loaded with gamma and eps values (" 
+                    + std::to_string(sub_array[0]) + ","
+                    + std::to_string(sub_array[1])
+                    + ") equivalent to sketch dimensions ("
+                    + std::to_string(plugin::anomalydetection::num::cms<uint64_t>::calculate_d_rows_from_gamma(sub_array[0])) + ","
+                    + std::to_string(plugin::anomalydetection::num::cms<uint64_t>::calculate_w_cols_buckets_from_eps(sub_array[1]))
+                    + ") -> adding ("
+                    + std::to_string(plugin::anomalydetection::num::cms<uint64_t>::get_size_bytes(plugin::anomalydetection::num::cms<uint64_t>::calculate_d_rows_from_gamma(sub_array[0]),plugin::anomalydetection::num::cms<uint64_t>::calculate_w_cols_buckets_from_eps(sub_array[1])))
+                    + ") bytes of constant memory allocation on the heap");
+                    m_gamma_eps.emplace_back(sub_array);     
                 }
+                i++;
             }
         }
 
@@ -150,13 +162,29 @@ void anomalydetection::parse_init_config(nlohmann::json& config_json)
         auto rows_cols_pointer = nlohmann::json::json_pointer("/count_min_sketch/rows_cols");
         if (config_json.contains(rows_cols_pointer) && config_json[rows_cols_pointer].is_array())
         {
+            int i = 0;
+            if (config_json.contains(gamma_eps_pointer) && config_json[gamma_eps_pointer].is_array())
+            {
+                log_error("[Override Notice] Count min sketch data structures will be overriden with below settings as 'rows_cols' config overrides any previous setting");
+            }
             for (const auto& array : config_json[rows_cols_pointer])
             {
                 if (array.is_array() && array.size() == 2)
                 {
                     std::vector<uint64_t> sub_array = {array[0].get<uint64_t>(), array[1].get<uint64_t>()};
+                    log_error("Count min sketch data structure number (" 
+                    + std::to_string(i+1) + ") loaded with d and w/buckets values (" 
+                    + std::to_string(sub_array[0]) + ","
+                    + std::to_string(sub_array[1])
+                    + ") equivalent to sketch error probability and relative error tolerances ("
+                    + std::to_string(plugin::anomalydetection::num::cms<uint64_t>::calculate_gamma_rows_from_d(sub_array[0])) + ","
+                    + std::to_string(plugin::anomalydetection::num::cms<uint64_t>::calculate_eps_cols_buckets_from_w(sub_array[1]))
+                    + ") -> adding ("
+                    + std::to_string(plugin::anomalydetection::num::cms<uint64_t>::get_size_bytes(sub_array[0],sub_array[1]))
+                    + ") bytes of constant memory allocation on the heap");
                     m_rows_cols.emplace_back(sub_array);
                 }
+                i++;
             }
         }
 
@@ -175,6 +203,19 @@ void anomalydetection::parse_init_config(nlohmann::json& config_json)
                 PPME_SYSCALL_OPENAT2_X,
                 PPME_SYSCALL_OPEN_BY_HANDLE_AT_X
             };
+            std::vector<ppm_event_code> supported_codes_any_profile = {
+                PPME_SYSCALL_EXECVEAT_X,
+                PPME_SYSCALL_EXECVE_19_X,
+                PPME_SYSCALL_CLONE_20_X,
+                PPME_SYSCALL_CLONE3_X
+            };
+            supported_codes_any_profile.insert(
+                supported_codes_any_profile.end(),
+                supported_codes_fd_profile.begin(),
+                supported_codes_fd_profile.end()
+            );
+            
+            int n = 1;
             for (const auto& profile : behavior_profiles)
             {
                 std::vector<plugin_sinsp_filterchecks_field> filter_check_fields;
@@ -182,26 +223,46 @@ void anomalydetection::parse_init_config(nlohmann::json& config_json)
                 if (profile.contains("fields") && profile.contains("event_codes"))
                 {
                     filter_check_fields = plugin_anomalydetection::utils::get_profile_fields(profile["fields"].get<std::string>());
+                    std::ostringstream oss;
+                    bool first_event_code = true;
                     for (const auto& code : profile["event_codes"])
                     {
                         codes.insert((ppm_event_code)code.get<uint64_t>());
+                        if (!first_event_code)
+                        {
+                            oss << ",";
+                        }
+                        oss << code;
+                        first_event_code = false;
                     }
+                    std::string event_codes_string = oss.str();
+                    log_error("Behavior profile number (" + std::to_string(n) + ") loaded and applied to event_codes (" + event_codes_string + ") with behavior profile fields (" + profile["fields"].get<std::string>() + ")");
+
                     /* Some rudimentary initial checks to ensure profiles with %fd fields are applied on fd related events only */
                     if (profile["fields"].get<std::string>().find("%fd") != std::string::npos)
                     {
                         for (const auto& code : codes)
                         {
-                            if (std::find(supported_codes_fd_profile .begin(), supported_codes_fd_profile .end(), code) == supported_codes_fd_profile .end())
+                            if (std::find(supported_codes_fd_profile.begin(), supported_codes_fd_profile.end(), code) == supported_codes_fd_profile.end())
                             {
-                                log_error("Current behavior profile: " + profile["fields"].get<std::string>());
-                                log_error("The above behavior profile contains '%fd' related fields for non fd related event codes, read the docs for help, exiting...");
+                                log_error("The above behavior profile contains '%fd' related fields but includes non fd related event codes such as code (" + std::to_string(code) + "), which is not allowed. Please refer to the docs for assistance, exiting...");
                                 exit(1);
                             }
+                        }
+                    }
+                    /* Some rudimentary checks to generally limit the event codes to a subset of supported event codes. */
+                    for (const auto& code : codes)
+                    {
+                        if (std::find(supported_codes_any_profile.begin(), supported_codes_any_profile.end(), code) == supported_codes_any_profile.end())
+                        {
+                            log_error("The above behavior profile contains event codes such as code (" + std::to_string(code) + ") that are currently not at all allowed for behavior profiles. Please refer to the docs for assistance, exiting...");
+                            exit(1);
                         }
                     }
                 }
                 m_behavior_profiles_fields.emplace_back(filter_check_fields);
                 m_behavior_profiles_event_codes.emplace_back(std::move(codes));
+                n++;
             }
         }
 
