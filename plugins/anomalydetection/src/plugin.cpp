@@ -19,6 +19,7 @@ limitations under the License.
 
 #include <optional>
 #include <filesystem>
+#include <sys/stat.h>
 
 void anomalydetection::log_error(std::string err_mess)
 {
@@ -434,6 +435,13 @@ bool anomalydetection::init(falcosecurity::init_input& in)
         m_thread_manager.start_periodic_count_min_sketch_reset_worker<uint64_t>(i, (uint64_t)m_reset_timers[i], m_count_min_sketches);
     }
 
+    // More custom inits
+    struct stat st_ = {0};
+	if(stat("/proc/self/cmdline", &st_) == 0)
+	{
+		m_falco_start_ts_epoch_ns = st_.st_ctim.tv_sec * SECOND_TO_NS + st_.st_ctim.tv_nsec;
+	}
+
     return true;
 }
 
@@ -459,6 +467,14 @@ std::vector<falcosecurity::field_info> anomalydetection::get_fields()
              { // field arg
                 false, // key
                 true,  // index
+                false,
+             }},
+             {ft::FTYPE_UINT64, "anomaly.falco.duration_ns", 
+             "Falco agent run duration in nanoseconds",
+             "Falco agent run duration in nanoseconds, which could be useful for ignoring some rare events at launch time while Falco is just starting to build up the counts in the sketch data structures (if applicable).",
+             { // field arg
+                false, // key
+                false,  // index
                 false,
              }},
     };
@@ -494,6 +510,13 @@ bool anomalydetection::extract(const falcosecurity::extract_fields_input& in)
         if(extract_filterchecks_concat_profile(evt, tr, m_behavior_profiles_fields[index], behavior_profile_concat_str))
         {
             req.set_value(behavior_profile_concat_str, true);
+        }
+        return true;
+    case ANOMALYDETECTION_FALCO_DURATION_NS:
+        {
+            auto now = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                std::chrono::system_clock::now().time_since_epoch()).count();
+            req.set_value((uint64_t)(now - m_falco_start_ts_epoch_ns), true);
         }
         return true;
     default:
