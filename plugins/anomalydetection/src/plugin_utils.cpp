@@ -17,6 +17,8 @@ limitations under the License.
 
 #include "plugin_utils.h"
 
+#define SCAP_MAX_PATH_SIZE 1024
+
 static const filtercheck_field_info sinsp_filter_check_fields[] =
 {
 	{PT_CHARBUF, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_NA, "proc.exe", "First Argument", "The first command-line argument (i.e., argv[0]), typically the executable name or a custom string as specified by the user. It is primarily obtained from syscall arguments, truncated after 4096 bytes, or, as a fallback, by reading /proc/PID/cmdline, in which case it may be truncated after 1024 bytes. This field may differ from the last component of proc.exepath, reflecting how command invocation and execution paths can vary."},

@@ -25,8 +25,6 @@ limitations under the License.
 #include <regex>
 #include <unordered_set>
 
-#define SCAP_MAX_PATH_SIZE 1024
-
 typedef struct plugin_sinsp_filterchecks_field
 {
     plugin_sinsp_filterchecks::check_type id;

@@ -15,6 +15,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+#pragma once
+
 #include "xxhash_ext.h"
 
 #include <iostream>
@@ -93,6 +95,15 @@ public:
         {
             sketch[i] = std::make_unique<T[]>(w_);
             std::fill(sketch[i].get(), sketch[i].get() + w_, static_cast<T>(0)); // Init to 0
+        }
+    }
+
+    void reset()
+    {
+        // Reset data structure
+        for (uint64_t i = 0; i < d_; ++i) 
+        {
+            std::fill(sketch[i].get(), sketch[i].get() + w_, static_cast<T>(0));
         }
     }
 

@@ -99,6 +99,10 @@ falcosecurity::init_schema anomalydetection::get_init_schema()
                   "type": "number",
                   "description": "PPME event codes supported by Falco."
                 }
+              },
+              "reset_timer_ms": {
+                "type": "number",
+                "description": "The anomaly detection behavior profile timer, in milliseconds (ms), is used to reset the sketch counts."
               }
             },
             "required": [
@@ -134,16 +138,17 @@ void anomalydetection::parse_init_config(nlohmann::json& config_json)
 
         // If used, config JSON schema enforces a minimum of 1 items and 2-d sub-arrays
         auto gamma_eps_pointer = nlohmann::json::json_pointer("/count_min_sketch/gamma_eps");
+        m_gamma_eps.clear();
         if (config_json.contains(gamma_eps_pointer) && config_json[gamma_eps_pointer].is_array())
         {
-            int i = 0;
+            int n = 1;
             for (const auto& array : config_json[gamma_eps_pointer])
             {
                 if (array.is_array() && array.size() == 2)
                 {
                     std::vector<double> sub_array = {array[0].get<double>(), array[1].get<double>()};
                     log_error("Count min sketch data structure number (" 
-                    + std::to_string(i+1) + ") loaded with gamma and eps values (" 
+                    + std::to_string(n) + ") loaded with gamma and eps values (" 
                     + std::to_string(sub_array[0]) + ","
                     + std::to_string(sub_array[1])
                     + ") equivalent to sketch dimensions ("
@@ -154,15 +159,16 @@ void anomalydetection::parse_init_config(nlohmann::json& config_json)
                     + ") bytes of constant memory allocation on the heap");
                     m_gamma_eps.emplace_back(sub_array);     
                 }
-                i++;
+                n++;
             }
         }
 
         // If used, config JSON schema enforces a minimum of 1 items and 2-d sub-arrays
         auto rows_cols_pointer = nlohmann::json::json_pointer("/count_min_sketch/rows_cols");
+        m_rows_cols.clear();
         if (config_json.contains(rows_cols_pointer) && config_json[rows_cols_pointer].is_array())
         {
-            int i = 0;
+            int n = 1;
             if (config_json.contains(gamma_eps_pointer) && config_json[gamma_eps_pointer].is_array())
             {
                 log_error("[Override Notice] Count min sketch data structures will be overriden with below settings as 'rows_cols' config overrides any previous setting");
@@ -173,7 +179,7 @@ void anomalydetection::parse_init_config(nlohmann::json& config_json)
                 {
                     std::vector<uint64_t> sub_array = {array[0].get<uint64_t>(), array[1].get<uint64_t>()};
                     log_error("Count min sketch data structure number (" 
-                    + std::to_string(i+1) + ") loaded with d and w/buckets values (" 
+                    + std::to_string(n) + ") loaded with d and w/buckets values (" 
                     + std::to_string(sub_array[0]) + ","
                     + std::to_string(sub_array[1])
                     + ") equivalent to sketch error probability and relative error tolerances ("
@@ -184,7 +190,7 @@ void anomalydetection::parse_init_config(nlohmann::json& config_json)
                     + ") bytes of constant memory allocation on the heap");
                     m_rows_cols.emplace_back(sub_array);
                 }
-                i++;
+                n++;
             }
         }
 
@@ -215,6 +221,9 @@ void anomalydetection::parse_init_config(nlohmann::json& config_json)
                 supported_codes_fd_profile.end()
             );
             
+            m_reset_timers.clear();
+            m_behavior_profiles_fields.clear();
+            m_behavior_profiles_event_codes.clear();
             int n = 1;
             for (const auto& profile : behavior_profiles)
             {
@@ -259,6 +268,21 @@ void anomalydetection::parse_init_config(nlohmann::json& config_json)
                             exit(1);
                         }
                     }
+                }
+                if (profile.contains("reset_timer_ms"))
+                {
+                    uint64_t interval = profile["reset_timer_ms"].get<uint64_t>();
+                    if (interval > 100)
+                    {
+                        m_reset_timers.emplace_back(interval);
+                    } else
+                    {
+                        m_reset_timers.emplace_back(uint64_t(0));
+                    }
+                    log_error("Behavior profile number (" + std::to_string(n) + ") resets the counts to zero every (" + std::to_string(interval) + ") ms");
+                } else
+                {
+                    m_reset_timers.emplace_back(uint64_t(0));
                 }
                 m_behavior_profiles_fields.emplace_back(filter_check_fields);
                 m_behavior_profiles_event_codes.emplace_back(std::move(codes));
@@ -375,18 +399,20 @@ bool anomalydetection::init(falcosecurity::init_input& in)
         return false;
     }
 
-    //////////////////////////
+    ////////////////////
     // Init sketches
-    //////////////////////////
+    ////////////////////
 
     // Init the plugin managed state table holding the count min sketch estimates for each behavior profile
+    m_thread_manager.stop_threads(); // Important for reloading configs conditions
+    m_count_min_sketches.lock()->clear();
     if (m_rows_cols.size() == m_n_sketches)
     {
         for (uint32_t i = 0; i < m_n_sketches; ++i)
         {
             uint64_t rows = m_rows_cols[i][0];
             uint64_t cols = m_rows_cols[i][1];
-            m_count_min_sketches.lock()->push_back(std::make_unique<plugin::anomalydetection::num::cms<uint64_t>>(rows, cols));
+            m_count_min_sketches.lock()->push_back(std::make_shared<plugin::anomalydetection::num::cms<uint64_t>>(rows, cols));
         }
     } else if (m_gamma_eps.size() == m_n_sketches && m_rows_cols.empty())
     {
@@ -394,11 +420,18 @@ bool anomalydetection::init(falcosecurity::init_input& in)
         {
             double gamma = m_gamma_eps[i][0];
             double eps = m_gamma_eps[i][1];
-            m_count_min_sketches.lock()->push_back(std::make_unique<plugin::anomalydetection::num::cms<uint64_t>>(gamma, eps));
+            m_count_min_sketches.lock()->push_back(std::make_shared<plugin::anomalydetection::num::cms<uint64_t>>(gamma, eps));
         }
     } else
     {
         return false;
+    }
+
+    // Launch threads to periodically reset the data structures (if applicable)
+    m_thread_manager.m_stop_requested = false;
+    for (uint32_t i = 0; i < m_n_sketches; ++i)
+    {
+        m_thread_manager.start_periodic_count_min_sketch_reset_worker<uint64_t>(i, (uint64_t)m_reset_timers[i], m_count_min_sketches);
     }
 
     return true;
