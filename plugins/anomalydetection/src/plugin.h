@@ -36,6 +36,7 @@ limitations under the License.
 
 #define UINT32_MAX (4294967295U)
 #define PPM_AT_FDCWD -100
+#define SECOND_TO_NS 1000000000ULL
 
 struct sinsp_param
 {
@@ -53,6 +54,7 @@ class anomalydetection
     {
         ANOMALYDETECTION_COUNT_MIN_SKETCH_COUNT = 0,
         ANOMALYDETECTION_COUNT_MIN_SKETCH_BEHAVIOR_PROFILE_CONCAT_STR,
+        ANOMALYDETECTION_FALCO_DURATION_NS,
         ANOMALYDETECTION_FIELD_MAX
     };
 
@@ -137,6 +139,9 @@ class anomalydetection
 
     // Manages plugin side threads, such as resetting the count min sketch data structures
     ThreadManager m_thread_manager;
+
+    // Epoch of Falco agent run start, re-creates libs agent_info->start_ts_epoch info
+    uint64_t m_falco_start_ts_epoch_ns;
 
     bool m_count_min_sketch_enabled = false;
     uint32_t m_n_sketches = 0;
