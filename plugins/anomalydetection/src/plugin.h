@@ -21,6 +21,7 @@ limitations under the License.
 #include "plugin_consts.h"
 #include "plugin_utils.h"
 #include "plugin_mutex.h"
+#include "plugin_thread_manager.h"
 #include "plugin_sinsp_filterchecks.h"
 
 #include <falcosecurity/sdk.h>
@@ -45,6 +46,8 @@ struct sinsp_param
 class anomalydetection
 {
     public:
+    anomalydetection() : m_thread_manager() {}
+
     // Keep this aligned with `get_fields`
     enum anomalydetection_fields
     {
@@ -132,15 +135,19 @@ class anomalydetection
     
     private:
 
+    // Manages plugin side threads, such as resetting the count min sketch data structures
+    ThreadManager m_thread_manager;
+
     bool m_count_min_sketch_enabled = false;
     uint32_t m_n_sketches = 0;
     std::vector<std::vector<double>> m_gamma_eps;
     std::vector<std::vector<uint64_t>> m_rows_cols; // If set supersedes m_gamma_eps
     std::vector<std::vector<plugin_sinsp_filterchecks_field>> m_behavior_profiles_fields;
     std::vector<std::unordered_set<ppm_event_code>> m_behavior_profiles_event_codes;
+    std::vector<uint64_t> m_reset_timers;
 
     // Plugin managed state table
-    plugin_anomalydetection::Mutex<std::vector<std::unique_ptr<plugin::anomalydetection::num::cms<uint64_t>>>> m_count_min_sketches;
+    plugin_anomalydetection::Mutex<std::vector<std::shared_ptr<plugin::anomalydetection::num::cms<uint64_t>>>> m_count_min_sketches;
 
     // required; standard plugin API
     std::string m_lasterr;

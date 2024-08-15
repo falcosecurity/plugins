@@ -60,7 +60,9 @@ plugins:
           {
             "fields": "%container.id %proc.name %proc.aname[1] %proc.aname[2] %proc.aname[3] %proc.exepath %proc.tty %proc.vpgid.name %proc.sname",
             # execve, execveat
-            "event_codes": [293, 331]
+            "event_codes": [293, 331],
+            # optional config `reset_timer_ms`, resets the data structure every x milliseconds, here one hour as example
+            "reset_timer_ms": 3600000
           },
           {
             "fields": "%container.id %proc.name %proc.aname[1] %proc.aname[2] %proc.aname[3] %proc.exepath %proc.tty %proc.vpgid.name %proc.sname %fd.name",
