@@ -8,7 +8,38 @@ The `anomalydetection` plugin enhances {syscall} event analysis by incorporating
 
 ### Functionality
 
-The initial scope will focus exclusively on "CountMinSketch Powered Probabilistic Counting and Filtering" for a subset of syscalls and a selection of options to define behavior profiles. The primary objective of this new framework is to offer tangible advantages in real-world production environments and substantially improve the usability of standard Falco rules. Essentially, this framework eliminates the requirement for meticulous tuning of individual rules and facilitates the utilization of probabilistic count estimates to alleviate the impact of noisy rules. Additionally, it enables the creation of broader Falco rules. Read more in the [Proposal](https://github.com/falcosecurity/falco/blob/master/proposals/20230620-anomaly-detection-framework.md).
+The initial scope focuses exclusively on "CountMinSketch Powered Probabilistic Counting and Filtering" for a subset of syscalls and a selection of options for defining behavior profiles. This limitation is due to current restrictions related to the plugin API and SDK layout.
+
+The new framework primarily aims to improve the usability of standard Falco rules. It may reduce the need for precise rule tuning, leverages probabilistic count estimates to auto-tune noisy rules on the fly, and enables the creation of broader Falco rules. Read more in the [Proposal](https://github.com/falcosecurity/falco/blob/master/proposals/20230620-anomaly-detection-framework.md).
+
+### TL;DR
+
+The official documentation will eventually be available on the Falco [Plugins](https://falco.org/docs/plugins/) site. Therefore, consider this README as not being a complete documentation for using this plugin.
+
+*Disclaimer*: Anomaly detection can mean different things to different people. It's best to keep your expectations low for this plugin's current capabilities. For now, it is focused solely on probabilistic counting.
+
+What this plugin is:
+- **Initial step for real-time anomaly detection in Falco**: Introduces basic real-time anomaly detection methods on the host.
+- **Probabilistic counting**: Currently supports only probabilistic counting, with the guarantee that any overcounting remains within an acceptable error margin.
+- **Use-case dependent**: Requires careful derivation of custom use cases; no default use cases are provided at this time.
+- **Limited by current API**: Subject to several restrictions due to plugin API and other limitations.
+- **Built for future extensibility**: Designed to support more algorithms in the future, limited to those that can be implemented in a single data pass to ensure real-time performance.
+- **Documentation is insufficient**: Expect to need hands-on exploration to understand usage and restrictions.
+
+What this plugin is not:
+- **Not a pre-trained AI/ML model**.
+- **Not ready out-of-the-box**: No default configuration or use cases are provided at this time.
+- **Not a universal solution**: Does not offer a one-size-fits-all approach to anomaly detection.
+- **No multi-pass algorithms**: Algorithms requiring multiple data passes are not planned; the plugin is intended to remain real-time and efficient for applicable use cases.
+- **Not yet battle-tested in production**.
+
+### Outlook
+
+In the near term, the plan is to expand the syscalls for which behavior profiles can be applied and to enhance the fields available for defining these profiles. The first version is quite restrictive in this regard due to current plugin API limitations. Additionally, from an algorithmic and capabilities point of view, we will explore the following:
+
+- Support for HyperLogLog probabilistic distinct counting (ETA unknown).
+- Overcoming the cold start problem by loading sketch data structures and counts from previous agent runs or from test environments (ETA unknown).
+- Efficient and feasible options for real-time, single-pass time series analysis (ETA unknown).
 
 ### Plugin Official Name
 
@@ -23,18 +54,19 @@ The `anomalydetection` plugin implements 2 capabilities:
 
 ## Supported Fields
 
-Here is the current set of supported fields:
+Here is the current set of output / filter fields introduced by this plugin:
 
 <!-- README-PLUGIN-FIELDS -->
 |       NAME        |   TYPE   |       ARG       |                               DESCRIPTION                               |
 |-------------------|----------|-----------------|-------------------------------------------------------------------------|
 | `anomaly.count_min_sketch` | `uint64` | Key, Optional | Count Min Sketch Estimate according to the specified behavior profile for a predefined set of {syscalls} events. Access different behavior profiles/sketches using indices. For instance, anomaly.count_min_sketch[0] retrieves the first behavior profile defined in the plugins' `init_config`. |
 | `anomaly.count_min_sketch.profile` | `string` | Key, Optional | Concatenated string according to the specified behavior profile (not preserving original order). Access different behavior profiles using indices. For instance, anomaly.count_min_sketch.profile[0] retrieves the first behavior profile defined in the plugins' `init_config`. |
+| `anomaly.falco.duration_ns` | `uint64` | No Arg | Falco agent run duration in nanoseconds, which could be useful for ignoring some rare events at launch time while Falco is just starting to build up the counts in the sketch data structures (if applicable). |
 <!-- /README-PLUGIN-FIELDS -->
 
 ## Usage
 
-### Configuration
+**Configuration**
 
 Here's an example of configuration of `falco.yaml`:
 
@@ -58,20 +90,21 @@ plugins:
         # rows_cols: []
         behavior_profiles: [
           {
-            "fields": "%container.id %proc.name %proc.aname[1] %proc.aname[2] %proc.aname[3] %proc.exepath %proc.tty %proc.vpgid.name %proc.sname",
-            # execve, execveat
+            "fields": "%container.id %custom.proc.aname.lineage.join[7] %custom.proc.aexepath.lineage.join[7] %proc.tty %proc.vpgid.name %proc.sname",
+            # execve, execveat exit event codes
             "event_codes": [293, 331],
             # optional config `reset_timer_ms`, resets the data structure every x milliseconds, here one hour as example
+            # Remove JSON key if not wanted / needed.
             "reset_timer_ms": 3600000
           },
           {
-            "fields": "%container.id %proc.name %proc.aname[1] %proc.aname[2] %proc.aname[3] %proc.exepath %proc.tty %proc.vpgid.name %proc.sname %fd.name",
-            # open, openat, openat2
+            "fields": "%container.id %custom.proc.aname.lineage.join[7] %custom.proc.aexepath.lineage.join[7] %proc.tty %proc.vpgid.name %proc.sname %fd.name %fd.nameraw",
+            # open, openat, openat2 exit event codes
             "event_codes": [3, 307, 327]
           },
           {
-            "fields": "%container.id %proc.args",
-            # execve, execveat
+            "fields": "%container.id %proc.cmdline",
+            # execve, execveat exit event codes
             "event_codes": [293, 331]
           }
         ]
@@ -79,7 +112,47 @@ plugins:
 load_plugins: [anomalydetection]
 ```
 
-The first version is quite restrictive because the plugin API is not yet complete for this use case. Currently, you have to manually look up the correct PPME event codes. Always use the highest / latest event version, for example `PPME_SYSCALL_EXECVE_19_X` for the exit event of the `execve` syscall or `PPME_SYSCALL_OPENAT_2_X` for the `openat` syscall. Read this [blog post](https://falco.org/blog/adaptive-syscalls-selection/) to learn more about PPME event codes versus syscall names. See the [PPME event codes](#ppme-event-codes) reference below.
+The first version is quite restrictive with respect to the behavior profile's `event_codes` and `fields`. In a nutshell, you can currently define them only for a handful of event codes that Falco supports and a subset of the [Supported Fields for Conditions and Outputs](https://falco.org/docs/reference/rules/supported-fields/).
+
+**Behavior profiles for "execve*/clone*" events**
+
+Example 1:
+``` 
+"event_codes": [293, 331],
+```
+
+Example 2:
+``` 
+"event_codes": [223, 335],
+```
+
+You can reference a behavior profile based on "execve*/clone*" events in any Falco rule that monitors any supported syscall. This works because every syscall is associated with a process.
+
+**Behavior profiles for "fd-related" events**
+
+Example 1:
+```
+rule: (evt.type in (open, openat, openat2) and evt.dir=<)
+...
+"event_codes": [3, 307, 327],
+```
+
+Example 2:
+```
+rule: (evt.type=connect and evt.dir=<)
+...
+"event_codes": [23],
+```
+
+You should avoid writing rules for arbitrary syscalls using "fd-related" behavior profiles because if a syscall doesn't involve a file descriptor (fd), referencing counts that rely on fd fields won't be meaningful.
+
+Here's how it works:
+- If your behavior profile includes `%fd.*` fields, all event codes in that profile must be related to file descriptors.
+- If you use an "fd-related" behavior profile with a syscall that doesn't involve a file descriptor, the count will always be zero. While Falco won't crash, the anomaly detection estimate won't function as expected.
+
+References:
+- See the [Supported PPME `event codes`](#ppme-event-codes) reference below.
+- See the [Supported Behavior Profiles `fields`](#behavior-profiles-fields) reference below.
 
 **Open Parameters**:
 
@@ -87,26 +160,38 @@ This plugin does not have open params.
 
 **Rules**
 
-This plugin does not provide any custom rules. You can use the default Falco ruleset and add the necessary `anomalydetection` fields as output fields to obtain the Count Min Sketch estimates and/or use them in the familiar rules filter condition.
+This plugin does not provide any default use cases or rules at the moment. More concrete use cases may be added at a later time.
 
-Example of a standard Falco rule using the `anomalydetection` fields:
+Example of a dummy Falco rule using the `anomalydetection` fields for local testing:
 
 ```yaml
 - macro: spawned_process
   condition: (evt.type in (execve, execveat) and evt.dir=<)
 - rule: execve count_min_sketch test
   desc: "execve count_min_sketch test"
-  condition: spawned_process and proc.name=cat and anomaly.count_min_sketch > 10
-  output: '%anomaly.count_min_sketch %proc.pid %proc.ppid %proc.name %user.loginuid %user.name %user.uid %proc.cmdline %container.id %evt.type %evt.res %proc.cwd %proc.sid %proc.exepath %container.image.repository'
+  condition: spawned_process and proc.name=cat and anomaly.count_min_sketch[0] > 10
+  output: '%anomaly.count_min_sketch[0] %proc.pid %proc.ppid %proc.name %user.loginuid %user.name %user.uid %proc.cmdline %container.id %evt.type %evt.res %proc.cwd %proc.sid %proc.exepath %container.image.repository'
   priority: NOTICE
   tags: [maturity_sandbox, host, container, process, anomalydetection]
 ```
 
 __NOTE__: Ensure you regularly execute `cat` commands. Once you have done so frequently enough, logs will start to appear. Alternatively, perform an inverse test to observe how quickly a very noisy rule gets silenced.
 
+**Adoption**
+
+To adopt the plugin framework, you can start by identifying rules in the [default](https://github.com/falcosecurity/rules) Falco ruleset that could benefit from auto-tuning based on your heuristics regarding counts. For example, you might broaden the scope of a rule and add an `anomaly.count_min_sketch` filter condition as a safety upper bound. 
+
+For initial adoption, we recommend creating new, separate rules inspired by existing upstream rules, rather than modifying rules that are already performing well in production. 
+
+Another approach is to duplicate a rule -- one version with and another without the anomaly detection filtering. 
+
+Alternatively, you can add the count estimates as output fields to provide additional forensic evidence without using the counts for on-host filtering.
+
+Lastly, keep in mind that there is a configuration to reset the counts per behavior profile every x milliseconds if this suits your use case better.
+
 ### Running
 
-This plugin requires Falco with version >= **0.37.0**.
+This plugin requires Falco with version >= **0.38.2**.
 Modify the `falco.yaml` with the provided [configuration](#configuration) above and you are ready to go!
 
 ```shell
@@ -119,7 +204,7 @@ sudo falco -c falco.yaml -r falco_rules.yaml
 
 ```bash
 git clone https://github.com/falcosecurity/plugins.git
-cd plugins/anomalydetection
+cd plugins/plugins/anomalydetection
 rm -f libanomalydetection.so; 
 rm -f build/libanomalydetection.so; 
 make;
@@ -133,435 +218,81 @@ sudo cp -f libanomalydetection.so /usr/share/falco/plugins/libanomalydetection.s
 
 ### PPME event codes
 
-```
+Read this [blog post](https://falco.org/blog/adaptive-syscalls-selection/) to learn more about Falco's internal PPME event codes compared to the syscall names you are used to using in Falco rules.
+
+```CPP
 typedef enum {
-	PPME_GENERIC_E = 0,
-	PPME_GENERIC_X = 1,
-	PPME_SYSCALL_OPEN_E = 2,
-	PPME_SYSCALL_OPEN_X = 3,
-	PPME_SYSCALL_CLOSE_E = 4,
-	PPME_SYSCALL_CLOSE_X = 5,
-	PPME_SYSCALL_READ_E = 6,
-	PPME_SYSCALL_READ_X = 7,
-	PPME_SYSCALL_WRITE_E = 8,
-	PPME_SYSCALL_WRITE_X = 9,
-	PPME_SYSCALL_BRK_1_E = 10,
-	PPME_SYSCALL_BRK_1_X = 11,
-	PPME_SYSCALL_EXECVE_8_E = 12,
-	PPME_SYSCALL_EXECVE_8_X = 13,
-	PPME_SYSCALL_CLONE_11_E = 14,
-	PPME_SYSCALL_CLONE_11_X = 15,
-	PPME_PROCEXIT_E = 16,
-	PPME_PROCEXIT_X = 17,	/* This should never be called */
-	PPME_SOCKET_SOCKET_E = 18,
-	PPME_SOCKET_SOCKET_X = 19,
-	PPME_SOCKET_BIND_E = 20,
-	PPME_SOCKET_BIND_X = 21,
-	PPME_SOCKET_CONNECT_E = 22,
-	PPME_SOCKET_CONNECT_X = 23,
-	PPME_SOCKET_LISTEN_E = 24,
-	PPME_SOCKET_LISTEN_X = 25,
-	PPME_SOCKET_ACCEPT_E = 26,
-	PPME_SOCKET_ACCEPT_X = 27,
-	PPME_SOCKET_SEND_E = 28,
-	PPME_SOCKET_SEND_X = 29,
-	PPME_SOCKET_SENDTO_E = 30,
-	PPME_SOCKET_SENDTO_X = 31,
-	PPME_SOCKET_RECV_E = 32,
-	PPME_SOCKET_RECV_X = 33,
-	PPME_SOCKET_RECVFROM_E = 34,
-	PPME_SOCKET_RECVFROM_X = 35,
-	PPME_SOCKET_SHUTDOWN_E = 36,
-	PPME_SOCKET_SHUTDOWN_X = 37,
-	PPME_SOCKET_GETSOCKNAME_E = 38,
-	PPME_SOCKET_GETSOCKNAME_X = 39,
-	PPME_SOCKET_GETPEERNAME_E = 40,
-	PPME_SOCKET_GETPEERNAME_X = 41,
-	PPME_SOCKET_SOCKETPAIR_E = 42,
-	PPME_SOCKET_SOCKETPAIR_X = 43,
-	PPME_SOCKET_SETSOCKOPT_E = 44,
-	PPME_SOCKET_SETSOCKOPT_X = 45,
-	PPME_SOCKET_GETSOCKOPT_E = 46,
-	PPME_SOCKET_GETSOCKOPT_X = 47,
-	PPME_SOCKET_SENDMSG_E = 48,
-	PPME_SOCKET_SENDMSG_X = 49,
-	PPME_SOCKET_SENDMMSG_E = 50,
-	PPME_SOCKET_SENDMMSG_X = 51,
-	PPME_SOCKET_RECVMSG_E = 52,
-	PPME_SOCKET_RECVMSG_X = 53,
-	PPME_SOCKET_RECVMMSG_E = 54,
-	PPME_SOCKET_RECVMMSG_X = 55,
-	PPME_SOCKET_ACCEPT4_E = 56,
-	PPME_SOCKET_ACCEPT4_X = 57,
-	PPME_SYSCALL_CREAT_E = 58,
-	PPME_SYSCALL_CREAT_X = 59,
-	PPME_SYSCALL_PIPE_E = 60,
-	PPME_SYSCALL_PIPE_X = 61,
-	PPME_SYSCALL_EVENTFD_E = 62,
-	PPME_SYSCALL_EVENTFD_X = 63,
-	PPME_SYSCALL_FUTEX_E = 64,
-	PPME_SYSCALL_FUTEX_X = 65,
-	PPME_SYSCALL_STAT_E = 66,
-	PPME_SYSCALL_STAT_X = 67,
-	PPME_SYSCALL_LSTAT_E = 68,
-	PPME_SYSCALL_LSTAT_X = 69,
-	PPME_SYSCALL_FSTAT_E = 70,
-	PPME_SYSCALL_FSTAT_X = 71,
-	PPME_SYSCALL_STAT64_E = 72,
-	PPME_SYSCALL_STAT64_X = 73,
-	PPME_SYSCALL_LSTAT64_E = 74,
-	PPME_SYSCALL_LSTAT64_X = 75,
-	PPME_SYSCALL_FSTAT64_E = 76,
-	PPME_SYSCALL_FSTAT64_X = 77,
-	PPME_SYSCALL_EPOLLWAIT_E = 78,
-	PPME_SYSCALL_EPOLLWAIT_X = 79,
-	PPME_SYSCALL_POLL_E = 80,
-	PPME_SYSCALL_POLL_X = 81,
-	PPME_SYSCALL_SELECT_E = 82,
-	PPME_SYSCALL_SELECT_X = 83,
-	PPME_SYSCALL_NEWSELECT_E = 84,
-	PPME_SYSCALL_NEWSELECT_X = 85,
-	PPME_SYSCALL_LSEEK_E = 86,
-	PPME_SYSCALL_LSEEK_X = 87,
-	PPME_SYSCALL_LLSEEK_E = 88,
-	PPME_SYSCALL_LLSEEK_X = 89,
-	PPME_SYSCALL_IOCTL_2_E = 90,
-	PPME_SYSCALL_IOCTL_2_X = 91,
-	PPME_SYSCALL_GETCWD_E = 92,
-	PPME_SYSCALL_GETCWD_X = 93,
-	PPME_SYSCALL_CHDIR_E = 94,
-	PPME_SYSCALL_CHDIR_X = 95,
-	PPME_SYSCALL_FCHDIR_E = 96,
-	PPME_SYSCALL_FCHDIR_X = 97,
-	/* mkdir/rmdir events are not emitted anymore */
-	PPME_SYSCALL_MKDIR_E = 98,
-	PPME_SYSCALL_MKDIR_X = 99,
-	PPME_SYSCALL_RMDIR_E = 100,
-	PPME_SYSCALL_RMDIR_X = 101,
-	PPME_SYSCALL_OPENAT_E = 102,
-	PPME_SYSCALL_OPENAT_X = 103,
-	PPME_SYSCALL_LINK_E = 104,
-	PPME_SYSCALL_LINK_X = 105,
-	PPME_SYSCALL_LINKAT_E = 106,
-	PPME_SYSCALL_LINKAT_X = 107,
-	PPME_SYSCALL_UNLINK_E = 108,
-	PPME_SYSCALL_UNLINK_X = 109,
-	PPME_SYSCALL_UNLINKAT_E = 110,
-	PPME_SYSCALL_UNLINKAT_X = 111,
-	PPME_SYSCALL_PREAD_E = 112,
-	PPME_SYSCALL_PREAD_X = 113,
-	PPME_SYSCALL_PWRITE_E = 114,
-	PPME_SYSCALL_PWRITE_X = 115,
-	PPME_SYSCALL_READV_E = 116,
-	PPME_SYSCALL_READV_X = 117,
-	PPME_SYSCALL_WRITEV_E = 118,
-	PPME_SYSCALL_WRITEV_X = 119,
-	PPME_SYSCALL_PREADV_E = 120,
-	PPME_SYSCALL_PREADV_X = 121,
-	PPME_SYSCALL_PWRITEV_E = 122,
-	PPME_SYSCALL_PWRITEV_X = 123,
-	PPME_SYSCALL_DUP_E = 124,
-	PPME_SYSCALL_DUP_X = 125,
-	PPME_SYSCALL_SIGNALFD_E = 126,
-	PPME_SYSCALL_SIGNALFD_X = 127,
-	PPME_SYSCALL_KILL_E = 128,
-	PPME_SYSCALL_KILL_X = 129,
-	PPME_SYSCALL_TKILL_E = 130,
-	PPME_SYSCALL_TKILL_X = 131,
-	PPME_SYSCALL_TGKILL_E = 132,
-	PPME_SYSCALL_TGKILL_X = 133,
-	PPME_SYSCALL_NANOSLEEP_E = 134,
-	PPME_SYSCALL_NANOSLEEP_X = 135,
-	PPME_SYSCALL_TIMERFD_CREATE_E = 136,
-	PPME_SYSCALL_TIMERFD_CREATE_X = 137,
-	PPME_SYSCALL_INOTIFY_INIT_E = 138,
-	PPME_SYSCALL_INOTIFY_INIT_X = 139,
-	PPME_SYSCALL_GETRLIMIT_E = 140,
-	PPME_SYSCALL_GETRLIMIT_X = 141,
-	PPME_SYSCALL_SETRLIMIT_E = 142,
-	PPME_SYSCALL_SETRLIMIT_X = 143,
-	PPME_SYSCALL_PRLIMIT_E = 144,
-	PPME_SYSCALL_PRLIMIT_X = 145,
-	PPME_SCHEDSWITCH_1_E = 146,
-	PPME_SCHEDSWITCH_1_X = 147,	/* This should never be called */
-	PPME_DROP_E = 148,  /* For internal use */
-	PPME_DROP_X = 149,	/* For internal use */
-	PPME_SYSCALL_FCNTL_E = 150,  /* For internal use */
-	PPME_SYSCALL_FCNTL_X = 151,	/* For internal use */
-	PPME_SCHEDSWITCH_6_E = 152,
-	PPME_SCHEDSWITCH_6_X = 153,	/* This should never be called */
-	PPME_SYSCALL_EXECVE_13_E = 154,
-	PPME_SYSCALL_EXECVE_13_X = 155,
-	PPME_SYSCALL_CLONE_16_E = 156,
-	PPME_SYSCALL_CLONE_16_X = 157,
-	PPME_SYSCALL_BRK_4_E = 158,
-	PPME_SYSCALL_BRK_4_X = 159,
-	PPME_SYSCALL_MMAP_E = 160,
-	PPME_SYSCALL_MMAP_X = 161,
-	PPME_SYSCALL_MMAP2_E = 162,
-	PPME_SYSCALL_MMAP2_X = 163,
-	PPME_SYSCALL_MUNMAP_E = 164,
-	PPME_SYSCALL_MUNMAP_X = 165,
-	PPME_SYSCALL_SPLICE_E = 166,
-	PPME_SYSCALL_SPLICE_X = 167,
-	PPME_SYSCALL_PTRACE_E = 168,
-	PPME_SYSCALL_PTRACE_X = 169,
-	PPME_SYSCALL_IOCTL_3_E = 170,
-	PPME_SYSCALL_IOCTL_3_X = 171,
-	PPME_SYSCALL_EXECVE_14_E = 172,
-	PPME_SYSCALL_EXECVE_14_X = 173,
-	PPME_SYSCALL_RENAME_E = 174,
-	PPME_SYSCALL_RENAME_X = 175,
-	PPME_SYSCALL_RENAMEAT_E = 176,
-	PPME_SYSCALL_RENAMEAT_X = 177,
-	PPME_SYSCALL_SYMLINK_E = 178,
-	PPME_SYSCALL_SYMLINK_X = 179,
-	PPME_SYSCALL_SYMLINKAT_E = 180,
-	PPME_SYSCALL_SYMLINKAT_X = 181,
-	PPME_SYSCALL_FORK_E = 182,
-	PPME_SYSCALL_FORK_X = 183,
-	PPME_SYSCALL_VFORK_E = 184,
-	PPME_SYSCALL_VFORK_X = 185,
-	PPME_PROCEXIT_1_E = 186,
-	PPME_PROCEXIT_1_X = 187,	/* This should never be called */
-	PPME_SYSCALL_SENDFILE_E = 188,
-	PPME_SYSCALL_SENDFILE_X = 189,	/* This should never be called */
-	PPME_SYSCALL_QUOTACTL_E = 190,
-	PPME_SYSCALL_QUOTACTL_X = 191,
-	PPME_SYSCALL_SETRESUID_E = 192,
-	PPME_SYSCALL_SETRESUID_X = 193,
-	PPME_SYSCALL_SETRESGID_E = 194,
-	PPME_SYSCALL_SETRESGID_X = 195,
-	PPME_SCAPEVENT_E = 196,
-	PPME_SCAPEVENT_X = 197, /* This should never be called */
-	PPME_SYSCALL_SETUID_E = 198,
-	PPME_SYSCALL_SETUID_X = 199,
-	PPME_SYSCALL_SETGID_E = 200,
-	PPME_SYSCALL_SETGID_X = 201,
-	PPME_SYSCALL_GETUID_E = 202,
-	PPME_SYSCALL_GETUID_X = 203,
-	PPME_SYSCALL_GETEUID_E = 204,
-	PPME_SYSCALL_GETEUID_X = 205,
-	PPME_SYSCALL_GETGID_E = 206,
-	PPME_SYSCALL_GETGID_X = 207,
-	PPME_SYSCALL_GETEGID_E = 208,
-	PPME_SYSCALL_GETEGID_X = 209,
-	PPME_SYSCALL_GETRESUID_E = 210,
-	PPME_SYSCALL_GETRESUID_X = 211,
-	PPME_SYSCALL_GETRESGID_E = 212,
-	PPME_SYSCALL_GETRESGID_X = 213,
-	PPME_SYSCALL_EXECVE_15_E = 214,
-	PPME_SYSCALL_EXECVE_15_X = 215,
-	PPME_SYSCALL_CLONE_17_E = 216,
-	PPME_SYSCALL_CLONE_17_X = 217,
-	PPME_SYSCALL_FORK_17_E = 218,
-	PPME_SYSCALL_FORK_17_X = 219,
-	PPME_SYSCALL_VFORK_17_E = 220,
-	PPME_SYSCALL_VFORK_17_X = 221,
-	PPME_SYSCALL_CLONE_20_E = 222,
-	PPME_SYSCALL_CLONE_20_X = 223,
-	PPME_SYSCALL_FORK_20_E = 224,
-	PPME_SYSCALL_FORK_20_X = 225,
-	PPME_SYSCALL_VFORK_20_E = 226,
-	PPME_SYSCALL_VFORK_20_X = 227,
-	PPME_CONTAINER_E = 228,
-	PPME_CONTAINER_X = 229,
-	PPME_SYSCALL_EXECVE_16_E = 230,
-	PPME_SYSCALL_EXECVE_16_X = 231,
-	PPME_SIGNALDELIVER_E = 232,
-	PPME_SIGNALDELIVER_X = 233, /* This should never be called */
-	PPME_PROCINFO_E = 234,
-	PPME_PROCINFO_X = 235,	/* This should never be called */
-	PPME_SYSCALL_GETDENTS_E = 236,
-	PPME_SYSCALL_GETDENTS_X = 237,
-	PPME_SYSCALL_GETDENTS64_E = 238,
-	PPME_SYSCALL_GETDENTS64_X = 239,
-	PPME_SYSCALL_SETNS_E = 240,
-	PPME_SYSCALL_SETNS_X = 241,
-	PPME_SYSCALL_FLOCK_E = 242,
-	PPME_SYSCALL_FLOCK_X = 243,
-	PPME_CPU_HOTPLUG_E = 244,
-	PPME_CPU_HOTPLUG_X = 245, /* This should never be called */
-	PPME_SOCKET_ACCEPT_5_E = 246,
-	PPME_SOCKET_ACCEPT_5_X = 247,
-	PPME_SOCKET_ACCEPT4_5_E = 248,
-	PPME_SOCKET_ACCEPT4_5_X = 249,
-	PPME_SYSCALL_SEMOP_E = 250,
-	PPME_SYSCALL_SEMOP_X = 251,
-	PPME_SYSCALL_SEMCTL_E = 252,
-	PPME_SYSCALL_SEMCTL_X = 253,
-	PPME_SYSCALL_PPOLL_E = 254,
-	PPME_SYSCALL_PPOLL_X = 255,
-	PPME_SYSCALL_MOUNT_E = 256,
-	PPME_SYSCALL_MOUNT_X = 257,
-	PPME_SYSCALL_UMOUNT_E = 258,
-	PPME_SYSCALL_UMOUNT_X = 259,
-	PPME_K8S_E = 260,
-	PPME_K8S_X = 261,
-	PPME_SYSCALL_SEMGET_E = 262,
-	PPME_SYSCALL_SEMGET_X = 263,
-	PPME_SYSCALL_ACCESS_E = 264,
-	PPME_SYSCALL_ACCESS_X = 265,
-	PPME_SYSCALL_CHROOT_E = 266,
-	PPME_SYSCALL_CHROOT_X = 267,
-	PPME_TRACER_E = 268,
-	PPME_TRACER_X = 269,
-	PPME_MESOS_E = 270,
-	PPME_MESOS_X = 271,
-	PPME_CONTAINER_JSON_E = 272,
-	PPME_CONTAINER_JSON_X = 273,
-	PPME_SYSCALL_SETSID_E = 274,
-	PPME_SYSCALL_SETSID_X = 275,
-	PPME_SYSCALL_MKDIR_2_E = 276,
-	PPME_SYSCALL_MKDIR_2_X = 277,
-	PPME_SYSCALL_RMDIR_2_E = 278,
-	PPME_SYSCALL_RMDIR_2_X = 279,
-	PPME_NOTIFICATION_E = 280,
-	PPME_NOTIFICATION_X = 281,
-	PPME_SYSCALL_EXECVE_17_E = 282,
-	PPME_SYSCALL_EXECVE_17_X = 283,
-	PPME_SYSCALL_UNSHARE_E = 284,
-	PPME_SYSCALL_UNSHARE_X = 285,
-	PPME_INFRASTRUCTURE_EVENT_E = 286,
-	PPME_INFRASTRUCTURE_EVENT_X = 287,
-	PPME_SYSCALL_EXECVE_18_E = 288,
-	PPME_SYSCALL_EXECVE_18_X = 289,
-	PPME_PAGE_FAULT_E = 290,
-	PPME_PAGE_FAULT_X = 291,
-	PPME_SYSCALL_EXECVE_19_E = 292,
-	PPME_SYSCALL_EXECVE_19_X = 293,
-	PPME_SYSCALL_SETPGID_E = 294,
-	PPME_SYSCALL_SETPGID_X = 295,
-	PPME_SYSCALL_BPF_E = 296,
-	PPME_SYSCALL_BPF_X = 297,
-	PPME_SYSCALL_SECCOMP_E = 298,
-	PPME_SYSCALL_SECCOMP_X = 299,
-	PPME_SYSCALL_UNLINK_2_E = 300,
-	PPME_SYSCALL_UNLINK_2_X = 301,
-	PPME_SYSCALL_UNLINKAT_2_E = 302,
-	PPME_SYSCALL_UNLINKAT_2_X = 303,
-	PPME_SYSCALL_MKDIRAT_E = 304,
-	PPME_SYSCALL_MKDIRAT_X = 305,
-	PPME_SYSCALL_OPENAT_2_E = 306,
-	PPME_SYSCALL_OPENAT_2_X = 307,
-	PPME_SYSCALL_LINK_2_E = 308,
-	PPME_SYSCALL_LINK_2_X = 309,
-	PPME_SYSCALL_LINKAT_2_E = 310,
-	PPME_SYSCALL_LINKAT_2_X = 311,
-	PPME_SYSCALL_FCHMODAT_E = 312,
-	PPME_SYSCALL_FCHMODAT_X = 313,
-	PPME_SYSCALL_CHMOD_E = 314,
-	PPME_SYSCALL_CHMOD_X = 315,
-	PPME_SYSCALL_FCHMOD_E = 316,
-	PPME_SYSCALL_FCHMOD_X = 317,
-	PPME_SYSCALL_RENAMEAT2_E = 318,
-	PPME_SYSCALL_RENAMEAT2_X = 319,
-	PPME_SYSCALL_USERFAULTFD_E = 320,
-	PPME_SYSCALL_USERFAULTFD_X = 321,
-	PPME_PLUGINEVENT_E = 322,
-	PPME_PLUGINEVENT_X = 323,
-	PPME_CONTAINER_JSON_2_E = 324,
-	PPME_CONTAINER_JSON_2_X = 325,
-	PPME_SYSCALL_OPENAT2_E = 326,
-	PPME_SYSCALL_OPENAT2_X = 327,
-	PPME_SYSCALL_MPROTECT_E = 328,
-	PPME_SYSCALL_MPROTECT_X = 329,
-	PPME_SYSCALL_EXECVEAT_E = 330,
-	PPME_SYSCALL_EXECVEAT_X = 331,
-	PPME_SYSCALL_COPY_FILE_RANGE_E = 332,
-	PPME_SYSCALL_COPY_FILE_RANGE_X = 333,
-	PPME_SYSCALL_CLONE3_E = 334,
-	PPME_SYSCALL_CLONE3_X = 335,
-	PPME_SYSCALL_OPEN_BY_HANDLE_AT_E = 336,
-	PPME_SYSCALL_OPEN_BY_HANDLE_AT_X = 337,
-	PPME_SYSCALL_IO_URING_SETUP_E = 338,
-	PPME_SYSCALL_IO_URING_SETUP_X = 339,
-	PPME_SYSCALL_IO_URING_ENTER_E = 340,
-	PPME_SYSCALL_IO_URING_ENTER_X = 341,
-	PPME_SYSCALL_IO_URING_REGISTER_E = 342,
-	PPME_SYSCALL_IO_URING_REGISTER_X = 343,
-	PPME_SYSCALL_MLOCK_E = 344,
-	PPME_SYSCALL_MLOCK_X = 345,
-	PPME_SYSCALL_MUNLOCK_E = 346,
-	PPME_SYSCALL_MUNLOCK_X = 347,
-	PPME_SYSCALL_MLOCKALL_E = 348,
-	PPME_SYSCALL_MLOCKALL_X = 349,
-	PPME_SYSCALL_MUNLOCKALL_E = 350,
-	PPME_SYSCALL_MUNLOCKALL_X = 351,
-	PPME_SYSCALL_CAPSET_E = 352,
-	PPME_SYSCALL_CAPSET_X = 353,
-	PPME_USER_ADDED_E = 354,
-	PPME_USER_ADDED_X = 355,
-	PPME_USER_DELETED_E = 356,
-	PPME_USER_DELETED_X = 357,
-	PPME_GROUP_ADDED_E = 358,
-	PPME_GROUP_ADDED_X = 359,
-	PPME_GROUP_DELETED_E = 360,
-	PPME_GROUP_DELETED_X = 361,
-	PPME_SYSCALL_DUP2_E = 362,
-	PPME_SYSCALL_DUP2_X = 363,
-	PPME_SYSCALL_DUP3_E = 364,
-	PPME_SYSCALL_DUP3_X = 365,
-	PPME_SYSCALL_DUP_1_E = 366,
-	PPME_SYSCALL_DUP_1_X = 367,
-	PPME_SYSCALL_BPF_2_E = 368,
-	PPME_SYSCALL_BPF_2_X = 369,
-	PPME_SYSCALL_MLOCK2_E = 370,
-	PPME_SYSCALL_MLOCK2_X = 371,
-	PPME_SYSCALL_FSCONFIG_E = 372,
-	PPME_SYSCALL_FSCONFIG_X = 373,
-	PPME_SYSCALL_EPOLL_CREATE_E = 374,
-	PPME_SYSCALL_EPOLL_CREATE_X = 375,
-	PPME_SYSCALL_EPOLL_CREATE1_E = 376,
-	PPME_SYSCALL_EPOLL_CREATE1_X = 377,
-	PPME_SYSCALL_CHOWN_E = 378,
-	PPME_SYSCALL_CHOWN_X = 379,
-	PPME_SYSCALL_LCHOWN_E = 380,
-	PPME_SYSCALL_LCHOWN_X = 381,
-	PPME_SYSCALL_FCHOWN_E = 382,
-	PPME_SYSCALL_FCHOWN_X = 383,
-	PPME_SYSCALL_FCHOWNAT_E = 384,
-	PPME_SYSCALL_FCHOWNAT_X = 385,
-	PPME_SYSCALL_UMOUNT_1_E = 386,
-	PPME_SYSCALL_UMOUNT_1_X = 387,
-	PPME_SOCKET_ACCEPT4_6_E = 388,
-	PPME_SOCKET_ACCEPT4_6_X = 389,
-	PPME_SYSCALL_UMOUNT2_E = 390,
-	PPME_SYSCALL_UMOUNT2_X = 391,
-	PPME_SYSCALL_PIPE2_E = 392,
-	PPME_SYSCALL_PIPE2_X = 393,
-	PPME_SYSCALL_INOTIFY_INIT1_E = 394,
-	PPME_SYSCALL_INOTIFY_INIT1_X = 395,
-	PPME_SYSCALL_EVENTFD2_E = 396,
-	PPME_SYSCALL_EVENTFD2_X = 397,
-	PPME_SYSCALL_SIGNALFD4_E = 398,
-	PPME_SYSCALL_SIGNALFD4_X = 399,
-	PPME_SYSCALL_PRCTL_E = 400,
-	PPME_SYSCALL_PRCTL_X = 401,
-	PPME_ASYNCEVENT_E = 402,
-	PPME_ASYNCEVENT_X = 403,
-	PPME_SYSCALL_MEMFD_CREATE_E = 404,
-	PPME_SYSCALL_MEMFD_CREATE_X = 405,
-	PPME_SYSCALL_PIDFD_GETFD_E = 406,
-	PPME_SYSCALL_PIDFD_GETFD_X = 407,
-	PPME_SYSCALL_PIDFD_OPEN_E = 408,
-	PPME_SYSCALL_PIDFD_OPEN_X = 409,
-	PPME_SYSCALL_INIT_MODULE_E = 410,
-	PPME_SYSCALL_INIT_MODULE_X = 411,
-	PPME_SYSCALL_FINIT_MODULE_E = 412,
-	PPME_SYSCALL_FINIT_MODULE_X = 413,
-	PPME_SYSCALL_MKNOD_E = 414,
-	PPME_SYSCALL_MKNOD_X = 415,
-	PPME_SYSCALL_MKNODAT_E = 416,
-	PPME_SYSCALL_MKNODAT_X = 417,
-	PPME_SYSCALL_NEWFSTATAT_E = 418,
-	PPME_SYSCALL_NEWFSTATAT_X = 419,
-	PPME_SYSCALL_PROCESS_VM_READV_E = 420,
-	PPME_SYSCALL_PROCESS_VM_READV_X = 421,
-	PPME_SYSCALL_PROCESS_VM_WRITEV_E = 422,
-	PPME_SYSCALL_PROCESS_VM_WRITEV_X = 423,
-	PPME_SYSCALL_DELETE_MODULE_E = 424,
-	PPME_SYSCALL_DELETE_MODULE_X = 425,
-	PPM_EVENT_MAX = 426
+	PPME_SYSCALL_OPEN_X = 3, // compare to "(evt.type=open and evt.dir=<)" in a Falco rule
+	PPME_SOCKET_CONNECT_X = 23, // compare to "(evt.type=connect and evt.dir=<)" in a Falco rule
+	PPME_SYSCALL_CREAT_X = 59, // compare to "(evt.type=creat and evt.dir=<)" in a Falco rule
+	PPME_SYSCALL_CLONE_20_X = 223, // compare to "(evt.type=clone and evt.dir=<)" in a Falco rule
+	PPME_SOCKET_ACCEPT_5_X = 247, // compare to "(evt.type=accept and evt.dir=<)" in a Falco rule
+	PPME_SYSCALL_EXECVE_19_X = 293, // compare to "(evt.type=execve and evt.dir=<)" in a Falco rule
+	PPME_SYSCALL_OPENAT_2_X = 307, // compare to "(evt.type=openat and evt.dir=<)" in a Falco rule
+	PPME_SYSCALL_OPENAT2_X = 327, // compare to "(evt.type=openat2 and evt.dir=<)" in a Falco rule
+	PPME_SYSCALL_EXECVEAT_X = 331, // compare to "(evt.type=execveat and evt.dir=<)" in a Falco rule
+	PPME_SYSCALL_CLONE3_X = 335, // compare to "(evt.type=clone3 and evt.dir=<)" in a Falco rule
+	PPME_SYSCALL_OPEN_BY_HANDLE_AT_X = 337, // compare to "(evt.type=open_by_handle_at and evt.dir=<)" in a Falco rule
+	PPME_SOCKET_ACCEPT4_6_X = 389, // compare to "(evt.type=accept4 and evt.dir=<)" in a Falco rule
 } ppm_event_code;
 ```
+
+### Behavior Profiles fields
+
+Compare to [Supported Fields for Conditions and Outputs](https://falco.org/docs/reference/rules/supported-fields/).
+
+| Supported Behavior Profile Field | Description |
+| --- | --- |
+|proc.exe|The first command-line argument (i.e., argv[0]), typically the executable name or a custom string as specified by the user. It is primarily obtained from syscall arguments, truncated after 4096 bytes, or, as a fallback, by reading /proc/PID/cmdline, in which case it may be truncated after 1024 bytes. This field may differ from the last component of proc.exepath, reflecting how command invocation and execution paths can vary.|
+|proc.pexe|The proc.exe (first command line argument argv[0]) of the parent process.|
+|proc.aexe|The proc.exe (first command line argument argv[0]) for a specific process ancestor. You can access different levels of ancestors by using indices. For example, proc.aexe[1] retrieves the proc.exe of the parent process, proc.aexe[2] retrieves the proc.exe of the grandparent process, and so on. The current process's proc.exe line can be obtained using proc.aexe[0]. When used without any arguments, proc.aexe is applicable only in filters and matches any of the process ancestors. For instance, you can use `proc.aexe endswith java` to match any process ancestor whose proc.exe ends with the term `java`.|
+|proc.exepath|The full executable path of a process, resolving to the canonical path for symlinks. This is primarily obtained from the kernel, or as a fallback, by reading /proc/PID/exe (in the latter case, the path is truncated after 1024 bytes). For eBPF drivers, due to verifier limits, path components may be truncated to 24 for legacy eBPF on kernel <5.2, 48 for legacy eBPF on kernel >=5.2, or 96 for modern eBPF.|
+|proc.pexepath|The proc.exepath (full executable path) of the parent process.|
+|proc.aexepath|The proc.exepath (full executable path) for a specific process ancestor. You can access different levels of ancestors by using indices. For example, proc.aexepath[1] retrieves the proc.exepath of the parent process, proc.aexepath[2] retrieves the proc.exepath of the grandparent process, and so on. The current process's proc.exepath line can be obtained using proc.aexepath[0]. When used without any arguments, proc.aexepath is applicable only in filters and matches any of the process ancestors. For instance, you can use `proc.aexepath endswith java` to match any process ancestor whose path ends with the term `java`.|
+|proc.name|The process name (truncated after 16 characters) generating the event (task->comm). Truncation is determined by kernel settings and not by Falco. This field is collected from the syscalls args or, as a fallback, extracted from /proc/PID/status. The name of the process and the name of the executable file on disk (if applicable) can be different if a process is given a custom name which is often the case for example for java applications.|
+|proc.pname|The proc.name truncated after 16 characters) of the process generating the event.|
+|proc.aname|The proc.name (truncated after 16 characters) for a specific process ancestor. You can access different levels of ancestors by using indices. For example, proc.aname[1] retrieves the proc.name of the parent process, proc.aname[2] retrieves the proc.name of the grandparent process, and so on. The current process's proc.name line can be obtained using proc.aname[0]. When used without any arguments, proc.aname is applicable only in filters and matches any of the process ancestors. For instance, you can use `proc.aname=bash` to match any process ancestor whose name is `bash`.|
+|proc.args|The arguments passed on the command line when starting the process generating the event excluding argv[0] (truncated after 4096 bytes). This field is collected from the syscalls args or, as a fallback, extracted from /proc/PID/cmdline.|
+|proc.cmdline|The concatenation of `proc.name + proc.args` (truncated after 4096 bytes) when starting the process generating the event.|
+|proc.pcmdline|The proc.cmdline (full command line (proc.name + proc.args)) of the parent of the process generating the event.|
+|proc.acmdline|The full command line (proc.name + proc.args) for a specific process ancestor. You can access different levels of ancestors by using indices. For example, proc.acmdline[1] retrieves the full command line of the parent process, proc.acmdline[2] retrieves the proc.cmdline of the grandparent process, and so on. The current process's full command line can be obtained using proc.acmdline[0]. When used without any arguments, proc.acmdline is applicable only in filters and matches any of the process ancestors. For instance, you can use `proc.acmdline contains base64` to match any process ancestor whose command line contains the term base64.|
+|proc.cmdnargs|The number of command line args (proc.args).|
+|proc.cmdlenargs|The total count of characters / length of the command line args (proc.args) combined excluding whitespaces between args.|
+|proc.exeline|The full command line, with exe as first argument (proc.exe + proc.args) when starting the process generating the event.|
+|proc.env|The environment variables of the process generating the event as concatenated string 'ENV_NAME=value ENV_NAME1=value1'. Can also be used to extract the value of a known env variable, e.g. proc.env[ENV_NAME].|
+|proc.cwd|The current working directory of the event.|
+|proc.tty|The controlling terminal of the process. 0 for processes without a terminal.|
+|proc.pid|The id of the process generating the event.|
+|proc.ppid|The pid of the parent of the process generating the event.|
+|proc.apid|The pid for a specific process ancestor. You can access different levels of ancestors by using indices. For example, proc.apid[1] retrieves the pid of the parent process, proc.apid[2] retrieves the pid of the grandparent process, and so on. The current process's pid can be obtained using proc.apid[0]. When used without any arguments, proc.apid is applicable only in filters and matches any of the process ancestors. For instance, you can use `proc.apid=1337` to match any process ancestor whose pid is equal to 1337.|
+|proc.vpid|The id of the process generating the event as seen from its current PID namespace.|
+|proc.pvpid|The id of the parent process generating the event as seen from its current PID namespace.|
+|proc.sid|The session id of the process generating the event.|
+|proc.sname|The name of the current process's session leader. This is either the process with pid=proc.sid or the eldest ancestor that has the same sid as the current process.|
+|proc.sid.exe|The first command line argument argv[0] (usually the executable name or a custom one) of the current process's session leader. This is either the process with pid=proc.sid or the eldest ancestor that has the same sid as the current process.|
+|proc.sid.exepath|The full executable path of the current process's session leader. This is either the process with pid=proc.sid or the eldest ancestor that has the same sid as the current process.|
+|proc.vpgid|The process group id of the process generating the event, as seen from its current PID namespace.|
+|proc.vpgid.name|The name of the current process's process group leader. This is either the process with proc.vpgid == proc.vpid or the eldest ancestor that has the same vpgid as the current process. The description of `proc.is_vpgid_leader` offers additional insights.|
+|proc.vpgid.exe|The first command line argument argv[0] (usually the executable name or a custom one) of the current process's process group leader. This is either the process with proc.vpgid == proc.vpid or the eldest ancestor that has the same vpgid as the current process. The description of `proc.is_vpgid_leader` offers additional insights.|
+|proc.vpgid.exepath|The full executable path of the current process's process group leader. This is either the process with proc.vpgid == proc.vpid or the eldest ancestor that has the same vpgid as the current process. The description of `proc.is_vpgid_leader` offers additional insights.|
+|proc.is_exe_writable|'true' if this process' executable file is writable by the same user that spawned the process.|
+|proc.is_exe_upper_layer|'true' if this process' executable file is in upper layer in overlayfs. This field value can only be trusted if the underlying kernel version is greater or equal than 3.18.0, since overlayfs was introduced at that time.|
+|proc.is_exe_from_memfd|'true' if the executable file of the current process is an anonymous file created using memfd_create() and is being executed by referencing its file descriptor (fd). This type of file exists only in memory and not on disk. Relevant to detect malicious in-memory code injection. Requires kernel version greater or equal to 3.17.0.|
+|proc.is_sid_leader|'true' if this process is the leader of the process session, proc.sid == proc.vpid. For host processes vpid reflects pid.|
+|proc.is_vpgid_leader|'true' if this process is the leader of the virtual process group, proc.vpgid == proc.vpid. For host processes vpgid and vpid reflect pgid and pid. Can help to distinguish if the process was 'directly' executed for instance in a tty (similar to bash history logging, `is_vpgid_leader` would be 'true') or executed as descendent process in the same process group which for example is the case when subprocesses are spawned from a script (`is_vpgid_leader` would be 'false').|
+|proc.exe_ino|The inode number of the executable file on disk. Can be correlated with fd.ino.|
+|proc.exe_ino.ctime|Last status change time of executable file (inode->ctime) as epoch timestamp in nanoseconds. Time is changed by writing or by setting inode information e.g. owner, group, link count, mode etc.|
+|proc.exe_ino.mtime|Last modification time of executable file (inode->mtime) as epoch timestamp in nanoseconds. Time is changed by file modifications, e.g. by mknod, truncate, utime, write of more than zero bytes etc. For tracking changes in owner, group, link count or mode, use proc.exe_ino.ctime instead.|
+|container.id|The truncated container ID (first 12 characters), e.g. 3ad7b26ded6d is extracted from the Linux cgroups by Falco within the kernel. Consequently, this field is reliably available and serves as the lookup key for Falco's synchronous or asynchronous requests against the container runtime socket to retrieve all other `'container.*'` information. One important aspect to be aware of is that if the process occurs on the host, meaning not in the container PID namespace, this field is set to a string called 'host'. In Kubernetes, pod sandbox container processes can exist where `container.id` matches `k8s.pod.sandbox_id`, lacking other 'container.*' details.|
+|fd.num|the unique number identifying the file descriptor.|
+|fd.name|FD full name. If the fd is a file, this field contains the full path. If the FD is a socket, this field contain the connection tuple.|
+|fd.directory|If the fd is a file, the directory that contains it.|
+|fd.filename|If the fd is a file, the filename without the path.|
+|fd.dev|device number (major/minor) containing the referenced file|
+|fd.ino|inode number of the referenced file|
+|fd.nameraw|FD full name raw. Just like fd.name, but only used if fd is a file path. File path is kept raw with limited sanitization and without deriving the absolute path.|
+|custom.proc.aname.lineage.join|[Incubating] String concatenate the process lineage to achieve better performance. It requires an argument to specify the maximum level of traversal, e.g. 'custom.proc.aname.lineage.join[7]'. This is a custom plugin specific field for the anomaly behavior profiles only. It may be dperecated in the future.|
+|custom.proc.aexe.lineage.join|[Incubating] String concatenate the process lineage to achieve better performance. It requires an argument to specify the maximum level of traversal, e.g. 'custom.proc.aexe.lineage.join[7]'. This is a custom plugin specific field for the anomaly behavior profiles only. It may be dperecated in the future.|
+|custom.proc.aexepath.lineage.join|[Incubating] String concatenate the process lineage to achieve better performance. It requires an argument to specify the maximum level of traversal, e.g. 'custom.proc.aexepath.lineage.join[7]'. This is a custom plugin specific field for the anomaly behavior profiles only. It may be dperecated in the future.|
+|custom.fd.name.part1|[Incubating] For fd related network events only. Part 1 as string of the ip tuple in the format 'ip:port', e.g '172.40.111.222:54321' given fd.name '172.40.111.222:54321->142.251.111.147:443'. It may be dperecated in the future.|
+|custom.fd.name.part2|[Incubating] For fd related network events only. Part 2 as string of the ip tuple in the format 'ip:port', e.g.'142.251.111.147:443' given fd.name '172.40.111.222:54321->142.251.111.147:443'. This is a custom plugin specific field for the anomaly behavior profiles only. It may be dperecated in the future.|
