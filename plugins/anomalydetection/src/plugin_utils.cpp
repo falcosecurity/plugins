@@ -19,6 +19,7 @@ limitations under the License.
 
 #define SCAP_MAX_PATH_SIZE 1024
 
+// Copied from falcosecurity/libs and adjusted w/ EPF_ANOMALY_PLUGIN flag and extended via adding custom fields
 static const filtercheck_field_info sinsp_filter_check_fields[] =
 {
 	{PT_CHARBUF, EPF_ANOMALY_PLUGIN | EPF_NONE, PF_NA, "proc.exe", "First Argument", "The first command-line argument (i.e., argv[0]), typically the executable name or a custom string as specified by the user. It is primarily obtained from syscall arguments, truncated after 4096 bytes, or, as a fallback, by reading /proc/PID/cmdline, in which case it may be truncated after 1024 bytes. This field may differ from the last component of proc.exepath, reflecting how command invocation and execution paths can vary."},
@@ -186,7 +187,7 @@ static const filtercheck_field_info sinsp_filter_check_fields[] =
 namespace plugin_anomalydetection::utils
 {
 
-// Adopter from libs, custom hand-rolled for performance reasons
+// Adopted from falcosecurity/libs, custom hand-rolled for performance reasons
 static inline void rewind_to_parent_path(const char* targetbase, char** tc, const char** pc, uint32_t delta)
 {
 	if(*tc <= targetbase + 1)
@@ -205,7 +206,7 @@ static inline void rewind_to_parent_path(const char* targetbase, char** tc, cons
 	(*pc) += delta;
 }
 
-// Adopter from libs
+// Adopted from falcosecurity/libs
 struct g_invalidchar
 {
 	bool operator()(char c) const
@@ -216,7 +217,7 @@ struct g_invalidchar
 	}
 };
 
-// Adopter from libs, custom hand-rolled for performance reasons
+// Adopted from falcosecurity/libs, custom hand-rolled for performance reasons
 static inline void copy_and_sanitize_path(char* target, char* targetbase, const char *path, char separator)
 {
 	char* tc = target;
@@ -332,7 +333,28 @@ static inline void copy_and_sanitize_path(char* target, char* targetbase, const 
 	}
 }
 
-// Adopter from libs, custom hand-rolled for performance reasons
+// Adopted from falcosecurity/libs
+#ifndef HAVE_STRLCPY
+static inline size_t strlcpy(char *dst, const char *src, size_t size) {
+    size_t srcsize = strlen(src);
+    if (size == 0) {
+        return srcsize;
+    }
+
+    size_t copysize = srcsize;
+
+    if (copysize > size - 1) {
+        copysize = size - 1;
+    }
+
+    memcpy(dst, src, copysize);
+    dst[copysize] = '\0';
+
+    return srcsize;
+}
+#endif
+
+// Adopted from falcosecurity/libs, custom hand-rolled for performance reasons
 static inline bool concatenate_paths_(char* target, uint32_t targetlen, const char* path1, uint32_t len1,
 				      const char* path2, uint32_t len2)
 {
@@ -356,7 +378,7 @@ static inline bool concatenate_paths_(char* target, uint32_t targetlen, const ch
 	}
 }
 
-// Adopter from libs, custom hand-rolled for performance reasons
+// Adopted from falcosecurity/libs, custom hand-rolled for performance reasons
 std::string concatenate_paths(std::string_view path1, std::string_view path2)
 {
 	char fullpath[SCAP_MAX_PATH_SIZE];

@@ -16,7 +16,7 @@ limitations under the License.
 
 */
 
-// Below adopted 1:1 from libs repo for this plugin
+// Below adopted 1:1 from falcosecurity/libs repo for this plugin
 
 #pragma once
 

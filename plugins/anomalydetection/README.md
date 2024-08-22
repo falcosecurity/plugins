@@ -59,8 +59,8 @@ Here is the current set of output / filter fields introduced by this plugin:
 <!-- README-PLUGIN-FIELDS -->
 |       NAME        |   TYPE   |       ARG       |                               DESCRIPTION                               |
 |-------------------|----------|-----------------|-------------------------------------------------------------------------|
-| `anomaly.count_min_sketch` | `uint64` | Key, Optional | Count Min Sketch Estimate according to the specified behavior profile for a predefined set of {syscalls} events. Access different behavior profiles/sketches using indices. For instance, anomaly.count_min_sketch[0] retrieves the first behavior profile defined in the plugins' `init_config`. |
-| `anomaly.count_min_sketch.profile` | `string` | Key, Optional | Concatenated string according to the specified behavior profile (not preserving original order). Access different behavior profiles using indices. For instance, anomaly.count_min_sketch.profile[0] retrieves the first behavior profile defined in the plugins' `init_config`. |
+| `anomaly.count_min_sketch` | `uint64` | Key, Optional | Count Min Sketch Estimate according to the specified behavior profile for a predefined set of {syscalls} events. Access different behavior profiles/sketches using indices. For instance, anomaly.count_min_sketch[0] retrieves the first behavior profile defined in the plugins' `init_config`. When you disable the count_min_sketch algorithm, the field will be null. Be aware of the limitations when creating "fd-related" behavior profiles, and refer to the documentation for more details. |
+| `anomaly.count_min_sketch.profile` | `string` | Key, Optional | Concatenated string according to the specified behavior profile (not preserving original order). Access different behavior profiles using indices. For instance, anomaly.count_min_sketch.profile[0] retrieves the first behavior profile defined in the plugins' `init_config`. When you disable the count_min_sketch algorithm, the field will be null. Be aware of the limitations when creating "fd-related" behavior profiles, and refer to the documentation for more details. |
 | `anomaly.falco.duration_ns` | `uint64` | No Arg | Falco agent run duration in nanoseconds, which could be useful for ignoring some rare events at launch time while Falco is just starting to build up the counts in the sketch data structures (if applicable). |
 <!-- /README-PLUGIN-FIELDS -->
 
@@ -92,10 +92,7 @@ plugins:
           {
             "fields": "%container.id %custom.proc.aname.lineage.join[7] %custom.proc.aexepath.lineage.join[7] %proc.tty %proc.vpgid.name %proc.sname",
             # execve, execveat exit event codes
-            "event_codes": [293, 331],
-            # optional config `reset_timer_ms`, resets the data structure every x milliseconds, here one hour as example
-            # Remove JSON key if not wanted / needed.
-            "reset_timer_ms": 3600000
+            "event_codes": [293, 331]
           },
           {
             "fields": "%container.id %custom.proc.aname.lineage.join[7] %custom.proc.aexepath.lineage.join[7] %proc.tty %proc.vpgid.name %proc.sname %fd.name %fd.nameraw",
@@ -105,7 +102,10 @@ plugins:
           {
             "fields": "%container.id %proc.cmdline",
             # execve, execveat exit event codes
-            "event_codes": [293, 331]
+            "event_codes": [293, 331],
+            # optional config `reset_timer_ms`, resets the data structure every x milliseconds, here one hour as example
+            # Remove JSON key if not wanted / needed.
+            "reset_timer_ms": 3600000
           }
         ]
 
@@ -114,7 +114,16 @@ load_plugins: [anomalydetection]
 
 The first version is quite restrictive with respect to the behavior profile's `event_codes` and `fields`. In a nutshell, you can currently define them only for a handful of event codes that Falco supports and a subset of the [Supported Fields for Conditions and Outputs](https://falco.org/docs/reference/rules/supported-fields/).
 
-**Behavior profiles for "execve*/clone*" events**
+When you disable the `count_min_sketch` algorithm as shown below, all `anomaly.count_min_sketch` fields will be null.
+
+```
+count_min_sketch:
+        enabled: false
+```
+
+__NOTE__: Do not toggle the `enabled` key while hot reloading the config, as it currently does not get properly applied in such cases. Restart Falco with the `count_min_sketch` either enabled or disabled; subsequent reloads will work as expected.
+
+**Behavior profiles for "execve/execveat/clone/clone3" events**
 
 Example 1:
 ``` 
@@ -126,7 +135,7 @@ Example 2:
 "event_codes": [223, 335],
 ```
 
-You can reference a behavior profile based on "execve*/clone*" events in any Falco rule that monitors any supported syscall. This works because every syscall is associated with a process.
+You can reference a behavior profile based on "execve/execveat/clone/clone3" events in any Falco rule that monitors any supported syscall. This works because every syscall is associated with a process.
 
 **Behavior profiles for "fd-related" events**
 
@@ -192,9 +201,15 @@ Lastly, keep in mind that there is a configuration to reset the counts per behav
 ### Running
 
 This plugin requires Falco with version >= **0.38.2**.
-Modify the `falco.yaml` with the provided [configuration](#configuration) above and you are ready to go!
+
+1. Have Falco >= **0.38.2** installed and set up
+2. Download the plugin's shared object (or build it yourself; see instructions below) and place it under `/usr/share/falco/plugins/libanomalydetection.so`
+3. Modify the `falco.yaml` with the provided example [configuration](#configuration) above
+4. Add a rule that uses `anomaly.count_min_sketch` as an output field and/or filter to `falco_rules.yaml`, and you're ready to go!
+
 
 ```shell
+# Read the steps above before running Falco with this plugin
 sudo falco -c falco.yaml -r falco_rules.yaml
 ```
 
@@ -220,6 +235,8 @@ sudo cp -f libanomalydetection.so /usr/share/falco/plugins/libanomalydetection.s
 
 Read this [blog post](https://falco.org/blog/adaptive-syscalls-selection/) to learn more about Falco's internal PPME event codes compared to the syscall names you are used to using in Falco rules.
 
+The list below is complete, and no other event codes from Falco can be used for the behavior profiles at the moment. The binary will error out if used incorrectly. Thank you for your patience.
+
 ```CPP
 typedef enum {
 	PPME_SYSCALL_OPEN_X = 3, // compare to "(evt.type=open and evt.dir=<)" in a Falco rule
@@ -240,6 +257,8 @@ typedef enum {
 ### Behavior Profiles fields
 
 Compare to [Supported Fields for Conditions and Outputs](https://falco.org/docs/reference/rules/supported-fields/).
+
+The list below is complete, and no other fields from Falco can be used for the behavior profiles at the moment. The binary will error out if used incorrectly. Thank you for your patience.
 
 | Supported Behavior Profile Field | Description |
 | --- | --- |
