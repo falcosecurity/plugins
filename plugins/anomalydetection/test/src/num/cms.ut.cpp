@@ -72,7 +72,7 @@ TEST_F(sinsp_with_test_input, plugin_anomalydetection_filterchecks_fields)
     add_default_init_thread();
     open_inspector();
 
-    /* Create realistic spawn_process event, adopted from libs unit test */
+    /* Create realistic spawn_process event, adopted from falcosecurity/libs unit test */
     sinsp_evt* evt = NULL;
     uint64_t parent_pid = 1, parent_tid = 1, child_pid = 20, child_tid = 20, null_pid = 0;
     uint64_t fdlimit = 1024, pgft_maj = 0, pgft_min = 1;
@@ -207,7 +207,7 @@ TEST_F(sinsp_with_test_input, plugin_anomalydetection_filterchecks_fields_fd_nul
     evt = add_event_advance_ts(increasing_ts(), 1, PPME_SYSCALL_OPENAT2_X, 8, new_fd, dirfd, "subdir1//../the_file", 0, 0, 0, 0, ino);
     ASSERT_EQ(get_field_as_string(evt, "fd.num"), "100");
     ASSERT_EQ(get_field_as_string(evt, "fd.name"), "/tmp/subdir1/the_file2/the_file");
-    ASSERT_EQ(get_field_as_string(evt, "fs.path.name"), "/root/the_file"); // todo fix in libs as its wrong
+    ASSERT_EQ(get_field_as_string(evt, "fs.path.name"), "/root/the_file"); // todo fix in falcosecurity/libs as its wrong; ETA falco 0.39.0
     ASSERT_EQ(get_field_as_string(evt, "proc.cwd"), "/root/");
     fdinfo = evt->get_thread_info()->get_fd(new_fd);
     fdinfo->m_name.clear();

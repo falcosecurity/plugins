@@ -34,7 +34,7 @@ typedef struct plugin_sinsp_filterchecks_field
 
 namespace plugin_anomalydetection::utils
 {
-    // Adopter from libs, custom hand-rolled for performance reasons
+    // Adopted from falcosecurity/libs, custom hand-rolled for performance reasons
     std::string concatenate_paths(std::string_view path1, std::string_view path2);
 
     // Temporary workaround; not as robust as libsinsp/eventformatter; 

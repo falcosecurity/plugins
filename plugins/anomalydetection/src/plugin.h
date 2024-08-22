@@ -143,6 +143,10 @@ class anomalydetection
     // Epoch of Falco agent run start, re-creates libs agent_info->start_ts_epoch info
     uint64_t m_falco_start_ts_epoch_ns;
 
+    /* Note: While we have set the stage for supporting multiple algorithms in this plugin, 
+       the class is currently designed with direct members specific to the count_min_sketch use case. 
+       This will be refactored and refined in the future.
+    */
     bool m_count_min_sketch_enabled = false;
     uint32_t m_n_sketches = 0;
     std::vector<std::vector<double>> m_gamma_eps;
@@ -151,7 +155,7 @@ class anomalydetection
     std::vector<std::unordered_set<ppm_event_code>> m_behavior_profiles_event_codes;
     std::vector<uint64_t> m_reset_timers;
 
-    // Plugin managed state table
+    // Plugin managed state table specific to the count_min_sketch use case
     plugin_anomalydetection::Mutex<std::vector<std::shared_ptr<plugin::anomalydetection::num::cms<uint64_t>>>> m_count_min_sketches;
 
     // required; standard plugin API
@@ -178,9 +182,9 @@ class anomalydetection
     falcosecurity::table_field m_exe_ino;
     falcosecurity::table_field m_exe_ino_ctime;
     falcosecurity::table_field m_exe_ino_mtime; 
-    // falcosecurity::table_field m_cap_permitted; // todo fix
-    // falcosecurity::table_field m_cap_inheritable; // todo fix
-    // falcosecurity::table_field m_cap_effective; // todo fix
+    // falcosecurity::table_field m_cap_permitted; // todo fix/expose via plugin API
+    // falcosecurity::table_field m_cap_inheritable; // todo fix/expose via plugin API
+    // falcosecurity::table_field m_cap_effective; // todo fix/expose via plugin API
     falcosecurity::table_field m_args_value; ///< Value entry to command line arguments (e.g. "-d1") from the args array
     falcosecurity::table_field m_env_value; ///< Value entry
     falcosecurity::table_field m_group; ///< group infos
@@ -198,9 +202,9 @@ class anomalydetection
     // falcosecurity::table_field m_loginuser; ///< loginuser infos (auid)
 
     /* fd related */
-    // falcosecurity::table_field m_fd_type_value; // todo fix
+    // falcosecurity::table_field m_fd_type_value; // todo fix/expose via plugin API
     falcosecurity::table_field m_fd_openflags_value;
-    // falcosecurity::table_field m_fd_sockinfo_value; // todo fix
+    // falcosecurity::table_field m_fd_sockinfo_value; // todo fix/expose via plugin API
     falcosecurity::table_field m_fd_name_value;
     falcosecurity::table_field m_fd_nameraw_value;
     falcosecurity::table_field m_fd_oldname_value;
@@ -209,13 +213,13 @@ class anomalydetection
     falcosecurity::table_field m_fd_mount_id_value;
     falcosecurity::table_field m_fd_ino_value;
     falcosecurity::table_field m_fd_pid_value;
-    // falcosecurity::table_field m_fd_fd_value; // todo fix
+    // falcosecurity::table_field m_fd_fd_value; // todo fix/expose via plugin API
 
     /* container related */
     falcosecurity::table_field m_container_id; ///< heuristic-based container id
 
     /* Custom write/read fields*/
-    falcosecurity::table_field m_lastevent_fd_field; // todo expose via plugin API
+    falcosecurity::table_field m_lastevent_fd_field; // todo fix/expose via plugin API
 };
 
 // required; standard plugin API

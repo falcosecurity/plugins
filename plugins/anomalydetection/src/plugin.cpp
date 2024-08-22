@@ -122,6 +122,12 @@ falcosecurity::init_schema anomalydetection::get_init_schema()
 
 void anomalydetection::parse_init_config(nlohmann::json& config_json)
 {
+    // Clear in case of config hot reloads
+    m_gamma_eps.clear();
+    m_rows_cols.clear();
+    m_reset_timers.clear();
+    m_behavior_profiles_fields.clear();
+    m_behavior_profiles_event_codes.clear();
     if(config_json.contains(nlohmann::json::json_pointer("/count_min_sketch")))
     {
         if(config_json.contains(nlohmann::json::json_pointer("/count_min_sketch/enabled")))
@@ -130,187 +136,186 @@ void anomalydetection::parse_init_config(nlohmann::json& config_json)
                     .get_to(m_count_min_sketch_enabled);
         }
 
-        // Config JSON schema enforces a minimum of 1 sketches
-        if(config_json.contains(nlohmann::json::json_pointer("/count_min_sketch/n_sketches")))
+        // don't use an early return approach as configs may span beyond count_min_sketch in the future
+        if (m_count_min_sketch_enabled)
         {
-            config_json.at(nlohmann::json::json_pointer("/count_min_sketch/n_sketches"))
-                    .get_to(m_n_sketches);
-        }
-
-        // If used, config JSON schema enforces a minimum of 1 items and 2-d sub-arrays
-        auto gamma_eps_pointer = nlohmann::json::json_pointer("/count_min_sketch/gamma_eps");
-        m_gamma_eps.clear();
-        if (config_json.contains(gamma_eps_pointer) && config_json[gamma_eps_pointer].is_array())
-        {
-            int n = 1;
-            for (const auto& array : config_json[gamma_eps_pointer])
+            // Config JSON schema enforces a minimum of 1 sketches
+            if(config_json.contains(nlohmann::json::json_pointer("/count_min_sketch/n_sketches")))
             {
-                if (array.is_array() && array.size() == 2)
-                {
-                    std::vector<double> sub_array = {array[0].get<double>(), array[1].get<double>()};
-                    log_error("Count min sketch data structure number (" 
-                    + std::to_string(n) + ") loaded with gamma and eps values (" 
-                    + std::to_string(sub_array[0]) + ","
-                    + std::to_string(sub_array[1])
-                    + ") equivalent to sketch dimensions ("
-                    + std::to_string(plugin::anomalydetection::num::cms<uint64_t>::calculate_d_rows_from_gamma(sub_array[0])) + ","
-                    + std::to_string(plugin::anomalydetection::num::cms<uint64_t>::calculate_w_cols_buckets_from_eps(sub_array[1]))
-                    + ") -> adding ("
-                    + std::to_string(plugin::anomalydetection::num::cms<uint64_t>::get_size_bytes(plugin::anomalydetection::num::cms<uint64_t>::calculate_d_rows_from_gamma(sub_array[0]),plugin::anomalydetection::num::cms<uint64_t>::calculate_w_cols_buckets_from_eps(sub_array[1])))
-                    + ") bytes of constant memory allocation on the heap");
-                    m_gamma_eps.emplace_back(sub_array);     
-                }
-                n++;
+                config_json.at(nlohmann::json::json_pointer("/count_min_sketch/n_sketches"))
+                        .get_to(m_n_sketches);
             }
-        }
 
-        // If used, config JSON schema enforces a minimum of 1 items and 2-d sub-arrays
-        auto rows_cols_pointer = nlohmann::json::json_pointer("/count_min_sketch/rows_cols");
-        m_rows_cols.clear();
-        if (config_json.contains(rows_cols_pointer) && config_json[rows_cols_pointer].is_array())
-        {
-            int n = 1;
+            // If used, config JSON schema enforces a minimum of 1 items and 2-d sub-arrays
+            auto gamma_eps_pointer = nlohmann::json::json_pointer("/count_min_sketch/gamma_eps");
             if (config_json.contains(gamma_eps_pointer) && config_json[gamma_eps_pointer].is_array())
             {
-                log_error("[Override Notice] Count min sketch data structures will be overriden with below settings as 'rows_cols' config overrides any previous setting");
-            }
-            for (const auto& array : config_json[rows_cols_pointer])
-            {
-                if (array.is_array() && array.size() == 2)
+                int n = 1;
+                for (const auto& array : config_json[gamma_eps_pointer])
                 {
-                    std::vector<uint64_t> sub_array = {array[0].get<uint64_t>(), array[1].get<uint64_t>()};
-                    log_error("Count min sketch data structure number (" 
-                    + std::to_string(n) + ") loaded with d and w/buckets values (" 
-                    + std::to_string(sub_array[0]) + ","
-                    + std::to_string(sub_array[1])
-                    + ") equivalent to sketch error probability and relative error tolerances ("
-                    + std::to_string(plugin::anomalydetection::num::cms<uint64_t>::calculate_gamma_rows_from_d(sub_array[0])) + ","
-                    + std::to_string(plugin::anomalydetection::num::cms<uint64_t>::calculate_eps_cols_buckets_from_w(sub_array[1]))
-                    + ") -> adding ("
-                    + std::to_string(plugin::anomalydetection::num::cms<uint64_t>::get_size_bytes(sub_array[0],sub_array[1]))
-                    + ") bytes of constant memory allocation on the heap");
-                    m_rows_cols.emplace_back(sub_array);
-                }
-                n++;
-            }
-        }
-
-        // Config JSON schema enforces a minimum of 1 item
-        auto behavior_profiles_pointer = nlohmann::json::json_pointer("/count_min_sketch/behavior_profiles");
-        if (config_json.contains(behavior_profiles_pointer) && config_json[behavior_profiles_pointer].is_array())
-        {
-            const auto& behavior_profiles = config_json[behavior_profiles_pointer];
-            const std::vector<ppm_event_code> supported_codes_fd_profile = {
-                PPME_SYSCALL_OPEN_X,
-                PPME_SOCKET_ACCEPT_5_X,
-                PPME_SOCKET_ACCEPT4_6_X,
-                PPME_SYSCALL_CREAT_X,
-                PPME_SOCKET_CONNECT_X,
-                PPME_SYSCALL_OPENAT_2_X,
-                PPME_SYSCALL_OPENAT2_X,
-                PPME_SYSCALL_OPEN_BY_HANDLE_AT_X
-            };
-            std::vector<ppm_event_code> supported_codes_any_profile = {
-                PPME_SYSCALL_EXECVEAT_X,
-                PPME_SYSCALL_EXECVE_19_X,
-                PPME_SYSCALL_CLONE_20_X,
-                PPME_SYSCALL_CLONE3_X
-            };
-            supported_codes_any_profile.insert(
-                supported_codes_any_profile.end(),
-                supported_codes_fd_profile.begin(),
-                supported_codes_fd_profile.end()
-            );
-            
-            m_reset_timers.clear();
-            m_behavior_profiles_fields.clear();
-            m_behavior_profiles_event_codes.clear();
-            int n = 1;
-            for (const auto& profile : behavior_profiles)
-            {
-                std::vector<plugin_sinsp_filterchecks_field> filter_check_fields;
-                std::unordered_set<ppm_event_code> codes;
-                if (profile.contains("fields") && profile.contains("event_codes"))
-                {
-                    filter_check_fields = plugin_anomalydetection::utils::get_profile_fields(profile["fields"].get<std::string>());
-                    std::ostringstream oss;
-                    bool first_event_code = true;
-                    for (const auto& code : profile["event_codes"])
+                    if (array.is_array() && array.size() == 2)
                     {
-                        codes.insert((ppm_event_code)code.get<uint64_t>());
-                        if (!first_event_code)
-                        {
-                            oss << ",";
-                        }
-                        oss << code;
-                        first_event_code = false;
+                        std::vector<double> sub_array = {array[0].get<double>(), array[1].get<double>()};
+                        log_error("Count min sketch data structure number (" 
+                        + std::to_string(n) + ") loaded with gamma and eps values (" 
+                        + std::to_string(sub_array[0]) + ","
+                        + std::to_string(sub_array[1])
+                        + ") equivalent to sketch dimensions ("
+                        + std::to_string(plugin::anomalydetection::num::cms<uint64_t>::calculate_d_rows_from_gamma(sub_array[0])) + ","
+                        + std::to_string(plugin::anomalydetection::num::cms<uint64_t>::calculate_w_cols_buckets_from_eps(sub_array[1]))
+                        + ") -> adding ("
+                        + std::to_string(plugin::anomalydetection::num::cms<uint64_t>::get_size_bytes(plugin::anomalydetection::num::cms<uint64_t>::calculate_d_rows_from_gamma(sub_array[0]),plugin::anomalydetection::num::cms<uint64_t>::calculate_w_cols_buckets_from_eps(sub_array[1])))
+                        + ") bytes of constant memory allocation on the heap");
+                        m_gamma_eps.emplace_back(sub_array);     
                     }
-                    std::string event_codes_string = oss.str();
-                    log_error("Behavior profile number (" + std::to_string(n) + ") loaded and applied to event_codes (" + event_codes_string + ") with behavior profile fields (" + profile["fields"].get<std::string>() + ")");
+                    n++;
+                }
+            }
 
-                    /* Some rudimentary initial checks to ensure profiles with %fd fields are applied on fd related events only */
-                    if (profile["fields"].get<std::string>().find("%fd") != std::string::npos)
+            // If used, config JSON schema enforces a minimum of 1 items and 2-d sub-arrays
+            auto rows_cols_pointer = nlohmann::json::json_pointer("/count_min_sketch/rows_cols");
+            if (config_json.contains(rows_cols_pointer) && config_json[rows_cols_pointer].is_array())
+            {
+                int n = 1;
+                if (config_json.contains(gamma_eps_pointer) && config_json[gamma_eps_pointer].is_array())
+                {
+                    log_error("[Override Notice] Count min sketch data structures will be overriden with below settings as 'rows_cols' config overrides any previous setting");
+                }
+                for (const auto& array : config_json[rows_cols_pointer])
+                {
+                    if (array.is_array() && array.size() == 2)
                     {
+                        std::vector<uint64_t> sub_array = {array[0].get<uint64_t>(), array[1].get<uint64_t>()};
+                        log_error("Count min sketch data structure number (" 
+                        + std::to_string(n) + ") loaded with d and w/buckets values (" 
+                        + std::to_string(sub_array[0]) + ","
+                        + std::to_string(sub_array[1])
+                        + ") equivalent to sketch error probability and relative error tolerances ("
+                        + std::to_string(plugin::anomalydetection::num::cms<uint64_t>::calculate_gamma_rows_from_d(sub_array[0])) + ","
+                        + std::to_string(plugin::anomalydetection::num::cms<uint64_t>::calculate_eps_cols_buckets_from_w(sub_array[1]))
+                        + ") -> adding ("
+                        + std::to_string(plugin::anomalydetection::num::cms<uint64_t>::get_size_bytes(sub_array[0],sub_array[1]))
+                        + ") bytes of constant memory allocation on the heap");
+                        m_rows_cols.emplace_back(sub_array);
+                    }
+                    n++;
+                }
+            }
+
+            // Config JSON schema enforces a minimum of 1 item
+            auto behavior_profiles_pointer = nlohmann::json::json_pointer("/count_min_sketch/behavior_profiles");
+            if (config_json.contains(behavior_profiles_pointer) && config_json[behavior_profiles_pointer].is_array())
+            {
+                const auto& behavior_profiles = config_json[behavior_profiles_pointer];
+                const std::vector<ppm_event_code> supported_codes_fd_profile = {
+                    PPME_SYSCALL_OPEN_X,
+                    PPME_SOCKET_ACCEPT_5_X,
+                    PPME_SOCKET_ACCEPT4_6_X,
+                    PPME_SYSCALL_CREAT_X,
+                    PPME_SOCKET_CONNECT_X,
+                    PPME_SYSCALL_OPENAT_2_X,
+                    PPME_SYSCALL_OPENAT2_X,
+                    PPME_SYSCALL_OPEN_BY_HANDLE_AT_X
+                };
+                std::vector<ppm_event_code> supported_codes_any_profile = {
+                    PPME_SYSCALL_EXECVEAT_X,
+                    PPME_SYSCALL_EXECVE_19_X,
+                    PPME_SYSCALL_CLONE_20_X,
+                    PPME_SYSCALL_CLONE3_X
+                };
+                supported_codes_any_profile.insert(
+                    supported_codes_any_profile.end(),
+                    supported_codes_fd_profile.begin(),
+                    supported_codes_fd_profile.end()
+                );
+
+                int n = 1;
+                for (const auto& profile : behavior_profiles)
+                {
+                    std::vector<plugin_sinsp_filterchecks_field> filter_check_fields;
+                    std::unordered_set<ppm_event_code> codes;
+                    if (profile.contains("fields") && profile.contains("event_codes"))
+                    {
+                        filter_check_fields = plugin_anomalydetection::utils::get_profile_fields(profile["fields"].get<std::string>());
+                        std::ostringstream oss;
+                        bool first_event_code = true;
+                        for (const auto& code : profile["event_codes"])
+                        {
+                            codes.insert((ppm_event_code)code.get<uint64_t>());
+                            if (!first_event_code)
+                            {
+                                oss << ",";
+                            }
+                            oss << code;
+                            first_event_code = false;
+                        }
+                        std::string event_codes_string = oss.str();
+                        log_error("Behavior profile number (" + std::to_string(n) + ") loaded and applied to event_codes (" + event_codes_string + ") with behavior profile fields (" + profile["fields"].get<std::string>() + ")");
+
+                        /* Some rudimentary initial checks to ensure profiles with %fd fields are applied on fd related events only */
+                        if (profile["fields"].get<std::string>().find("%fd") != std::string::npos)
+                        {
+                            for (const auto& code : codes)
+                            {
+                                if (std::find(supported_codes_fd_profile.begin(), supported_codes_fd_profile.end(), code) == supported_codes_fd_profile.end())
+                                {
+                                    log_error("The above behavior profile contains '%fd' related fields but includes non fd related event codes such as code (" + std::to_string(code) + "), which is not allowed. Please refer to the docs for assistance, exiting...");
+                                    exit(1);
+                                }
+                            }
+                        }
+                        /* Some rudimentary checks to generally limit the event codes to a subset of supported event codes. */
                         for (const auto& code : codes)
                         {
-                            if (std::find(supported_codes_fd_profile.begin(), supported_codes_fd_profile.end(), code) == supported_codes_fd_profile.end())
+                            if (std::find(supported_codes_any_profile.begin(), supported_codes_any_profile.end(), code) == supported_codes_any_profile.end())
                             {
-                                log_error("The above behavior profile contains '%fd' related fields but includes non fd related event codes such as code (" + std::to_string(code) + "), which is not allowed. Please refer to the docs for assistance, exiting...");
+                                log_error("The above behavior profile contains event codes such as code (" + std::to_string(code) + ") that are currently not at all allowed for behavior profiles. Please refer to the docs for assistance, exiting...");
                                 exit(1);
                             }
                         }
                     }
-                    /* Some rudimentary checks to generally limit the event codes to a subset of supported event codes. */
-                    for (const auto& code : codes)
+                    if (profile.contains("reset_timer_ms"))
                     {
-                        if (std::find(supported_codes_any_profile.begin(), supported_codes_any_profile.end(), code) == supported_codes_any_profile.end())
+                        uint64_t interval = profile["reset_timer_ms"].get<uint64_t>();
+                        if (interval > 100)
                         {
-                            log_error("The above behavior profile contains event codes such as code (" + std::to_string(code) + ") that are currently not at all allowed for behavior profiles. Please refer to the docs for assistance, exiting...");
-                            exit(1);
+                            m_reset_timers.emplace_back(interval);
+                        } else
+                        {
+                            m_reset_timers.emplace_back(uint64_t(0));
                         }
-                    }
-                }
-                if (profile.contains("reset_timer_ms"))
-                {
-                    uint64_t interval = profile["reset_timer_ms"].get<uint64_t>();
-                    if (interval > 100)
-                    {
-                        m_reset_timers.emplace_back(interval);
+                        log_error("Behavior profile number (" + std::to_string(n) + ") resets the counts to zero every (" + std::to_string(interval) + ") ms");
                     } else
                     {
                         m_reset_timers.emplace_back(uint64_t(0));
                     }
-                    log_error("Behavior profile number (" + std::to_string(n) + ") resets the counts to zero every (" + std::to_string(interval) + ") ms");
-                } else
-                {
-                    m_reset_timers.emplace_back(uint64_t(0));
+                    m_behavior_profiles_fields.emplace_back(filter_check_fields);
+                    m_behavior_profiles_event_codes.emplace_back(std::move(codes));
+                    n++;
                 }
-                m_behavior_profiles_fields.emplace_back(filter_check_fields);
-                m_behavior_profiles_event_codes.emplace_back(std::move(codes));
-                n++;
             }
-        }
 
-        // Check correlated conditions that can't be directly enforced by the config JSON schema
-        if (!m_gamma_eps.empty() && m_n_sketches != m_gamma_eps.size())
-        {
-            log_error("Config gamma_eps needs to match the specified number of sketches");
-            assert(false);
-        }
-        if (!m_rows_cols.empty() && m_n_sketches != m_rows_cols.size())
-        {
-            log_error("Config rows_cols needs to match the specified number of sketches");
-            assert(false);
-        }
-        if (m_n_sketches != m_behavior_profiles_fields.size())
-        {
-            log_error("Config behavior_profiles needs to match the specified number of sketches");
-            assert(false);
-        }
-        if (m_n_sketches != m_behavior_profiles_event_codes.size())
-        {
-            log_error("Config behavior_profiles needs to match the specified number of sketches");
-            assert(false);
+            // Check correlated conditions that can't be directly enforced by the config JSON schema
+            if (!m_gamma_eps.empty() && m_n_sketches != m_gamma_eps.size())
+            {
+                log_error("Config gamma_eps needs to match the specified number of sketches");
+                assert(false);
+            }
+            if (!m_rows_cols.empty() && m_n_sketches != m_rows_cols.size())
+            {
+                log_error("Config rows_cols needs to match the specified number of sketches");
+                assert(false);
+            }
+            if (m_n_sketches != m_behavior_profiles_fields.size())
+            {
+                log_error("Config behavior_profiles needs to match the specified number of sketches");
+                assert(false);
+            }
+            if (m_n_sketches != m_behavior_profiles_event_codes.size())
+            {
+                log_error("Config behavior_profiles needs to match the specified number of sketches");
+                assert(false);
+            }
         }
     }
 }
@@ -374,9 +379,9 @@ bool anomalydetection::init(falcosecurity::init_input& in)
         // m_group = m_thread_table.get_field(t.fields(), "group", TBD);
 
         /* fd related */
-        // m_fd_type_value = t.get_subtable_field(m_thread_table, m_fds, "type", st::SS_PLUGIN_ST_UINT32); // todo fix, likely type issue given its of type scap_fd_type
+        // m_fd_type_value = t.get_subtable_field(m_thread_table, m_fds, "type", st::SS_PLUGIN_ST_UINT32); // todo fix/expose via plugin API, likely type issue given its of type scap_fd_type
         m_fd_openflags_value = t.get_subtable_field(m_thread_table, m_fds, "open_flags", st::SS_PLUGIN_ST_UINT32);
-        // m_fd_sockinfo_value = t.get_subtable_field(m_thread_table, m_fds, "sock_info", st::SS_PLUGIN_ST_UINT32); // todo fix, likely type issue given its of type sinsp_sockinfo
+        // m_fd_sockinfo_value = t.get_subtable_field(m_thread_table, m_fds, "sock_info", st::SS_PLUGIN_ST_UINT32); // todo fix/expose via plugin API, likely type issue given its of type sinsp_sockinfo
         m_fd_name_value = t.get_subtable_field(m_thread_table, m_fds, "name", st::SS_PLUGIN_ST_STRING);
         m_fd_nameraw_value = t.get_subtable_field(m_thread_table, m_fds, "name_raw", st::SS_PLUGIN_ST_STRING);
         m_fd_oldname_value = t.get_subtable_field(m_thread_table, m_fds, "old_name", st::SS_PLUGIN_ST_STRING);
@@ -404,43 +409,47 @@ bool anomalydetection::init(falcosecurity::init_input& in)
     // Init sketches
     ////////////////////
 
+    // More custom inits
+    struct stat st_ = {0};
+    if(stat("/proc/self/cmdline", &st_) == 0)
+    {
+        m_falco_start_ts_epoch_ns = st_.st_ctim.tv_sec * SECOND_TO_NS + st_.st_ctim.tv_nsec;
+    }
+
     // Init the plugin managed state table holding the count min sketch estimates for each behavior profile
     m_thread_manager.stop_threads(); // Important for reloading configs conditions
     m_count_min_sketches.lock()->clear();
-    if (m_rows_cols.size() == m_n_sketches)
+
+    if (m_count_min_sketch_enabled)
     {
+        if (m_rows_cols.size() == m_n_sketches)
+        {
+            for (uint32_t i = 0; i < m_n_sketches; ++i)
+            {
+                uint64_t rows = m_rows_cols[i][0];
+                uint64_t cols = m_rows_cols[i][1];
+                m_count_min_sketches.lock()->push_back(std::make_shared<plugin::anomalydetection::num::cms<uint64_t>>(rows, cols));
+            }
+        } else if (m_gamma_eps.size() == m_n_sketches && m_rows_cols.empty())
+        {
+            for (uint32_t i = 0; i < m_n_sketches; ++i)
+            {
+                double gamma = m_gamma_eps[i][0];
+                double eps = m_gamma_eps[i][1];
+                m_count_min_sketches.lock()->push_back(std::make_shared<plugin::anomalydetection::num::cms<uint64_t>>(gamma, eps));
+            }
+        } else
+        {
+            return false;
+        }
+
+        // Launch threads to periodically reset the data structures (if applicable)
+        m_thread_manager.m_stop_requested = false;
         for (uint32_t i = 0; i < m_n_sketches; ++i)
         {
-            uint64_t rows = m_rows_cols[i][0];
-            uint64_t cols = m_rows_cols[i][1];
-            m_count_min_sketches.lock()->push_back(std::make_shared<plugin::anomalydetection::num::cms<uint64_t>>(rows, cols));
+            m_thread_manager.start_periodic_count_min_sketch_reset_worker<uint64_t>(i, (uint64_t)m_reset_timers[i], m_count_min_sketches);
         }
-    } else if (m_gamma_eps.size() == m_n_sketches && m_rows_cols.empty())
-    {
-        for (uint32_t i = 0; i < m_n_sketches; ++i)
-        {
-            double gamma = m_gamma_eps[i][0];
-            double eps = m_gamma_eps[i][1];
-            m_count_min_sketches.lock()->push_back(std::make_shared<plugin::anomalydetection::num::cms<uint64_t>>(gamma, eps));
-        }
-    } else
-    {
-        return false;
     }
-
-    // Launch threads to periodically reset the data structures (if applicable)
-    m_thread_manager.m_stop_requested = false;
-    for (uint32_t i = 0; i < m_n_sketches; ++i)
-    {
-        m_thread_manager.start_periodic_count_min_sketch_reset_worker<uint64_t>(i, (uint64_t)m_reset_timers[i], m_count_min_sketches);
-    }
-
-    // More custom inits
-    struct stat st_ = {0};
-	if(stat("/proc/self/cmdline", &st_) == 0)
-	{
-		m_falco_start_ts_epoch_ns = st_.st_ctim.tv_sec * SECOND_TO_NS + st_.st_ctim.tv_nsec;
-	}
 
     return true;
 }
@@ -488,30 +497,53 @@ bool anomalydetection::extract(const falcosecurity::extract_fields_input& in)
     auto& req = in.get_extract_request();
     auto& tr = in.get_table_reader();
     auto& evt = in.get_event_reader();
-    int64_t thread_id = evt.get_tid();
-    uint64_t count_min_sketch_estimate = 0;
-    std::string behavior_profile_concat_str;
-    auto index = req.get_arg_index();
-    if(index >= m_n_sketches)
-    {
-        m_lasterr = "sketch index out of bounds";
-        return false;
-    }
     switch(req.get_field_id())
     {
     case ANOMALYDETECTION_COUNT_MIN_SKETCH_COUNT:
-        if(extract_filterchecks_concat_profile(evt, tr, m_behavior_profiles_fields[index], behavior_profile_concat_str))
         {
-            count_min_sketch_estimate = m_count_min_sketches.lock()->at(index).get()->estimate(behavior_profile_concat_str);
-            req.set_value(count_min_sketch_estimate, true);
+            int64_t thread_id = evt.get_tid();
+            uint64_t count_min_sketch_estimate = 0;
+            std::string behavior_profile_concat_str;
+            auto index = req.get_arg_index();
+            if(!m_count_min_sketch_enabled)
+            {
+                m_lasterr = "count_min_sketch disabled, but `anomaly.count_min_sketch` field referenced";
+                return false;
+            }
+            if(index >= m_n_sketches)
+            {
+                m_lasterr = "sketch index out of bounds";
+                return false;
+            }
+            if(extract_filterchecks_concat_profile(evt, tr, m_behavior_profiles_fields[index], behavior_profile_concat_str))
+            {
+                count_min_sketch_estimate = m_count_min_sketches.lock()->at(index).get()->estimate(behavior_profile_concat_str);
+                req.set_value(count_min_sketch_estimate, true);
+            }
+            return true;
         }
-        return true;
     case ANOMALYDETECTION_COUNT_MIN_SKETCH_BEHAVIOR_PROFILE_CONCAT_STR:
-        if(extract_filterchecks_concat_profile(evt, tr, m_behavior_profiles_fields[index], behavior_profile_concat_str))
         {
-            req.set_value(behavior_profile_concat_str, true);
-        }
-        return true;
+            int64_t thread_id = evt.get_tid();
+            uint64_t count_min_sketch_estimate = 0;
+            std::string behavior_profile_concat_str;
+            auto index = req.get_arg_index();
+            if(!m_count_min_sketch_enabled)
+            {
+                m_lasterr = "count_min_sketch disabled, but `anomaly.count_min_sketch` field referenced";
+                return false;
+            }
+            if(index >= m_n_sketches)
+            {
+                m_lasterr = "sketch index out of bounds";
+                return false;
+            }
+            if(extract_filterchecks_concat_profile(evt, tr, m_behavior_profiles_fields[index], behavior_profile_concat_str))
+            {
+                req.set_value(behavior_profile_concat_str, true);
+            }
+            return true;
+        }  
     case ANOMALYDETECTION_FALCO_DURATION_NS:
         {
             auto now = std::chrono::duration_cast<std::chrono::nanoseconds>(
@@ -663,7 +695,7 @@ std::string anomalydetection::extract_filterchecks_evt_params_fallbacks(const fa
         case PPME_SOCKET_ACCEPT4_6_X:
         case PPME_SOCKET_CONNECT_X:
         {
-            // todo fix fallbacks as we lack access to sockinfo and it's highly more sophisticated / complex
+            // todo fix/expose via plugin API fallbacks as we lack access to sockinfo and it's highly more sophisticated / complex
             // auto res_param = get_syscall_evt_param(evt.get_buf(),
             //                                     1);
             // if (res_param.param_pointer == nullptr)
@@ -2067,17 +2099,24 @@ bool anomalydetection::extract_filterchecks_concat_profile(const falcosecurity::
 
 bool anomalydetection::parse_event(const falcosecurity::parse_event_input& in)
 {
+    /* Note: While we have set the stage for supporting multiple algorithms in this plugin, 
+       the approach is currently designed specific to the count_min_sketch use case only. 
+       This will be refactored and refined in the future.
+    */
+    if (!m_count_min_sketch_enabled)
+    {
+        return true;
+    }
+
     auto& evt = in.get_event_reader();
     auto& tr = in.get_table_reader();
     auto& tw = in.get_table_writer();
     int64_t thread_id = evt.get_tid();
 
-    // note: Plugin event parsing guaranteed to happen after libs' `sinsp_parser::process_event` has finished.
-    // Needs to stay in sync w/ libs updates.
-    // Ultimately gated by `base_syscalls` restrictions if Falco is used w/ `base_syscalls`.
+    // Note: Plugin event parsing guaranteed to happen after libs' `sinsp_parser::process_event` has finished.
+    // Needs to stay in sync w/ falcosecurity/libs updates.
 
-
-    // The plugin currently cannot access for examle m_lastevent_fd from libs
+    // The plugin currently cannot access for examle m_lastevent_fd from falcosecurity/libs
     // Write this info to tinfo within the plugin
     switch(evt.get_type())
     {
@@ -2085,7 +2124,7 @@ bool anomalydetection::parse_event(const falcosecurity::parse_event_input& in)
     case PPME_SOCKET_ACCEPT_5_X:
     case PPME_SOCKET_ACCEPT4_6_X:
     case PPME_SYSCALL_CREAT_X:
-    case PPME_SYSCALL_OPENAT_2_X: // fd param 0
+    case PPME_SYSCALL_OPENAT_2_X:
     case PPME_SYSCALL_OPENAT2_X:
     case PPME_SYSCALL_OPEN_BY_HANDLE_AT_X:
     {

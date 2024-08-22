@@ -186,7 +186,7 @@ enum check_type
 };
 }
 
-// Below copied from libs userspace/libsinsp/event.h
+// Below copied from falcosecurity/libs userspace/libsinsp/event.h
 ///////////////////////////////////////////////////////////////////////////////
 // Event arguments
 ///////////////////////////////////////////////////////////////////////////////
@@ -210,7 +210,7 @@ enum filtercheck_field_flags
     EPF_ANOMALY_PLUGIN    = 1 << 13,///< this field is supported by the anomalydetection plugin
 };
 
-// Below copied from libs userspace/libsinsp/sinsp_filtercheck.h
+// Below copied from falcosecurity/libs userspace/libsinsp/sinsp_filtercheck.h
 /*!
   \brief Information about a filter/formatting field.
 */
