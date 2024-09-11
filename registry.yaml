@@ -498,3 +498,22 @@ plugins:
         source: gitlab
       extraction:
         supported: true
+  - name: keycloak
+    description: Falco plugin for sourcing and extracting Keycloak user/admin events
+    authors: Mattia Forcellese
+    contact: https://github.com/mattiaforc/falco-keycloak-plugin/issues
+    maintainers:
+      - name: Mattia Forcellese
+        email: mattiaforc@gmail.com
+    keywords:
+      - keycloak
+    url: https://github.com/mattiaforc/falco-keycloak-plugin
+    rules_url: https://github.com/mattiaforc/falco-keycloak-plugin/tree/main/rules
+    license: Apache-2.0
+    capabilities:
+      sourcing:
+        supported: true
+        id: 20
+        source: keycloak
+      extraction:
+        supported: true
