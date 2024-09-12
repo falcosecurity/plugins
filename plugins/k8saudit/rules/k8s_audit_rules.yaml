@@ -299,7 +299,7 @@
   desc: >
      Detect creating/modifying a configmap containing a private credential (aws key, password, etc.)
   condition: kevt and configmap and kmodify and contains_private_credentials
-  output: K8s configmap with private credential (user=%ka.user.name verb=%ka.verb resource=%ka.target.resource configmap=%ka.req.configmap.name config=%ka.req.configmap.obj)
+  output: K8s configmap with private credential (user=%ka.user.name verb=%ka.verb resource=%ka.target.resource configmap=%ka.req.configmap.name)
   priority: WARNING
   source: k8s_audit
   tags: [k8s]
