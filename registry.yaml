@@ -452,8 +452,7 @@ plugins:
       extraction:
         supported: true
   - name: kafka
-    description: |
-      Read events from Kafka topics into Falco
+    description: Read events from Kafka topics into Falco
     authors: Hunter Madison
     contact: https://falco.org/community
     maintainers:
