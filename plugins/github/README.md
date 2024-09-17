@@ -10,11 +10,12 @@ The plugin works by installing a webhook on one or more repositories. It then re
 
 ## Usage
 
-### Prerequisites 
-* You will need a github token for your account, which you can get at <https://github.com/settings/tokens>. The token needs, at a minimum, full repo scope, to be able to enumerate the user's repositories and install/remove webhooks. Therefore, in the token creation page, make sure `repo` (and its childs) are checked under `Select scopes`. The token can go in one of these two places:
-    * in a file called `github.token` in `~/.ghplugin` (or in the directory pointed by the `SecretsDir` init parameter)
-    * in an environment variable called GITHUB_PLUGIN_TOKEN
-* The machine where the plugin is running needs a public address and an open firewall that allows either port 80 (for HTTP) or port 443 (for https)
+### Prerequisites
+
+- You will need a github token for your account, which you can get at <https://github.com/settings/tokens>. The token needs, at a minimum, full repo scope, to be able to enumerate the user's repositories and install/remove webhooks. Therefore, in the token creation page, make sure `repo` (and its childs) are checked under `Select scopes`. The token can go in one of these two places:
+  - in a file called `github.token` in `~/.ghplugin` (or in the directory pointed by the `SecretsDir` init parameter)
+  - in an environment variable called GITHUB_PLUGIN_TOKEN
+- The machine where the plugin is running needs a public address and an open firewall that allows either port 80 (for HTTP) or port 443 (for https)
 
 If you want to use https (**highly recommended**), name your key and certificate `server.key` and `server.crt` and put them in `~/.ghplugin` (or in the directory pointed by the `SecretsDir` init parameter). The plugin will pick them up, validate them and start an https server. If the key and certificate are not valid, the plugin will cause falco to exit with an error.
 
@@ -35,22 +36,25 @@ Finally, specifying `*` as open argument will cause the plugin to instrument all
 ### Falco configuration examples
 
 Instrument three specific repositories:
+
 ```yaml
-  - name: github
-    library_path: libgithub.so
-    init_config: '{"useHTTPs":true, "websocketServerURL" :"http://foo.ngrok.io"}'
-    open_params: 'falcosecurity/falco, falcosecurity/libs, falcosecurity/test-infra'
+- name: github
+  library_path: libgithub.so
+  init_config: '{"useHTTPs":true, "websocketServerURL" :"http://foo.ngrok.io"}'
+  open_params: "falcosecurity/falco, falcosecurity/libs, falcosecurity/test-infra"
 ```
 
 Instrument all of the user's repositores:
+
 ```yaml
-  - name: github
-    library_path: libgithub.so
-    init_config: '{"websocketServerURL" :"http://foo.ngrok.io"}'
-    open_params: '*'
+- name: github
+  library_path: libgithub.so
+  init_config: '{"websocketServerURL" :"http://foo.ngrok.io"}'
+  open_params: "*"
 ```
 
 ## Webhook lifecycle
+
 The plugin creates a webhook for each of the instrumented repository using the token specified as the first open argument. Each webhook is configured with a unique, automatically generated secret. This allows the plugin to reject messages that don't come from the righful github webhooks.
 
 All of the webhooks are deleted when the plugin event source gets closed (i.e. when Falco reloads or stops).
@@ -63,7 +67,8 @@ All of the webhooks are deleted when the plugin event source gets closed (i.e. w
 | `github.type`                         | `string` | None | Message type, e.g. 'star' or 'repository'.                                                                                                                                                                            |
 | `github.action`                       | `string` | None | The github event action. This field typically qualifies the github.type field. For example, a message of type 'star' can have action 'created' or 'deleted'.                                                          |
 | `github.user`                         | `string` | None | Name of the user that triggered the event.                                                                                                                                                                            |
-| `github.repo`                         | `string` | None | Name of the git repository where the event occurred. Github Webhook payloads contain the repository property when the event occurs from activity in a repository.                                                     |
+| `github.repo.url`                     | `string` | None | URL of the git repository where the event occurred. Github Webhook payloads contain the repository property when the event occurs from activity in a repository.                                                      |
+| `github.repo.name`                    | `string` | None | Name of the git repository where the event occurred. Github Webhook payloads contain the repository property when the event occurs from activity in a repository.                                                     |
 | `github.org`                          | `string` | None | Name of the organization the git repository belongs to.                                                                                                                                                               |
 | `github.owner`                        | `string` | None | Name of the repository's owner.                                                                                                                                                                                       |
 | `github.repo.public`                  | `string` | None | 'true' if the repository affected by the action is public. 'false' otherwise.                                                                                                                                         |
