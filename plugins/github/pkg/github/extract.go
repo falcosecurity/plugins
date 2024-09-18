@@ -32,8 +32,9 @@ func (p *Plugin) Fields() []sdk.FieldEntry {
 		{Type: "string", Name: "github.type", Display: "Message Type", Desc: "Message type, e.g. 'star' or 'repository'."},
 		{Type: "string", Name: "github.action", Display: "Action Type", Desc: "The github event action. This field typically qualifies the github.type field. For example, a message of type 'star' can have action 'created' or 'deleted'."},
 		{Type: "string", Name: "github.user", Display: "User", Desc: "Name of the user that triggered the event."},
-		{Type: "string", Name: "github.repo.url", Display: "Repository", Desc: "URL of the git repository where the event occurred. Github Webhook payloads contain the repository property when the event occurs from activity in a repository."},
-		{Type: "string", Name: "github.repo.name", Display: "Repository", Desc: "Name of the git repository where the event occurred. Github Webhook payloads contain the repository property when the event occurs from activity in a repository."},
+		{Type: "string", Name: "github.repo", Display: "Repository", Desc: "(deprecated) URL of the git repository where the event occurred. Github Webhook payloads contain the repository property when the event occurs from activity in a repository."},
+		{Type: "string", Name: "github.repo.url", Display: "Repository URL", Desc: "URL of the git repository where the event occurred. Github Webhook payloads contain the repository property when the event occurs from activity in a repository."},
+		{Type: "string", Name: "github.repo.name", Display: "Repository Name", Desc: "Name of the git repository where the event occurred. Github Webhook payloads contain the repository property when the event occurs from activity in a repository."},
 		{Type: "string", Name: "github.org", Display: "Organization", Desc: "Name of the organization the git repository belongs to."},
 		{Type: "string", Name: "github.owner", Display: "Owner", Desc: "Name of the repository's owner."},
 		{Type: "string", Name: "github.repo.public", Display: "Public", Desc: "'true' if the repository affected by the action is public. 'false' otherwise."},
@@ -116,6 +117,8 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 		res = string(jdata.GetStringBytes("action"))
 	case "github.user":
 		res = string(jdata.Get("sender", "login").GetStringBytes())
+	case "github.repo":
+		res = string(jdata.Get("repository", "html_url").GetStringBytes())
 	case "github.repo.url":
 		res = string(jdata.Get("repository", "html_url").GetStringBytes())
 	case "github.repo.name":
