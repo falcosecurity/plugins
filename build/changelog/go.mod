@@ -11,7 +11,7 @@ require (
 
 require (
 	github.com/docker/cli v24.0.5+incompatible // indirect
-	github.com/docker/docker v24.0.9+incompatible // indirect
+	github.com/docker/docker v25.0.6+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.8.0 // indirect
 	github.com/falcosecurity/falcoctl v0.6.1 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
