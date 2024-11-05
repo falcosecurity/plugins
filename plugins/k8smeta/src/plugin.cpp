@@ -1069,6 +1069,8 @@ bool my_plugin::extract(const falcosecurity::extract_fields_input& in)
         // not in a pod.
         if(m_thread_id_pod_uid_map.empty())
         {
+            SPDLOG_TRACE("no pod uid in the framework table for thread id '{}'",
+                         thread_id);
             return false;
         }
 
@@ -1079,6 +1081,8 @@ bool my_plugin::extract(const falcosecurity::extract_fields_input& in)
         auto it = m_thread_id_pod_uid_map.find(thread_id);
         if(it == m_thread_id_pod_uid_map.end())
         {
+            SPDLOG_TRACE("no pod uid in the plugin cache for thread id '{}'",
+                         thread_id);
             return false;
         }
         pod_uid = it->second;
@@ -1351,11 +1355,35 @@ static inline sinsp_param get_syscall_evt_param(void* evt, uint32_t num_param)
                     dataoffset};
 }
 
+static inline const char* get_event_name(uint16_t evt_type)
+{
+    switch(evt_type)
+    {
+    case PPME_ASYNCEVENT_E:
+        return "asyncevent";
+    case PPME_SYSCALL_EXECVE_19_X:
+        return "execve";
+    case PPME_SYSCALL_EXECVEAT_X:
+        return "execveat";
+    case PPME_SYSCALL_CLONE_20_X:
+        return "clone";
+    case PPME_SYSCALL_FORK_20_X:
+        return "fork";
+    case PPME_SYSCALL_VFORK_20_X:
+        return "vfork";
+    case PPME_SYSCALL_CLONE3_X:
+        return "clone3";
+    default:
+        return "unknown";
+    }
+}
+
 bool inline my_plugin::parse_process_events(
-        const falcosecurity::parse_event_input& in)
+        const falcosecurity::parse_event_input& in, uint16_t evt_type)
 {
     auto res_param = get_syscall_evt_param(in.get_event_reader().get_buf(),
                                            EXECVE_CLONE_RES_PARAM_IDX);
+    int64_t thread_id = in.get_event_reader().get_tid();
 
     // - For execve/execveat we exclude failed syscall events (ret<0)
     // - For clone/fork/vfork/clone3 we exclude failed syscall events (ret<0)
@@ -1363,6 +1391,8 @@ bool inline my_plugin::parse_process_events(
     memcpy(&ret, res_param.param_pointer, sizeof(ret));
     if(ret < 0)
     {
+        SPDLOG_TRACE("failed {}(event: {}) for thread id '{}'",
+                     get_event_name(evt_type), evt_type, thread_id);
         return false;
     }
 
@@ -1379,6 +1409,7 @@ bool inline my_plugin::parse_process_events(
     // If croups are empty we don't parse the event
     if(cgroup_param.param_len == 0)
     {
+        SPDLOG_TRACE("empty cgroup for thread id '{}'", thread_id);
         return false;
     }
 
@@ -1394,13 +1425,20 @@ bool inline my_plugin::parse_process_events(
     {
         // retrieve thread entry associated with the event tid
         auto& tr = in.get_table_reader();
-        auto thread_entry = m_thread_table.get_entry(
-                tr, (int64_t)in.get_event_reader().get_tid());
+        auto thread_entry = m_thread_table.get_entry(tr, thread_id);
 
         // Write the pod_uid into the entry
         auto& tw = in.get_table_writer();
         m_pod_uid_field.write_value(tw, thread_entry,
                                     (const char*)pod_uid.c_str());
+        SPDLOG_TRACE("pushed pod uid '{}' for thread id '{}' into the "
+                     "framework table",
+                     pod_uid, thread_id);
+    }
+    else
+    {
+        SPDLOG_TRACE("cannot find pod uid for thread id '{}' with cgroup '{}'",
+                     thread_id, cgroup_first_charbuf);
     }
     return true;
 }
@@ -1408,7 +1446,6 @@ bool inline my_plugin::parse_process_events(
 bool my_plugin::parse_event(const falcosecurity::parse_event_input& in)
 {
     // NOTE: today in the libs framework, parsing errors are not logged
-    auto& evt = in.get_event_reader();
 
     // Workaround: the parsing is the unique place where we can populate the
     // sinsp thread table. The first time we call parse we populate the sinsp
@@ -1444,7 +1481,8 @@ bool my_plugin::parse_event(const falcosecurity::parse_event_input& in)
         m_sinsp_proc_populated = true;
     }
 
-    switch(evt.get_type())
+    uint16_t evt_type = in.get_event_reader().get_type();
+    switch(evt_type)
     {
     case PPME_ASYNCEVENT_E:
         return parse_async_event(in);
@@ -1454,10 +1492,9 @@ bool my_plugin::parse_event(const falcosecurity::parse_event_input& in)
     case PPME_SYSCALL_FORK_20_X:
     case PPME_SYSCALL_VFORK_20_X:
     case PPME_SYSCALL_CLONE3_X:
-        return parse_process_events(in);
+        return parse_process_events(in, evt_type);
     default:
-        SPDLOG_ERROR("received an unknown event type {}",
-                     int32_t(evt.get_type()));
+        SPDLOG_ERROR("received an unknown event type {}", uint16_t(evt_type));
         return false;
     }
 }
