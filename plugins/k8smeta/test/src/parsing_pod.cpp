@@ -424,7 +424,8 @@ TEST_F(sinsp_with_test_input, plugin_k8s_proc_scan_in_the_plugin)
 
 #define PLUGIN_PROC_SCAN_UNDER_TMP_PROC                                        \
     int32_t mock_tid = (1 << 16) - 1;                                          \
-    std::string mock_proc_dir = "/tmp/proc/" + std::to_string(mock_tid);       \
+    std::string mock_proc_dir = "/tmp/proc/" + std::to_string(mock_tid) +      \
+                                "/task/" + std::to_string(mock_tid);           \
     std::string mock_proc_cgroup = mock_proc_dir + "/cgroup";                  \
     std::string expected_pod_uid = "1d34c7bb-7d94-4f00-bed9-fe4eca61d446";     \
                                                                                \
@@ -467,7 +468,7 @@ TEST_F(sinsp_with_test_input, plugin_k8s_proc_scan_in_the_plugin)
     pl_flist.add_filter_check(sinsp_plugin::new_filtercheck(plugin_owner));    \
                                                                                \
     std::filesystem::path mock_proc = std::filesystem::path("/tmp/proc");      \
-    ASSERT_EQ(std::filesystem::remove_all(mock_proc), 3);
+    ASSERT_EQ(std::filesystem::remove_all(mock_proc), 5);
 
 TEST_F(sinsp_with_test_input, plugin_k8s_proc_scan_mismatch)
 {
