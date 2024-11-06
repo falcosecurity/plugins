@@ -12,7 +12,7 @@ on:
         required: false
         default: falcosecurity/rules
         type: string
-        
+
 jobs:
   build-rules-checker:
     runs-on: ubuntu-latest
@@ -20,7 +20,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v3
         with:
-          go-version: '1.19.0'
+          go-version: "1.19.0"
 
       - name: Checkout rules
         uses: actions/checkout@v3
@@ -30,13 +30,13 @@ jobs:
       - name: Build checker tool
         working-directory: build/checker
         run: go build -o ${{ inputs.output }}
-      
+
       - name: Test checker tool
         working-directory: build/checker
         run: go test ./... -cover
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: rules-tool.tar.gz
           path: build/checker/${{ inputs.output }}

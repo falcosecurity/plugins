@@ -55,7 +55,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: rules-tool.tar.gz
-      
+
       # note: here we're loading the locally-built plugins, whereas another
       # solution would be to pull them with falcoctl. The flaw with this
       # approach is that we load the same plugin for both the "old" and the
@@ -67,7 +67,7 @@ jobs:
         with:
           name: ${{ inputs.plugins-artifact }}
           path: /tmp/plugins-${{ inputs.arch }}
-      
+
       - name: Extract plugins
         run: |
           for archive in /tmp/plugins-*/*.tar.gz; do
@@ -77,7 +77,7 @@ jobs:
             sudo mkdir -p /usr/share/falco/plugins
             sudo cp -r *.so /usr/share/falco/plugins || true
             popd && rm -fr tmpdir
-          done    
+          done
 
       - name: Compare changed files with previous versions
         id: compare
@@ -114,7 +114,7 @@ jobs:
           cp ${{ steps.compare.outputs.comment_file }} ./pr/COMMENT-${{ inputs.job-index }}
 
       - name: Upload PR info as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: steps.compare.outputs.comment_file != ''
         with:
           name: pr-${{ inputs.job-index }}
@@ -130,7 +130,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           path: tmp-artifacts
-      
+
       - name: Save PR info
         run: |
           mkdir -p ./pr
@@ -149,7 +149,7 @@ jobs:
           echo ""
 
       - name: Upload PR info as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: pr
           path: pr/
