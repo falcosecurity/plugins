@@ -302,42 +302,65 @@ void my_plugin::do_initial_proc_scan()
             continue;
         }
 
-        // Example of the path: `/proc/1/cgroup`
-        proc_path = std::string(proc_root)
-                            .append("/")
-                            .append(file_name.c_str())
-                            .append("/cgroup");
+        // Now scan /proc/pid/task for threads
+        std::string task_dir = proc_root + "/" + file_name.c_str() + "/task";
+        std::filesystem::directory_iterator task_iter(task_dir);
 
-        std::ifstream file(proc_path);
-
-        if(file.is_open())
+        for(const auto& task_entry : task_iter)
         {
-            // Read the first line from the file
-            if(std::getline(file, cgroup_line))
+            auto task_file_name = task_entry.path().filename();
+            tid = strtol(task_file_name.c_str(), NULL, 10);
+
+            if(tid == 0 || !task_entry.is_directory())
             {
-                std::string pod_uid =
-                        get_pod_uid_from_cgroup_string(cgroup_line);
-                if(!pod_uid.empty())
-                {
-                    m_thread_id_pod_uid_map[tid] = pod_uid;
-                    SPDLOG_TRACE("Found thread with tid '{}' and pod uid '{}'",
-                                 tid, pod_uid);
-                }
+                SPDLOG_WARN("Found task entry `{}` in process `{}` that is not "
+                            "a number",
+                            task_file_name.c_str(), file_name.c_str());
+                continue; // skip if not a thread id directory
             }
-            else
+            // Example of the path: `/proc/1/task/200/cgroup`
+            proc_path = std::string(proc_root)
+                                .append("/")
+                                .append(file_name.c_str())
+                                .append("/task/")
+                                .append(task_file_name.c_str())
+                                .append("/cgroup");
+
+            std::ifstream file(proc_path);
+
+            if(file.is_open())
             {
-                SPDLOG_WARN("cannot retrieve the cgroup first line for '{}'. "
+                // Read the first line from the file
+                if(std::getline(file, cgroup_line))
+                {
+                    std::string pod_uid =
+                            get_pod_uid_from_cgroup_string(cgroup_line);
+                    if(!pod_uid.empty())
+                    {
+                        m_thread_id_pod_uid_map[tid] = pod_uid;
+                        SPDLOG_TRACE(
+                                "Found thread with tid '{}' and pod uid '{}'",
+                                tid, pod_uid);
+                    }
+                }
+                else
+                {
+                    SPDLOG_WARN(
+                            "Cannot retrieve the cgroup first line for '{}'. "
                             "Error: {}. Skip it",
                             proc_path,
                             file.eof() ? "Empty file" : strerror(errno));
+                }
+                file.close();
             }
-            file.close();
+            else
+            {
+                SPDLOG_WARN("Cannot open '{}'. Error: {}. Skip it.", proc_path,
+                            strerror(errno));
+            }
         }
-        else
-        {
-            SPDLOG_WARN("cannot open '{}'. Error: {}. Skip it.", proc_path,
-                        strerror(errno));
-        }
+        SPDLOG_DEBUG("Thread scan correctly completed for process `{}`",
+                     file_name.c_str());
     }
     SPDLOG_INFO(
             "Process scan correctly completed. Found '{}' threads inside pods.",
