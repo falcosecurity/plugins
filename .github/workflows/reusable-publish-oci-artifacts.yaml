@@ -23,13 +23,13 @@ jobs:
 
     steps:
       - name: Download x86_64 plugins
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: plugins-x86_64-${{ inputs.suffix }}.tar.gz
           path: /tmp/plugins-x86_64
 
       - name: Download aarch64 plugins
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: plugins-aarch64-${{ inputs.suffix }}.tar.gz
           path: /tmp/plugins-aarch64
@@ -42,7 +42,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v3
         with:
-          go-version: '^1.21'
+          go-version: "^1.21"
 
       - name: Build registry artifact tool
         working-directory: build/registry
@@ -68,7 +68,7 @@ jobs:
 
   # Create signatures of the plugin artifacts as OCI artifacts
   sign-oci-artifacts:
-    needs: [ publish-oci-artifacts ]
+    needs: [publish-oci-artifacts]
     runs-on: ubuntu-latest
 
     if: ${{ needs.publish-oci-artifacts.outputs.matrix != '[]' }}

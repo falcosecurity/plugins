@@ -6,7 +6,7 @@ on:
         description: Suffix for uploading packages (dev or stable)
         required: true
         type: string
-        
+
 permissions:
   id-token: write
   contents: read
@@ -14,24 +14,24 @@ permissions:
 env:
   AWS_S3_BUCKET: falco-distribution
   AWS_S3_PREFIX: plugins
-  AWS_S3_REGION: eu-west-1        
-        
+  AWS_S3_REGION: eu-west-1
+
 jobs:
   publish-packages:
     runs-on: ubuntu-latest
     steps:
       - name: Download x86_64 plugins
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: plugins-x86_64-${{ inputs.suffix }}.tar.gz
           path: /tmp/plugins-x86_64
-          
+
       - name: Download aarch64 plugins
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: plugins-aarch64-${{ inputs.suffix }}.tar.gz
           path: /tmp/plugins-aarch64
-          
+
       - name: Configure AWS credentials 🔧⚙️
         uses: aws-actions/configure-aws-credentials@v2
         with:
@@ -42,5 +42,4 @@ jobs:
         run: |
           for package in /tmp/plugins-*/*.tar.gz; do
             aws s3 cp --no-progress $package s3://${{ env.AWS_S3_BUCKET}}/${{ env.AWS_S3_PREFIX }}/${{ inputs.suffix }}/
-          done    
-
+          done
