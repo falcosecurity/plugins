@@ -10,7 +10,7 @@ on:
         description: Suffix for uploading packages (dev or stable)
         required: true
         type: string
-        
+
 jobs:
   build-packages:
     name: build-packages-${{ matrix.arch }}
@@ -42,12 +42,12 @@ jobs:
 
       - name: Safe directory
         run: git config --global --add safe.directory $GITHUB_WORKSPACE
-          
+
       - name: Run build 🏗️
         run: ${{ inputs.makecommand }}
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: plugins-${{ matrix.arch }}-${{ inputs.suffix }}.tar.gz
           path: output/*.tar.gz
