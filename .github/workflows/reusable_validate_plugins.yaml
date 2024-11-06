@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     container: golang:1.18
     env:
-      GOFLAGS: '-buildvcs=false'
+      GOFLAGS: "-buildvcs=false"
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -47,12 +47,12 @@ jobs:
         run: ./.github/setup-plugin-config-rules.sh ${{ inputs.plugin }}
 
       - name: Download rules tool
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: rules-tool.tar.gz
 
       - name: Download plugins
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: ${{ inputs.plugins-artifact }}
           path: /tmp/plugins-${{ inputs.arch }}
@@ -66,13 +66,13 @@ jobs:
 
           mkdir -p /etc/falco/falco
           mkdir -p /usr/share/falco/plugins
-          
+
           # avoids git exit status 128: detected dubious ownership in repository
           git config --global --add safe.directory $(pwd)
 
           for plugin_name in $loaded_plugins; do
               echo Installing locally-built plugin "$plugin_name"...
-          
+
               # At release time we only build the released plugin, so it's possible
               # that validation requires a plugin that we haven't built locally.
               # in those cases, we build it on-the-fly perform validation with it.
@@ -122,20 +122,20 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Install system dependencies
-        run:  sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && sudo chmod +x /usr/bin/yq
-      
+        run: sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && sudo chmod +x /usr/bin/yq
+
       - name: Setup plugin config and rules
         id: get-config
         run: ./.github/setup-plugin-config-rules.sh ${{ inputs.plugin }}
 
       - name: Download plugins
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: ${{ inputs.plugins-artifact }}
           path: /tmp/plugins-${{ inputs.arch }}
 
       - name: Download rules tool
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: rules-tool.tar.gz
 
@@ -143,7 +143,7 @@ jobs:
         run: |
           curl --fail -LS "https://github.com/falcosecurity/falcoctl/releases/download/v${{ inputs.falcoctl-version }}/falcoctl_${{ inputs.falcoctl-version }}_linux_${{ inputs.arch == 'x86_64' && 'amd64' || 'arm64' }}.tar.gz" | tar -xz
           sudo install -o root -g root -m 0755 falcoctl /usr/local/bin/falcoctl
-  
+
       # note(jsondellaluce): exploring the set of all dependencies including their
       # alternatives and all the possible combinations of different versions would
       # result in a combinatorial explosion. As such, we take the simple route
@@ -223,4 +223,4 @@ jobs:
               "${{ inputs.rules-checker }}" \
               "${{ steps.get-config.outputs.config_file }}" \
               "$rules_files"
-          done 
+          done
