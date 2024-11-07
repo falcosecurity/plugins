@@ -371,19 +371,19 @@ void my_plugin::do_initial_proc_scan()
                 }
                 catch(const std::filesystem::filesystem_error& err)
                 {
-                    SPDLOG_ERROR("cannot iter over '{}' for initial proc scan: "
-                                 "{}. It could happen that some process "
-                                 "entries disappear between iterations",
-                                 task_dir, err.what());
+                    SPDLOG_WARN("cannot iter over '{}' for initial proc scan: "
+                                "{}. It could happen that some process "
+                                "entries disappear between iterations",
+                                task_dir, err.what());
                 }
             }
         }
         catch(const std::filesystem::filesystem_error& err)
         {
-            SPDLOG_ERROR("cannot iter over '{}' for initial proc scan: {}. It "
-                         "could happen that some process entries disappear "
-                         "between iterations",
-                         task_dir, err.what());
+            SPDLOG_WARN("cannot iter over '{}' for initial proc scan: {}. It "
+                        "could happen that some process entries disappear "
+                        "between iterations",
+                        task_dir, err.what());
         }
     }
     SPDLOG_INFO(
