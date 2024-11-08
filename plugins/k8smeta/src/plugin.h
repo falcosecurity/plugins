@@ -237,8 +237,8 @@ class my_plugin
 
     bool inline parse_async_event(const falcosecurity::parse_event_input& in);
 
-    bool inline parse_process_events(
-            const falcosecurity::parse_event_input& in);
+    bool inline parse_process_events(const falcosecurity::parse_event_input& in,
+                                     uint16_t evt_type);
 
     bool parse_event(const falcosecurity::parse_event_input& in);
 
