@@ -8,7 +8,7 @@ require (
 	cloud.google.com/go/pubsub v1.38.0
 	github.com/alecthomas/jsonschema v0.0.0-20220216202328-9eeeec9d044b
 	github.com/falcosecurity/plugin-sdk-go v0.7.4
-	github.com/falcosecurity/plugins/plugins/k8saudit v0.10.1
+	github.com/falcosecurity/plugins/plugins/k8saudit v0.11.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	google.golang.org/api v0.184.0
 	k8s.io/api v0.30.2

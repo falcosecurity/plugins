@@ -34,7 +34,7 @@ const (
 	PluginName               = "k8saudit-gke"
 	PluginDescription        = "Read Kubernetes Audit Events for GKE from a Pub/Sub subscription"
 	PluginContact            = "github.com/falcosecurity/plugins"
-	PluginVersion            = "0.3.1"
+	PluginVersion            = "0.4.0"
 	PluginEventSource        = "k8s_audit"
 )
 
