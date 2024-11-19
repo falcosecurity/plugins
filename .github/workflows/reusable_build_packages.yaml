@@ -25,7 +25,7 @@ jobs:
       - name: Install deps
         run: |
           apt update
-          apt install -y --no-install-recommends git awscli make build-essential autoconf libtool pkg-config
+          apt install -y --no-install-recommends git awscli make build-essential autoconf libelf-dev libtool pkg-config
 
       - name: Install updated cmake version ⛓️
         run: |
