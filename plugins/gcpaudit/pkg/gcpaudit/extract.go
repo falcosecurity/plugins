@@ -48,6 +48,7 @@ func (p *Plugin) Fields() []sdk.FieldEntry {
 		{Type: "string", Name: "gcp.projectId", Display: "Project ID", Desc: "GCP project ID"},
 		{Type: "string", Name: "gcp.resourceName", Display: "Resource Name", Desc: "GCP resource name"},
 		{Type: "string", Name: "gcp.resourceType", Display: "Resource Type", Desc: "GCP resource type"},
+		{Type: "string", Name: "gcp.resourceLabels", Display: "Resource Labels", Desc: "GCP resource labels"},
 		{Type: "string", Name: "gcp.storage.bucket", Display: "Bucket Name", Desc: "GCP bucket name"},
 	}
 }
@@ -223,6 +224,12 @@ func (p *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 		resourceType := p.jdata.Get("resource").GetStringBytes("type")
 		if resourceType != nil {
 			req.SetValue(string(resourceType))
+		}
+
+	case "gcp.resourceLabels":
+		resourceLabels := p.jdata.Get("resource").Get("labels").MarshalTo(nil)
+		if resourceLabels != nil && len(resourceLabels) > 0 {
+			req.SetValue(string(resourceLabels))
 		}
 
 	case "gcp.storage.bucket":
