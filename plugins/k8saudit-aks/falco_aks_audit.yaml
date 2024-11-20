@@ -1,0 +1,7 @@
+- rule: K8s Audit Event Detected
+  desc: A test rule that detects any Kubernetes audit event
+  condition: ka.req exists
+  output: "K8s Audit Event Detected: %ka.req"
+  priority: DEBUG
+  source: k8s_audit
+  tags: [testing, k8s_audit]

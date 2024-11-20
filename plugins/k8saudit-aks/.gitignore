@@ -1,0 +1,4 @@
+test_files
+libk8saudit-aks.so
+.vscode
+falco.yaml
