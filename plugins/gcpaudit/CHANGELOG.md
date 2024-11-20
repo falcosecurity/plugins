@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.5.0
+
+* [`7b0fdac`](https://github.com/falcosecurity/plugins/pull/544/commits/7b0fdac41655ae89cbfb8f5e18e76f852d8ced5d) update(plugins/gcpaudit): bump plugin version to 0.5.0
+
+* [`931f068`](https://github.com/falcosecurity/plugins/pull/544/commits/931f0688edbe90f1d571bfcb200dd5ecb553903c) chore(plugins/gcpaudit): update readme with new field
+
+* [`3f345b6`](https://github.com/falcosecurity/plugins/pull/544/commits/3f345b6468f8f22316e01913c6ca651aba9b2db8) feat(plugins/gcpaudit): add gcp.resourceLabels field
+
+
 ## v0.4.0
 
 * [`92ee2d3`](https://github.com/falcosecurity/plugins/commit/92ee2d33) update(plugins/gcpaudit): upgrade sdk and deps
