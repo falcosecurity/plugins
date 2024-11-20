@@ -111,6 +111,7 @@ For more details about what Cloud logging log queries, see the [GCP official doc
 | `gcp.projectId`               | `string` | None | GCP project ID                                  |
 | `gcp.resourceName`            | `string` | None | GCP resource name                               |
 | `gcp.resourceType`            | `string` | None | GCP resource type                               |
+| `gcp.resourceLabels`          | `string` | None | GCP resource labels                             |
 | `gcp.storage.bucket`          | `string` | None | GCP bucket name                                 |
 <!-- /README-PLUGIN-FIELDS -->
 
