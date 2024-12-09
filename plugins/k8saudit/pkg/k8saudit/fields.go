@@ -121,6 +121,30 @@ func (k *Plugin) Fields() []sdk.FieldEntry {
 			IsList: true,
 		},
 		{
+			Type:   "string",
+			Name:   "ka.req.binding.subjects.user_names",
+			Desc:   "When the request object refers to a cluster role binding, the subject user names being linked by the binding",
+			IsList: true,
+		},
+		{
+			Type:   "string",
+			Name:   "ka.req.binding.subjects.serviceaccount_names",
+			Desc:   "When the request object refers to a cluster role binding, the subject service account names being linked by the binding",
+			IsList: true,
+		},
+		{
+			Type:   "string",
+			Name:   "ka.req.binding.subjects.serviceaccount_ns_names",
+			Desc:   "When the request object refers to a cluster role binding, the subject serviceaccount namespaced names being linked by the binding, e.g. a list containing: mynamespace:myserviceaccount",
+			IsList: true,
+		},
+		{
+			Type:   "string",
+			Name:   "ka.req.binding.subjects.group_names",
+			Desc:   "When the request object refers to a cluster role binding, the subject group names being linked by the binding",
+			IsList: true,
+		},
+		{
 			Type: "string",
 			Name: "ka.req.binding.role",
 			Desc: "When the request object refers to a cluster role binding, the role being linked by the binding",
