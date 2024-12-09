@@ -183,6 +183,30 @@ func (e *Plugin) ExtractFromJSON(req sdk.ExtractRequest, jsonValue *fastjson.Val
 		}
 	case "ka.req.binding.subjects":
 		return e.extractFromKeys(req, jsonValue, "requestObject", "subjects")
+	case "ka.req.binding.subjects.user_names":
+		names, err := e.readSubjectNamesByKind(jsonValue, "User")
+		if err != nil {
+			return err
+		}
+		req.SetValue(names)
+	case "ka.req.binding.subjects.serviceaccount_names":
+		names, err := e.readSubjectNamesByKind(jsonValue, "ServiceAccount")
+		if err != nil {
+			return err
+		}
+		req.SetValue(names)
+	case "ka.req.binding.subjects.serviceaccount_ns_names":
+		names, err := e.readSubjectNamesByKind(jsonValue, "NamespacedServiceAccount")
+		if err != nil {
+			return err
+		}
+		req.SetValue(names)
+	case "ka.req.binding.subjects.group_names":
+		names, err := e.readSubjectNamesByKind(jsonValue, "Group")
+		if err != nil {
+			return err
+		}
+		req.SetValue(names)
 	case "ka.req.binding.role":
 		return e.extractFromKeys(req, jsonValue, "requestObject", "roleRef", "name")
 	case "ka.req.binding.subject.has_name":
@@ -476,6 +500,48 @@ func (e *Plugin) arrayAsStringsWithDefault(values []*fastjson.Value, defaultValu
 		res = append(res, str)
 	}
 	return res
+}
+
+func (e *Plugin) readSubjectNamesByKind(jsonValue *fastjson.Value, kind string) ([]string, error) {
+	res := []string{}
+	jsonSubjects := jsonValue.Get("requestObject", "subjects")
+	if jsonSubjects == nil {
+		return res, nil
+	}
+	if jsonSubjects.Type() != fastjson.TypeArray {
+		return nil, ErrExtractWrongType
+	}
+
+	namespacedServiceAccount := false
+	if kind == "NamespacedServiceAccount" {
+		namespacedServiceAccount = true
+		kind = "ServiceAccount"
+	}
+
+	for _, subject := range jsonSubjects.GetArray() {
+		if subject.Get("kind") != nil && subject.Get("name") != nil {
+			subjectKind, err := e.jsonValueAsString(subject.Get("kind"))
+			if err != nil {
+				continue
+			}
+			if subjectKind == kind {
+				name, err := e.jsonValueAsString(subject.Get("name"))
+				if err != nil {
+					continue
+				}
+				if namespacedServiceAccount {
+					namespace, err := e.jsonValueAsString(subject.Get("namespace"))
+					if err != nil {
+						continue
+					}
+					name = namespace + ":" + name
+				}
+				res = append(res, name)
+			}
+		}
+	}
+
+	return res, nil
 }
 
 // note: this returns an error on nil values
