@@ -127,8 +127,8 @@ func (p *Plugin) OpenParams() ([]sdk.OpenParam, error) {
 }
 
 func (p *Plugin) Open(_ string) (source.Instance, error) {
-	ctx, _ := context.WithCancel(context.Background())
-
+	ctx, cancel := context.WithCancel(context.Background())
+	
 	checkClient, err := container.NewClientFromConnectionString(p.Config.BlobStorageConnectionString, p.Config.BlobStorageContainerName, nil)
 	if err != nil {
 		p.Logger.Printf("error opening connection to blob storage: %v", err)
@@ -152,7 +152,6 @@ func (p *Plugin) Open(_ string) (source.Instance, error) {
 		p.Logger.Printf("error creating consumer client: %v", err)
 		return nil, err
 	}
-	// Do not defer closing the consumerClient here
 
 	processor, err := azeventhubs.NewProcessor(consumerClient, checkpointStore, nil)
 	if err != nil {
@@ -173,10 +172,17 @@ func (p *Plugin) Open(_ string) (source.Instance, error) {
 
 	go func() {
 		for {
-			partitionClient := processor.NextPartitionClient(context.Background())
+			partitionClient := processor.NextPartitionClient(ctx)
 			if partitionClient == nil {
 				break
 			}
+			defer func() {
+				// Ensure that pc.Close() is called when the goroutine ends,
+				// regardless of whether Process returned an error.
+				if cerr := partitionClient.Close(ctx); cerr != nil {
+					p.Logger.Printf("error closing partition client: %v", cerr)
+				}
+			}()
 			go func(pc *azeventhubs.ProcessorPartitionClient, ec chan<- falcoeventhub.Record) {
 				if err := falcoEventHubProcessor.Process(partitionClient, eventsC); err != nil {
 					p.Logger.Printf("error processing partition client: %v", err)
@@ -228,6 +234,8 @@ func (p *Plugin) Open(_ string) (source.Instance, error) {
 			}
 			// Close pushEventC to signal no more events
 			close(pushEventC)
+			// Cancel the context so that the processor stops
+			cancel()
 		}),
 	)
 }
