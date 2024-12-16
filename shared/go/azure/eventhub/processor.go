@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs"
@@ -35,9 +34,7 @@ func (p *Processor) Process(
 		ctx := context.Background()
 
 		receiveCtx, receiveCtxCancel := context.WithTimeout(ctx, time.Minute)
-		fmt.Printf("Receiving events on partitionId %v\n", partitionClient.PartitionID())
 		events, err := partitionClient.ReceiveEvents(receiveCtx, 100, nil)
-		fmt.Printf("Received %d events on partitionId %v\n", len(events), partitionClient.PartitionID())
 		receiveCtxCancel()
 		if err != nil && !errors.Is(err, context.DeadlineExceeded) {
 			return err
@@ -60,7 +57,6 @@ func (p *Processor) Process(
 			if err := partitionClient.UpdateCheckpoint(ctx, event, nil); err != nil {
 				return err
 			}
-			fmt.Printf("Updated checkpoint for partitionId %v\n", partitionClient.PartitionID())
 		}
 	}
 }
