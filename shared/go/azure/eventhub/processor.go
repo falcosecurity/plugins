@@ -27,12 +27,11 @@ type Event struct {
 func (p *Processor) Process(
 	partitionClient *azeventhubs.ProcessorPartitionClient,
 	recordChan chan<- Record,
+	ctx context.Context,
 ) error {
 	defer closePartitionResources(partitionClient)
 
 	for {
-		ctx := context.Background()
-
 		receiveCtx, receiveCtxCancel := context.WithTimeout(ctx, time.Minute)
 		events, err := partitionClient.ReceiveEvents(receiveCtx, 100, nil)
 		receiveCtxCancel()
@@ -71,5 +70,5 @@ func UnmarshallEvent(eventJObj []byte) (*Event, error) {
 }
 
 func closePartitionResources(partitionClient *azeventhubs.ProcessorPartitionClient) {
-	defer partitionClient.Close(context.TODO())
+	defer partitionClient.Close(context.Background())
 }

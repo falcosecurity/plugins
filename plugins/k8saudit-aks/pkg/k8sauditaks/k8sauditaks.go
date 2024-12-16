@@ -128,7 +128,7 @@ func (p *Plugin) OpenParams() ([]sdk.OpenParam, error) {
 
 func (p *Plugin) Open(_ string) (source.Instance, error) {
 	ctx, cancel := context.WithCancel(context.Background())
-	
+
 	checkClient, err := container.NewClientFromConnectionString(p.Config.BlobStorageConnectionString, p.Config.BlobStorageContainerName, nil)
 	if err != nil {
 		p.Logger.Printf("error opening connection to blob storage: %v", err)
@@ -184,7 +184,7 @@ func (p *Plugin) Open(_ string) (source.Instance, error) {
 				}
 			}()
 			go func(pc *azeventhubs.ProcessorPartitionClient, ec chan<- falcoeventhub.Record) {
-				if err := falcoEventHubProcessor.Process(partitionClient, eventsC); err != nil {
+				if err := falcoEventHubProcessor.Process(partitionClient, eventsC, ctx); err != nil {
 					p.Logger.Printf("error processing partition client: %v", err)
 				}
 			}(partitionClient, eventsC)
@@ -232,10 +232,10 @@ func (p *Plugin) Open(_ string) (source.Instance, error) {
 			if err := consumerClient.Close(context.Background()); err != nil {
 				p.Logger.Printf("error closing consumer client: %v", err)
 			}
-			// Close pushEventC to signal no more events
-			close(pushEventC)
 			// Cancel the context so that the processor stops
 			cancel()
+			// Close pushEventC to signal no more events
+			close(pushEventC)
 		}),
 	)
 }
