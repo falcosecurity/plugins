@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.8.0
+
+* No code changes
+
 ## v0.7.5
 
 * [`980fa2e`](https://github.com/falcosecurity/plugins/commit/980fa2e4) update(plugins/github): upgrade sdk and deps
@@ -110,4 +114,5 @@
 * [`982ac09`](https://github.com/falcosecurity/plugins/commit/982ac09b) refactor(plugins/github): create package directory
 
 * [`86b4bc3`](https://github.com/falcosecurity/plugins/commit/86b4bc33) chore(plugins/github): apply suggestions from review
+
 
