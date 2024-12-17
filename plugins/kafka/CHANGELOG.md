@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.1.3
+
+* [`6f493c3`](https://github.com/falcosecurity/plugins/commit/6f493c3d) build(deps): bump github.com/docker/docker in /plugins/kafka
+
+* [`f1a7628`](https://github.com/falcosecurity/plugins/commit/f1a7628d) build(deps): bump github.com/docker/docker in /plugins/kafka
+
+* [`c011440`](https://github.com/falcosecurity/plugins/commit/c011440f) build(deps): bump google.golang.org/grpc in /plugins/kafka
+
+
 ## v0.1.2
 
 * [`c13c93d`](https://github.com/falcosecurity/plugins/commit/c13c93df) docs(plugins/kafka): add SPDXID and file headers for license
