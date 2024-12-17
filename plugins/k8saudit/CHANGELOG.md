@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.11.0
+
+* [`45e716e`](https://github.com/falcosecurity/plugins/commit/45e716e8) update(k8saudit): bump to v0.11
+
+
 ## v0.10.1
 
 * [`56e3a81`](https://github.com/falcosecurity/plugins/commit/56e3a810) update(plugins/k8saudit): upgrade sdk and deps
