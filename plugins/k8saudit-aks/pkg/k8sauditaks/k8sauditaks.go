@@ -20,6 +20,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"sync"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs"
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs/checkpoints"
@@ -176,6 +177,7 @@ func (p *Plugin) Open(_ string) (source.Instance, error) {
 
 	falcoEventHubProcessor := falcoeventhub.Processor{
 		RateLimiter: rateLimiter,
+		Logger:      p.Logger,
 	}
 
 	p.Logger.Printf("created eventhub processor")
@@ -204,8 +206,10 @@ func (p *Plugin) Open(_ string) (source.Instance, error) {
 		}
 	}()
 
-	// Process events and send to pushEventC
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		for {
 			select {
 			case i, ok := <-eventsC:
@@ -244,9 +248,13 @@ func (p *Plugin) Open(_ string) (source.Instance, error) {
 			if err := consumerClient.Close(context.Background()); err != nil {
 				p.Logger.Printf("error closing consumer client: %v", err)
 			}
-			// Cancel the context so that the processor stops
+
+			// Cancel must be used here instead of as a defer to ensure that the context is canceled only when
+			// the plugin receive a signal from Falco
 			cancel()
-			// Close pushEventC to signal no more events
+
+			wg.Wait()
+			close(eventsC)
 			close(pushEventC)
 		}),
 	)

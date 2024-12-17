@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs"
@@ -26,6 +27,7 @@ import (
 
 type Processor struct {
 	RateLimiter *rate.Limiter
+	Logger      *log.Logger
 }
 
 type Record struct {
@@ -59,12 +61,15 @@ func (p *Processor) Process(
 				return err
 			}
 			for _, record := range eventData.Records {
-				ctx := context.Background()
 				err := p.RateLimiter.Wait(ctx)
 				if err != nil {
 					continue
 				}
-				recordChan <- record
+				select {
+				case <-ctx.Done():
+					return nil
+				case recordChan <- record:
+				}
 			}
 
 			if err := partitionClient.UpdateCheckpoint(ctx, event, nil); err != nil {
