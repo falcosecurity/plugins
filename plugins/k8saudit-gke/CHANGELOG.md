@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.4.1
+
+* [`bb9801e`](https://github.com/falcosecurity/plugins/commit/bb9801e7) build(deps): bump golang.org/x/crypto in /plugins/k8saudit-gke
+
+
+## v0.4.0
+
+* [`fc03215`](https://github.com/falcosecurity/plugins/commit/fc03215e) update(k8saudit-gke): upgrade base plugin version
+
+* [`a00cc75`](https://github.com/falcosecurity/plugins/commit/a00cc75b) build(deps): bump google.golang.org/grpc in /plugins/k8saudit-gke
+
+* [`84340ee`](https://github.com/falcosecurity/plugins/commit/84340ee7) docs(plugins/k8saudit-gke): update changelog
+
+
 ## v0.3.1
 
 * [`b90a491`](https://github.com/falcosecurity/plugins/commit/b90a4917) update(plugins/k8saudit-gke): upgrade sdk and deps
