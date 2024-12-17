@@ -212,7 +212,6 @@ func (p *Plugin) Open(_ string) (source.Instance, error) {
 					pushEventC <- *j
 				}
 			case <-ctx.Done():
-				p.Logger.Println("context done in eventsC")
 				return
 			}
 		}
