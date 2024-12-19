@@ -553,7 +553,7 @@ plugins:
         email: cncf-falco-dev@lists.cncf.io
       - name: Aurélie Vache
         email: scraly@gmail.com
-    url: https://github.com/scraly/k8saudit-ovh/
+    url: https://github.com/falcosecurity/plugins/tree/main/plugins/k8saudit-ovh
     rules_url: https://github.com/falcosecurity/plugins/tree/main/plugins/k8saudit/rules
     license: Apache-2.0
     signature:
