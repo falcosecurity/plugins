@@ -114,16 +114,16 @@ load_plugins: [k8saudit-aks, json]
 ```
 
 **Initialization Config**:
-* `event_hub_namespace_connection_string`: The connection string of the EventHub Namespace to read from
-* `event_hub_name`: The name of the EventHub to read from
-* `blob_storage_connection_string`: The connection string of the Blob Storage to use as checkpoint store
-* `blob_storage_container_name`: The name of the Blob Storage container to use as checkpoint store
-* `rate_limit_events_per_second`: The rate limit of events per second to read from EventHub
-* `rate_limit_burst`: The rate limit burst of events to read from EventHub
+* `event_hub_namespace_connection_string` (required): The connection string of the EventHub Namespace to read from
+* `event_hub_name` (required) : The name of the EventHub to read from
+* `blob_storage_connection_string` (required): The connection string of the Blob Storage to use as checkpoint store
+* `blob_storage_container_name` (required): The name of the Blob Storage container to use as checkpoint store
+* `rate_limit_events_per_second` (optional): The rate limit of events per second to read from EventHub
+* `rate_limit_burst` (optional): The rate limit burst of events to read from EventHub
 
 **Open Parameters**
 
-Todo
+No open parameters are required for this plugin.
 
 ### Rules
 
@@ -148,10 +148,3 @@ To test if it works anyway, you can still use this one for example:
   tags: [k8s]
 ```
 
-### Running locally
-
-Todo
-
-### Running in AKS
-
-Todo
