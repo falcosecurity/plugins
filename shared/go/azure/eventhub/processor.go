@@ -48,7 +48,7 @@ func (p *Processor) Process(
 	defer closePartitionResources(partitionClient)
 
 	for {
-		receiveCtx, receiveCtxCancel := context.WithTimeout(ctx, time.Minute)
+		receiveCtx, receiveCtxCancel := context.WithTimeout(ctx, time.Second*10)
 		events, err := partitionClient.ReceiveEvents(receiveCtx, 100, nil)
 		receiveCtxCancel()
 		if err != nil && !errors.Is(err, context.DeadlineExceeded) {
