@@ -516,3 +516,31 @@ plugins:
         source: keycloak
       extraction:
         supported: true
+  - name: k8saudit-aks
+    description: Read Kubernetes Audit Events from AWS AKS Clusters
+    authors: The Falco Authors
+    contact: https://falco.org/community
+    maintainers:
+      - name: The Falco Authors
+        email: cncf-falco-dev@lists.cncf.io
+    url: https://github.com/falcosecurity/plugins/tree/main/plugins/k8saudit-aks
+    rules_url: https://github.com/falcosecurity/plugins/tree/main/plugins/k8saudit/rules
+    license: Apache-2.0
+    signature:
+      cosign:
+        certificate-oidc-issuer: https://token.actions.githubusercontent.com
+        certificate-identity-regexp: https://github.com/falcosecurity/plugins/
+    keywords:
+      - audit
+      - audit-log
+      - audit-events
+      - kubernetes
+      - aks
+      - azure
+    capabilities:
+      sourcing:
+        supported: true
+        id: 21
+        source: k8s_audit
+      extraction:
+        supported: true

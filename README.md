@@ -86,6 +86,7 @@ These comments and the text between them should not be edited by hand -->
 | [kafka](https://github.com/falcosecurity/plugins/tree/main/plugins/kafka) | **Event Sourcing** <br/>ID: 18 <br/>`kafka` | Read events from Kafka topics into Falco  <br/><br/> Authors: [Hunter Madison](https://falco.org/community) <br/> License: Apache-2.0 |
 | [gitlab](https://github.com/an1245/falco-plugin-gitlab) | **Event Sourcing** <br/>ID: 19 <br/>`gitlab` <br/>**Field Extraction** <br/> `gitlab` | Falco plugin providing basic runtime threat detection and auditing logging for GitLab  <br/><br/> Authors: [Andy](https://github.com/an1245/falco-plugin-gitlab/issues) <br/> License: Apache-2.0 |
 | [keycloak](https://github.com/mattiaforc/falco-keycloak-plugin) | **Event Sourcing** <br/>ID: 20 <br/>`keycloak` <br/>**Field Extraction** <br/> `keycloak` | Falco plugin for sourcing and extracting Keycloak user/admin events  <br/><br/> Authors: [Mattia Forcellese](https://github.com/mattiaforc/falco-keycloak-plugin/issues) <br/> License: Apache-2.0 |
+| [k8saudit-aks](https://github.com/falcosecurity/plugins/tree/main/plugins/k8saudit-aks) | **Event Sourcing** <br/>ID: 21 <br/>`k8s_audit` <br/>**Field Extraction** <br/> `k8s_audit` | Read Kubernetes Audit Events from AWS AKS Clusters  <br/><br/> Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
 
 <!-- REGISTRY:TABLE -->
 
