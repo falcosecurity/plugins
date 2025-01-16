@@ -1,13 +1,13 @@
-name: Validate registry.yaml
+name: Check registry.yaml
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main]
     paths:
-      - 'registry.yaml'
+      - "registry.yaml"
   push:
-    branches: [ main ]
+    branches: [main]
     paths:
-      - 'registry.yaml'
+      - "registry.yaml"
   workflow_dispatch:
 
 # Checks if any concurrent jobs under the same pull request or branch are being executed
@@ -16,8 +16,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  validate-registry:
-    name: validate-registry
+  check-registry:
+    name: check-registry
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout ⤵️
@@ -28,15 +28,16 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
         with:
-          go-version: '1.21'
+          go-version: "1.21"
           check-latest: true
 
       - name: Build registry artifact tool
         working-directory: build/registry
         run: make
 
-      - name: Validate registry.yaml
+      # Formal validation only.
+      # When a new plugin is added and not yet released,
+      # its OCI repo has not been created yet, so we can't validate it.
+      - name: Verify the correctness of registry.yaml
         working-directory: build/registry
-        run: |
-          ./bin/registry validate-registry \
-             ../../registry.yaml \
+        run: ./bin/registry check ../../registry.yaml
