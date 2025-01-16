@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.6.0
+
+* [`26e55fa`](https://github.com/falcosecurity/plugins/commit/26e55fa8) update(k8saudit-eks): upgrade base plugin version
+
+* [`c9b77f5`](https://github.com/falcosecurity/plugins/commit/c9b77f59) docs(plugins/k8saudit-eks): update changelog
+
+
 ## v0.5.1
 
 * [`7310bbe`](https://github.com/falcosecurity/plugins/commit/7310bbe4) update(plugins/k8saudit-eks): upgrade sdk and deps
