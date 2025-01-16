@@ -20,7 +20,7 @@ jobs:
         arch: [x86_64, aarch64]
     # Upgrading to a newer debian version would make the build process generate
     # binaries that require newer GLIBC version so we need to be based on bullseye for now
-    container: golang:1.22-bullseye
+    container: golang:1.23-bullseye
     steps:
       - name: Install deps
         run: |
