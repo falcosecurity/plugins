@@ -2,7 +2,11 @@
 
 ## v0.5.1
 
+* [`b9c5f80`](https://github.com/falcosecurity/plugins/commit/b9c5f803) update(gcpaudit): bump to v0.5.1
+
 * [`59018d7`](https://github.com/falcosecurity/plugins/commit/59018d70) build(deps): bump golang.org/x/crypto in /plugins/gcpaudit
+
+* [`e61c52a`](https://github.com/falcosecurity/plugins/commit/e61c52a3) chore(plugins/gcpaudit): update changelogs with v0.5.0 changes
 
 
 ## v0.5.0

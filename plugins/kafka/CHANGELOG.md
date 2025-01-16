@@ -2,6 +2,8 @@
 
 ## v0.1.3
 
+* [`2fbea59`](https://github.com/falcosecurity/plugins/commit/2fbea593) update(kafka): bump to v0.1.3
+
 * [`6f493c3`](https://github.com/falcosecurity/plugins/commit/6f493c3d) build(deps): bump github.com/docker/docker in /plugins/kafka
 
 * [`f1a7628`](https://github.com/falcosecurity/plugins/commit/f1a7628d) build(deps): bump github.com/docker/docker in /plugins/kafka

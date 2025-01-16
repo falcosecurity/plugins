@@ -2,6 +2,8 @@
 
 ## v0.4.1
 
+* [`8b30c00`](https://github.com/falcosecurity/plugins/commit/8b30c001) update(k8saudit-gke): bump to v0.4.1
+
 * [`bb9801e`](https://github.com/falcosecurity/plugins/commit/bb9801e7) build(deps): bump golang.org/x/crypto in /plugins/k8saudit-gke
 
 
