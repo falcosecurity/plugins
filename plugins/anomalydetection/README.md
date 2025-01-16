@@ -1,5 +1,7 @@
 # Falcosecurity `anomalydetection` Plugin
 
+**This plugin is experimental and under development**
+
 This `anomalydetection` plugin has been created upon this [Proposal](https://github.com/falcosecurity/falco/blob/master/proposals/20230620-anomaly-detection-framework.md).
 
 ## Introduction
@@ -57,11 +59,11 @@ The `anomalydetection` plugin implements 2 capabilities:
 Here is the current set of output / filter fields introduced by this plugin:
 
 <!-- README-PLUGIN-FIELDS -->
-|       NAME        |   TYPE   |       ARG       |                               DESCRIPTION                               |
-|-------------------|----------|-----------------|-------------------------------------------------------------------------|
-| `anomaly.count_min_sketch` | `uint64` | Key, Optional | Count Min Sketch Estimate according to the specified behavior profile for a predefined set of {syscalls} events. Access different behavior profiles/sketches using indices. For instance, anomaly.count_min_sketch[0] retrieves the first behavior profile defined in the plugins' `init_config`. When you disable the count_min_sketch algorithm, the field will be null. Be aware of the limitations when creating "fd-related" behavior profiles, and refer to the documentation for more details. |
-| `anomaly.count_min_sketch.profile` | `string` | Key, Optional | Concatenated string according to the specified behavior profile (not preserving original order). Access different behavior profiles using indices. For instance, anomaly.count_min_sketch.profile[0] retrieves the first behavior profile defined in the plugins' `init_config`. When you disable the count_min_sketch algorithm, the field will be null. Be aware of the limitations when creating "fd-related" behavior profiles, and refer to the documentation for more details. |
-| `anomaly.falco.duration_ns` | `uint64` | No Arg | Falco agent run duration in nanoseconds, which could be useful for ignoring some rare events at launch time while Falco is just starting to build up the counts in the sketch data structures (if applicable). |
+|                NAME                |   TYPE   |  ARG  |                                                                                                                                            DESCRIPTION                                                                                                                                            |
+|------------------------------------|----------|-------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `anomaly.count_min_sketch`         | `uint64` | Index | Count Min Sketch Estimate according to the specified behavior profile for a predefined set of {syscalls} events. Access different behavior profiles/sketches using indices. For instance, anomaly.count_min_sketch[0] retrieves the first behavior profile defined in the plugins' `init_config`. |
+| `anomaly.count_min_sketch.profile` | `string` | Index | Concatenated string according to the specified behavior profile (not preserving original order). Access different behavior profiles using indices. For instance, anomaly.count_min_sketch.profile[0] retrieves the first behavior profile defined in the plugins' `init_config`.                  |
+| `anomaly.falco.duration_ns`        | `uint64` | None  | Falco agent run duration in nanoseconds, which could be useful for ignoring some rare events at launch time while Falco is just starting to build up the counts in the sketch data structures (if applicable).                                                                                    |
 <!-- /README-PLUGIN-FIELDS -->
 
 ## Usage
