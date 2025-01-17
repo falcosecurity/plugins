@@ -335,7 +335,7 @@
 - rule: Attach/Exec Pod
   desc: >
     Detect any attempt to attach/exec to a pod
-  condition: kevt_started and pod_subresource and kcreate and ka.target.subresource in (exec,attach) and not user_known_exec_pod_activities
+  condition: kevt_started and pod_subresource and (kcreate or kget) and ka.target.subresource in (exec,attach) and not user_known_exec_pod_activities
   output: Attach/Exec to pod (user=%ka.user.name pod=%ka.target.name resource=%ka.target.resource ns=%ka.target.namespace action=%ka.target.subresource command=%ka.uri.param[command])
   priority: NOTICE
   source: k8s_audit
