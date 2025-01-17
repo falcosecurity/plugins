@@ -120,37 +120,3 @@ jobs:
           name: pr-${{ inputs.job-index }}
           path: pr/
           retention-days: 1
-
-  upload-pr-info:
-    needs: [check-version]
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download PR infos
-        uses: actions/download-artifact@v4
-        with:
-          path: tmp-artifacts
-
-      - name: Save PR info
-        run: |
-          mkdir -p ./pr
-          echo ${{ github.event.number }} > ./pr/NR
-          touch ./pr/COMMENT
-          echo "# Rules files suggestions" >> ./pr/COMMENT
-          echo "" >> ./pr/COMMENT
-          files=$(find ./tmp-artifacts/)
-          for file in $files; do
-            if [[ $file =~ "COMMENT" ]]; then
-              cat $file >> ./pr/COMMENT
-            fi
-          done
-          echo Uploading PR info...
-          cat ./pr/COMMENT
-          echo ""
-
-      - name: Upload PR info as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: pr
-          path: pr/
-          retention-days: 1

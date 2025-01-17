@@ -2,7 +2,7 @@ name: Build Plugins PR
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 # Checks if any concurrent jobs under the same pull request or branch are being executed
 # NOTE: this will cancel every workflow that is being ran against a PR as group is just the github ref (without the workflow name)
@@ -10,7 +10,7 @@ concurrency:
   group: ci-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
-jobs:  
+jobs:
   build-plugins:
     uses: ./.github/workflows/reusable_build_packages.yaml
     with:
@@ -20,7 +20,7 @@ jobs:
 
   get-changed-plugins:
     uses: ./.github/workflows/reusable_get_changed_plugins.yaml
-  
+
   build-rules-tool:
     needs: [get-changed-plugins]
     if: needs.get-changed-plugins.outputs.changed-plugins != '[]' && needs.get-changed-plugins.outputs.changed-plugins != ''
@@ -28,7 +28,7 @@ jobs:
     with:
       output: rules-checker
       repository: falcosecurity/rules
-  
+
   validate-plugins:
     needs: [build-plugins, get-changed-plugins, build-rules-tool]
     if: needs.get-changed-plugins.outputs.changed-plugins != '[]' && needs.get-changed-plugins.outputs.changed-plugins != ''
@@ -44,7 +44,7 @@ jobs:
       plugins-artifact: plugins-x86_64-${{ github.event.number }}.tar.gz
       rules-checker: ./rules-checker
       arch: x86_64
-  
+
   suggest-rules-version:
     needs: [build-plugins, get-changed-plugins, build-rules-tool]
     if: needs.get-changed-plugins.outputs.changed-plugins != '[]' && needs.get-changed-plugins.outputs.changed-plugins != ''
@@ -60,3 +60,8 @@ jobs:
       rules-checker: ./rules-checker
       arch: x86_64
       job-index: ${{ strategy.job-index }}
+
+  upload-pr-info:
+    needs: [suggest-rules-version]
+    if: needs.get-changed-plugins.outputs.changed-plugins != '[]' && needs.get-changed-plugins.outputs.changed-plugins != ''
+    uses: ./.github/workflows/reusable_upload_pr_info.yaml
