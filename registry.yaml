@@ -547,7 +547,7 @@ plugins:
   - name: k8saudit-ovh
     description: Read Kubernetes Audit Events from OVHcloud MKS Clusters
     authors: Aurélie Vache
-    contact: https://falco.org/community
+    contact: https://github.com/scraly/
     maintainers:
       - name: The Falco Authors
         email: cncf-falco-dev@lists.cncf.io
