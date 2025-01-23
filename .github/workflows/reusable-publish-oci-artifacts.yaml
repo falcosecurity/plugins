@@ -23,24 +23,24 @@ jobs:
 
     steps:
       - name: Download x86_64 plugins
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: plugins-x86_64-${{ inputs.suffix }}.tar.gz
           path: /tmp/plugins-x86_64
 
       - name: Download aarch64 plugins
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: plugins-aarch64-${{ inputs.suffix }}.tar.gz
           path: /tmp/plugins-aarch64
 
       - name: Checkout Plugins
-        uses: actions/checkout@v3
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
           fetch-depth: 0
 
       - name: Setup Golang
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
         with:
           go-version: "^1.21"
 
@@ -88,7 +88,7 @@ jobs:
       - run: cosign version
 
       - name: Log into ghcr.io
-        uses: docker/login-action@master
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}

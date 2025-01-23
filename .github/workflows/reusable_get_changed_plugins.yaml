@@ -13,12 +13,12 @@ jobs:
       changed-plugins: ${{ steps.set-changed-plugins.outputs.changed-plugins }}
     steps:
       - name: Checkout rules
-        uses: actions/checkout@v3
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
 
       - name: Get changed files
         id: changed-plugins
         if: github.event_name == 'pull_request'
-        uses: Ana06/get-changed-files@v2.2.0
+        uses: Ana06/get-changed-files@25f79e676e7ea1868813e21465014798211fad8c # v2.3.0
         with:
           format: space-delimited
           token: ${{ secrets.GITHUB_TOKEN }}

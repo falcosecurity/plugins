@@ -20,7 +20,7 @@ jobs:
 
   get-changed-plugins:
     uses: ./.github/workflows/reusable_get_changed_plugins.yaml
-  
+
   build-rules-tool:
     needs: [get-changed-plugins]
     if: needs.get-changed-plugins.outputs.changed-plugins != '[]' && needs.get-changed-plugins.outputs.changed-plugins != ''
@@ -28,7 +28,7 @@ jobs:
     with:
       output: rules-checker
       repository: falcosecurity/rules
-  
+
   validate-plugins:
     needs: [build-plugins-dev, get-changed-plugins, build-rules-tool]
     if: needs.get-changed-plugins.outputs.changed-plugins != '[]' && needs.get-changed-plugins.outputs.changed-plugins != ''
@@ -44,7 +44,7 @@ jobs:
       plugins-artifact: plugins-x86_64-dev.tar.gz
       rules-checker: ./rules-checker
       arch: x86_64
-    
+
   publish-plugins-dev:
     needs: [build-plugins-dev, validate-plugins]
     uses: falcosecurity/plugins/.github/workflows/reusable_publish_packages.yaml@main
