@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/falcosecurity/falcoctl v0.6.1
-	github.com/falcosecurity/plugin-sdk-go v0.7.3
+	github.com/falcosecurity/plugin-sdk-go v0.7.4
 	github.com/onsi/ginkgo/v2 v2.10.0
 	github.com/onsi/gomega v1.27.8
 	github.com/pkg/errors v0.9.1
