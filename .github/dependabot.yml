@@ -1,0 +1,25 @@
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directories:
+      - ./build/*
+      - ./plugins/*
+      - ./shared/go/*/*
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      gomod:
+        update-types:
+          - "patch"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      actions:
+        update-types:
+          - "minor"
+          - "patch"

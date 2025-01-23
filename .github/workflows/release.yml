@@ -16,10 +16,10 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       package: ${{ steps.regex-match.outputs.group1 }}
-      
+
     steps:
       - name: Validate tag ℹ️
-        uses: actions-ecosystem/action-regex-match@v2
+        uses: actions-ecosystem/action-regex-match@9e6c4fb3d5e898f505be7a1fb6e7b0a278f6665b # v2.0.2
         id: regex-match
         with:
           text: ${{ github.ref_name }}
