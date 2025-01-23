@@ -10,7 +10,7 @@ require (
 	github.com/onsi/gomega v1.27.8
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.7.0
-	github.com/stretchr/testify v1.8.4
+	github.com/stretchr/testify v1.10.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/klog/v2 v2.100.1
