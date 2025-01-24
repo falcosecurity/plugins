@@ -7,7 +7,7 @@ require (
 	github.com/falcosecurity/plugins/plugins/k8saudit v0.11.0
 	github.com/falcosecurity/plugins/shared/go/aws/cloudwatchlogs v0.0.0-20240617170800-b69d0d091240
 	github.com/falcosecurity/plugins/shared/go/aws/session v0.0.0-20240617170800-b69d0d091240
-	github.com/invopop/jsonschema v0.12.0
+	github.com/invopop/jsonschema v0.13.0
 )
 
 require (
