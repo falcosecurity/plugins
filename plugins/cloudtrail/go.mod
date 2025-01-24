@@ -11,7 +11,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.37.9
 	github.com/aws/smithy-go v1.22.1
 	github.com/falcosecurity/plugin-sdk-go v0.7.4
-	github.com/invopop/jsonschema v0.12.0
+	github.com/invopop/jsonschema v0.13.0
 	github.com/valyala/fastjson v1.6.4
 )
 
