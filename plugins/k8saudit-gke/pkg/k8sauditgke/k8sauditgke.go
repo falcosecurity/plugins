@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /*
-Copyright (C) 2024 The Falco Authors.
+Copyright (C) 2025 The Falco Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -34,7 +34,7 @@ const (
 	PluginName               = "k8saudit-gke"
 	PluginDescription        = "Read Kubernetes Audit Events for GKE from a Pub/Sub subscription"
 	PluginContact            = "github.com/falcosecurity/plugins"
-	PluginVersion            = "0.4.1"
+	PluginVersion            = "0.5.0"
 	PluginEventSource        = "k8s_audit"
 )
 
