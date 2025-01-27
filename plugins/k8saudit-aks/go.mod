@@ -4,7 +4,7 @@ go 1.21.3
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs v1.2.3
-	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.5.0
+	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.6.0
 	github.com/falcosecurity/plugin-sdk-go v0.7.4
 	github.com/falcosecurity/plugins/plugins/k8saudit v0.11.0
 	github.com/falcosecurity/plugins/shared/go/azure/eventhub v0.0.0-20250117093332-1dc8b8272f85
