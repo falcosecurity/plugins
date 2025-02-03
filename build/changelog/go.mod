@@ -6,7 +6,7 @@ toolchain go1.22.2
 
 require (
 	github.com/falcosecurity/plugins/build/registry v0.0.0-20240514080945-0e7ef7698747
-	github.com/spf13/pflag v1.0.5
+	github.com/spf13/pflag v1.0.6
 )
 
 require (
