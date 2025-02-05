@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.5.2
+
+* [`1dc00ae`](https://github.com/falcosecurity/plugins/commit/1dc00aea) build(deps): bump google.golang.org/api in /plugins/gcpaudit
+
+* [`06371c1`](https://github.com/falcosecurity/plugins/commit/06371c10) update(plugins/gcpaudit): bump to go 1.22.7
+
+* [`7cfd78b`](https://github.com/falcosecurity/plugins/commit/7cfd78bb) build(deps): bump cloud.google.com/go/pubsub in /plugins/gcpaudit
+
+* [`7e92fd6`](https://github.com/falcosecurity/plugins/commit/7e92fd6e) build(deps): bump golang.org/x/net in /plugins/gcpaudit
+
+
 ## v0.5.1
 
 * [`b9c5f80`](https://github.com/falcosecurity/plugins/commit/b9c5f803) update(gcpaudit): bump to v0.5.1

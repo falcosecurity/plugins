@@ -1,5 +1,7 @@
 # Changelog
 
+## dev build (unreleased)
+
 * [`08197b7`](https://github.com/falcosecurity/plugins/commit/08197b74) style(dummy_c): adapt dummy_c to the new clang-format
 
 * [`ee0903e`](https://github.com/falcosecurity/plugins/commit/ee0903e2) new(dummy_c): add a rule file for dummy_c
@@ -7,7 +9,6 @@
 * [`c4cc4a2`](https://github.com/falcosecurity/plugins/commit/c4cc4a25) plugins(dummy_c): update dummy_c plugin to use the latest sdk
 
 * [`16df816`](https://github.com/falcosecurity/plugins/commit/16df8169) fix(dummy_c): alligned with the dummy go version
-
 
 ## v0.2.2
 

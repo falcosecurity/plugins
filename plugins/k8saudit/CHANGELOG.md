@@ -1,5 +1,9 @@
 # Changelog
 
+## dev build (unreleased)
+
+* [`a383f07`](https://github.com/falcosecurity/plugins/commit/a383f07d) new(plugins/k8saudit): add subject name fields
+
 ## v0.11.0
 
 * [`45e716e`](https://github.com/falcosecurity/plugins/commit/45e716e8) update(k8saudit): bump to v0.11
