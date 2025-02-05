@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2023 The Falco Authors.
+# Copyright (C) 2025 The Falco Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 # the License. You may obtain a copy of the License at
@@ -30,12 +30,15 @@ tags="$(git tag -l | grep -E -e ${plugin}-[0-9]+.[0-9]+.[0-9]+ -e ${plugin}/v[0-
 echo "# Changelog"
 echo ""
 
-# generate entry for upcoming tag
+# generate entry for upcoming tag, if any
 head="$(git rev-parse HEAD)"
-echo "## dev"
-echo ""
-${tool} --from="" --to=${head} --plugin=${plugin}
-echo ""
+dev_changelog="$(${tool} --from="" --to=${head} --plugin=${plugin})"
+if [ ! -z "$dev_changelog" ]; then
+    echo "## dev build (unreleased)"
+    echo ""
+    echo "$dev_changelog"
+    echo ""
+fi
 
 # generate entry for each tag
 for tag in $tags
