@@ -1,6 +1,7 @@
 module github.com/falcosecurity/plugins/plugins/gcpaudit
 
-go 1.19
+go 1.22.7
+
 toolchain go1.22.11
 
 require (
