@@ -1,7 +1,8 @@
 module github.com/falcosecurity/plugins/plugins/k8saudit-gke
 
-go 1.22.0
-toolchain go1.23.5
+go 1.23.0
+
+toolchain go1.23.6
 
 require (
 	cloud.google.com/go/pubsub v1.38.0
