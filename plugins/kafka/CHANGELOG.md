@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.1.4
+
+* [`b53587b`](https://github.com/falcosecurity/plugins/commit/b53587be) update(plugins/kafka): bump to v0.1.4
+
+* [`35ec887`](https://github.com/falcosecurity/plugins/commit/35ec8874) build(deps): bump golang.org/x/crypto in /plugins/kafka
+
+
 ## v0.1.3
 
 * [`2fbea59`](https://github.com/falcosecurity/plugins/commit/2fbea593) update(kafka): bump to v0.1.3

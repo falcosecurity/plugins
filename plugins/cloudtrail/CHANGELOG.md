@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.12.4
+
+* [`9663407`](https://github.com/falcosecurity/plugins/commit/96634075) build(deps): bump github.com/aws/aws-sdk-go-v2 in /plugins/cloudtrail
+
+* [`f6e5098`](https://github.com/falcosecurity/plugins/commit/f6e5098d) update(plugins/cloudtrail): bump to v0.12.3
+
+* [`56c0599`](https://github.com/falcosecurity/plugins/commit/56c0599e) build(deps): bump github.com/invopop/jsonschema in /plugins/cloudtrail
+
+
 ## v0.12.3
 
 * [`fbd9f48`](https://github.com/falcosecurity/plugins/commit/fbd9f483) update(cloudtrail): Update ct.resources handling

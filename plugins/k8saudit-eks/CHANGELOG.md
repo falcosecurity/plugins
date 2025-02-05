@@ -1,5 +1,9 @@
 # Changelog
 
+## dev build (unreleased)
+
+* [`69956e9`](https://github.com/falcosecurity/plugins/commit/69956e93) build(deps): bump github.com/invopop/jsonschema in /plugins/k8saudit-eks
+
 ## v0.6.0
 
 * [`26e55fa`](https://github.com/falcosecurity/plugins/commit/26e55fa8) update(k8saudit-eks): upgrade base plugin version
