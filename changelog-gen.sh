@@ -63,7 +63,12 @@ done
 # generate last entry for first tag, starting from the first commit
 if [ -n "$to" ]; then
     from="$(git rev-list --max-parents=0 HEAD)"
-    ver="$(echo ${to} | sed -e s/^${plugin}-// -e s/^/v/)"
+    # support both the old and new tag formats
+    if [[ $to == plugins/* ]]; then
+        ver="$(echo ${to} | sed -e s/^plugins\\/${plugin}\\///)"
+    else
+        ver="$(echo ${to} | sed -e s/^${plugin}-// -e s/^/v/)"
+    fi
     echo "## ${ver}" 
     echo ""
     ${tool} --from=${from} --to=${to} --plugin=${plugin}
