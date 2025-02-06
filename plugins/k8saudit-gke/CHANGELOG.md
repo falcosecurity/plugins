@@ -1,5 +1,19 @@
 # Changelog
 
+## dev build (unreleased)
+
+* [`f321ad7`](https://github.com/falcosecurity/plugins/commit/f321ad74) update(plugins/k8saudit-gke): bump to v0.5.0
+
+* [`87da20c`](https://github.com/falcosecurity/plugins/commit/87da20ca) build(deps): bump google.golang.org/api in /plugins/k8saudit-gke
+
+* [`dff7758`](https://github.com/falcosecurity/plugins/commit/dff77580) build(deps): bump cloud.google.com/go/pubsub in /plugins/k8saudit-gke
+
+* [`17b55be`](https://github.com/falcosecurity/plugins/commit/17b55be1) build(deps): bump k8s.io/apiserver in /plugins/k8saudit-gke
+
+* [`fdb08c4`](https://github.com/falcosecurity/plugins/commit/fdb08c41) update(plugins/k8saudit-gke): bump to go 1.23.0
+
+* [`28582b7`](https://github.com/falcosecurity/plugins/commit/28582b7b) build(deps): bump k8s.io/apimachinery in /plugins/k8saudit-gke
+
 ## v0.4.1
 
 * [`8b30c00`](https://github.com/falcosecurity/plugins/commit/8b30c001) update(k8saudit-gke): bump to v0.4.1

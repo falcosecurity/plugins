@@ -1,8 +1,13 @@
 # Changelog
 
-## dev build (unreleased)
+## v0.12.0
+
+* [`1da1fc0`](https://github.com/falcosecurity/plugins/commit/1da1fc0d) update(plugins/k8saudit): bump to v0.12.0
+
+* [`e5a4c20`](https://github.com/falcosecurity/plugins/commit/e5a4c209) update(plugins/k8saudit): update `required_plugin_versions` in ruleset
 
 * [`a383f07`](https://github.com/falcosecurity/plugins/commit/a383f07d) new(plugins/k8saudit): add subject name fields
+
 
 ## v0.11.0
 
