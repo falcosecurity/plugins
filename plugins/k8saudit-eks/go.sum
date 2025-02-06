@@ -12,8 +12,8 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/falcosecurity/plugin-sdk-go v0.7.4 h1:iNV0pgWgJwOHqSCjTw4Hsvtu5WuwoqckAWzpIEy9giQ=
 github.com/falcosecurity/plugin-sdk-go v0.7.4/go.mod h1:NP+y22DYOS+G3GDXIXNmzf0CBL3nfPPMoQuHvAzfitQ=
-github.com/falcosecurity/plugins/plugins/k8saudit v0.11.0 h1:ywwQ8kQmMS0HL3PuwBSKUmERqePrCSnajxnSCNC0HQY=
-github.com/falcosecurity/plugins/plugins/k8saudit v0.11.0/go.mod h1:RmSc1za6asI52w3uVhZGb/p6RoQr2OWmp/Zc8+kiMWw=
+github.com/falcosecurity/plugins/plugins/k8saudit v0.12.0 h1:Ffr5LnFPOc8UP4qch4XUB0Iki45qY8xFZxR53wtqSVg=
+github.com/falcosecurity/plugins/plugins/k8saudit v0.12.0/go.mod h1:RmSc1za6asI52w3uVhZGb/p6RoQr2OWmp/Zc8+kiMWw=
 github.com/falcosecurity/plugins/shared/go/aws/cloudwatchlogs v0.0.0-20240617170800-b69d0d091240 h1:Qi+kDNXSLPhI3Z1kwv6OnqfFTsXGFXp/v9I6iEHqbiU=
 github.com/falcosecurity/plugins/shared/go/aws/cloudwatchlogs v0.0.0-20240617170800-b69d0d091240/go.mod h1:CYl1dfwy+MAU+4rvPydDdGkYWwEalaHx/SHMQyx8GJ8=
 github.com/falcosecurity/plugins/shared/go/aws/session v0.0.0-20240617170800-b69d0d091240 h1:zu8iIYjzOBXM0C1UzTUPD02SRQH7OOw+MQplH2SqMkw=
