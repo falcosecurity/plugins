@@ -1,8 +1,11 @@
 # Changelog
 
-## dev build (unreleased)
+## v0.7.0
+
+* [`275672a`](https://github.com/falcosecurity/plugins/commit/275672a7) update(plugins/k8saudit-eks): bump to v0.7.0
 
 * [`69956e9`](https://github.com/falcosecurity/plugins/commit/69956e93) build(deps): bump github.com/invopop/jsonschema in /plugins/k8saudit-eks
+
 
 ## v0.6.0
 
