@@ -37,7 +37,7 @@ jobs:
             sudo apt install -y --no-install-recommends cmake build-essential autoconf libtool pkg-config
 
         - name: Initialize CodeQL
-          uses: github/codeql-action/init@dd746615b3b9d728a6a37ca2045b68ca76d4841a # v3.28.8
+          uses: github/codeql-action/init@9e8d0789d4a0fa9ceb6b1738f7e269594bdd67f0 # v3.28.9
           with:
             languages: cpp
 
@@ -49,7 +49,7 @@ jobs:
             make k8smeta -j6
 
         - name: Perform CodeQL Analysis
-          uses: github/codeql-action/analyze@dd746615b3b9d728a6a37ca2045b68ca76d4841a # v3.28.8
+          uses: github/codeql-action/analyze@9e8d0789d4a0fa9ceb6b1738f7e269594bdd67f0 # v3.28.9
 
         - name: Build and run tests 🏎️
           run: |
