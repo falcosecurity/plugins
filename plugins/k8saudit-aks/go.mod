@@ -9,7 +9,7 @@ require (
 	github.com/falcosecurity/plugins/plugins/k8saudit v0.12.0
 	github.com/falcosecurity/plugins/shared/go/azure/eventhub v0.0.0-20250117093332-1dc8b8272f85
 	github.com/invopop/jsonschema v0.13.0
-	golang.org/x/time v0.9.0
+	golang.org/x/time v0.10.0
 )
 
 require (
