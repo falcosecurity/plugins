@@ -4,7 +4,7 @@ go 1.21.3
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs v1.2.3
-	golang.org/x/time v0.8.0
+	golang.org/x/time v0.10.0
 )
 
 require (
