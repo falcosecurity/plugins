@@ -14,11 +14,12 @@ The plugin gathers details about Kubernetes resources from a remote collector kn
 
 ## Capabilities
 
-The `k8smeta` plugin implements 3 capabilities:
+The `k8smeta` plugin implements 4 capabilities:
 
 * `extraction`
 * `parsing`
 * `async`
+* `capture listening`
 
 ### Plugin official name
 
@@ -82,7 +83,7 @@ plugins:
       # Used to open an authanticated GRPC channel with the collector.
       # If empty the connection will be insecure.
       caPEMBundle: /etc/ssl/certs/ca-certificates.crt # (optional)
-      # The plugin needs to scan the '/proc' of the host on which is running.
+      # [DEPRECATED] The plugin needs to scan the '/proc' of the host on which is running.
       # In Falco usually we put the host '/proc' folder under '/host/proc' so
       # the the default for this config is '/host'.
       # The path used here must not have a final '/'.
@@ -101,11 +102,16 @@ The plugin doesn't have open params
 
 ### Rules
 
-This plugin doesn't provide any custom rule, you can use the default Falco ruleset and add the necessary `k8smeta` fields. A very simple example rule can be found [here](https://github.com/falcosecurity/plugins/blob/main/plugins/k8smeta/test/rules/example_rule.yaml)
+This plugin doesn't provide any custom rule, you can use the default Falco ruleset and add the necessary `k8smeta` fields. A very simple example rule can be found [here](https://github.com/falcosecurity/plugins/blob/main/plugins/k8smeta/test/rules/example_rule.yaml).  
+
+Note: leveraging latest plugin SDK features, the plugin itself will expose certain fields as suggested output fields:
+* `k8s.pod.name`
+* `k8s.ns.name`
 
 ### Running
 
-This plugin requires Falco with version >= **0.37.0**.
+This plugin requires Falco with version >= **0.40.0**.  
+For older Falco version (>= 0.37.0) please use plugin version 0.2.x.
 Modify the `falco.yaml` with the [configuration above](#configuration) and you are ready to go!
 
 ```shell
