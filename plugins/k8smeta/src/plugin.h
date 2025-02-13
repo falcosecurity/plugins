@@ -276,7 +276,8 @@ class my_plugin
     falcosecurity::table m_thread_table;
     // Accessors to the thread table "cgroups" table
     falcosecurity::table_field m_thread_field_cgroups;
-    // Accessors to the thread table "cgroups" "second" field, ie: the cgroups path
+    // Accessors to the thread table "cgroups" "second" field, ie: the cgroups
+    // path
     falcosecurity::table_field m_cgroups_field_second;
     // Accessors to the fixed fields of the thread table
     falcosecurity::table_field m_pod_uid_field;

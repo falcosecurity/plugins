@@ -300,9 +300,9 @@ bool my_plugin::init(falcosecurity::init_input& in)
         m_thread_field_cgroups = m_thread_table.get_field(
                 t.fields(), CGROUPS_TABLE_NAME, st::SS_PLUGIN_ST_TABLE);
         // get the 'second' field accessor from the cgroups table
-        m_cgroups_field_second = t.get_subtable_field(
-                m_thread_table, m_thread_field_cgroups, "second",
-                st::SS_PLUGIN_ST_STRING);
+        m_cgroups_field_second =
+                t.get_subtable_field(m_thread_table, m_thread_field_cgroups,
+                                     "second", st::SS_PLUGIN_ST_STRING);
 
         // Add the pod_uid field into thread table
         m_pod_uid_field = m_thread_table.add_field(
@@ -324,7 +324,8 @@ bool my_plugin::init(falcosecurity::init_input& in)
 // Listen capability
 //////////////////////////
 
-bool my_plugin::capture_open(const falcosecurity::capture_listen_input& in) {
+bool my_plugin::capture_open(const falcosecurity::capture_listen_input& in)
+{
     using st = falcosecurity::state_value_type;
 
     SPDLOG_DEBUG("enriching initial thread table entries");
@@ -334,28 +335,42 @@ bool my_plugin::capture_open(const falcosecurity::capture_listen_input& in) {
             tr,
             [this, tr, tw](const falcosecurity::table_entry& e)
             {
-                try {
-                    auto cgroups_table = m_thread_table.get_subtable(tr,
-                        m_thread_field_cgroups, e, st::SS_PLUGIN_ST_UINT64);
-                    cgroups_table.iterate_entries(tr, [&](const falcosecurity::table_entry& e){
-                        // read the "second" field (aka: the cgroup path)
-                        // from the current entry of the cgroups table
-                        std::string cgroup;
-                        m_cgroups_field_second.read_value(tr, e, cgroup);
-                        if(!cgroup.empty()) {
-                            const std::string pod_uid = get_pod_uid_from_cgroup_string(cgroup);
-                            if(!pod_uid.empty())
+                try
+                {
+                    auto cgroups_table = m_thread_table.get_subtable(
+                            tr, m_thread_field_cgroups, e,
+                            st::SS_PLUGIN_ST_UINT64);
+                    cgroups_table.iterate_entries(
+                            tr,
+                            [&](const falcosecurity::table_entry& e)
                             {
-                                m_pod_uid_field.write_value(tw, e, pod_uid.c_str());
-                                // break the loop
-                                return false;
-                            }
-                        }
-                        return true;
-                    });
+                                // read the "second" field (aka: the cgroup
+                                // path) from the current entry of the cgroups
+                                // table
+                                std::string cgroup;
+                                m_cgroups_field_second.read_value(tr, e,
+                                                                  cgroup);
+                                if(!cgroup.empty())
+                                {
+                                    const std::string pod_uid =
+                                            get_pod_uid_from_cgroup_string(
+                                                    cgroup);
+                                    if(!pod_uid.empty())
+                                    {
+                                        m_pod_uid_field.write_value(
+                                                tw, e, pod_uid.c_str());
+                                        // break the loop
+                                        return false;
+                                    }
+                                }
+                                return true;
+                            });
                     return true;
-                } catch (falcosecurity::plugin_exception &e) {
-                    SPDLOG_ERROR("cannot attach pod_uid to process: {}", e.what());
+                }
+                catch(falcosecurity::plugin_exception& e)
+                {
+                    SPDLOG_ERROR("cannot attach pod_uid to process: {}",
+                                 e.what());
                     // break the loop
                     return false;
                 }
@@ -363,7 +378,8 @@ bool my_plugin::capture_open(const falcosecurity::capture_listen_input& in) {
     return true;
 }
 
-bool my_plugin::capture_close(const falcosecurity::capture_listen_input& in) {
+bool my_plugin::capture_close(const falcosecurity::capture_listen_input& in)
+{
     return true;
 }
 
@@ -437,8 +453,14 @@ std::vector<falcosecurity::field_info> my_plugin::get_fields()
     using ft = falcosecurity::field_value_type;
     // Use an array to perform a static_assert one the size.
     const falcosecurity::field_info fields[] = {
-            {ft::FTYPE_STRING, "k8smeta.pod.name", "Pod Name",
-             "Kubernetes pod name.", {}, false, {}, true}, // use as suggested output format
+            {ft::FTYPE_STRING,
+             "k8smeta.pod.name",
+             "Pod Name",
+             "Kubernetes pod name.",
+             {},
+             false,
+             {},
+             true}, // use as suggested output format
             {ft::FTYPE_STRING, "k8smeta.pod.uid", "Pod UID",
              "Kubernetes pod UID."},
             {ft::FTYPE_STRING,
@@ -452,8 +474,14 @@ std::vector<falcosecurity::field_info> my_plugin::get_fields()
              falcosecurity::field_arg(), true},
             {ft::FTYPE_STRING, "k8smeta.pod.ip", "Pod Ip", "Kubernetes pod ip"},
 
-            {ft::FTYPE_STRING, "k8smeta.ns.name", "Namespace Name",
-             "Kubernetes namespace name.", {}, false, {}, true}, // use as suggested output format
+            {ft::FTYPE_STRING,
+             "k8smeta.ns.name",
+             "Namespace Name",
+             "Kubernetes namespace name.",
+             {},
+             false,
+             {},
+             true}, // use as suggested output format
             {ft::FTYPE_STRING, "k8smeta.ns.uid", "Namespace UID",
              "Kubernetes namespace UID."},
             {ft::FTYPE_STRING,
@@ -1031,7 +1059,7 @@ bool my_plugin::extract(const falcosecurity::extract_fields_input& in)
     if(pod_uid.empty())
     {
         SPDLOG_TRACE("no pod uid in the framework table for thread id '{}'",
-                        thread_id);
+                     thread_id);
         return false;
     }
 
