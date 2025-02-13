@@ -138,8 +138,8 @@ falcosecurity::init_schema my_plugin::get_init_schema()
 		},
 		"hostProc": {
 			"type": "string",
-			"title": "Path to reach the '/proc' folder we want to scan.",
-			"description": "The plugin needs to scan the '/proc' of the host on which is running. In Falco usually we put the host '/proc' folder under '/host/proc' so the the default for this config is '/host'. The path used here must not have a final '/'."
+			"title": "[DEPRECATED] Path to reach the '/proc' folder we want to scan.",
+			"description": "[DEPRECATED] The plugin needs to scan the '/proc' of the host on which is running. In Falco usually we put the host '/proc' folder under '/host/proc' so the the default for this config is '/host'. The path used here must not have a final '/'."
 		}
 	},
 	"additionalProperties": false,
@@ -256,139 +256,6 @@ void my_plugin::parse_init_config(nlohmann::json& config_json)
             }
         }
     }
-
-    if(config_json.contains(nlohmann::json::json_pointer(HOST_PROC_PATH)))
-    {
-        config_json.at(nlohmann::json::json_pointer(HOST_PROC_PATH))
-                .get_to(m_host_proc);
-    }
-    else
-    {
-        // Default value
-        m_host_proc = "/host";
-    }
-}
-
-void my_plugin::do_initial_proc_scan()
-{
-    std::filesystem::directory_iterator dir_iter;
-    std::string proc_root = m_host_proc + "/proc";
-    try
-    {
-        SPDLOG_INFO("Start the process scan under: '{}'", proc_root);
-        dir_iter = std::filesystem::directory_iterator(proc_root);
-    }
-    catch(std::filesystem::filesystem_error& err)
-    {
-        SPDLOG_ERROR("cannot iter over '{}' for initial proc scan: {}",
-                     proc_root, err.what());
-        return;
-    }
-
-    int64_t tid = 0;
-    std::string proc_path = "";
-    std::string cgroup_line = "";
-    for(const auto& entry : dir_iter)
-    {
-        auto file_name = entry.path().filename();
-        // The file_name here should be `1`,`2` so the thread id, not the
-        // process id. We should exclude other directories or files like
-        // `bootconfig`,`vmstat`, ...
-
-        if(!entry.is_directory() ||
-           (tid = strtol(file_name.c_str(), NULL, 10)) == 0)
-        {
-            // skip if not a tid directory.
-            continue;
-        }
-
-        // Now scan /proc/pid/task for threads
-        std::string task_dir = proc_root + "/" + file_name.c_str() + "/task";
-
-        try
-        {
-            for(const auto& task_entry :
-                std::filesystem::directory_iterator(task_dir))
-            {
-                try
-                {
-                    auto task_file_name = task_entry.path().filename();
-                    tid = strtol(task_file_name.c_str(), NULL, 10);
-
-                    if(tid == 0 || !task_entry.is_directory())
-                    {
-                        SPDLOG_WARN("Found task entry `{}` in process `{}` "
-                                    "that is not "
-                                    "a number",
-                                    task_file_name.c_str(), file_name.c_str());
-                        continue; // skip if not a thread id directory
-                    }
-                    // Example of the path: `/proc/1/task/200/cgroup`
-                    proc_path = std::string(proc_root)
-                                        .append("/")
-                                        .append(file_name.c_str())
-                                        .append("/task/")
-                                        .append(task_file_name.c_str())
-                                        .append("/cgroup");
-
-                    std::ifstream file(proc_path);
-
-                    if(file.is_open())
-                    {
-                        // Read the first line from the file
-                        if(std::getline(file, cgroup_line))
-                        {
-                            std::string pod_uid =
-                                    get_pod_uid_from_cgroup_string(cgroup_line);
-                            if(!pod_uid.empty())
-                            {
-                                m_thread_id_pod_uid_map[tid] = pod_uid;
-                                SPDLOG_TRACE("Found thread with tid '{}' and "
-                                             "pod uid '{}'",
-                                             tid, pod_uid);
-                            }
-                        }
-                        else
-                        {
-                            SPDLOG_WARN("Cannot retrieve the cgroup first line "
-                                        "for '{}'. "
-                                        "Error: {}. Skip it",
-                                        proc_path,
-                                        file.eof() ? "Empty file"
-                                                   : strerror(errno));
-                        }
-                        file.close();
-                    }
-                    else
-                    {
-                        SPDLOG_WARN("Cannot open '{}'. Error: {}. Skip it.",
-                                    proc_path, strerror(errno));
-                    }
-
-                    SPDLOG_DEBUG(
-                            "Thread scan correctly completed for process `{}`",
-                            file_name.c_str());
-                }
-                catch(const std::filesystem::filesystem_error& err)
-                {
-                    SPDLOG_WARN("cannot iter over '{}' for initial proc scan: "
-                                "{}. It could happen that some process "
-                                "entries disappear between iterations",
-                                task_dir, err.what());
-                }
-            }
-        }
-        catch(const std::filesystem::filesystem_error& err)
-        {
-            SPDLOG_WARN("cannot iter over '{}' for initial proc scan: {}. It "
-                        "could happen that some process entries disappear "
-                        "between iterations",
-                        task_dir, err.what());
-        }
-    }
-    SPDLOG_INFO(
-            "Process scan correctly completed. Found '{}' threads inside pods.",
-            m_thread_id_pod_uid_map.size());
 }
 
 bool my_plugin::init(falcosecurity::init_input& in)
@@ -428,11 +295,20 @@ bool my_plugin::init(falcosecurity::init_input& in)
     try
     {
         m_thread_table = t.get_table(THREAD_TABLE_NAME, st::SS_PLUGIN_ST_INT64);
+
+        // get the 'cgroups' field accessor from the thread table
+        m_thread_field_cgroups = m_thread_table.get_field(
+                t.fields(), CGROUPS_TABLE_NAME, st::SS_PLUGIN_ST_TABLE);
+        // get the 'second' field accessor from the cgroups table
+        m_cgroups_field_second = t.get_subtable_field(
+                m_thread_table, m_thread_field_cgroups, "second",
+                st::SS_PLUGIN_ST_STRING);
+
         // Add the pod_uid field into thread table
         m_pod_uid_field = m_thread_table.add_field(
                 t.fields(), POD_UID_FIELD_NAME, st::SS_PLUGIN_ST_STRING);
     }
-    catch(falcosecurity::plugin_exception e)
+    catch(falcosecurity::plugin_exception& e)
     {
         m_lasterr = "cannot add the '" + std::string(POD_UID_FIELD_NAME) +
                     "' field into the '" + std::string(THREAD_TABLE_NAME) +
@@ -441,11 +317,53 @@ bool my_plugin::init(falcosecurity::init_input& in)
         return false;
     }
 
-    // Here we do /proc scan to catch the pod_uid from already running
-    // processes.
-    // We cannot populate the sinsp thread table because when we call `init` it
-    // is still empty. The /proc scan in sinsp is done after the plugin init.
-    do_initial_proc_scan();
+    return true;
+}
+
+//////////////////////////
+// Listen capability
+//////////////////////////
+
+bool my_plugin::capture_open(const falcosecurity::capture_listen_input& in) {
+    using st = falcosecurity::state_value_type;
+
+    SPDLOG_DEBUG("enriching initial thread table entries");
+    auto& tr = in.get_table_reader();
+    auto& tw = in.get_table_writer();
+    m_thread_table.iterate_entries(
+            tr,
+            [this, tr, tw](const falcosecurity::table_entry& e)
+            {
+                try {
+                    auto cgroups_table = m_thread_table.get_subtable(tr,
+                        m_thread_field_cgroups, e, st::SS_PLUGIN_ST_UINT64);
+                    cgroups_table.iterate_entries(tr, [&](const falcosecurity::table_entry& e){
+                        // read the "second" field (aka: the cgroup path)
+                        // from the current entry of the cgroups table
+                        std::string cgroup;
+                        m_cgroups_field_second.read_value(tr, e, cgroup);
+                        if(!cgroup.empty()) {
+                            const std::string pod_uid = get_pod_uid_from_cgroup_string(cgroup);
+                            if(!pod_uid.empty())
+                            {
+                                m_pod_uid_field.write_value(tw, e, pod_uid.c_str());
+                                // break the loop
+                                return false;
+                            }
+                        }
+                        return true;
+                    });
+                    return true;
+                } catch (falcosecurity::plugin_exception &e) {
+                    SPDLOG_ERROR("cannot attach pod_uid to process: {}", e.what());
+                    // break the loop
+                    return false;
+                }
+            });
+    return true;
+}
+
+bool my_plugin::capture_close(const falcosecurity::capture_listen_input& in) {
     return true;
 }
 
@@ -520,7 +438,7 @@ std::vector<falcosecurity::field_info> my_plugin::get_fields()
     // Use an array to perform a static_assert one the size.
     const falcosecurity::field_info fields[] = {
             {ft::FTYPE_STRING, "k8smeta.pod.name", "Pod Name",
-             "Kubernetes pod name."},
+             "Kubernetes pod name.", {}, false, {}, true}, // use as suggested output format
             {ft::FTYPE_STRING, "k8smeta.pod.uid", "Pod UID",
              "Kubernetes pod UID."},
             {ft::FTYPE_STRING,
@@ -535,7 +453,7 @@ std::vector<falcosecurity::field_info> my_plugin::get_fields()
             {ft::FTYPE_STRING, "k8smeta.pod.ip", "Pod Ip", "Kubernetes pod ip"},
 
             {ft::FTYPE_STRING, "k8smeta.ns.name", "Namespace Name",
-             "Kubernetes namespace name."},
+             "Kubernetes namespace name.", {}, false, {}, true}, // use as suggested output format
             {ft::FTYPE_STRING, "k8smeta.ns.uid", "Namespace UID",
              "Kubernetes namespace UID."},
             {ft::FTYPE_STRING,
@@ -1112,27 +1030,9 @@ bool my_plugin::extract(const falcosecurity::extract_fields_input& in)
     // The process is not into a pod, stop here.
     if(pod_uid.empty())
     {
-        // If we fall here and our cache is empty, it means that probably we are
-        // not in a pod.
-        if(m_thread_id_pod_uid_map.empty())
-        {
-            SPDLOG_TRACE("no pod uid in the framework table for thread id '{}'",
-                         thread_id);
-            return false;
-        }
-
-        // If the cache is not empty we try to search the pod_uid in the cache.
-        // There could be cases in which we first call an extract and then a
-        // parse so the sinsp table is not yet populated with the content of our
-        // cache and so we need to use it here.
-        auto it = m_thread_id_pod_uid_map.find(thread_id);
-        if(it == m_thread_id_pod_uid_map.end())
-        {
-            SPDLOG_TRACE("no pod uid in the plugin cache for thread id '{}'",
-                         thread_id);
-            return false;
-        }
-        pod_uid = it->second;
+        SPDLOG_TRACE("no pod uid in the framework table for thread id '{}'",
+                        thread_id);
+        return false;
     }
 
     // Try to find the entry associated with the pod_uid
@@ -1468,7 +1368,7 @@ bool inline my_plugin::parse_process_events(
     std::string pod_uid = get_pod_uid_from_cgroup_string(cgroup_first_charbuf);
 
     // If we don't have a pod_uid we don't need to populate the table
-    if(pod_uid != "")
+    if(!pod_uid.empty())
     {
         // retrieve thread entry associated with the event tid
         auto& tr = in.get_table_reader();
@@ -1493,40 +1393,6 @@ bool inline my_plugin::parse_process_events(
 bool my_plugin::parse_event(const falcosecurity::parse_event_input& in)
 {
     // NOTE: today in the libs framework, parsing errors are not logged
-
-    // Workaround: the parsing is the unique place where we can populate the
-    // sinsp thread table. The first time we call parse we populate the sinsp
-    // table and we clear our internal cache.
-    if(!m_sinsp_proc_populated)
-    {
-        auto& tr = in.get_table_reader();
-        auto& tw = in.get_table_writer();
-        falcosecurity::table_entry thread_entry;
-
-        SPDLOG_INFO("Update the framework state with the plugin cache. The "
-                    "cache has '{}' "
-                    "elements",
-                    m_thread_id_pod_uid_map.size());
-
-        for(auto it = m_thread_id_pod_uid_map.begin();
-            it != m_thread_id_pod_uid_map.end(); it++)
-        {
-            try
-            {
-                thread_entry = m_thread_table.get_entry(tr, (int64_t)it->first);
-                m_pod_uid_field.write_value(tw, thread_entry,
-                                            (const char*)it->second.c_str());
-            }
-            catch(falcosecurity::plugin_exception e)
-            {
-                SPDLOG_WARN("Thead id '{}' with pod_uid '{}' is not found "
-                            "inside the framework table. Skip it.",
-                            it->first, it->second);
-            }
-        }
-        m_thread_id_pod_uid_map.clear();
-        m_sinsp_proc_populated = true;
-    }
 
     uint16_t evt_type = in.get_event_reader().get_type();
     switch(evt_type)
