@@ -4,7 +4,7 @@ message(STATUS "Fetching libs at 'https://github.com/falcosecurity/libs.git'")
 FetchContent_Declare(
   libs
   GIT_REPOSITORY https://github.com/falcosecurity/libs.git
-  GIT_TAG 0.14.1
+  GIT_TAG 0.20.0
   CONFIGURE_COMMAND "" BUILD_COMMAND "")
 
 FetchContent_Populate(libs)
