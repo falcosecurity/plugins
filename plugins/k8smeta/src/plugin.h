@@ -126,7 +126,12 @@ class my_plugin
 
     bool init(falcosecurity::init_input& in);
 
-    void do_initial_proc_scan();
+    //////////////////////////
+    // Listen capability
+    //////////////////////////
+
+    bool capture_open(const falcosecurity::capture_listen_input& in);
+    bool capture_close(const falcosecurity::capture_listen_input& in);
 
     //////////////////////////
     // Async capability
@@ -245,7 +250,7 @@ class my_plugin
     private:
     // Async thread
     std::thread m_async_thread;
-    std::atomic<bool> m_async_thread_quit;
+    std::atomic<bool> m_async_thread_quit = false;
     std::condition_variable m_cv;
     std::mutex m_mu;
 
@@ -254,7 +259,6 @@ class my_plugin
     std::string m_collector_port;
     std::string m_node_name;
     std::string m_ca_PEM_encoding;
-    std::string m_host_proc;
 
     // State tables
     std::unordered_map<std::string, resource_layout> m_pod_table;
@@ -265,15 +269,15 @@ class my_plugin
     std::unordered_map<std::string, resource_layout>
             m_replication_controller_table;
     std::unordered_map<std::string, resource_layout> m_deamonset_table;
-    std::unordered_map<int64_t, std::string> m_thread_id_pod_uid_map;
 
-    // The first time we parse an event we populate the sinsp thread table and
-    // we set it to true
-    bool m_sinsp_proc_populated = false;
     // Last error of the plugin
     std::string m_lasterr;
     // Accessor to the thread table
     falcosecurity::table m_thread_table;
+    // Accessors to the thread table "cgroups" table
+    falcosecurity::table_field m_thread_field_cgroups;
+    // Accessors to the thread table "cgroups" "second" field, ie: the cgroups path
+    falcosecurity::table_field m_cgroups_field_second;
     // Accessors to the fixed fields of the thread table
     falcosecurity::table_field m_pod_uid_field;
 };
@@ -282,3 +286,4 @@ FALCOSECURITY_PLUGIN(my_plugin);
 FALCOSECURITY_PLUGIN_FIELD_EXTRACTION(my_plugin);
 FALCOSECURITY_PLUGIN_ASYNC_EVENTS(my_plugin);
 FALCOSECURITY_PLUGIN_EVENT_PARSING(my_plugin);
+FALCOSECURITY_PLUGIN_CAPTURE_LISTENING(my_plugin);
