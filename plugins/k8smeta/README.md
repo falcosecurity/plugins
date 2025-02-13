@@ -105,8 +105,8 @@ The plugin doesn't have open params
 This plugin doesn't provide any custom rule, you can use the default Falco ruleset and add the necessary `k8smeta` fields. A very simple example rule can be found [here](https://github.com/falcosecurity/plugins/blob/main/plugins/k8smeta/test/rules/example_rule.yaml).  
 
 Note: leveraging latest plugin SDK features, the plugin itself will expose certain fields as suggested output fields:
-* `k8s.pod.name`
-* `k8s.ns.name`
+* `k8smeta.pod.name`
+* `k8smeta.ns.name`
 
 ### Running
 
