@@ -256,6 +256,13 @@ void my_plugin::parse_init_config(nlohmann::json& config_json)
             }
         }
     }
+
+    // TODO: clean this up after deprecation period is over
+    if(config_json.contains(nlohmann::json::json_pointer("/hostProc")))
+    {
+        SPDLOG_WARN("hostProc init config key is deprecated since it is no "
+                    "more in use");
+    }
 }
 
 bool my_plugin::init(falcosecurity::init_input& in)
