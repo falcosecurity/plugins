@@ -11,8 +11,8 @@ require (
 	github.com/falcosecurity/plugins/plugins/k8saudit v0.12.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	google.golang.org/api v0.220.0
-	k8s.io/api v0.32.1
-	k8s.io/apimachinery v0.32.1
+	k8s.io/api v0.32.2
+	k8s.io/apimachinery v0.32.2
 )
 
 require (
@@ -67,5 +67,5 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250127172529-29210b9bc287 // indirect
 	google.golang.org/grpc v1.70.0 // indirect
 	google.golang.org/protobuf v1.36.5
-	k8s.io/apiserver v0.32.1
+	k8s.io/apiserver v0.32.2
 )
