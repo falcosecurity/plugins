@@ -284,7 +284,7 @@ func handlePlugin(ctx context.Context, cfg *config, plugin *registry.Plugin, oci
 				Ref: ref,
 			},
 			registry.ArtifactMetadata{
-				Digest: res.Digest,
+				Digest: res.RootDigest,
 				Tags:   tags,
 			},
 		})
@@ -352,7 +352,7 @@ func handleRule(ctx context.Context, cfg *config, plugin *registry.Plugin,
 				Ref: ref,
 			},
 			registry.ArtifactMetadata{
-				Digest: res.Digest,
+				Digest: res.RootDigest,
 				Tags:   tags,
 			},
 		})
