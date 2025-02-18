@@ -3,13 +3,14 @@ package validateRegistry
 import (
 	"context"
 	"fmt"
+	"strings"
+
 	"github.com/falcosecurity/falcoctl/pkg/oci/authn"
 	ocipuller "github.com/falcosecurity/falcoctl/pkg/oci/puller"
 	"github.com/falcosecurity/plugins/build/registry/pkg/oci"
 	"github.com/falcosecurity/plugins/build/registry/pkg/registry"
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
-	"strings"
 )
 
 func NewValidateRegistry(ctx context.Context) *cobra.Command {
@@ -45,7 +46,9 @@ func validateRegistry(ctx context.Context, registryFile string) error {
 		}
 		klog.Infof("Checking OCI repo for plugin %q", plugin.Name)
 		ref := fmt.Sprintf("ghcr.io/falcosecurity/plugins/plugin/%s:latest", plugin.Name)
-		if _, err := puller.PullConfigLayer(ctx, ref); err != nil {
+		// We just retrieve the descriptor from the remote repository,
+		// if it fails, likely the repository does not exist
+		if _, err := puller.Descriptor(ctx, ref); err != nil {
 			return fmt.Errorf("plugin %s seems to not have an OCI repository: %w", plugin.Name, err)
 		}
 	}
