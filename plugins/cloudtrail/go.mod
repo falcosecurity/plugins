@@ -1,6 +1,7 @@
 module github.com/falcosecurity/plugins/plugins/cloudtrail
 
 go 1.21
+toolchain go1.22.5
 
 require (
 	github.com/aws/aws-lambda-go v1.47.0
@@ -9,7 +10,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.17.62
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.77.0
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.37.14
-	github.com/aws/smithy-go v1.22.2
+	github.com/aws/smithy-go v1.22.3
 	github.com/falcosecurity/plugin-sdk-go v0.7.4
 	github.com/invopop/jsonschema v0.13.0
 	github.com/valyala/fastjson v1.6.4
