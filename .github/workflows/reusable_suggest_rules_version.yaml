@@ -52,7 +52,7 @@ jobs:
         run: ./.github/get-latest-plugin-version.sh ${{ inputs.plugin }}
 
       - name: Download rules tool
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           name: rules-tool.tar.gz
 
@@ -63,7 +63,7 @@ jobs:
       # the two rulesets depend on plugins with different majors.
       # todo(jasondellaluce): fix this corner case in the future
       - name: Download plugins
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           name: ${{ inputs.plugins-artifact }}
           path: /tmp/plugins-${{ inputs.arch }}
