@@ -271,6 +271,8 @@ func (oCtx *PluginInstance) openS3(input string) error {
 	// bucket_name/prefix_name/AWSLogs/Account ID/CloudTrail/region/YYYY/MM/DD/AccountID_CloudTrail_RegionName_YYYYMMDDTHHmmZ_UniqueString.json.gz
 	// for organization trails the format is
 	// bucket_name/prefix_name/AWSLogs/O-ID/Account ID/CloudTrail/Region/YYYY/MM/DD/AccountID_CloudTrail_RegionName_YYYYMMDDTHHmmZ_UniqueString.json.gz
+	// for ControlTower releases before landing zones version 3.0 the organization trails format is
+	// bucket_name/prefix_name/AWSLogs/Account ID/CloudTrail/Region/YYYY/MM/DD/AccountID_CloudTrail_RegionName_YYYYMMDDTHHmmZ_UniqueString.json.gz
 	// Reduce the number of pages we have to process using "StartAfter" parameters
 	// here, then trim individual filepaths below.
 
@@ -278,8 +280,8 @@ func (oCtx *PluginInstance) openS3(input string) error {
 
 	// For durations, carve out a special case for "Copy S3 URI" in the AWS console, which gives you
 	// bucket_name/prefix_name/AWSLogs/<Account ID>/ or bucket_name/prefix_name/AWSLogs/<Org-ID>/<Account ID>/
-	awsLogsRE := regexp.MustCompile(`AWSLogs/(?:o-[a-z0-9]{10,32}/)?\d{12}/?$`)
-	awsLogsOrgRE := regexp.MustCompile(`AWSLogs/o-[a-z0-9]{10,32}/?$`)
+	awsLogsRE := regexp.MustCompile(`/AWSLogs/(?:o-[a-z0-9]{10,32}/)?\d{12}/?$`)
+	awsLogsOrgRE := regexp.MustCompile(`/AWSLogs(?:/o-[a-z0-9]{10,32})?/?$`)
 	if awsLogsRE.MatchString(prefix) {
 		if (! strings.HasSuffix(intervalPrefix, "/")) {
 			intervalPrefix += "/"
