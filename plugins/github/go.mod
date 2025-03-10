@@ -1,6 +1,7 @@
 module github.com/falcosecurity/plugins/plugins/github
 
 go 1.22
+toolchain go1.23.7
 
 require (
 	github.com/alecthomas/jsonschema v0.0.0-20220216202328-9eeeec9d044b
@@ -8,7 +9,7 @@ require (
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/sethvargo/go-password v0.3.1
 	github.com/valyala/fastjson v1.6.4
-	golang.org/x/oauth2 v0.26.0
+	golang.org/x/oauth2 v0.28.0
 )
 
 require (
