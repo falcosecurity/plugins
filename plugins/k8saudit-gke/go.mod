@@ -2,7 +2,7 @@ module github.com/falcosecurity/plugins/plugins/k8saudit-gke
 
 go 1.23.0
 
-toolchain go1.23.6
+toolchain go1.24.1
 
 require (
 	cloud.google.com/go/pubsub v1.47.0
@@ -11,8 +11,8 @@ require (
 	github.com/falcosecurity/plugins/plugins/k8saudit v0.12.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	google.golang.org/api v0.224.0
-	k8s.io/api v0.32.2
-	k8s.io/apimachinery v0.32.2
+	k8s.io/api v0.32.3
+	k8s.io/apimachinery v0.32.3
 )
 
 require (
@@ -67,5 +67,5 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250227231956-55c901821b1e // indirect
 	google.golang.org/grpc v1.70.0 // indirect
 	google.golang.org/protobuf v1.36.5
-	k8s.io/apiserver v0.32.2
+	k8s.io/apiserver v0.32.3
 )
