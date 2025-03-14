@@ -2,7 +2,7 @@ module github.com/falcosecurity/plugins/build/registry
 
 go 1.23.4
 
-toolchain go1.24.0
+toolchain go1.24.1
 
 require (
 	github.com/blang/semver v3.5.1+incompatible
@@ -144,8 +144,8 @@ require (
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
-	k8s.io/api v0.32.2 // indirect
-	k8s.io/apimachinery v0.32.2 // indirect
+	k8s.io/api v0.32.3 // indirect
+	k8s.io/apimachinery v0.32.3 // indirect
 	k8s.io/cli-runtime v0.32.2 // indirect
 	k8s.io/client-go v0.32.2 // indirect
 	k8s.io/component-base v0.32.2 // indirect

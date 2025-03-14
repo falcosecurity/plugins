@@ -2,8 +2,10 @@ module github.com/falcosecurity/plugins/plugins/k8saudit-aks
 
 go 1.21.3
 
+toolchain go1.24.1
+
 require (
-	github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs v1.3.0
+	github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs v1.3.1
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.6.0
 	github.com/falcosecurity/plugin-sdk-go v0.7.4
 	github.com/falcosecurity/plugins/plugins/k8saudit v0.12.0
@@ -23,8 +25,8 @@ require (
 	github.com/mailru/easyjson v0.9.0 // indirect
 	github.com/valyala/fastjson v1.6.4 // indirect
 	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect
-	golang.org/x/net v0.34.0 // indirect
-	golang.org/x/text v0.21.0 // indirect
+	golang.org/x/net v0.35.0 // indirect
+	golang.org/x/text v0.22.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
