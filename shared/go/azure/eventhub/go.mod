@@ -1,10 +1,11 @@
 module github.com/falcosecurity/plugins/shared/go/azure/eventhub
 
 go 1.21.3
+toolchain go1.24.1
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs v1.3.0
-	golang.org/x/time v0.10.0
+	golang.org/x/time v0.11.0
 )
 
 require (
