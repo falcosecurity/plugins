@@ -12,10 +12,6 @@ updates:
       gomod:
         update-types:
           - "patch"
-    # Add post-update commands to run go mod tidy
-    post-update-commands:
-      - "go mod tidy"
-
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
