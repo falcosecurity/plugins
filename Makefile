@@ -27,6 +27,7 @@ plugins-clean = $(addprefix clean/,$(plugins))
 plugins-changelogs = $(addprefix changelog/,$(plugins))
 plugins-packages = $(addprefix package/,$(plugins))
 plugins-releases = $(addprefix release/,$(plugins))
+plugins-tidy = $(addprefix tidy/,$(plugins))
 
 .PHONY: all
 all: check-registry $(plugins)
@@ -43,6 +44,9 @@ $(plugins): build/readme/readme
 		&& make readme READMETOOL=../../build/readme/bin/readme \
 		&& echo "$@ readme generated" || :
 
+tidy/%:
+	+cd plugins/$@ && [-f go.mod] && $(GO) mod tidy
+
 .PHONY: clean
 clean: $(plugins-clean) clean/packages clean/build/utils/version clean/build/registry/registry clean/build/changelog/changelog clean/build/readme/readme
 
@@ -53,6 +57,13 @@ clean/packages:
 .PHONY: $(plugins-clean)
 $(plugins-clean):
 	+cd plugins/$(shell basename $@) && make clean
+
+.PHONY: $(plugins-tidy)
+$(plugins-tidy):
+	+cd plugins/$(shell basename $@) && [ -f go.mod ] && $(GO) mod tidy || true
+
+.PHONY: tidy
+tidy: $(plugins-tidy)
 
 .PHONY: packages
 packages: clean/packages $(plugins-packages)
