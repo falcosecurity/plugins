@@ -1,0 +1,17 @@
+[package]
+name = "krsi-ebpf"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+krsi-common = { path = "../krsi-common" }
+
+aya-ebpf = { workspace = true }
+aya-log-ebpf = { workspace = true }
+
+[build-dependencies]
+which = { workspace = true }
+
+[[bin]]
+name = "krsi"
+path = "src/main.rs"
