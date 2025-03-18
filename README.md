@@ -88,6 +88,7 @@ These comments and the text between them should not be edited by hand -->
 | [keycloak](https://github.com/mattiaforc/falco-keycloak-plugin) | **Event Sourcing** <br/>ID: 20 <br/>`keycloak` <br/>**Field Extraction** <br/> `keycloak` | Falco plugin for sourcing and extracting Keycloak user/admin events  <br/><br/> Authors: [Mattia Forcellese](https://github.com/mattiaforc/falco-keycloak-plugin/issues) <br/> License: Apache-2.0 |
 | [k8saudit-aks](https://github.com/falcosecurity/plugins/tree/main/plugins/k8saudit-aks) | **Event Sourcing** <br/>ID: 21 <br/>`k8s_audit` <br/>**Field Extraction** <br/> `k8s_audit` | Read Kubernetes Audit Events from AWS AKS Clusters  <br/><br/> Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
 | [k8saudit-ovh](https://github.com/falcosecurity/plugins/tree/main/plugins/k8saudit-ovh) | **Event Sourcing** <br/>ID: 22 <br/>`k8s_audit` <br/>**Field Extraction** <br/> `k8s_audit` | Read Kubernetes Audit Events from OVHcloud MKS Clusters  <br/><br/> Authors: [Aurélie Vache](https://falco.org/community) <br/> License: Apache-2.0 |
+| [dummy_rs](https://github.com/falcosecurity/plugins/tree/main/plugins/dummy_rs) | **Event Sourcing** <br/>ID: 23 <br/>`dummy_rs` <br/>**Field Extraction** <br/> `dummy_rs` | Like dummy, but written in Rust  <br/><br/> Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
 
 <!-- REGISTRY:TABLE -->
 

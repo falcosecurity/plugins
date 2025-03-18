@@ -576,3 +576,19 @@ plugins:
         source: k8s_audit
       extraction:
         supported: true
+  - name: dummy_rs
+    description: Like dummy, but written in Rust
+    authors: The Falco Authors
+    contact: https://falco.org/community
+    maintainers:
+      - name: The Falco Authors
+        email: cncf-falco-dev@lists.cncf.io
+    url: https://github.com/falcosecurity/plugins/tree/main/plugins/dummy_rs
+    license: Apache-2.0
+    capabilities:
+      sourcing:
+        supported: true
+        id: 23
+        source: dummy_rs
+      extraction:
+        supported: true
