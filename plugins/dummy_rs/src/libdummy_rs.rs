@@ -102,7 +102,7 @@ impl SourcePluginInstance for DummyRsPluginInstance {
         // The representation of a dummy event is the sample as little endian bytes
         let event = self.sample.to_le_bytes().to_vec();
 
-        // Add the encoded samplet to the batch
+        // Add the encoded sample to the batch
         let event = Self::plugin_event(&event);
         batch.add(event)?;
 
