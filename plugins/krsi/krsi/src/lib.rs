@@ -279,4 +279,3 @@ plugin!(KrsiPlugin);
 async_event_plugin!(KrsiPlugin);
 parse_plugin!(KrsiPlugin);
 extract_plugin!(KrsiPlugin);
-
