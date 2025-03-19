@@ -2,56 +2,20 @@
 
 [![Falco Core Repository](https://github.com/falcosecurity/evolution/blob/main/repos/badges/falco-core-blue.svg)](https://github.com/falcosecurity/evolution/blob/main/REPOSITORIES.md#core-scope) [![Stable](https://img.shields.io/badge/status-stable-brightgreen?style=for-the-badge)](https://github.com/falcosecurity/evolution/blob/main/REPOSITORIES.md#stable) [![License](https://img.shields.io/github/license/falcosecurity/rules?style=for-the-badge)](./LICENSE)
 
-Note: *The plugin system is a new feature introduced since Falco 0.31.0. You can find more detail in the original [proposal document](https://github.com/falcosecurity/falco/blob/master/proposals/20210501-plugin-system.md).*
+This repository is the central hub for the Falco Plugin ecosystem. It serves two main purposes:
 
-This repository contains the [Plugin Registry](#plugin-registry) and the [plugins officially maintained](#falcusecurity-plugins) by the Falcosecurity organization. [Plugins](https://falco.org/docs/plugins) can be used to extend [Falco](https://github.com/falcosecurity/falco) and of applications using [Falcosecurity libs](https://github.com/falcosecurity/libs). Please refer to the [official documentation](https://falco.org/docs/plugins) to better understand the plugin system's concepts and architecture. 
+- **Be a registry:** A comprehensive catalog of plugins recognized by The Falco Project, regardless of where their source code is hosted.
+- **Monorepo for Falcosecurity plugins:** Official plugins hosted and maintained by The Falco Project, with robust release and distribution processes.
+
+For more information about the plugin system’s architecture and concepts, please see the [official documentation](https://falco.org/docs/plugins).
+
+---
 
 ## Plugin Registry
 
-The Registry contains metadata and information about every plugin known and recognized by the Falcosecurity organization. It lists plugins hosted either in this repository or in other repositories. These plugins are developed for Falco and made available to the community. Check out the sections below to know how to [register your plugins](#registering-a-new-plugin) and see plugins currently contained in the registry.
+The registry contains metadata and information about every plugin known and recognized by the Falcosecurity organization. It lists plugins hosted either in this repository or in other repositories. These plugins are developed for Falco and made available to the community. 
 
-### Registering a new Plugin
-
-Registering your plugin inside the registry helps ensure that some technical constraints are respected, such as that a [given ID is used by exactly one plugin with event source capability](https://falco.org/docs/plugins/#plugin-event-ids) and allows plugin authors to [coordinate about event source formats](https://falco.org/docs/plugins/#plugin-event-sources-and-interoperability). Moreover, this is a great way to share your plugin project with the community and engage with it, thus gaining new users and **increasing its visibility**. We encourage you to register your plugin in this registry before publishing it. You can add your plugins in this registry regardless of where its source code is hosted (there's a `url` field for this specifically).
-
-The registration process involves adding an entry about your plugin inside the [registry.yaml](./registry.yaml) file by creating a Pull Request in this repository. Please be mindful of a few constraints that are automatically checked and required for your plugin to be accepted:
-
-- The `name` field is mandatory and must be **unique** across all the plugins in the registry
-- *(Sourcing Capability Only)* The `id` field is mandatory and must be **unique** in the registry across all the plugins with event source capability
-  - See [docs/plugin-ids.md](./docs/plugin-ids.md) for more information about plugin IDs
-- The plugin `name` must match this [regular expression](https://en.wikipedia.org/wiki/Regular_expression): `^[a-z]+[a-z0-9-_\-]*$` (however, its not recommended to use `_` in the name, unless you are trying to match the name of a source or for particular reasons)
-- The `source` *(Sourcing Capability Only)* and `sources` *(Extraction Capability Only)* must match this [regular expression](https://en.wikipedia.org/wiki/Regular_expression): `^[a-z]+[a-z0-9_]*$`
-- The `url` field should point to the plugin source code
-- The `rules_url` field should point to the default ruleset, if any
-
-For reference, here's an example of an entry for a plugin with both event sourcing and field extraction capabilities:
-```yaml
-- name: k8saudit
-  description: ...
-  authors: ...
-  contact: ...
-  maintainers:
-    - name: The Falco Authors
-      email: cncf-falco-dev@lists.cncf.io
-  keywords:
-    - audit
-    - audit-log
-    - audit-events
-    - kubernetes
-    url: https://github.com/falcosecurity/plugins/tree/main/plugins/k8saudit
-    rules_url: https://github.com/falcosecurity/plugins/tree/main/plugins/k8saudit/rules
-  url: ...
-  license: ...
-  capabilities:
-    sourcing:
-      supported: true
-      id: 2
-      source: k8s_audit
-    extraction:
-      supported: true
-```
-
-You can find the full registry specification here: *(coming soon...)*
+> Check out the [Registering a Plugin](./docs/registering-a-plugin.md) to know how to add your plugin to this registry.
 
 ### Registered Plugins
 
@@ -92,17 +56,41 @@ These comments and the text between them should not be edited by hand -->
 
 <!-- REGISTRY:TABLE -->
 
-## Hosted Plugins 
+## Falcosecurity Plugins
 
-Another purpose of this repository is to host and maintain the plugins owned by the Falcosecurity organization. Each plugin is a standalone project and has its own directory, and they are all inside the [plugins](https://github.com/falcosecurity/plugins/tree/main/plugins) folder.
+Along with the registry, this repository hosts the official plugins maintained by the Falcosecurity organization. Each plugin is an independent project with its own directory in the [plugins folder](https://github.com/falcosecurity/plugins/tree/main/plugins).
 
-The `main` branch contains the most up-to-date state of development, and each plugin is regularly released. Please check our [Release Process](./release.md) to know how plugins are released and how artifacts are distributed. Dev builds are published each time a Pull Request gets merged into `main`, whereas stable builds are released and published only when a new release gets tagged. You can find the published artifacts at https://download.falco.org/?prefix=plugins.
+The `main` branch reflects the latest development state, and plugins are released on a regular basis. Development builds are published automatically when a Pull Request is merged into `main`, while stable builds are released only when a new tag is created. You can find all published artifacts at [download.falco.org](https://download.falco.org/?prefix=plugins). For details on the release process, please see our [Release Process](./release.md).
 
-If you wish to contribute your plugin to the Falcosecurity organization, you just need to open a Pull Request to add it inside the `plugins` folder and to add it inside the registry. In order to be hosted in this repository, plugins must be licensed under the [Apache 2.0 License](./LICENSE). 
+The instructions below explain how to install and apply only to plugins from this repository.
+
+### Installing Plugins
+
+Plugins hosted in this repository are built and distributed through Falco's official channels. You can easily install them using either [falcoctl](https://github.com/falcosecurity/falcoctl) or the [Falco Helm chart](https://github.com/falcosecurity/charts/tree/master/charts/falco).
+
+#### Using falcoctl
+
+1. **Install falcoctl:** If you haven't already, follow the [falcoctl installation guide](https://github.com/falcosecurity/falcoctl?tab=readme-ov-file#installation).
+2. **Install a Plugin:** Execute the following command, replacing `<plugin-name>` with the name of the plugin you wish to install:
+   ```bash
+   falcoctl index update falcosecurity
+   falcoctl artifact install <plugin-name>
+   ```
+    > Depending on your environment, you may need to run the above commands with `sudo`.
+3. Configure Falco to load the plugin as described in the [plugin's documentation](https://falco.org/docs/concepts/plugins/usage/#loading-plugins-in-falco).
+
+
+#### Using the Falco Helm Chart
+
+When installing Falco using the Helm chart, you can instruct the chart to install a specific plugin by setting the `falcoctl.config.artifact.install.refs` value and then adding the relevant plugin configuration under `falco`. 
+
+The Helm charts provides a preset [values-k8saudit.yaml](https://github.com/falcosecurity/charts/blob/master/charts/falco/values-k8saudit.yaml) file that can be used to install the `k8saudit` plugin or as example for installing other plugins.
 
 ## Contributing
 
 If you want to help and wish to contribute, please review our [contribution guidelines](https://github.com/falcosecurity/.github/blob/main/CONTRIBUTING.md). Code contributions are always encouraged and welcome!
+
+If you wish to contribute a plugin to The Falco Project, simply open a Pull Request to add your plugin to the `/plugins` folder and [update the registry accordingly](./docs/registering-a-plugin.md). Note that to be hosted in this repository, plugins must be licensed under the [Apache 2.0 License](./LICENSE).
 
 ## License
 
