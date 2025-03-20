@@ -10,6 +10,7 @@ use aya_ebpf::programs::RetProbeContext;
 use aya_ebpf::{macros::kprobe, programs::ProbeContext};
 use aya_log_ebpf::info;
 use krsi_common::EventType;
+use crate::file::Overlay;
 
 mod auxmap;
 mod file;
@@ -21,6 +22,8 @@ mod maps;
 #[allow(non_upper_case_globals)]
 #[rustfmt::skip]
 mod vmlinux;
+mod defs;
+mod scap;
 
 #[cfg(not(test))]
 #[panic_handler]
@@ -87,17 +90,22 @@ unsafe fn try_fd_install_extract_params(ctx: ProbeContext) -> Result<u32, i64> {
         core::str::from_utf8_unchecked(bpf_probe_read_kernel_str_bytes(name_ptr, &mut buf)?)
     };
     auxmap.store_charbuf_param(name_ptr, MAX_PATH)?;
-    // let _ = auxmap_store_charbuf_param(auxmap, name_ptr, MAX_PATH)?;
 
     // Parameter 3: flags.
-    // TODO: convert these flags to scap flags... or maybe not here.
-    let f_flags = bpf_probe_read_kernel(&(*file).f_flags)?;
-    auxmap.store_param(f_flags as u32);
+    let flags = bpf_probe_read_kernel(&(*file).f_flags)?;
+    let mut scap_flags = scap::encode_open_flags(flags);
+    scap_flags |= match overlay.try_into() {
+        Ok(Overlay::Upper) => scap::PPM_FD_UPPER_LAYER,
+        Ok(Overlay::Lower) => scap::PPM_FD_LOWER_LAYER,
+        _ => 0
+    };
+    let mode: c_uint = bpf_probe_read_kernel(&(*file).f_mode)?;
+    scap_flags |= scap::encode_fmode_created(mode);
+
+    auxmap.store_param(scap_flags);
 
     // Parameter 4: mode.
-    // TODO: convert this mode to scap mode... or maybe not here.
-    let f_mode: c_uint = bpf_probe_read_kernel(&(*file).f_mode)?;
-    auxmap.store_param(f_mode as u32);
+    auxmap.store_param(scap::encode_open_mode(flags, mode));
 
     // Parameter 5: dev.
     auxmap.store_param(dev as u32);
@@ -109,16 +117,15 @@ unsafe fn try_fd_install_extract_params(ctx: ProbeContext) -> Result<u32, i64> {
     let pid = (pid_tgid & 0xffffffff) as u32;
     info!(
         &ctx,
-        "[fd_install]: tid={}, fd={}, name={}, f_mode={}, f_flags={} dev={} ino={}",
+        "[fd_install]: tid={}, fd={}, name={}, mode={}, flags={} dev={} ino={}",
         pid,
         fd,
         name,
-        f_mode,
-        f_flags,
+        mode,
+        flags,
         dev,
         ino
     );
-
 
     auxmap.finalize_event_header();
     auxmap.submit_event();
