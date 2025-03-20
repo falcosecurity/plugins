@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 krsi-common = { path = "../krsi-common" }
+cfg-if = "1.0.0"
 
 aya-ebpf = { workspace = true }
 aya-log-ebpf = { workspace = true }

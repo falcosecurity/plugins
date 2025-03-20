@@ -7,22 +7,24 @@ use aya::maps::RingBuf;
 use falco_plugin::async_event::{AsyncEvent, AsyncEventPlugin, AsyncHandler};
 use falco_plugin::event::events::{Event, EventMetadata};
 use falco_plugin::tables::import::{Entry, Table, TableMetadata};
-use krsi_common::RingBufEvent;
 use falco_plugin::anyhow::Error;
 use falco_plugin::base::{Json, Plugin};
 use falco_plugin::event::events::types::{EventType, PPME_SYSCALL_CLONE_20_X};
 use falco_plugin::extract::{field, EventInput, ExtractFieldInfo, ExtractPlugin, ExtractRequest};
 use falco_plugin::schemars::JsonSchema;
 use falco_plugin::parse::{ParseInput, ParsePlugin};
-use serde::{Serialize, Deserialize};
+use serde::Deserialize;
 use falco_plugin::{async_event_plugin, extract_plugin, parse_plugin, plugin};
 use falco_plugin::tables::TablesInput;
-use std::ffi::CStr;
+use std::ffi::{CStr, CString};
 use hashlru::Cache;
 use falco_plugin::event::fields::types::PT_PID;
 use std::sync::atomic::Ordering;
 #[rustfmt::skip]
 use log::debug;
+
+mod krsi_event;
+use crate::krsi_event::{KrsiEvent, KrsiEventContent};
 
 #[derive(TableMetadata)]
 #[entry_type(ImportedThread)]
@@ -37,7 +39,7 @@ pub struct KrsiPlugin {
     ebpf: aya::Ebpf,
     threads: ImportedThreadTable,
     async_handler: Option<Arc<AsyncHandler>>,
-    missing_events: Cache<i64, Vec<KrsiEvent>>,
+    missing_events: Cache<i64, Vec<krsi_event::KrsiEvent>>,
 
     bt_thread: Option<JoinHandle<Result<(), Error>>>,
     bt_stop: Arc<AtomicBool>
@@ -47,13 +49,6 @@ pub struct KrsiPlugin {
 #[schemars(crate = "falco_plugin::schemars")]
 #[serde(crate = "falco_plugin::serde")]
 pub struct Config {
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct KrsiEvent {
-    // TODO add fields
-    pid: u32,
-    tgid: u32,
 }
 
 /// Plugin metadata
@@ -106,20 +101,11 @@ impl Plugin for KrsiPlugin {
 }
 
 // this parses an event coming from the ringbuffer
-fn parse_ringbuf_event(buf: &[u8]) -> Result<RingBufEvent, ()> {
-    if buf.len() < core::mem::size_of::<RingBufEvent>() {
-        return Err(());
-    }
-    let event = unsafe {
-        core::ptr::read_unaligned(buf.as_ptr() as *const RingBufEvent)
-    };
-    Ok(event)
-}
 
 fn emit_async_event(handler: &AsyncHandler, event: &KrsiEvent, event_name: &CStr) -> Result<(), Error> {
     let serialized = bincode::serde::encode_to_vec(&event, bincode::config::legacy()).unwrap();
     let ts = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos() as u64;
-    let tid = event.pid as i64;
+    let tid = event.tid as i64;
 
     let event = AsyncEvent {
         plugin_id: None,
@@ -151,7 +137,7 @@ impl ParsePlugin for KrsiPlugin {
         let event = event.event()?;
 
         if let Ok(mut event) = event.load::<AsyncEvent>() {
-            if event.params.name != Some(c"krsi_internal") {
+            if event.params.name != Some(c"krsi") {
                 return Ok(());
             }
 
@@ -161,15 +147,19 @@ impl ParsePlugin for KrsiPlugin {
             };
 
             let ev: KrsiEvent = bincode::serde::decode_from_slice(buf, bincode::config::legacy())?.0;
-            let tid = ev.pid as i64;
+            let tid = ev.tid as i64;
 
             if self.threads.get_entry(r, &tid).is_ok() {
-                event.params.name = Some(c"krsi");
-                if let Some(handler) = self.async_handler.as_ref() {
-                    handler.emit(event)?;
+                match ev.content {
+                    KrsiEventContent::Open { fd: _, name: _, flags: _, mode: _, dev: _, ino: _ } => {
+                        event.params.name = Some(c"krsi_open");
+                        if let Some(handler) = self.async_handler.as_ref() {
+                            handler.emit(event)?;
+                        }
+                    }
                 }
             } else {
-                let tid = ev.pid as i64;
+                let tid = ev.tid as i64;
                 let entry = if let Some(entry) = self.missing_events.get_mut(&tid) {
                     entry
                 } else {
@@ -205,7 +195,7 @@ const RETRY_INTERVAL_START: Duration = Duration::from_nanos(1);
 const RETRY_INTERVAL_MAX: Duration = Duration::from_millis(10);
 
 impl AsyncEventPlugin for KrsiPlugin {
-    const ASYNC_EVENTS: &'static [&'static str] = &["krsi", "krsi_internal"];
+    const ASYNC_EVENTS: &'static [&'static str] = &["krsi_open", "krsi"];
     const EVENT_SOURCES: &'static [&'static str] = &["syscall"];
 
     fn start_async(&mut self, handler: falco_plugin::async_event::AsyncHandler) -> Result<(), anyhow::Error> {
@@ -214,9 +204,14 @@ impl AsyncEventPlugin for KrsiPlugin {
             self.stop_async()?;
         }
  
-        let program: &mut KProbe = self.ebpf.program_mut("krsi").unwrap().try_into()?;
-        program.load()?;
-        program.attach("security_file_open", 0)?;
+        let fd_install_prog: &mut KProbe = self.ebpf.program_mut("fd_install").unwrap().try_into()?;
+        fd_install_prog.load()?;
+        fd_install_prog.attach("fd_install", 0)?;
+    
+        let sec_file_open_prog: &mut KProbe =
+            self.ebpf.program_mut("security_file_open").unwrap().try_into()?;
+        sec_file_open_prog.load()?;
+        sec_file_open_prog.attach("security_file_open", 0)?;
 
         let mut ring_buf = RingBuf::try_from(self.ebpf.take_map("EVENTS").unwrap()).unwrap();
 
@@ -231,12 +226,8 @@ impl AsyncEventPlugin for KrsiPlugin {
             while !bt_stop.load(Ordering::Relaxed) {
                 if let Some(item) = ring_buf.next() {
                     let buf = &*item;
-                    if let Ok(rb_event) = parse_ringbuf_event(buf) {
-                        let event = KrsiEvent {
-                            pid: rb_event.pid,
-                            tgid: rb_event.tgid
-                        };
-                        emit_async_event(handler.as_ref(), &event, c"krsi_internal")?;
+                    if let Ok(event) = krsi_event::parse_ringbuf_event(buf) {
+                        emit_async_event(handler.as_ref(), &event, c"krsi")?;
                         retry_interval = RETRY_INTERVAL_START;
                     }
                 } else {
@@ -259,18 +250,29 @@ impl AsyncEventPlugin for KrsiPlugin {
 }
 
 impl KrsiPlugin {
-    fn extract_int(&mut self, _req: ExtractRequest<Self>) -> Result<u64, Error> {
-        Ok(1)
+    fn extract_filename(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
+        let event = req.event.event()?;
+        let event = event.load::<AsyncEvent>()?;
+        if event.params.name != Some(c"krsi_open") {
+            return Ok(c"".to_owned());
+        }
+
+        let Some(buf) = event.params.data else {
+            anyhow::bail!("Missing event data");
+        };
+
+        let ev: KrsiEvent = bincode::serde::decode_from_slice(buf, bincode::config::legacy())?.0;
+        let KrsiEventContent::Open { fd: _, name, flags: _, mode: _, dev: _, ino: _ } = ev.content;
+        Ok(CString::new(name).unwrap())
     }
 }
 
 impl ExtractPlugin for KrsiPlugin {
-    // TODO support async events only for now
-    const EVENT_TYPES: &'static [EventType] = &[];
+    const EVENT_TYPES: &'static [EventType] = &[EventType::ASYNCEVENT_E];
     const EVENT_SOURCES: &'static [&'static str] = &["syscall"];
     type ExtractContext = ();
     const EXTRACT_FIELDS: &'static [ExtractFieldInfo<Self>] = &[
-        field("krsi.int", &Self::extract_int),
+        field("krsi.filename", &Self::extract_filename),
         // field("fd.name", &Self::extract_fd_name),
     ];
 }
