@@ -43,7 +43,7 @@ import (
 #include <stdio.h>
 
 static uintptr_t pluginOpen(const char* path, char** err) {
-	void* h = dlopen(path, RTLD_NOW|RTLD_GLOBAL);
+	void* h = dlopen(path, RTLD_NOW|RTLD_GLOBAL|RTLD_DEEPBIND);
 	if (h == NULL) {
 		*err = (char*)dlerror();
 	}
