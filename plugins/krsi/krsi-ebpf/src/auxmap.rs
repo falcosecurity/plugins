@@ -1,7 +1,8 @@
+use crate::vmlinux;
 use aya_ebpf::bindings::BPF_RB_FORCE_WAKEUP;
-use aya_ebpf::cty::c_uchar;
+use aya_ebpf::cty::{c_char, c_uchar};
 use aya_ebpf::helpers::{
-    bpf_get_current_pid_tgid, bpf_ktime_get_boot_ns, bpf_probe_read_kernel_str_bytes,
+    bpf_d_path, bpf_get_current_pid_tgid, bpf_ktime_get_boot_ns, bpf_probe_read_kernel_str_bytes,
 };
 use krsi_common::{EventHeader, EventType};
 
@@ -69,6 +70,27 @@ impl AuxiliaryMap {
         Ok(charbuf_len)
     }
 
+    /// This helper stores the path pointed by `path_ptr` into the auxmap. We read until we find a
+    /// `\0`, if the path length is greater than `max_len_to_read`, we read up to
+    /// `max_len_to_read-1` bytes and add the `\0`.
+    pub unsafe fn store_path_param(
+        &mut self,
+        path_ptr: *const vmlinux::path,
+        max_len_to_read: u16,
+    ) -> Result<u16, i64> {
+        let mut path_len = 0_u16;
+        if !path_ptr.is_null() {
+            path_len = self.push_path(path_ptr, max_len_to_read as usize)?;
+        }
+        self.push_param_len(path_len);
+        Ok(path_len)
+    }
+
+    pub fn skip_param(&mut self, len: u16) {
+        self.payload_pos += len as u64;
+        self.lenghts_pos = self.lenghts_pos + size_of::<u16>() as u8;
+    }
+
     // Helper used to please the verifier during reading operations like `bpf_probe_read_str()`.
     fn data_safe_access(x: u64) -> usize {
         (x & MAX_PARAM_SIZE) as usize
@@ -119,6 +141,32 @@ impl AuxiliaryMap {
         self.payload_pos += written_bytes as u64;
         Ok(written_bytes as u16)
     }
+
+    unsafe fn push_path(
+        &mut self,
+        path_ptr: *const vmlinux::path,
+        max_len_to_read: usize,
+    ) -> Result<u16, i64> {
+        let path_ptr = path_ptr as *mut aya_ebpf::bindings::path;
+        let data_pos = Self::data_safe_access(self.payload_pos);
+        let data_ptr = (&mut self.data)
+            .as_mut_ptr()
+            .cast::<c_char>()
+            .byte_add(data_pos);
+        let max_len_to_read = max_len_to_read as u32;
+        let written_bytes = bpf_d_path(path_ptr, data_ptr, max_len_to_read);
+        if written_bytes < 0 {
+            return Err(1);
+        }
+        if written_bytes == 0 {
+            // Push '\0' and returns 1 as number of written bytes.
+            self.push(0_u8);
+            return Ok(1);
+        }
+        self.payload_pos += written_bytes as u64;
+        Ok(written_bytes as u16)
+    }
+
     pub unsafe fn submit_event(&self) {
         if self.payload_pos > MAX_EVENT_SIZE {
             // TODO: account for drop.
