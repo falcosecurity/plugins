@@ -1,13 +1,13 @@
 #![no_std]
 #![no_main]
 
-use crate::file::Overlay;
 use aya_ebpf::cty::{c_int, c_uint};
 use aya_ebpf::helpers::{bpf_probe_read_kernel, bpf_probe_read_kernel_str_bytes};
 use aya_ebpf::macros::{fentry, fexit, kretprobe};
 use aya_ebpf::programs::{FEntryContext, FExitContext, RetProbeContext};
 use aya_ebpf::{macros::kprobe, programs::ProbeContext, EbpfContext};
 use aya_log_ebpf::info;
+use core::ptr::null_mut;
 use krsi_common::EventType;
 
 mod auxmap;
@@ -82,37 +82,26 @@ unsafe fn try_fd_install_extract_params(
     let fd: c_uint = ctx.arg(0);
     auxmap.store_param(fd as i64);
 
-    let file: *const vmlinux::file = ctx.arg(1);
-    let mut dev = 0;
-    let mut ino = 0;
-    let mut overlay = Overlay::None;
-    file::extract_dev_ino_overlay(file, &mut dev, &mut ino, &mut overlay)?;
+    let file = file::File::new(ctx.arg(1));
+    let (dev, ino, overlay) = file
+        .extract_dev_ino_overlay()
+        .unwrap_or((0, 0, file::Overlay::None));
 
     // Parameter 2: name.
-    let dentry_ptr = bpf_probe_read_kernel(&(*file).f_path.dentry)?;
-    let name_ptr = bpf_probe_read_kernel(&(*dentry_ptr).d_name.name)?;
-    let mut buf: [u8; 128] = [0; 128];
-    let name = unsafe {
-        core::str::from_utf8_unchecked(bpf_probe_read_kernel_str_bytes(name_ptr, &mut buf)?)
-    };
-    // auxmap.store_charbuf_param(name_ptr, MAX_PATH)?;
-    // let path_ptr = &(*file).f_path as *const vmlinux::path;
-    // auxmap.store_path_param(path_ptr, MAX_PATH)?;
-
     // The file path has already been stored by the fexit program on `security_file_open` hook, as
     // it is only one of the few places allowed to call the `bpf_d_path` helper to obtain the full
     // file path.
     auxmap.skip_param(file_path_len);
 
     // Parameter 3: flags.
-    let flags = bpf_probe_read_kernel(&(*file).f_flags)?;
+    let flags = file.extract_flags().unwrap_or(0);
     let mut scap_flags = scap::encode_open_flags(flags);
     scap_flags |= match overlay.try_into() {
-        Ok(Overlay::Upper) => scap::PPM_FD_UPPER_LAYER,
-        Ok(Overlay::Lower) => scap::PPM_FD_LOWER_LAYER,
+        Ok(file::Overlay::Upper) => scap::PPM_FD_UPPER_LAYER,
+        Ok(file::Overlay::Lower) => scap::PPM_FD_LOWER_LAYER,
         _ => 0,
     };
-    let mode: c_uint = bpf_probe_read_kernel(&(*file).f_mode)?;
+    let mode: c_uint = file.extract_mode().unwrap_or(0);
     scap_flags |= scap::encode_fmode_created(mode);
 
     auxmap.store_param(scap_flags);
@@ -126,20 +115,28 @@ unsafe fn try_fd_install_extract_params(
     // Parameter 6: ino.
     auxmap.store_param(ino);
 
-    let pid = ctx.pid();
-    info!(
-        &ctx,
-        "[fd_install]: tid={}, fd={}, name={}, mode={}, flags={} dev={} ino={}",
-        pid,
-        fd,
-        name,
-        mode,
-        flags,
-        dev,
-        ino
-    );
-
     auxmap.finalize_event_header();
     auxmap.submit_event();
+
+    #[cfg(debug_assertions)]
+    {
+        let name_ptr = file.extract_name().unwrap_or(null_mut());
+        let mut buf: [u8; 128] = [0; 128];
+        let name = unsafe {
+            core::str::from_utf8_unchecked(bpf_probe_read_kernel_str_bytes(name_ptr, &mut buf)?)
+        };
+        let pid = ctx.pid();
+        info!(
+            &ctx,
+            "[fd_install]: tid={}, fd={}, name={}, mode={}, flags={} dev={} ino={}",
+            pid,
+            fd,
+            name,
+            mode,
+            flags,
+            dev,
+            ino
+        );
+    }
     Ok(0)
 }
