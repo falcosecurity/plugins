@@ -79,7 +79,7 @@ unsafe fn try_fd_install_extract_params(ctx: ProbeContext) -> Result<u32, i64> {
     let file: *const vmlinux::file = ctx.arg(1).ok_or(1_i64)?;
     let mut dev = 0;
     let mut ino = 0;
-    let mut overlay = file::Overlay::None;
+    let mut overlay = Overlay::None;
     file::extract_dev_ino_overlay(file, &mut dev, &mut ino, &mut overlay)?;
 
     // Parameter 2: name.

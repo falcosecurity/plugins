@@ -6,12 +6,12 @@ use aya_ebpf::helpers::{
 use krsi_common::{EventHeader, EventType};
 
 // Event maximum size.
-const MAX_EVENT_SIZE: u64 = 64 * 1024;
+const MAX_EVENT_SIZE: u64 = 8 * 1024;
 
 // Paramater maximum size.
 const MAX_PARAM_SIZE: u64 = MAX_EVENT_SIZE - 1;
 
-const AUXILIARY_MAP_SIZE: usize = 128 * 1024;
+const AUXILIARY_MAP_SIZE: usize = 16 * 1024;
 
 pub struct AuxiliaryMap {
     // raw space to save our variable-size event.
