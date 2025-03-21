@@ -7,8 +7,8 @@ use krsi_common::EventType;
 static OPEN_PIDS: LruHashMap<u32, u32> = LruHashMap::with_max_entries(32768, 0);
 
 #[map]
-// TODO: dynamically set the array size from userspace at load-time
-static AUXILIARY_MAPS: Array<crate::auxmap::AuxiliaryMap> = Array::with_max_entries(64, 0);
+// The number of max entries is set, in userspace, to the value of available CPU.
+static AUXILIARY_MAPS: Array<crate::auxmap::AuxiliaryMap> = Array::with_max_entries(0, 0);
 
 #[map]
 static EVENTS: RingBuf = RingBuf::with_byte_size(128 * 4096, 0); // 128 pages = 256KB

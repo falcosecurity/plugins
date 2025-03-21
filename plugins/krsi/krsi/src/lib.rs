@@ -20,6 +20,7 @@ use std::ffi::{CStr, CString};
 use hashlru::Cache;
 use falco_plugin::event::fields::types::PT_PID;
 use std::sync::atomic::Ordering;
+use aya::EbpfLoader;
 #[rustfmt::skip]
 use log::debug;
 
@@ -79,7 +80,10 @@ impl Plugin for KrsiPlugin {
         // runtime. This approach is recommended for most real-world use cases. If you would
         // like to specify the eBPF program at runtime rather than at compile-time, you can
         // reach for `Bpf::load_file` instead.
-        let ebpf = aya::Ebpf::load(aya::include_bytes_aligned!(concat!(
+        let cpus = num_cpus::get();
+        let ebpf = EbpfLoader::new()
+            .set_max_entries("AUXILIARY_MAPS", cpus as u32)
+            .load(aya::include_bytes_aligned!(concat!(
             env!("OUT_DIR"),
             "/krsi"
         )))?;
