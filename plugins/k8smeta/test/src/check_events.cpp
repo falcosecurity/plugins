@@ -182,7 +182,8 @@ TEST_F(sinsp_with_test_input, plugin_k8s_basic_API)
     filter_check_list pl_flist;
     ASSERT_PLUGIN_INITIALIZATION(plugin_owner, pl_flist)
 
-    ASSERT_EQ(plugin_owner->caps(), CAP_EXTRACTION | CAP_PARSING | CAP_ASYNC);
+    ASSERT_EQ(plugin_owner->caps(),
+              CAP_EXTRACTION | CAP_PARSING | CAP_ASYNC | CAP_CAPTURE_LISTENING);
     ASSERT_EQ(plugin_owner->name(), PLUGIN_NAME);
     ASSERT_EQ(plugin_owner->description(), PLUGIN_DESCRIPTION);
     ASSERT_EQ(plugin_owner->contact(), PLUGIN_CONTACT);
