@@ -1,0 +1,244 @@
+name: Build and test container plugin
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'plugins/container/**'
+  push:
+    branches: [ main ]
+    paths:
+      - 'plugins/container/**'
+  workflow_dispatch:
+
+jobs:
+  build-others:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ windows-latest, macos-latest ]
+        include:
+          - os: windows-latest
+            artifact-name: 'libcontainer-win'
+            artifact-path: 'plugins/container/container.dll'
+          - os: macos-latest
+            artifact-name: 'libcontainer-osx'
+            artifact-path: 'plugins/container/libcontainer.dylib'
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          submodules: 'recursive'
+
+      - name: Setup Go
+        uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b # v5.4.0
+        with:
+          go-version-file: plugins/container/go-worker/go.mod
+          cache-dependency-path: plugins/container/go-worker/go.sum
+
+      - name: Build plugin library
+        working-directory: plugins/container
+        run: make
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: ${{ matrix.artifact-path }}
+
+  build-linux:
+    name: build-linux-${{ matrix.arch }}
+    runs-on: ${{ (matrix.arch == 'arm64' && 'ubuntu-22.04-arm') || 'ubuntu-22.04' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [ amd64, arm64 ]
+    container: golang:1.23-bullseye
+    steps:
+      - name: Install plugin deps
+        run: apt-get update && apt-get install -y --no-install-recommends zip unzip ninja-build
+
+      - name: Install updated cmake version ⛓️
+        run: |
+          curl -L -o /tmp/cmake.tar.gz https://github.com/Kitware/CMake/releases/download/v3.31.4/cmake-3.31.4-linux-$(uname -m).tar.gz
+          gzip -d /tmp/cmake.tar.gz
+          tar -xpf /tmp/cmake.tar --directory=/tmp
+          cp -R /tmp/cmake-3.31.4-linux-$(uname -m)/* /usr
+          rm -rf /tmp/cmake-3.31.4-linux-$(uname -m)  
+
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          submodules: 'recursive'
+
+      - name: Safe directory
+        run: git config --global --add safe.directory $GITHUB_WORKSPACE
+
+      - name: Build plugin library
+        working-directory: plugins/container
+        run: make
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: libcontainer-${{ matrix.arch }}
+          path: 'plugins/container/libcontainer.so'
+
+  test:
+    name: test-${{ matrix.arch }}
+    needs: [build-linux]
+    runs-on: ${{ (matrix.arch == 'arm64' && 'ubuntu-24.04-arm') || 'ubuntu-24.04' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [ amd64, arm64 ]
+    steps:
+      # libbtrfs: needed by podman package - build dep.
+      # libgpgme: needed by github.com/containers/image, build dep since our go build tags use opengpg instead.
+      - name: Install go test deps
+        run: sudo apt-get install -y --no-install-recommends libbtrfs-dev libgpgme-dev
+
+      - name: Checkout repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          submodules: 'recursive'
+
+      - name: Setup Go
+        uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b # v5.4.0
+        with:
+          go-version-file: plugins/container/go-worker/go.mod
+          cache-dependency-path: plugins/container/go-worker/go.sum
+
+      - name: Build go-worker executable
+        working-directory: plugins/container
+        run: make -C go-worker exe
+
+      - name: Run tests
+        working-directory: plugins/container
+        run: |
+          systemctl --user start podman
+          make test
+
+  falco-tests:
+    needs: [build-linux]
+    name: falco-tests-${{ matrix.arch }}
+    runs-on: ${{ (matrix.arch == 'arm64' && 'ubuntu-22.04-arm') || 'ubuntu-22.04' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [ amd64, arm64 ]
+    container:
+      image: falcosecurity/falco:master-debian
+    steps:
+      - name: Download library
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: libcontainer-${{ matrix.arch }}
+          path: /usr/share/falco/plugins/
+
+      - name: Run falcosecurity/testing Falco tests
+        uses: falcosecurity/testing@main
+        with:
+          test-falco: 'true'
+          test-falcoctl: 'false'
+          test-k8saudit: 'false'
+          test-dummy: 'false'
+          static: 'false'
+          test-drivers: 'false'
+          show-all: 'true'
+          sudo: ''
+
+  libs-tests:
+    needs: [build-linux]
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Install deps ⛓️
+        run: |
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends \
+            ca-certificates \
+            cmake \
+            build-essential \
+            clang-14 llvm-14 \
+            git \
+            clang \
+            llvm \
+            pkg-config \
+            autoconf \
+            automake \
+            libtool \
+            libelf-dev \
+            wget \
+            libbpf-dev \
+            libcap-dev \
+            libtbb-dev \
+            libjq-dev \
+            libjsoncpp-dev \
+            libgtest-dev \
+            libprotobuf-dev \
+            protobuf-compiler \
+            "linux-headers-$(uname -r)"
+          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-14 90
+          sudo update-alternatives --install /usr/bin/llvm-strip llvm-strip /usr/bin/llvm-strip-14 90
+          sudo update-alternatives --install /usr/bin/llc llc /usr/bin/llc-14 90
+
+      - name: Checkout libs
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          submodules: 'recursive'
+          repository: "falcosecurity/libs"
+
+      - name: Install deps
+        run: sudo .github/install-deps.sh
+
+      - name: Build e2e tests 🏗️🧪
+        env:
+          # This avoids random failures on CI.
+          # (https://github.com/google/sanitizers/issues/1322#issuecomment-699946942)
+          ASAN_OPTIONS: intercept_tls_get_addr=0
+        run: |
+          mkdir -p build && cd build
+          cmake -DBUILD_BPF=ON \
+             -DBUILD_LIBSCAP_MODERN_BPF=ON \
+             -DBUILD_LIBSCAP_GVISOR=OFF \
+             -DENABLE_E2E_TESTS=ON \
+             -DUSE_BUNDLED_DEPS=OFF \
+             -DUSE_BUNDLED_LIBBPF=ON \
+             ..
+          make -j$(nproc) sinsp-example driver bpf container_plugin
+          sudo -E make e2e-install-deps
+
+      - name: Download library overriding built library
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: libcontainer-amd64
+          path: build/test/e2e/container_plugin-prefix/src/container_plugin/
+
+      - name: Run e2e tests
+        run: |
+          cd build
+          sudo -E ../test/e2e/scripts/run_tests.sh
+
+      - name: Archive test reports
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        if: always()
+        with:
+          name: libs_e2e_report
+          path: |
+            /tmp/report/
+
+  formatting-check:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Run clang-format style check
+        uses: jidicula/clang-format-action@d05cecd4a1a5b7e64c22f5a468456135a43f13f6 #v4.14.0
+        with:
+          clang-format-version: '18'
+          check-path: plugins/container
+          exclude-regex: 'plugin_config_schema.h'

@@ -25,15 +25,15 @@ jobs:
       - name: Install deps
         run: |
           apt update
-          apt install -y --no-install-recommends git awscli make build-essential autoconf libelf-dev libtool pkg-config
+          apt install -y --no-install-recommends awscli build-essential autoconf libelf-dev libtool autotools-dev automake zip unzip ninja-build
 
       - name: Install updated cmake version ⛓️
         run: |
-          curl -L -o /tmp/cmake.tar.gz https://github.com/Kitware/CMake/releases/download/v3.22.5/cmake-3.22.5-linux-$(uname -m).tar.gz
+          curl -L -o /tmp/cmake.tar.gz https://github.com/Kitware/CMake/releases/download/v3.31.4/cmake-3.31.4-linux-$(uname -m).tar.gz
           gzip -d /tmp/cmake.tar.gz
           tar -xpf /tmp/cmake.tar --directory=/tmp
-          cp -R /tmp/cmake-3.22.5-linux-$(uname -m)/* /usr
-          rm -rf /tmp/cmake-3.22.5-linux-$(uname -m)
+          cp -R /tmp/cmake-3.31.4-linux-$(uname -m)/* /usr
+          rm -rf /tmp/cmake-3.31.4-linux-$(uname -m)
 
       - name: Install Rust 🦀
         uses: dtolnay/rust-toolchain@f9f65f52341ba3c1d5e1901c77dc7a9e58186191 # stable
@@ -45,6 +45,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
+          submodules: 'recursive'
 
       - name: Safe directory
         run: git config --global --add safe.directory $GITHUB_WORKSPACE
