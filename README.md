@@ -53,6 +53,7 @@ These comments and the text between them should not be edited by hand -->
 | [k8saudit-aks](https://github.com/falcosecurity/plugins/tree/main/plugins/k8saudit-aks) | **Event Sourcing** <br/>ID: 21 <br/>`k8s_audit` <br/>**Field Extraction** <br/> `k8s_audit` | Read Kubernetes Audit Events from AWS AKS Clusters  <br/><br/> Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
 | [k8saudit-ovh](https://github.com/falcosecurity/plugins/tree/main/plugins/k8saudit-ovh) | **Event Sourcing** <br/>ID: 22 <br/>`k8s_audit` <br/>**Field Extraction** <br/> `k8s_audit` | Read Kubernetes Audit Events from OVHcloud MKS Clusters  <br/><br/> Authors: [Aurélie Vache](https://falco.org/community) <br/> License: Apache-2.0 |
 | [dummy_rs](https://github.com/falcosecurity/plugins/tree/main/plugins/dummy_rs) | **Event Sourcing** <br/>ID: 23 <br/>`dummy_rs` <br/>**Field Extraction** <br/> `dummy_rs` | Like dummy, but written in Rust  <br/><br/> Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
+| [container](https://github.com/falcosecurity/plugins/tree/main/plugins/container) | **Field Extraction** <br/> `syscall` | Enriche Falco syscall flow with Container Metadata  <br/><br/> Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
 
 <!-- REGISTRY:TABLE -->
 
