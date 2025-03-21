@@ -16,7 +16,6 @@
 # limitations under the License.
 #
 
-
 # This list of data sources is not allowed in plugins since they are already
 # used in Falco.
 reserved_sources: ["syscall", "internal", "plugins"]
