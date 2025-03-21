@@ -1,4 +1,4 @@
-use aya::programs::KProbe;
+use aya::programs::{FEntry, FExit};
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::thread::JoinHandle;
@@ -37,6 +37,7 @@ type ImportedThreadTable = Table<i64, ImportedThread>;
 
 
 pub struct KrsiPlugin {
+    btf: aya::Btf,
     ebpf: aya::Ebpf,
     threads: ImportedThreadTable,
     async_handler: Option<Arc<AsyncHandler>>,
@@ -76,6 +77,8 @@ impl Plugin for KrsiPlugin {
             debug!("remove limit on locked memory failed, ret is: {}", ret);
         }
 
+        let btf = aya::Btf::from_sys_fs()?;
+
         // This will include your eBPF object file as raw bytes at compile-time and load it at
         // runtime. This approach is recommended for most real-world use cases. If you would
         // like to specify the eBPF program at runtime rather than at compile-time, you can
@@ -89,6 +92,7 @@ impl Plugin for KrsiPlugin {
         )))?;
 
         Ok(Self {
+            btf,
             ebpf,
             threads,
             async_handler: None,
@@ -207,17 +211,17 @@ impl AsyncEventPlugin for KrsiPlugin {
         if self.bt_thread.is_some() {
             self.stop_async()?;
         }
- 
-        let fd_install_prog: &mut KProbe = self.ebpf.program_mut("fd_install").unwrap().try_into()?;
-        fd_install_prog.load()?;
-        fd_install_prog.attach("fd_install", 0)?;
-    
-        let sec_file_open_prog: &mut KProbe =
-            self.ebpf.program_mut("security_file_open").unwrap().try_into()?;
-        sec_file_open_prog.load()?;
-        sec_file_open_prog.attach("security_file_open", 0)?;
 
-        let mut ring_buf = RingBuf::try_from(self.ebpf.take_map("EVENTS").unwrap()).unwrap();
+        let fd_install_prog: &mut FEntry = self.ebpf.program_mut("fd_install").unwrap().try_into()?;
+        fd_install_prog.load("fd_install", &self.btf)?;
+        fd_install_prog.attach()?;
+
+        let sec_file_open_prog: &mut FExit =
+            self.ebpf.program_mut("security_file_open").unwrap().try_into()?;
+        sec_file_open_prog.load("security_file_open", &self.btf)?;
+        sec_file_open_prog.attach()?;
+
+        let mut ring_buf = RingBuf::try_from(self.ebpf.take_map("EVENTS").unwrap())?;
 
         let handler = Arc::new(handler);
         self.async_handler = Some(handler.clone());
