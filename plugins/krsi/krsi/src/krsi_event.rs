@@ -14,7 +14,7 @@ pub enum KrsiEventContent {
         flags: u32,
         mode: u32,
         dev: u32,
-        ino: u64,    
+        ino: u64,
     },
 }
 
@@ -49,7 +49,12 @@ unsafe fn read_and_move<T>(ptr: &mut *const u8) -> T {
 }
 
 unsafe fn read_str_and_move(ptr: &mut *const u8, len: usize) -> &'static str {
-    let s = unsafe {std::str::from_utf8_unchecked(std::slice::from_raw_parts(*ptr, len))};
-    *ptr = (*ptr).byte_add(len);
-    s
+    if len == 0 {
+        ""
+    } else {
+        // TODO better check for null character here
+        let s = unsafe {std::str::from_utf8_unchecked(std::slice::from_raw_parts(*ptr, len-1))};
+        *ptr = (*ptr).byte_add(len);
+        s
+    }
 }

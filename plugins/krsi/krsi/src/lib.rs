@@ -1,4 +1,5 @@
 use aya::programs::{FEntry, FExit};
+use std::fs;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::thread::JoinHandle;
@@ -262,7 +263,7 @@ impl KrsiPlugin {
         let event = req.event.event()?;
         let event = event.load::<AsyncEvent>()?;
         if event.params.name != Some(c"krsi_open") {
-            return Ok(c"".to_owned());
+            anyhow::bail!("event does not support extractor");
         }
 
         let Some(buf) = event.params.data else {
@@ -273,6 +274,86 @@ impl KrsiPlugin {
         let KrsiEventContent::Open { fd: _, name, flags: _, mode: _, dev: _, ino: _ } = ev.content;
         Ok(CString::new(name).unwrap())
     }
+
+    fn extract_fd(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
+        let event = req.event.event()?;
+        let event = event.load::<AsyncEvent>()?;
+        if event.params.name != Some(c"krsi_open") {
+            anyhow::bail!("event does not support extractor");
+        }
+
+        let Some(buf) = event.params.data else {
+            anyhow::bail!("Missing event data");
+        };
+
+        let ev: KrsiEvent = bincode::serde::decode_from_slice(buf, bincode::config::legacy())?.0;
+        let KrsiEventContent::Open { fd, name: _, flags: _, mode: _, dev: _, ino: _ } = ev.content;
+        Ok(fd as u64)
+    }
+
+    fn extract_flags(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
+        let event = req.event.event()?;
+        let event = event.load::<AsyncEvent>()?;
+        if event.params.name != Some(c"krsi_open") {
+            anyhow::bail!("event does not support extractor");
+        }
+
+        let Some(buf) = event.params.data else {
+            anyhow::bail!("Missing event data");
+        };
+
+        let ev: KrsiEvent = bincode::serde::decode_from_slice(buf, bincode::config::legacy())?.0;
+        let KrsiEventContent::Open { fd: _, name: _, flags, mode: _, dev: _, ino: _ } = ev.content;
+        Ok(flags as u64)
+    }
+
+    fn extract_mode(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
+        let event = req.event.event()?;
+        let event = event.load::<AsyncEvent>()?;
+        if event.params.name != Some(c"krsi_open") {
+            anyhow::bail!("event does not support extractor");
+        }
+
+        let Some(buf) = event.params.data else {
+            anyhow::bail!("Missing event data");
+        };
+
+        let ev: KrsiEvent = bincode::serde::decode_from_slice(buf, bincode::config::legacy())?.0;
+        let KrsiEventContent::Open { fd: _, name: _, flags: _, mode, dev: _, ino: _ } = ev.content;
+        Ok(mode as u64)
+    }
+
+    fn extract_dev(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
+        let event = req.event.event()?;
+        let event = event.load::<AsyncEvent>()?;
+        if event.params.name != Some(c"krsi_open") {
+            anyhow::bail!("event does not support extractor");
+        }
+
+        let Some(buf) = event.params.data else {
+            anyhow::bail!("Missing event data");
+        };
+
+        let ev: KrsiEvent = bincode::serde::decode_from_slice(buf, bincode::config::legacy())?.0;
+        let KrsiEventContent::Open { fd: _, name: _, flags: _, mode: _, dev, ino: _ } = ev.content;
+        Ok(dev as u64)
+    }
+
+    fn extract_ino(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
+        let event = req.event.event()?;
+        let event = event.load::<AsyncEvent>()?;
+        if event.params.name != Some(c"krsi_open") {
+            anyhow::bail!("event does not support extractor");
+        }
+
+        let Some(buf) = event.params.data else {
+            anyhow::bail!("Missing event data");
+        };
+
+        let ev: KrsiEvent = bincode::serde::decode_from_slice(buf, bincode::config::legacy())?.0;
+        let KrsiEventContent::Open { fd: _, name: _, flags: _, mode: _, dev: _, ino} = ev.content;
+        Ok(ino)
+    }
 }
 
 impl ExtractPlugin for KrsiPlugin {
@@ -281,7 +362,11 @@ impl ExtractPlugin for KrsiPlugin {
     type ExtractContext = ();
     const EXTRACT_FIELDS: &'static [ExtractFieldInfo<Self>] = &[
         field("krsi.filename", &Self::extract_filename),
-        // field("fd.name", &Self::extract_fd_name),
+        field("krsi.fd", &Self::extract_fd),
+        field("krsi.flags", &Self::extract_flags),
+        field("krsi.mode", &Self::extract_mode),
+        field("krsi.dev", &Self::extract_dev),
+        field("krsi.ino", &Self::extract_ino)
     ];
 }
 
