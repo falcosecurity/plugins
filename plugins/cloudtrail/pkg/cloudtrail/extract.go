@@ -99,6 +99,51 @@ var supportedFields = []sdk.FieldEntry{
 	{Type: "string", Name: "ecr.imagetag", Display: "Image Tag", Desc: "the tag of the image specified in the request."},
 }
 
+// XXX We should combine this with supportedFields above.
+var fieldPaths = map[string]string{
+	"ct.id":                       "eventID",
+	"ct.error":                    "errorCode",
+	"ct.time":                     "eventTime",
+	"ct.src":                      "eventSource",
+	"ct.shortsrc":                 "eventSource",
+	"ct.name":                     "eventName",
+	"ct.user":                     "_GENERATED_",
+	"ct.user.accountid":           "userIdentity.accountId",
+	"ct.user.identitytype":        "userIdentity.type",
+	"ct.user.principalid":         "userIdentity.principalId",
+	"ct.user.arn":                 "userIdentity.arn",
+	"ct.region":                   "awsRegion",
+	"ct.response.subnetid":        "responseElements.subnetId",
+	"ct.response.reservationid":   "responseElements.reservationId",
+	"ct.request.availabilityzone": "requestParameters.availabilityZone",
+	"ct.request.cluster":          "requestParameters.cluster",
+	"ct.request.functionname":     "requestParameters.functionName",
+	"ct.request.groupname":        "requestParameters.groupName",
+	"ct.request.host":             "requestParameters.Host",
+	"ct.request.name":             "requestParameters.name",
+	"ct.request.policy":           "requestParameters.policy",
+	"ct.request.serialnumber":     "requestParameters.serialNumber",
+	"ct.request.servicename":      "requestParameters.serviceName",
+	"ct.request.subnetid":         "requestParameters.subnetId",
+	"ct.request.taskdefinition":   "requestParameters.taskDefinition",
+	"ct.request.username":         "requestParameters.userName",
+	"ct.srcip":                    "sourceIPAddress",
+	"ct.useragent":                "userAgent",
+	"ct.info":                     "_GENERATED_",
+	"ct.managementevent":          "managementEvent",
+	"ct.readonly":                 "readOnly", // incomplete
+	"s3.bucket":                   "requestParameters.bucketName",
+	"s3.key":                      "requestParameters.key",
+	"s3.uri":                      "_GENERATED_",
+	"s3.bytes":                    "_GENERATED_",
+	"s3.bytes.in":                 "additionalEventData.bytesTransferredIn",
+	"s3.bytes.out":                "additionalEventData.bytesTransferredOut",
+	"s3.cnt.get":                  "_GENERATED_",
+	"s3.cnt.put":                  "_GENERATED_",
+	"s3.cnt.other":                "_GENERATED_",
+	"ec2.name":                    "_GENERATED_",
+}
+
 func getUser(jdata *fastjson.Value) (bool, string) {
 	jutype := jdata.GetStringBytes("userIdentity", "type")
 
