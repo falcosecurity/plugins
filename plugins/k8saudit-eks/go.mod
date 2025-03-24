@@ -3,7 +3,7 @@ module github.com/falcosecurity/plugins/plugins/k8saudit-eks
 go 1.17
 
 require (
-	github.com/falcosecurity/plugin-sdk-go v0.7.4
+	github.com/falcosecurity/plugin-sdk-go v0.7.5
 	github.com/falcosecurity/plugins/plugins/k8saudit v0.12.0
 	github.com/falcosecurity/plugins/shared/go/aws/cloudwatchlogs v0.0.0-20240617170800-b69d0d091240
 	github.com/falcosecurity/plugins/shared/go/aws/session v0.0.0-20240617170800-b69d0d091240
