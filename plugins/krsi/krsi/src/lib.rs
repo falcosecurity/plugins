@@ -23,6 +23,7 @@ use hashlru::Cache;
 use falco_plugin::event::fields::types::PT_PID;
 use std::sync::atomic::Ordering;
 use aya::EbpfLoader;
+use libc::{clock_gettime, timespec, CLOCK_BOOTTIME, CLOCK_REALTIME};
 #[rustfmt::skip]
 use log::debug;
 
@@ -130,8 +131,10 @@ impl Plugin for KrsiPlugin {
         // like to specify the eBPF program at runtime rather than at compile-time, you can
         // reach for `Bpf::load_file` instead.
         let cpus = num_cpus::get();
+        let boot_time = get_precise_boot_time()?;
         let ebpf = EbpfLoader::new()
             .set_max_entries("AUXILIARY_MAPS", cpus as u32)
+            .set_global("BOOT_TIME", &boot_time, true)
             .load(aya::include_bytes_aligned!(concat!(
             env!("OUT_DIR"),
             "/krsi"
@@ -152,6 +155,24 @@ impl Plugin for KrsiPlugin {
     fn set_config(&mut self, _config: Self::ConfigType) -> Result<(), Error> {
         Ok(())
     }
+}
+
+fn get_precise_boot_time() -> Result<u64, Error> {
+    let mut boot_ts = timespec{tv_sec: 0, tv_nsec: 0};
+    if unsafe { clock_gettime(CLOCK_BOOTTIME, &mut boot_ts) } < 0 {
+        return Err(anyhow::anyhow!("failed to get CLOCK_BOOTLINE"));
+    }
+
+    let mut wall_ts  = timespec{tv_sec: 0, tv_nsec: 0};
+    if unsafe { clock_gettime(CLOCK_REALTIME, &mut wall_ts) } < 0 {
+        return Err(anyhow::anyhow!("failed to get CLOCK_REALTIME"));
+    }
+
+    Ok(timespec_to_nsec(&wall_ts) - timespec_to_nsec(&boot_ts))
+}
+
+fn timespec_to_nsec(ts: &timespec) -> u64 {
+    (ts.tv_sec * 1000000000 + ts.tv_nsec) as u64
 }
 
 fn emit_async_event(handler: &AsyncHandler, event: &KrsiEvent, event_name: &CStr) -> Result<(), Error> {
