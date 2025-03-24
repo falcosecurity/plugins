@@ -13,10 +13,9 @@ static BOOT_TIME: u64 = 0;
 #[map]
 static EVENTS: RingBuf = RingBuf::with_byte_size(128 * 4096, 0); // 128 pages = 256KB
 
-pub unsafe fn get_auxiliary_map() -> Option<&'static mut crate::auxmap::AuxiliaryMap> {
-    // TODO: 64 is the maximum number of entry. Remove it once we have the right number of auxiliary maps.
-    let cpu_id = (bpf_get_smp_processor_id() % 64) as u32;
-    AUXILIARY_MAPS.get_ptr_mut(cpu_id).map(|p| &mut *p)
+pub fn get_auxiliary_map() -> Option<&'static mut crate::auxmap::AuxiliaryMap> {
+    let cpu_id = unsafe {bpf_get_smp_processor_id()};
+    AUXILIARY_MAPS.get_ptr_mut(cpu_id).map(|p| unsafe {&mut *p})
 }
 
 pub fn get_events_ringbuf() -> &'static RingBuf {
