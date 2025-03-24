@@ -1,4 +1,4 @@
-use crate::vmlinux;
+use crate::{shared_maps, vmlinux};
 use aya_ebpf::bindings::BPF_RB_FORCE_WAKEUP;
 use aya_ebpf::cty::{c_char, c_uchar};
 use aya_ebpf::helpers::{
@@ -32,9 +32,9 @@ impl AuxiliaryMap {
 
     pub unsafe fn preload_event_header(&mut self, event_type: EventType) {
         let evt_hdr = self.get_event_header_mut_ref();
-        let nparams = crate::maps::get_event_num_params(event_type);
+        let nparams = shared_maps::get_event_num_params(event_type);
         evt_hdr.nparams = nparams as u32;
-        evt_hdr.ts = crate::maps::get_boot_time() + bpf_ktime_get_boot_ns();
+        evt_hdr.ts = shared_maps::get_boot_time() + bpf_ktime_get_boot_ns();
         evt_hdr.tgid_pid = bpf_get_current_pid_tgid();
         evt_hdr.evt_type = event_type;
         self.payload_pos =
@@ -173,7 +173,7 @@ impl AuxiliaryMap {
             return;
         }
 
-        let _ = crate::maps::get_events_ringbuf()
+        let _ = shared_maps::get_events_ringbuf()
             .output(self.data.as_ref(), BPF_RB_FORCE_WAKEUP as u64);
     }
 }
