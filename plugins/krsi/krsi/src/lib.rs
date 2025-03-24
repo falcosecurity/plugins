@@ -294,6 +294,16 @@ impl AsyncEventPlugin for KrsiPlugin {
         sec_file_open_prog.load("security_file_open", &self.btf)?;
         sec_file_open_prog.attach()?;
 
+        let do_sys_openat2_x_prog: &mut FExit =
+            self.ebpf.program_mut("do_sys_openat2_x").unwrap().try_into()?;
+        do_sys_openat2_x_prog.load("do_sys_openat2", &self.btf)?;
+        do_sys_openat2_x_prog.attach()?;
+
+        let do_sys_openat2_e_prog: &mut FEntry =
+            self.ebpf.program_mut("do_sys_openat2_e").unwrap().try_into()?;
+        do_sys_openat2_e_prog.load("do_sys_openat2", &self.btf)?;
+        do_sys_openat2_e_prog.attach()?;
+
         let mut ring_buf = RingBuf::try_from(self.ebpf.take_map("EVENTS").unwrap())?;
 
         let handler = Arc::new(handler);

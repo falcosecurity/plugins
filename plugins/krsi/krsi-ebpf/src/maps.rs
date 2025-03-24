@@ -1,10 +1,10 @@
 use aya_ebpf::helpers::bpf_get_smp_processor_id;
 use aya_ebpf::macros::map;
-use aya_ebpf::maps::{Array, LruHashMap, RingBuf};
+use aya_ebpf::maps::{Array, HashMap, RingBuf};
 use krsi_common::EventType;
 
 #[map]
-static OPEN_PIDS: LruHashMap<u32, u32> = LruHashMap::with_max_entries(32768, 0);
+static OPEN_PIDS: HashMap<u32, u32> = HashMap::with_max_entries(32768, 0);
 
 #[map]
 // The number of max entries is set, in userspace, to the value of available CPU.
@@ -23,7 +23,7 @@ pub fn get_events_ringbuf() -> &'static RingBuf {
     &EVENTS
 }
 
-pub fn get_open_pids_map() -> &'static LruHashMap<u32, u32> {
+pub fn get_open_pids_map() -> &'static HashMap<u32, u32> {
     &OPEN_PIDS
 }
 
