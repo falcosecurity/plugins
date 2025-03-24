@@ -1,5 +1,6 @@
 use aya::programs::{FEntry, FExit};
 use std::fs;
+use std::str::FromStr;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::thread::JoinHandle;
@@ -29,12 +30,27 @@ mod krsi_event;
 use crate::krsi_event::{KrsiEvent, KrsiEventContent};
 
 #[derive(TableMetadata)]
+#[entry_type(ImportedFileDescriptor)]
+struct ImportedFileDescriptorMetadata {
+    name: Field<CStr, ImportedFileDescriptor>,
+    fd: Field<i64, ImportedFileDescriptor>,
+    dev: Field<u32, ImportedFileDescriptor>,
+    ino: Field<u64, ImportedFileDescriptor>,
+}
+
+type ImportedFileDescriptor = Entry<Arc<ImportedFileDescriptorMetadata>>;
+type ImportedFileDescriptorTable = Table<i64, ImportedFileDescriptor>;
+
+#[derive(TableMetadata)]
 #[entry_type(ImportedThread)]
 struct ImportedThreadMetadata {
     tid: Field<i64, ImportedThread>,
     pid: Field<i64, ImportedThread>,
     ptid: Field<i64, ImportedThread>,
     comm: Field<CStr, ImportedThread>,
+    file_descriptors: Field<ImportedFileDescriptorTable, ImportedThread>
+
+    // TODO there are more fields
 	// DEFINE_STATIC_FIELD(ret, self, m_tid, "tid");
 	// DEFINE_STATIC_FIELD(ret, self, m_pid, "pid");
 	// DEFINE_STATIC_FIELD(ret, self, m_ptid, "ptid");
@@ -66,7 +82,6 @@ struct ImportedThreadMetadata {
 
 type ImportedThread = Entry<Arc<ImportedThreadMetadata>>;
 type ImportedThreadTable = Table<i64, ImportedThread>;
-
 
 pub struct KrsiPlugin {
     btf: aya::Btf,
@@ -187,38 +202,45 @@ impl ParsePlugin for KrsiPlugin {
             let tid = ev.tid as i64;
             let pid = ev.pid as i64;
 
-            if self.threads.get_entry(r, &tid).is_ok() {
+            let mut thread_exists = self.threads.get_entry(r, &tid).is_ok();
+
+            if !thread_exists && self.threads.get_entry(r, &pid).is_ok() {
+                // PID exists, but TID does not.
+                // This can happen because the kernel might have created an async thread for that
+                // specific operation; we can still create a new thread and emit the event
+                self.create_child_thread(r, w, tid, pid)?;
+                thread_exists = true;
+            }
+
+            if thread_exists {
+                // There is a thread, update the fd table and create the event
                 match ev.content {
-                    KrsiEventContent::Open { fd: _, name: _, flags: _, mode: _, dev: _, ino: _ } => {
+                    KrsiEventContent::Open { fd, name, flags: _, mode: _, dev, ino } => {
+                        let thread = self.threads.get_entry(r, &tid)?;
+                        let fd = fd as i64;
+                        let fds = thread.get_file_descriptors(r)?;
+                        let fd_entry = if let Ok(existing_fd) = fds.get_entry(r, &fd) {
+                            existing_fd
+                        } else {
+                            let new_fd = fds.create_entry(w)?;
+                            fds.insert(r, w, &fd, new_fd)?;
+                            fds.get_entry(r, &fd)?
+                        };
+
+                        fd_entry.set_fd(w, &fd)?;
+                        let c_name = CString::from_str(&name)?;
+                        fd_entry.set_name(w, &c_name)?;
+                        fd_entry.set_dev(w, &dev)?;
+                        fd_entry.set_ino(w, &ino)?;
+
                         event.params.name = Some(c"krsi_open");
                         if let Some(handler) = self.async_handler.as_ref() {
                             handler.emit(event)?;
                         }
                     }
                 }
-            } else if let Ok(process) = self.threads.get_entry(r, &pid) {
-                // PID exists, but TID does not.
-                // This can happen because the kernel might have created an async thread for that
-                // specific operation; we can still emit the event and create a new thread
-                if let Ok(entry) = self.threads.create_entry(w) {
-                    entry.set_tid(w, &tid)?;
-                    entry.set_pid(w, &pid)?;
-                    
-                    let comm = process.get_comm(r)?;
-                    entry.set_comm(w, comm)?;
-
-                    // entry.set_ptid(w, &pid)?;
-                    self.threads.insert(r, w, &tid, entry)?;
-                    match ev.content {
-                        KrsiEventContent::Open { fd: _, name: _, flags: _, mode: _, dev: _, ino: _ } => {
-                            event.params.name = Some(c"krsi_open");
-                            if let Some(handler) = self.async_handler.as_ref() {
-                                handler.emit(event)?;
-                            }
-                        }
-                    }    
-                }
             } else {
+                // No thread available, wait for it to be created
                 let entry = if let Some(entry) = self.missing_events.get_mut(&tid) {
                     entry
                 } else {
@@ -309,9 +331,19 @@ impl AsyncEventPlugin for KrsiPlugin {
 }
 
 impl KrsiPlugin {
-    // fn create_child_thread(&mut self, r: &LazyTableReader<'_>, w: &LazyTableWriter<'_>, tid: i64, pid: i64) {
+    fn create_child_thread(&mut self, r: &LazyTableReader<'_>, w: &LazyTableWriter<'_>, tid: i64, pid: i64) -> Result<(), Error> {
+        let process = self.threads.get_entry(r, &pid)?;
+        let entry = self.threads.create_entry(w)?;
+        entry.set_tid(w, &tid)?;
+        entry.set_pid(w, &pid)?;
+        entry.set_ptid(w, &pid)?;
+    
+        let comm = process.get_comm(r)?;
+        entry.set_comm(w, comm)?;
 
-    // }
+        self.threads.insert(r, w, &tid, entry)?;
+        Ok(())
+    }
 
     fn extract_filename(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
         let event = req.event.event()?;
