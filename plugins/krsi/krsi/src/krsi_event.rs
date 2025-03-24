@@ -2,7 +2,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct KrsiEvent {
-    pub tgid_tid: u64,
+    pub pid: u32,
+    pub tid: u32,
     pub content: KrsiEventContent,
 }
 
@@ -36,8 +37,11 @@ pub fn parse_ringbuf_event(buf: &[u8]) -> Result<KrsiEvent, ()> {
             let mode = unsafe { read_and_move::<u32>(&mut ptr) };
             let dev = unsafe { read_and_move::<u32>(&mut ptr) };
             let ino = unsafe { read_and_move::<u64>(&mut ptr) };
+            let pid = (ev.tgid_pid >> 32) as u32;
+            let tid = (ev.tgid_pid & 0xffffffff) as u32;        
             Ok(KrsiEvent {
-                tgid_tid: ev.tgid_pid,
+                tid,
+                pid,
                 content: KrsiEventContent::Open {
                     fd: fd as u32,
                     name: String::from(name),
