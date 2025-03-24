@@ -21,7 +21,7 @@ impl TryFrom<u16> for EventType {
 #[repr(C)]
 pub struct EventHeader {
     pub ts: u64,
-    pub tid: u64,
+    pub tgid_pid: u64,
     pub len: u32,
     pub evt_type: EventType,
     pub nparams: u32,
