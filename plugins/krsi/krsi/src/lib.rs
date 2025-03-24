@@ -1,5 +1,4 @@
 use aya::programs::{FEntry, FExit};
-use std::fs;
 use std::str::FromStr;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
@@ -37,6 +36,7 @@ struct ImportedFileDescriptorMetadata {
     fd: Field<i64, ImportedFileDescriptor>,
     dev: Field<u32, ImportedFileDescriptor>,
     ino: Field<u64, ImportedFileDescriptor>,
+    flags: Field<u32, ImportedFileDescriptor>,
 }
 
 type ImportedFileDescriptor = Entry<Arc<ImportedFileDescriptorMetadata>>;
@@ -236,7 +236,7 @@ impl ParsePlugin for KrsiPlugin {
             if thread_exists {
                 // There is a thread, update the fd table and create the event
                 match ev.content {
-                    KrsiEventContent::Open { fd, name, flags: _, mode: _, dev, ino } => {
+                    KrsiEventContent::Open { fd, name, flags, mode: _, dev, ino } => {
                         let thread = self.threads.get_entry(r, &tid)?;
                         let fd = fd as i64;
                         let fds = thread.get_file_descriptors(r)?;
@@ -253,6 +253,12 @@ impl ParsePlugin for KrsiPlugin {
                         fd_entry.set_name(w, &c_name)?;
                         fd_entry.set_dev(w, &dev)?;
                         fd_entry.set_ino(w, &ino)?;
+
+                        // keep flags added by the syscall exit probe if present
+				        let mask: u32 = !(krsi_common::scap::PPM_O_F_CREATED - 1);
+				        let added_flags: u32 = flags & mask;
+				        let flags = flags | added_flags;
+                        fd_entry.set_flags(w, &flags)?;
 
                         event.params.name = Some(c"krsi_open");
                         if let Some(handler) = self.async_handler.as_ref() {
@@ -388,7 +394,7 @@ impl KrsiPlugin {
         };
 
         let ev: KrsiEvent = bincode::serde::decode_from_slice(buf, bincode::config::legacy())?.0;
-        let KrsiEventContent::Open { fd: _, name, flags: _, mode: _, dev: _, ino: _ } = ev.content;
+        let KrsiEventContent::Open { name, .. } = ev.content;
         Ok(CString::new(name).unwrap())
     }
 
@@ -404,7 +410,7 @@ impl KrsiPlugin {
         };
 
         let ev: KrsiEvent = bincode::serde::decode_from_slice(buf, bincode::config::legacy())?.0;
-        let KrsiEventContent::Open { fd, name: _, flags: _, mode: _, dev: _, ino: _ } = ev.content;
+        let KrsiEventContent::Open { fd, .. } = ev.content;
         Ok(fd as u64)
     }
 
@@ -420,7 +426,7 @@ impl KrsiPlugin {
         };
 
         let ev: KrsiEvent = bincode::serde::decode_from_slice(buf, bincode::config::legacy())?.0;
-        let KrsiEventContent::Open { fd: _, name: _, flags, mode: _, dev: _, ino: _ } = ev.content;
+        let KrsiEventContent::Open { flags, .. } = ev.content;
         Ok(flags as u64)
     }
 
@@ -436,7 +442,7 @@ impl KrsiPlugin {
         };
 
         let ev: KrsiEvent = bincode::serde::decode_from_slice(buf, bincode::config::legacy())?.0;
-        let KrsiEventContent::Open { fd: _, name: _, flags: _, mode, dev: _, ino: _ } = ev.content;
+        let KrsiEventContent::Open { mode, .. } = ev.content;
         Ok(mode as u64)
     }
 
@@ -452,7 +458,7 @@ impl KrsiPlugin {
         };
 
         let ev: KrsiEvent = bincode::serde::decode_from_slice(buf, bincode::config::legacy())?.0;
-        let KrsiEventContent::Open { fd: _, name: _, flags: _, mode: _, dev, ino: _ } = ev.content;
+        let KrsiEventContent::Open { dev, .. } = ev.content;
         Ok(dev as u64)
     }
 
@@ -468,7 +474,7 @@ impl KrsiPlugin {
         };
 
         let ev: KrsiEvent = bincode::serde::decode_from_slice(buf, bincode::config::legacy())?.0;
-        let KrsiEventContent::Open { fd: _, name: _, flags: _, mode: _, dev: _, ino} = ev.content;
+        let KrsiEventContent::Open { ino, .. } = ev.content;
         Ok(ino)
     }
 }

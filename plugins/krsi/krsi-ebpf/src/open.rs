@@ -13,7 +13,7 @@
 //! 4. `fexit:do_sys_openat2` - ensure the association for the current thread's pid is removed from
 //! the `OPEN_PIDS` map
 
-use crate::{file, scap, shared_maps, vmlinux};
+use crate::{file, shared_maps, vmlinux};
 use aya_ebpf::cty::{c_int, c_uint};
 use aya_ebpf::helpers::bpf_probe_read_kernel_str_bytes;
 use aya_ebpf::macros::{fentry, fexit};
@@ -22,7 +22,7 @@ use aya_ebpf::programs::{FEntryContext, FExitContext, RetProbeContext};
 use aya_ebpf::EbpfContext;
 use aya_log_ebpf::info;
 use core::ptr::null_mut;
-use krsi_common::EventType;
+use krsi_common::{scap, EventType};
 
 mod maps;
 

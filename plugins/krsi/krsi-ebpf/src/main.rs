@@ -12,8 +12,6 @@ mod shared_maps;
 #[allow(non_upper_case_globals)]
 #[rustfmt::skip]
 mod vmlinux;
-mod defs;
-mod scap;
 
 #[cfg(not(test))]
 #[panic_handler]

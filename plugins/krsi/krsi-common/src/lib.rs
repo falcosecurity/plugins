@@ -1,5 +1,8 @@
 #![no_std]
 
+pub mod scap;
+mod defs;
+
 #[derive(Copy, Clone, Debug)]
 #[repr(u16)]
 pub enum EventType {

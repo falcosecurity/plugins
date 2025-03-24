@@ -603,6 +603,7 @@ name = "krsi-common"
 version = "0.1.0"
 dependencies = [
  "aya",
+ "cfg-if",
 ]
 
 [[package]]
