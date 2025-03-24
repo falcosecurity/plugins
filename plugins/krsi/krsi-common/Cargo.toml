@@ -9,6 +9,7 @@ user = ["aya"]
 
 [dependencies]
 aya = { workspace = true, optional = true }
+cfg-if = "1.0.0"
 
 [lib]
 path = "src/lib.rs"

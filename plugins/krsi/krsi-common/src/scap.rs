@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 // File flags
 const PPM_O_NONE: u32 = 0;
 const PPM_O_RDONLY: u32 = 1 << 0; // Open for reading only

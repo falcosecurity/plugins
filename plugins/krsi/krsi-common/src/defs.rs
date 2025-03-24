@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 /* O_* bits. */
 
 pub const O_ACCMODE: u32 = 0o0000003;
