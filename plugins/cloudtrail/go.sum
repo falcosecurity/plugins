@@ -47,8 +47,8 @@ github.com/buger/jsonparser v1.1.1/go.mod h1:6RYKKt7H4d4+iWqouImQ9R2FZql3VbhNgx2
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/falcosecurity/plugin-sdk-go v0.7.4 h1:iNV0pgWgJwOHqSCjTw4Hsvtu5WuwoqckAWzpIEy9giQ=
-github.com/falcosecurity/plugin-sdk-go v0.7.4/go.mod h1:NP+y22DYOS+G3GDXIXNmzf0CBL3nfPPMoQuHvAzfitQ=
+github.com/falcosecurity/plugin-sdk-go v0.7.5 h1:ke/+kTt0PwedM8+IGTKcW3LrUI/xiJNDCSzqTSW+CvI=
+github.com/falcosecurity/plugin-sdk-go v0.7.5/go.mod h1:NP+y22DYOS+G3GDXIXNmzf0CBL3nfPPMoQuHvAzfitQ=
 github.com/invopop/jsonschema v0.13.0 h1:KvpoAJWEjR3uD9Kbm2HWJmqsEaHt8lBUpd0qHcIi21E=
 github.com/invopop/jsonschema v0.13.0/go.mod h1:ffZ5Km5SWWRAIN6wbDXItl95euhFz2uON45H2qjYt+0=
 github.com/mailru/easyjson v0.9.0 h1:PrnmzHw7262yW8sTBwxi1PdJA3Iw/EKBa8psRf7d9a4=

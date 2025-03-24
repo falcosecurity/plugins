@@ -6,7 +6,7 @@ toolchain go1.24.1
 
 require (
 	github.com/alecthomas/jsonschema v0.0.0-20220216202328-9eeeec9d044b
-	github.com/falcosecurity/plugin-sdk-go v0.7.4
+	github.com/falcosecurity/plugin-sdk-go v0.7.5
 	github.com/segmentio/kafka-go v0.4.47
 	github.com/testcontainers/testcontainers-go v0.35.0
 	github.com/testcontainers/testcontainers-go/modules/kafka v0.35.0

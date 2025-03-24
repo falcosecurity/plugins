@@ -64,6 +64,10 @@ $(plugins-tidy):
 
 .PHONY: tidy
 tidy: $(plugins-tidy)
+	+cd build/utils && $(GO) mod tidy
+	+cd build/readme && $(GO) mod tidy
+	+cd build/registry && $(GO) mod tidy
+	+cd build/utils && $(GO) mod tidy
 
 .PHONY: packages
 packages: clean/packages $(plugins-packages)
