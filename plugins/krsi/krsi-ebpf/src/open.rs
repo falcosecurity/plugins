@@ -4,13 +4,13 @@
 //! 2. `fexit:security_file_open` - verify that the opening request has been accepted, extract the
 //! file path, put the extracted file path in the auxmap final location and write the association
 //! between the pid of the current thread and the file path length in the `OPEN_PIDS` map. If any of
-//! aforementioned operation fails, ensure the pid is removed from the `OPEN_PIDS` map.
+//! aforementioned operations fail, ensure the pid is removed from the `OPEN_PIDS` map.
 //! 3. `fentry:fd_install` - verify that an opening request is currently in progress by checking
 //! the presence of an association for the current thread's pid in the `OPEN_PIDS` map, extract the
 //! file path length from the aforementioned association, extract the other relevant parameters for
 //! the opening request, complete the event in the auxiliary map by leveraging the information on
 //! the length of the already-extracted file path and submit the event.
-//! 1. `fexit:do_sys_openat2` - ensure the association for the current thread's pid is removed from
+//! 4. `fexit:do_sys_openat2` - ensure the association for the current thread's pid is removed from
 //! the `OPEN_PIDS` map
 
 use crate::{file, scap, shared_maps, vmlinux};
