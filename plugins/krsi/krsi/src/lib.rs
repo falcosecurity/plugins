@@ -30,8 +30,7 @@ use crate::krsi_event::{KrsiEvent, KrsiEventContent};
 
 #[derive(TableMetadata)]
 #[entry_type(ImportedThread)]
-struct ImportedThreadMetadata {
-}
+struct ImportedThreadMetadata {}
 
 type ImportedThread = Entry<Arc<ImportedThreadMetadata>>;
 type ImportedThreadTable = Table<i64, ImportedThread>;
@@ -45,14 +44,13 @@ pub struct KrsiPlugin {
     missing_events: Cache<i64, Vec<krsi_event::KrsiEvent>>,
 
     bt_thread: Option<JoinHandle<Result<(), Error>>>,
-    bt_stop: Arc<AtomicBool>
+    bt_stop: Arc<AtomicBool>,
 }
 
 #[derive(JsonSchema, Deserialize)]
 #[schemars(crate = "falco_plugin::schemars")]
 #[serde(crate = "falco_plugin::serde")]
-pub struct Config {
-}
+pub struct Config {}
 
 /// Plugin metadata
 impl Plugin for KrsiPlugin {
@@ -114,7 +112,8 @@ impl Plugin for KrsiPlugin {
 fn emit_async_event(handler: &AsyncHandler, event: &KrsiEvent, event_name: &CStr) -> Result<(), Error> {
     let serialized = bincode::serde::encode_to_vec(&event, bincode::config::legacy()).unwrap();
     let ts = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos() as u64;
-    let tid = event.tid as i64;
+    let tgid_tid = event.tgid_tid;
+    let tid =tgid_tid as u32;
 
     let event = AsyncEvent {
         plugin_id: None,
@@ -123,7 +122,7 @@ fn emit_async_event(handler: &AsyncHandler, event: &KrsiEvent, event_name: &CStr
     };
     let metadata = EventMetadata {
         ts,
-        tid,
+        tid: tid as i64,
     };
     let event = Event {
         metadata,
@@ -139,7 +138,7 @@ fn emit_async_event(handler: &AsyncHandler, event: &KrsiEvent, event_name: &CStr
 impl ParsePlugin for KrsiPlugin {
     const EVENT_TYPES: &'static [EventType] = &[EventType::ASYNCEVENT_E];
     const EVENT_SOURCES: &'static [&'static str] = &["syscall"];
-  
+
     fn parse_event(&mut self, event: &EventInput, parse_input: &ParseInput) -> Result<(), Error> {
         let r = &parse_input.reader;
         // let w = &parse_input.writer;
@@ -156,7 +155,8 @@ impl ParsePlugin for KrsiPlugin {
             };
 
             let ev: KrsiEvent = bincode::serde::decode_from_slice(buf, bincode::config::legacy())?.0;
-            let tid = ev.tid as i64;
+            let tgid_tid = ev.tgid_tid;
+            let tid = (tgid_tid as u32) as i64;
 
             if self.threads.get_entry(r, &tid).is_ok() {
                 match ev.content {
@@ -168,14 +168,13 @@ impl ParsePlugin for KrsiPlugin {
                     }
                 }
             } else {
-                let tid = ev.tid as i64;
                 let entry = if let Some(entry) = self.missing_events.get_mut(&tid) {
                     entry
                 } else {
                     self.missing_events.insert(tid, Vec::new());
                     self.missing_events.get_mut(&tid).unwrap()
                 };
-                
+
                 entry.push(ev);
             }
         } else if let Ok(event) = event.load::<PPME_SYSCALL_CLONE_20_X>() {
@@ -229,7 +228,7 @@ impl AsyncEventPlugin for KrsiPlugin {
 
         self.bt_stop.store(false, Ordering::Relaxed);
         let bt_stop = self.bt_stop.clone();
-        
+
         self.bt_thread = Some(std::thread::spawn(move || {
             let mut retry_interval = RETRY_INTERVAL_START;
             while !bt_stop.load(Ordering::Relaxed) {

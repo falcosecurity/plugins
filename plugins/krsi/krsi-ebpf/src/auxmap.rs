@@ -35,7 +35,7 @@ impl AuxiliaryMap {
         let nparams = crate::maps::get_event_num_params(event_type);
         evt_hdr.nparams = nparams as u32;
         evt_hdr.ts = crate::maps::get_boot_time() + bpf_ktime_get_boot_ns();
-        evt_hdr.tid = bpf_get_current_pid_tgid() & 0xffffffff;
+        evt_hdr.tgid_pid = bpf_get_current_pid_tgid();
         evt_hdr.evt_type = event_type;
         self.payload_pos =
             (size_of::<EventHeader>() + (nparams as usize) * size_of::<u16>()) as u64;
