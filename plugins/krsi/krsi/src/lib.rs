@@ -7,7 +7,7 @@ use std::time::{Duration, SystemTime};
 use aya::maps::RingBuf;
 use falco_plugin::async_event::{AsyncEvent, AsyncEventPlugin, AsyncHandler};
 use falco_plugin::event::events::{Event, EventMetadata};
-use falco_plugin::tables::import::{Entry, Table, TableMetadata};
+use falco_plugin::tables::import::{Entry, Field, Table, TableMetadata};
 use falco_plugin::anyhow::Error;
 use falco_plugin::base::{Json, Plugin};
 use falco_plugin::event::events::types::{EventType, PPME_SYSCALL_CLONE_20_X};
@@ -16,7 +16,7 @@ use falco_plugin::schemars::JsonSchema;
 use falco_plugin::parse::{ParseInput, ParsePlugin};
 use serde::Deserialize;
 use falco_plugin::{async_event_plugin, extract_plugin, parse_plugin, plugin};
-use falco_plugin::tables::TablesInput;
+use falco_plugin::tables::{LazyTableReader, LazyTableWriter, TablesInput};
 use std::ffi::{CStr, CString};
 use hashlru::Cache;
 use falco_plugin::event::fields::types::PT_PID;
@@ -30,7 +30,39 @@ use crate::krsi_event::{KrsiEvent, KrsiEventContent};
 
 #[derive(TableMetadata)]
 #[entry_type(ImportedThread)]
-struct ImportedThreadMetadata {}
+struct ImportedThreadMetadata {
+    tid: Field<i64, ImportedThread>,
+    pid: Field<i64, ImportedThread>,
+    ptid: Field<i64, ImportedThread>,
+    comm: Field<CStr, ImportedThread>,
+	// DEFINE_STATIC_FIELD(ret, self, m_tid, "tid");
+	// DEFINE_STATIC_FIELD(ret, self, m_pid, "pid");
+	// DEFINE_STATIC_FIELD(ret, self, m_ptid, "ptid");
+	// DEFINE_STATIC_FIELD(ret, self, m_reaper_tid, "reaper_tid");
+	// DEFINE_STATIC_FIELD(ret, self, m_sid, "sid");
+	// DEFINE_STATIC_FIELD(ret, self, m_comm, "comm");
+	// DEFINE_STATIC_FIELD(ret, self, m_exe, "exe");
+	// DEFINE_STATIC_FIELD(ret, self, m_exepath, "exe_path");
+	// DEFINE_STATIC_FIELD(ret, self, m_exe_writable, "exe_writable");
+	// DEFINE_STATIC_FIELD(ret, self, m_exe_upper_layer, "exe_upper_layer");
+	// DEFINE_STATIC_FIELD(ret, self, m_exe_lower_layer, "exe_lower_layer");
+	// DEFINE_STATIC_FIELD(ret, self, m_exe_from_memfd, "exe_from_memfd");
+	// DEFINE_STATIC_FIELD(ret, self, m_flags, "flags");
+	// DEFINE_STATIC_FIELD(ret, self, m_fdlimit, "fd_limit");
+	// DEFINE_STATIC_FIELD(ret, self, m_uid, "uid");
+	// DEFINE_STATIC_FIELD(ret, self, m_gid, "gid");
+	// DEFINE_STATIC_FIELD(ret, self, m_loginuid, "loginuid");
+	// DEFINE_STATIC_FIELD(ret, self, m_exe_ino, "exe_ino");
+	// DEFINE_STATIC_FIELD(ret, self, m_exe_ino_ctime, "exe_ino_ctime");
+	// DEFINE_STATIC_FIELD(ret, self, m_exe_ino_mtime, "exe_ino_mtime");
+	// DEFINE_STATIC_FIELD(ret, self, m_vtid, "vtid");
+	// DEFINE_STATIC_FIELD(ret, self, m_vpid, "vpid");
+	// DEFINE_STATIC_FIELD(ret, self, m_vpgid, "vpgid");
+	// DEFINE_STATIC_FIELD(ret, self, m_pgid, "pgid");
+	// DEFINE_STATIC_FIELD(ret, self, m_pidns_init_start_ts, "pidns_init_start_ts");
+	// DEFINE_STATIC_FIELD(ret, self, m_root, "root");
+	// DEFINE_STATIC_FIELD(ret, self, m_tty, "tty");
+}
 
 type ImportedThread = Entry<Arc<ImportedThreadMetadata>>;
 type ImportedThreadTable = Table<i64, ImportedThread>;
@@ -107,13 +139,10 @@ impl Plugin for KrsiPlugin {
     }
 }
 
-// this parses an event coming from the ringbuffer
-
 fn emit_async_event(handler: &AsyncHandler, event: &KrsiEvent, event_name: &CStr) -> Result<(), Error> {
     let serialized = bincode::serde::encode_to_vec(&event, bincode::config::legacy()).unwrap();
     let ts = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos() as u64;
-    let tgid_tid = event.tgid_tid;
-    let tid =tgid_tid as u32;
+    let tid = event.tid;
 
     let event = AsyncEvent {
         plugin_id: None,
@@ -141,7 +170,7 @@ impl ParsePlugin for KrsiPlugin {
 
     fn parse_event(&mut self, event: &EventInput, parse_input: &ParseInput) -> Result<(), Error> {
         let r = &parse_input.reader;
-        // let w = &parse_input.writer;
+        let w = &parse_input.writer;
         let event = event.event()?;
 
         if let Ok(mut event) = event.load::<AsyncEvent>() {
@@ -155,8 +184,8 @@ impl ParsePlugin for KrsiPlugin {
             };
 
             let ev: KrsiEvent = bincode::serde::decode_from_slice(buf, bincode::config::legacy())?.0;
-            let tgid_tid = ev.tgid_tid;
-            let tid = (tgid_tid as u32) as i64;
+            let tid = ev.tid as i64;
+            let pid = ev.pid as i64;
 
             if self.threads.get_entry(r, &tid).is_ok() {
                 match ev.content {
@@ -166,6 +195,28 @@ impl ParsePlugin for KrsiPlugin {
                             handler.emit(event)?;
                         }
                     }
+                }
+            } else if let Ok(process) = self.threads.get_entry(r, &pid) {
+                // PID exists, but TID does not.
+                // This can happen because the kernel might have created an async thread for that
+                // specific operation; we can still emit the event and create a new thread
+                if let Ok(entry) = self.threads.create_entry(w) {
+                    entry.set_tid(w, &tid)?;
+                    entry.set_pid(w, &pid)?;
+                    
+                    let comm = process.get_comm(r)?;
+                    entry.set_comm(w, comm)?;
+
+                    // entry.set_ptid(w, &pid)?;
+                    self.threads.insert(r, w, &tid, entry)?;
+                    match ev.content {
+                        KrsiEventContent::Open { fd: _, name: _, flags: _, mode: _, dev: _, ino: _ } => {
+                            event.params.name = Some(c"krsi_open");
+                            if let Some(handler) = self.async_handler.as_ref() {
+                                handler.emit(event)?;
+                            }
+                        }
+                    }    
                 }
             } else {
                 let entry = if let Some(entry) = self.missing_events.get_mut(&tid) {
@@ -258,6 +309,10 @@ impl AsyncEventPlugin for KrsiPlugin {
 }
 
 impl KrsiPlugin {
+    // fn create_child_thread(&mut self, r: &LazyTableReader<'_>, w: &LazyTableWriter<'_>, tid: i64, pid: i64) {
+
+    // }
+
     fn extract_filename(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
         let event = req.event.event()?;
         let event = event.load::<AsyncEvent>()?;
