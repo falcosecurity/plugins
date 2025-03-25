@@ -47,12 +47,12 @@ jobs:
         run: ./.github/setup-plugin-config-rules.sh ${{ inputs.plugin }}
 
       - name: Download rules tool
-        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
         with:
           name: rules-tool.tar.gz
 
       - name: Download plugins
-        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
         with:
           name: ${{ inputs.plugins-artifact }}
           path: /tmp/plugins-${{ inputs.arch }}
@@ -129,13 +129,13 @@ jobs:
         run: ./.github/setup-plugin-config-rules.sh ${{ inputs.plugin }}
 
       - name: Download plugins
-        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
         with:
           name: ${{ inputs.plugins-artifact }}
           path: /tmp/plugins-${{ inputs.arch }}
 
       - name: Download rules tool
-        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
         with:
           name: rules-tool.tar.gz
 
