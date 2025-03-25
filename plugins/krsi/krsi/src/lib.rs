@@ -312,24 +312,7 @@ impl AsyncEventPlugin for KrsiPlugin {
             self.stop_async()?;
         }
 
-        let fd_install_prog: &mut FEntry = self.ebpf.program_mut("fd_install").unwrap().try_into()?;
-        fd_install_prog.load("fd_install", &self.btf)?;
-        fd_install_prog.attach()?;
-
-        let sec_file_open_prog: &mut FExit =
-            self.ebpf.program_mut("security_file_open").unwrap().try_into()?;
-        sec_file_open_prog.load("security_file_open", &self.btf)?;
-        sec_file_open_prog.attach()?;
-
-        let do_sys_openat2_x_prog: &mut FExit =
-            self.ebpf.program_mut("do_sys_openat2_x").unwrap().try_into()?;
-        do_sys_openat2_x_prog.load("do_sys_openat2", &self.btf)?;
-        do_sys_openat2_x_prog.attach()?;
-
-        let do_sys_openat2_e_prog: &mut FEntry =
-            self.ebpf.program_mut("do_sys_openat2_e").unwrap().try_into()?;
-        do_sys_openat2_e_prog.load("do_sys_openat2", &self.btf)?;
-        do_sys_openat2_e_prog.attach()?;
+        self.load_and_attach_ebpf_programs()?;
 
         let io_openat2_x_prog: &mut FExit =
             self.ebpf.program_mut("io_openat2_x").unwrap().try_into()?;
@@ -486,6 +469,49 @@ impl KrsiPlugin {
         let ev: KrsiEvent = bincode::serde::decode_from_slice(buf, bincode::config::legacy())?.0;
         let KrsiEventContent::Open { ino, .. } = ev.content;
         Ok(ino)
+    }
+
+    fn load_and_attach_ebpf_programs(&mut self) -> Result<(), Error> {
+        let ebpf = &mut self.ebpf;
+        let btf = &self.btf;
+
+        // File opening tracking
+        let fd_install_prog: &mut FEntry = ebpf.program_mut("fd_install").unwrap().try_into()?;
+        fd_install_prog.load("fd_install", btf)?;
+        fd_install_prog.attach()?;
+
+        let sec_file_open_prog: &mut FExit =
+            ebpf.program_mut("security_file_open").unwrap().try_into()?;
+        sec_file_open_prog.load("security_file_open", btf)?;
+        sec_file_open_prog.attach()?;
+
+        let do_sys_openat2_x_prog: &mut FExit =
+            ebpf.program_mut("do_sys_openat2_x").unwrap().try_into()?;
+        do_sys_openat2_x_prog.load("do_sys_openat2", btf)?;
+        do_sys_openat2_x_prog.attach()?;
+
+        let do_sys_openat2_e_prog: &mut FEntry =
+            ebpf.program_mut("do_sys_openat2_e").unwrap().try_into()?;
+        do_sys_openat2_e_prog.load("do_sys_openat2", btf)?;
+        do_sys_openat2_e_prog.attach()?;
+
+        // Socket creation tracking
+        let sock_alloc_file_prog: &mut FExit =
+            ebpf.program_mut("sock_alloc_file").unwrap().try_into()?;
+        sock_alloc_file_prog.load("sock_alloc_file", btf)?;
+        sock_alloc_file_prog.attach()?;
+
+        let sys_socket_x_prog: &mut FExit =
+            ebpf.program_mut("__sys_socket_x").unwrap().try_into()?;
+        sys_socket_x_prog.load("__sys_socket", btf)?;
+        sys_socket_x_prog.attach()?;
+
+        let sys_socket_e_prog: &mut FEntry =
+            ebpf.program_mut("__sys_socket_e").unwrap().try_into()?;
+        sys_socket_e_prog.load("__sys_socket", btf)?;
+        sys_socket_e_prog.attach()?;
+
+        Ok(())
     }
 }
 

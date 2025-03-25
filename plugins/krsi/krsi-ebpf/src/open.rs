@@ -88,29 +88,25 @@ fn remove_open_pid(open_pids_map: &HashMap<u32, u32>, pid: u32) -> Result<u32, i
     }
 }
 
-#[fentry]
-pub fn fd_install(ctx: FEntryContext) -> u32 {
-    unsafe { try_fd_install(ctx) }.unwrap_or(1)
-}
-
-unsafe fn try_fd_install(ctx: FEntryContext) -> Result<u32, i64> {
+pub fn try_fd_install(ctx: &FEntryContext) -> Result<u32, i64> {
     let pid = ctx.pid();
-    let Some(&file_path_len) = maps::get_open_pids_map().get(&pid) else {
+    let Some(&file_path_len) = (unsafe { maps::get_open_pids_map().get(&pid) }) else {
         return Ok(0);
     };
     let file_path_len = file_path_len as u16;
 
     let auxmap = shared_maps::get_auxiliary_map().ok_or(1)?;
-    auxmap.preload_event_header(EventType::FdInstall);
+    unsafe { auxmap.preload_event_header(EventType::FdInstall) };
 
     // Parameter 1: fd.
-    let fd: c_uint = ctx.arg(0);
-    auxmap.store_param(fd as i64);
+    let fd: c_uint = unsafe { ctx.arg(0) };
+    unsafe { auxmap.store_param(fd as i64) };
 
-    let file = file::File::new(ctx.arg(1));
-    let (dev, ino, overlay) = file
-        .extract_dev_ino_overlay()
-        .unwrap_or((0, 0, file::Overlay::None));
+    let file = file::File::new(unsafe { ctx.arg(1) });
+    let (dev, ino, overlay) = unsafe {
+        file.extract_dev_ino_overlay()
+            .unwrap_or((0, 0, file::Overlay::None))
+    };
 
     // Parameter 2: name.
     // The file path has already been stored by the fexit program on `security_file_open` hook, as
@@ -119,40 +115,40 @@ unsafe fn try_fd_install(ctx: FEntryContext) -> Result<u32, i64> {
     auxmap.skip_param(file_path_len);
 
     // Parameter 3: flags.
-    let flags = file.extract_flags().unwrap_or(0);
+    let flags = unsafe { file.extract_flags() }.unwrap_or(0);
     let mut scap_flags = scap::encode_open_flags(flags);
     scap_flags |= match overlay.try_into() {
         Ok(file::Overlay::Upper) => scap::PPM_FD_UPPER_LAYER,
         Ok(file::Overlay::Lower) => scap::PPM_FD_LOWER_LAYER,
         _ => 0,
     };
-    let mode: c_uint = file.extract_mode().unwrap_or(0);
+    let mode: c_uint = unsafe { file.extract_mode() }.unwrap_or(0);
     scap_flags |= scap::encode_fmode_created(mode);
 
-    auxmap.store_param(scap_flags);
+    unsafe { auxmap.store_param(scap_flags) };
 
     // Parameter 4: mode.
-    auxmap.store_param(scap::encode_open_mode(flags, mode));
+    unsafe { auxmap.store_param(scap::encode_open_mode(flags, mode)) };
 
     // Parameter 5: dev.
-    auxmap.store_param(dev as u32);
+    unsafe { auxmap.store_param(dev as u32) };
 
     // Parameter 6: ino.
-    auxmap.store_param(ino);
+    unsafe { auxmap.store_param(ino) };
 
-    auxmap.finalize_event_header();
-    auxmap.submit_event();
+    unsafe { auxmap.finalize_event_header() };
+    unsafe { auxmap.submit_event() };
 
     #[cfg(debug_assertions)]
     {
-        let name_ptr = file.extract_name().unwrap_or(null_mut());
+        let name_ptr = unsafe { file.extract_name() }.unwrap_or(null_mut());
         let mut buf: [u8; 128] = [0; 128];
         let name = unsafe {
             core::str::from_utf8_unchecked(bpf_probe_read_kernel_str_bytes(name_ptr, &mut buf)?)
         };
         let pid = ctx.pid();
         info!(
-            &ctx,
+            ctx,
             "[fd_install]: tid={}, fd={}, name={}, mode={}, flags={} dev={} ino={}",
             pid,
             fd,
