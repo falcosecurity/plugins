@@ -19,6 +19,7 @@ pub fn get_sock_ptrs_map() -> &'static HashMap<u32, usize> {
 }
 
 #[repr(C)]
+#[repr(packed)]
 pub struct SockPtrTgid {
     pub sock_ptr: usize,
     pub tgid: u32,

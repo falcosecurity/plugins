@@ -7,6 +7,7 @@ use aya_ebpf::programs::FEntryContext;
 mod auxmap;
 mod connect;
 mod file;
+mod sockets;
 mod open;
 mod shared_maps;
 #[allow(clippy::all)]
@@ -16,6 +17,8 @@ mod shared_maps;
 #[allow(non_upper_case_globals)]
 #[rustfmt::skip]
 mod vmlinux;
+mod scap;
+mod defs;
 
 #[cfg(not(test))]
 #[panic_handler]

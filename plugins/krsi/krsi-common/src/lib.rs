@@ -1,12 +1,12 @@
 #![no_std]
 
 pub mod scap;
-mod defs;
 
 #[derive(Copy, Clone, Debug)]
 #[repr(u16)]
 pub enum EventType {
-    FdInstall = 50,
+    Open = 0,
+    Connect = 1
 }
 
 impl TryFrom<u16> for EventType {
@@ -14,7 +14,8 @@ impl TryFrom<u16> for EventType {
 
     fn try_from(v: u16) -> Result<Self, Self::Error> {
         match v {
-            x if x == EventType::FdInstall as u16 => Ok(EventType::FdInstall),
+            x if x == EventType::Open as u16 => Ok(EventType::Open),
+            x if x == EventType::Connect as u16 => Ok(EventType::Connect),
             _ => Err(()),
         }
     }

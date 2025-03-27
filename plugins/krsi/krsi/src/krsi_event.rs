@@ -30,7 +30,7 @@ pub fn parse_ringbuf_event(buf: &[u8]) -> Result<KrsiEvent, ()> {
         }
     }
     match ev.evt_type.try_into() {
-        Ok(krsi_common::EventType::FdInstall) => {
+        Ok(krsi_common::EventType::Open) => {
             let fd = unsafe { read_and_move::<i64>(&mut ptr) };
             let name = unsafe { read_str_and_move(&mut ptr, name_len as usize) };
             let flags = unsafe { read_and_move::<u32>(&mut ptr) };

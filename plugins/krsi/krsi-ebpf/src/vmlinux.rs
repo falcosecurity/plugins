@@ -18533,6 +18533,15 @@ pub struct compat_robust_list_head {
 pub struct in_addr {
     pub s_addr: __be32,
 }
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct sockaddr_in6 {
+    pub sin6_family: ::aya_ebpf::cty::c_ushort,
+    pub sin6_port: __be16,
+    pub sin6_flowinfo: __be32,
+    pub sin6_addr: in6_addr,
+    pub sin6_scope_id: __u32,
+}
 pub type cond_update_fn_t = ::core::option::Option<
     unsafe extern "C" fn(arg1: *mut trace_array, arg2: *mut ::aya_ebpf::cty::c_void) -> bool_,
 >;
@@ -32746,6 +32755,264 @@ pub struct ib_xrcd {
     pub tgt_qps: xarray,
 }
 #[repr(C)]
+#[derive(Debug)]
+pub struct ip_options {
+    pub faddr: __be32,
+    pub nexthop: __be32,
+    pub optlen: ::aya_ebpf::cty::c_uchar,
+    pub srr: ::aya_ebpf::cty::c_uchar,
+    pub rr: ::aya_ebpf::cty::c_uchar,
+    pub ts: ::aya_ebpf::cty::c_uchar,
+    pub _bitfield_align_1: [u8; 0],
+    pub _bitfield_1: __BindgenBitfieldUnit<[u8; 1usize]>,
+    pub router_alert: ::aya_ebpf::cty::c_uchar,
+    pub cipso: ::aya_ebpf::cty::c_uchar,
+    pub __pad2: ::aya_ebpf::cty::c_uchar,
+    pub __data: __IncompleteArrayField<::aya_ebpf::cty::c_uchar>,
+}
+impl ip_options {
+    #[inline]
+    pub fn is_strictroute(&self) -> ::aya_ebpf::cty::c_uchar {
+        unsafe { ::core::mem::transmute(self._bitfield_1.get(0usize, 1u8) as u8) }
+    }
+    #[inline]
+    pub fn set_is_strictroute(&mut self, val: ::aya_ebpf::cty::c_uchar) {
+        unsafe {
+            let val: u8 = ::core::mem::transmute(val);
+            self._bitfield_1.set(0usize, 1u8, val as u64)
+        }
+    }
+    #[inline]
+    pub unsafe fn is_strictroute_raw(this: *const Self) -> ::aya_ebpf::cty::c_uchar {
+        unsafe {
+            ::core::mem::transmute(<__BindgenBitfieldUnit<[u8; 1usize]>>::raw_get(
+                ::core::ptr::addr_of!((*this)._bitfield_1),
+                0usize,
+                1u8,
+            ) as u8)
+        }
+    }
+    #[inline]
+    pub unsafe fn set_is_strictroute_raw(this: *mut Self, val: ::aya_ebpf::cty::c_uchar) {
+        unsafe {
+            let val: u8 = ::core::mem::transmute(val);
+            <__BindgenBitfieldUnit<[u8; 1usize]>>::raw_set(
+                ::core::ptr::addr_of_mut!((*this)._bitfield_1),
+                0usize,
+                1u8,
+                val as u64,
+            )
+        }
+    }
+    #[inline]
+    pub fn srr_is_hit(&self) -> ::aya_ebpf::cty::c_uchar {
+        unsafe { ::core::mem::transmute(self._bitfield_1.get(1usize, 1u8) as u8) }
+    }
+    #[inline]
+    pub fn set_srr_is_hit(&mut self, val: ::aya_ebpf::cty::c_uchar) {
+        unsafe {
+            let val: u8 = ::core::mem::transmute(val);
+            self._bitfield_1.set(1usize, 1u8, val as u64)
+        }
+    }
+    #[inline]
+    pub unsafe fn srr_is_hit_raw(this: *const Self) -> ::aya_ebpf::cty::c_uchar {
+        unsafe {
+            ::core::mem::transmute(<__BindgenBitfieldUnit<[u8; 1usize]>>::raw_get(
+                ::core::ptr::addr_of!((*this)._bitfield_1),
+                1usize,
+                1u8,
+            ) as u8)
+        }
+    }
+    #[inline]
+    pub unsafe fn set_srr_is_hit_raw(this: *mut Self, val: ::aya_ebpf::cty::c_uchar) {
+        unsafe {
+            let val: u8 = ::core::mem::transmute(val);
+            <__BindgenBitfieldUnit<[u8; 1usize]>>::raw_set(
+                ::core::ptr::addr_of_mut!((*this)._bitfield_1),
+                1usize,
+                1u8,
+                val as u64,
+            )
+        }
+    }
+    #[inline]
+    pub fn is_changed(&self) -> ::aya_ebpf::cty::c_uchar {
+        unsafe { ::core::mem::transmute(self._bitfield_1.get(2usize, 1u8) as u8) }
+    }
+    #[inline]
+    pub fn set_is_changed(&mut self, val: ::aya_ebpf::cty::c_uchar) {
+        unsafe {
+            let val: u8 = ::core::mem::transmute(val);
+            self._bitfield_1.set(2usize, 1u8, val as u64)
+        }
+    }
+    #[inline]
+    pub unsafe fn is_changed_raw(this: *const Self) -> ::aya_ebpf::cty::c_uchar {
+        unsafe {
+            ::core::mem::transmute(<__BindgenBitfieldUnit<[u8; 1usize]>>::raw_get(
+                ::core::ptr::addr_of!((*this)._bitfield_1),
+                2usize,
+                1u8,
+            ) as u8)
+        }
+    }
+    #[inline]
+    pub unsafe fn set_is_changed_raw(this: *mut Self, val: ::aya_ebpf::cty::c_uchar) {
+        unsafe {
+            let val: u8 = ::core::mem::transmute(val);
+            <__BindgenBitfieldUnit<[u8; 1usize]>>::raw_set(
+                ::core::ptr::addr_of_mut!((*this)._bitfield_1),
+                2usize,
+                1u8,
+                val as u64,
+            )
+        }
+    }
+    #[inline]
+    pub fn rr_needaddr(&self) -> ::aya_ebpf::cty::c_uchar {
+        unsafe { ::core::mem::transmute(self._bitfield_1.get(3usize, 1u8) as u8) }
+    }
+    #[inline]
+    pub fn set_rr_needaddr(&mut self, val: ::aya_ebpf::cty::c_uchar) {
+        unsafe {
+            let val: u8 = ::core::mem::transmute(val);
+            self._bitfield_1.set(3usize, 1u8, val as u64)
+        }
+    }
+    #[inline]
+    pub unsafe fn rr_needaddr_raw(this: *const Self) -> ::aya_ebpf::cty::c_uchar {
+        unsafe {
+            ::core::mem::transmute(<__BindgenBitfieldUnit<[u8; 1usize]>>::raw_get(
+                ::core::ptr::addr_of!((*this)._bitfield_1),
+                3usize,
+                1u8,
+            ) as u8)
+        }
+    }
+    #[inline]
+    pub unsafe fn set_rr_needaddr_raw(this: *mut Self, val: ::aya_ebpf::cty::c_uchar) {
+        unsafe {
+            let val: u8 = ::core::mem::transmute(val);
+            <__BindgenBitfieldUnit<[u8; 1usize]>>::raw_set(
+                ::core::ptr::addr_of_mut!((*this)._bitfield_1),
+                3usize,
+                1u8,
+                val as u64,
+            )
+        }
+    }
+    #[inline]
+    pub fn ts_needtime(&self) -> ::aya_ebpf::cty::c_uchar {
+        unsafe { ::core::mem::transmute(self._bitfield_1.get(4usize, 1u8) as u8) }
+    }
+    #[inline]
+    pub fn set_ts_needtime(&mut self, val: ::aya_ebpf::cty::c_uchar) {
+        unsafe {
+            let val: u8 = ::core::mem::transmute(val);
+            self._bitfield_1.set(4usize, 1u8, val as u64)
+        }
+    }
+    #[inline]
+    pub unsafe fn ts_needtime_raw(this: *const Self) -> ::aya_ebpf::cty::c_uchar {
+        unsafe {
+            ::core::mem::transmute(<__BindgenBitfieldUnit<[u8; 1usize]>>::raw_get(
+                ::core::ptr::addr_of!((*this)._bitfield_1),
+                4usize,
+                1u8,
+            ) as u8)
+        }
+    }
+    #[inline]
+    pub unsafe fn set_ts_needtime_raw(this: *mut Self, val: ::aya_ebpf::cty::c_uchar) {
+        unsafe {
+            let val: u8 = ::core::mem::transmute(val);
+            <__BindgenBitfieldUnit<[u8; 1usize]>>::raw_set(
+                ::core::ptr::addr_of_mut!((*this)._bitfield_1),
+                4usize,
+                1u8,
+                val as u64,
+            )
+        }
+    }
+    #[inline]
+    pub fn ts_needaddr(&self) -> ::aya_ebpf::cty::c_uchar {
+        unsafe { ::core::mem::transmute(self._bitfield_1.get(5usize, 1u8) as u8) }
+    }
+    #[inline]
+    pub fn set_ts_needaddr(&mut self, val: ::aya_ebpf::cty::c_uchar) {
+        unsafe {
+            let val: u8 = ::core::mem::transmute(val);
+            self._bitfield_1.set(5usize, 1u8, val as u64)
+        }
+    }
+    #[inline]
+    pub unsafe fn ts_needaddr_raw(this: *const Self) -> ::aya_ebpf::cty::c_uchar {
+        unsafe {
+            ::core::mem::transmute(<__BindgenBitfieldUnit<[u8; 1usize]>>::raw_get(
+                ::core::ptr::addr_of!((*this)._bitfield_1),
+                5usize,
+                1u8,
+            ) as u8)
+        }
+    }
+    #[inline]
+    pub unsafe fn set_ts_needaddr_raw(this: *mut Self, val: ::aya_ebpf::cty::c_uchar) {
+        unsafe {
+            let val: u8 = ::core::mem::transmute(val);
+            <__BindgenBitfieldUnit<[u8; 1usize]>>::raw_set(
+                ::core::ptr::addr_of_mut!((*this)._bitfield_1),
+                5usize,
+                1u8,
+                val as u64,
+            )
+        }
+    }
+    #[inline]
+    pub fn new_bitfield_1(
+        is_strictroute: ::aya_ebpf::cty::c_uchar,
+        srr_is_hit: ::aya_ebpf::cty::c_uchar,
+        is_changed: ::aya_ebpf::cty::c_uchar,
+        rr_needaddr: ::aya_ebpf::cty::c_uchar,
+        ts_needtime: ::aya_ebpf::cty::c_uchar,
+        ts_needaddr: ::aya_ebpf::cty::c_uchar,
+    ) -> __BindgenBitfieldUnit<[u8; 1usize]> {
+        let mut __bindgen_bitfield_unit: __BindgenBitfieldUnit<[u8; 1usize]> = Default::default();
+        __bindgen_bitfield_unit.set(0usize, 1u8, {
+            let is_strictroute: u8 = unsafe { ::core::mem::transmute(is_strictroute) };
+            is_strictroute as u64
+        });
+        __bindgen_bitfield_unit.set(1usize, 1u8, {
+            let srr_is_hit: u8 = unsafe { ::core::mem::transmute(srr_is_hit) };
+            srr_is_hit as u64
+        });
+        __bindgen_bitfield_unit.set(2usize, 1u8, {
+            let is_changed: u8 = unsafe { ::core::mem::transmute(is_changed) };
+            is_changed as u64
+        });
+        __bindgen_bitfield_unit.set(3usize, 1u8, {
+            let rr_needaddr: u8 = unsafe { ::core::mem::transmute(rr_needaddr) };
+            rr_needaddr as u64
+        });
+        __bindgen_bitfield_unit.set(4usize, 1u8, {
+            let ts_needtime: u8 = unsafe { ::core::mem::transmute(ts_needtime) };
+            ts_needtime as u64
+        });
+        __bindgen_bitfield_unit.set(5usize, 1u8, {
+            let ts_needaddr: u8 = unsafe { ::core::mem::transmute(ts_needaddr) };
+            ts_needaddr as u64
+        });
+        __bindgen_bitfield_unit
+    }
+}
+#[repr(C)]
+#[derive(Debug)]
+pub struct ip_options_rcu {
+    pub rcu: callback_head,
+    pub opt: ip_options,
+}
+#[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct icmp_mib {
     pub mibs: [::aya_ebpf::cty::c_ulong; 30usize],
@@ -33221,6 +33488,12 @@ pub struct ifreq__bindgen_ty_2 {
     pub bindgen_union_field: [u64; 3usize],
 }
 #[repr(C)]
+#[derive(Copy, Clone)]
+pub struct in6_pktinfo {
+    pub ipi6_addr: in6_addr,
+    pub ipi6_ifindex: ::aya_ebpf::cty::c_int,
+}
+#[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct ipv4_devconf {
     pub sysctl: *mut ::aya_ebpf::cty::c_void,
@@ -33275,6 +33548,13 @@ pub struct in_ifaddr {
     pub ifa_preferred_lft: __u32,
     pub ifa_cstamp: ::aya_ebpf::cty::c_ulong,
     pub ifa_tstamp: ::aya_ebpf::cty::c_ulong,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct inet6_cork {
+    pub opt: *mut ipv6_txoptions,
+    pub hop_limit: u8_,
+    pub tclass: u8_,
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -33411,6 +33691,52 @@ pub union inet_addr {
 pub struct inet_bind_hashbucket {
     pub lock: spinlock_t,
     pub chain: hlist_head,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct inet_cork {
+    pub flags: ::aya_ebpf::cty::c_uint,
+    pub addr: __be32,
+    pub opt: *mut ip_options,
+    pub fragsize: ::aya_ebpf::cty::c_uint,
+    pub length: ::aya_ebpf::cty::c_int,
+    pub dst: *mut dst_entry,
+    pub tx_flags: u8_,
+    pub ttl: __u8,
+    pub tos: __s16,
+    pub priority: ::aya_ebpf::cty::c_char,
+    pub gso_size: __u16,
+    pub transmit_time: u64_,
+    pub mark: u32_,
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct inet_cork_full {
+    pub base: inet_cork,
+    pub fl: flowi,
+}
+#[repr(C)]
+pub struct inet_sock {
+    pub sk: sock,
+    pub pinet6: *mut ipv6_pinfo,
+    pub inet_flags: ::aya_ebpf::cty::c_ulong,
+    pub inet_saddr: __be32,
+    pub uc_ttl: __s16,
+    pub inet_sport: __be16,
+    pub inet_opt: *mut ip_options_rcu,
+    pub inet_id: atomic_t,
+    pub tos: __u8,
+    pub min_ttl: __u8,
+    pub mc_ttl: __u8,
+    pub pmtudisc: __u8,
+    pub rcv_tos: __u8,
+    pub convert_csum: __u8,
+    pub uc_index: ::aya_ebpf::cty::c_int,
+    pub mc_index: ::aya_ebpf::cty::c_int,
+    pub mc_addr: __be32,
+    pub local_port_range: u32_,
+    pub mc_list: *mut ip_mc_socklist,
+    pub cork: inet_cork_full,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -35217,6 +35543,12 @@ pub struct io_wq_hash {
     pub wait: wait_queue_head,
 }
 #[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ipv6_opt_hdr {
+    pub nexthdr: __u8,
+    pub hdrlen: __u8,
+}
+#[repr(C)]
 #[derive(Copy, Clone)]
 pub struct ioam6_pernet_data {
     pub lock: mutex,
@@ -35709,6 +36041,28 @@ pub struct iova_rcache {
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
+pub struct ip6_flowlabel {
+    pub next: *mut ip6_flowlabel,
+    pub label: __be32,
+    pub users: atomic_t,
+    pub dst: in6_addr,
+    pub opt: *mut ipv6_txoptions,
+    pub linger: ::aya_ebpf::cty::c_ulong,
+    pub rcu: callback_head,
+    pub share: u8_,
+    pub owner: ip6_flowlabel__bindgen_ty_1,
+    pub lastuse: ::aya_ebpf::cty::c_ulong,
+    pub expires: ::aya_ebpf::cty::c_ulong,
+    pub fl_net: *mut net,
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub union ip6_flowlabel__bindgen_ty_1 {
+    pub pid: *mut pid,
+    pub uid: kuid_t,
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
 pub struct ip6_sf_list {
     pub sf_next: *mut ip6_sf_list,
     pub sf_addr: in6_addr,
@@ -35717,6 +36071,13 @@ pub struct ip6_sf_list {
     pub sf_oldin: ::aya_ebpf::cty::c_uchar,
     pub sf_crcount: ::aya_ebpf::cty::c_uchar,
     pub rcu: callback_head,
+}
+#[repr(C)]
+pub struct ip6_sf_socklist {
+    pub sl_max: ::aya_ebpf::cty::c_uint,
+    pub sl_count: ::aya_ebpf::cty::c_uint,
+    pub rcu: callback_head,
+    pub sl_addr: __IncompleteArrayField<in6_addr>,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -35807,6 +36168,22 @@ pub union ip_mc_list__bindgen_ty_1 {
     pub next_rcu: *mut ip_mc_list,
 }
 #[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ip_mreqn {
+    pub imr_multiaddr: in_addr,
+    pub imr_address: in_addr,
+    pub imr_ifindex: ::aya_ebpf::cty::c_int,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ip_mc_socklist {
+    pub next_rcu: *mut ip_mc_socklist,
+    pub multi: ip_mreqn,
+    pub sfmode: ::aya_ebpf::cty::c_uint,
+    pub sflist: *mut ip_sf_socklist,
+    pub rcu: callback_head,
+}
+#[repr(C)]
 #[derive(Copy, Clone)]
 pub struct ip_ra_chain {
     pub next: *mut ip_ra_chain,
@@ -35835,6 +36212,14 @@ pub struct ip_sf_list {
     pub sf_gsresp: ::aya_ebpf::cty::c_uchar,
     pub sf_oldin: ::aya_ebpf::cty::c_uchar,
     pub sf_crcount: ::aya_ebpf::cty::c_uchar,
+}
+#[repr(C)]
+#[derive(Debug)]
+pub struct ip_sf_socklist {
+    pub sl_max: ::aya_ebpf::cty::c_uint,
+    pub sl_count: ::aya_ebpf::cty::c_uint,
+    pub rcu: callback_head,
+    pub sl_addr: __IncompleteArrayField<__be32>,
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -35938,6 +36323,670 @@ pub struct ipc_namespace {
 pub struct ipstats_mib {
     pub mibs: [u64_; 38usize],
     pub syncp: u64_stats_sync,
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct ipv6_ac_socklist {
+    pub acl_addr: in6_addr,
+    pub acl_ifindex: ::aya_ebpf::cty::c_int,
+    pub acl_next: *mut ipv6_ac_socklist,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ipv6_fl_socklist {
+    pub next: *mut ipv6_fl_socklist,
+    pub fl: *mut ip6_flowlabel,
+    pub rcu: callback_head,
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct ipv6_mc_socklist {
+    pub addr: in6_addr,
+    pub ifindex: ::aya_ebpf::cty::c_int,
+    pub sfmode: ::aya_ebpf::cty::c_uint,
+    pub next: *mut ipv6_mc_socklist,
+    pub sflist: *mut ip6_sf_socklist,
+    pub rcu: callback_head,
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct ipv6_pinfo {
+    pub saddr: in6_addr,
+    pub sticky_pktinfo: in6_pktinfo,
+    pub daddr_cache: *const in6_addr,
+    pub saddr_cache: *const in6_addr,
+    pub flow_label: __be32,
+    pub frag_size: __u32,
+    pub hop_limit: s16,
+    pub mcast_hops: u8_,
+    pub ucast_oif: ::aya_ebpf::cty::c_int,
+    pub mcast_oif: ::aya_ebpf::cty::c_int,
+    pub rxopt: ipv6_pinfo__bindgen_ty_1,
+    pub srcprefs: __u8,
+    pub pmtudisc: __u8,
+    pub min_hopcount: __u8,
+    pub tclass: __u8,
+    pub rcv_flowinfo: __be32,
+    pub dst_cookie: __u32,
+    pub ipv6_mc_list: *mut ipv6_mc_socklist,
+    pub ipv6_ac_list: *mut ipv6_ac_socklist,
+    pub ipv6_fl_list: *mut ipv6_fl_socklist,
+    pub opt: *mut ipv6_txoptions,
+    pub pktoptions: *mut sk_buff,
+    pub rxpmtu: *mut sk_buff,
+    pub cork: inet6_cork,
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub union ipv6_pinfo__bindgen_ty_1 {
+    pub bits: ipv6_pinfo__bindgen_ty_1__bindgen_ty_1,
+    pub all: __u16,
+}
+#[repr(C)]
+#[repr(align(2))]
+#[derive(Debug, Copy, Clone)]
+pub struct ipv6_pinfo__bindgen_ty_1__bindgen_ty_1 {
+    pub _bitfield_align_1: [u8; 0],
+    pub _bitfield_1: __BindgenBitfieldUnit<[u8; 2usize]>,
+}
+impl ipv6_pinfo__bindgen_ty_1__bindgen_ty_1 {
+    #[inline]
+    pub fn srcrt(&self) -> __u16 {
+        unsafe { ::core::mem::transmute(self._bitfield_1.get(0usize, 1u8) as u16) }
+    }
+    #[inline]
+    pub fn set_srcrt(&mut self, val: __u16) {
+        unsafe {
+            let val: u16 = ::core::mem::transmute(val);
+            self._bitfield_1.set(0usize, 1u8, val as u64)
+        }
+    }
+    #[inline]
+    pub unsafe fn srcrt_raw(this: *const Self) -> __u16 {
+        unsafe {
+            ::core::mem::transmute(<__BindgenBitfieldUnit<[u8; 2usize]>>::raw_get(
+                ::core::ptr::addr_of!((*this)._bitfield_1),
+                0usize,
+                1u8,
+            ) as u16)
+        }
+    }
+    #[inline]
+    pub unsafe fn set_srcrt_raw(this: *mut Self, val: __u16) {
+        unsafe {
+            let val: u16 = ::core::mem::transmute(val);
+            <__BindgenBitfieldUnit<[u8; 2usize]>>::raw_set(
+                ::core::ptr::addr_of_mut!((*this)._bitfield_1),
+                0usize,
+                1u8,
+                val as u64,
+            )
+        }
+    }
+    #[inline]
+    pub fn osrcrt(&self) -> __u16 {
+        unsafe { ::core::mem::transmute(self._bitfield_1.get(1usize, 1u8) as u16) }
+    }
+    #[inline]
+    pub fn set_osrcrt(&mut self, val: __u16) {
+        unsafe {
+            let val: u16 = ::core::mem::transmute(val);
+            self._bitfield_1.set(1usize, 1u8, val as u64)
+        }
+    }
+    #[inline]
+    pub unsafe fn osrcrt_raw(this: *const Self) -> __u16 {
+        unsafe {
+            ::core::mem::transmute(<__BindgenBitfieldUnit<[u8; 2usize]>>::raw_get(
+                ::core::ptr::addr_of!((*this)._bitfield_1),
+                1usize,
+                1u8,
+            ) as u16)
+        }
+    }
+    #[inline]
+    pub unsafe fn set_osrcrt_raw(this: *mut Self, val: __u16) {
+        unsafe {
+            let val: u16 = ::core::mem::transmute(val);
+            <__BindgenBitfieldUnit<[u8; 2usize]>>::raw_set(
+                ::core::ptr::addr_of_mut!((*this)._bitfield_1),
+                1usize,
+                1u8,
+                val as u64,
+            )
+        }
+    }
+    #[inline]
+    pub fn rxinfo(&self) -> __u16 {
+        unsafe { ::core::mem::transmute(self._bitfield_1.get(2usize, 1u8) as u16) }
+    }
+    #[inline]
+    pub fn set_rxinfo(&mut self, val: __u16) {
+        unsafe {
+            let val: u16 = ::core::mem::transmute(val);
+            self._bitfield_1.set(2usize, 1u8, val as u64)
+        }
+    }
+    #[inline]
+    pub unsafe fn rxinfo_raw(this: *const Self) -> __u16 {
+        unsafe {
+            ::core::mem::transmute(<__BindgenBitfieldUnit<[u8; 2usize]>>::raw_get(
+                ::core::ptr::addr_of!((*this)._bitfield_1),
+                2usize,
+                1u8,
+            ) as u16)
+        }
+    }
+    #[inline]
+    pub unsafe fn set_rxinfo_raw(this: *mut Self, val: __u16) {
+        unsafe {
+            let val: u16 = ::core::mem::transmute(val);
+            <__BindgenBitfieldUnit<[u8; 2usize]>>::raw_set(
+                ::core::ptr::addr_of_mut!((*this)._bitfield_1),
+                2usize,
+                1u8,
+                val as u64,
+            )
+        }
+    }
+    #[inline]
+    pub fn rxoinfo(&self) -> __u16 {
+        unsafe { ::core::mem::transmute(self._bitfield_1.get(3usize, 1u8) as u16) }
+    }
+    #[inline]
+    pub fn set_rxoinfo(&mut self, val: __u16) {
+        unsafe {
+            let val: u16 = ::core::mem::transmute(val);
+            self._bitfield_1.set(3usize, 1u8, val as u64)
+        }
+    }
+    #[inline]
+    pub unsafe fn rxoinfo_raw(this: *const Self) -> __u16 {
+        unsafe {
+            ::core::mem::transmute(<__BindgenBitfieldUnit<[u8; 2usize]>>::raw_get(
+                ::core::ptr::addr_of!((*this)._bitfield_1),
+                3usize,
+                1u8,
+            ) as u16)
+        }
+    }
+    #[inline]
+    pub unsafe fn set_rxoinfo_raw(this: *mut Self, val: __u16) {
+        unsafe {
+            let val: u16 = ::core::mem::transmute(val);
+            <__BindgenBitfieldUnit<[u8; 2usize]>>::raw_set(
+                ::core::ptr::addr_of_mut!((*this)._bitfield_1),
+                3usize,
+                1u8,
+                val as u64,
+            )
+        }
+    }
+    #[inline]
+    pub fn rxhlim(&self) -> __u16 {
+        unsafe { ::core::mem::transmute(self._bitfield_1.get(4usize, 1u8) as u16) }
+    }
+    #[inline]
+    pub fn set_rxhlim(&mut self, val: __u16) {
+        unsafe {
+            let val: u16 = ::core::mem::transmute(val);
+            self._bitfield_1.set(4usize, 1u8, val as u64)
+        }
+    }
+    #[inline]
+    pub unsafe fn rxhlim_raw(this: *const Self) -> __u16 {
+        unsafe {
+            ::core::mem::transmute(<__BindgenBitfieldUnit<[u8; 2usize]>>::raw_get(
+                ::core::ptr::addr_of!((*this)._bitfield_1),
+                4usize,
+                1u8,
+            ) as u16)
+        }
+    }
+    #[inline]
+    pub unsafe fn set_rxhlim_raw(this: *mut Self, val: __u16) {
+        unsafe {
+            let val: u16 = ::core::mem::transmute(val);
+            <__BindgenBitfieldUnit<[u8; 2usize]>>::raw_set(
+                ::core::ptr::addr_of_mut!((*this)._bitfield_1),
+                4usize,
+                1u8,
+                val as u64,
+            )
+        }
+    }
+    #[inline]
+    pub fn rxohlim(&self) -> __u16 {
+        unsafe { ::core::mem::transmute(self._bitfield_1.get(5usize, 1u8) as u16) }
+    }
+    #[inline]
+    pub fn set_rxohlim(&mut self, val: __u16) {
+        unsafe {
+            let val: u16 = ::core::mem::transmute(val);
+            self._bitfield_1.set(5usize, 1u8, val as u64)
+        }
+    }
+    #[inline]
+    pub unsafe fn rxohlim_raw(this: *const Self) -> __u16 {
+        unsafe {
+            ::core::mem::transmute(<__BindgenBitfieldUnit<[u8; 2usize]>>::raw_get(
+                ::core::ptr::addr_of!((*this)._bitfield_1),
+                5usize,
+                1u8,
+            ) as u16)
+        }
+    }
+    #[inline]
+    pub unsafe fn set_rxohlim_raw(this: *mut Self, val: __u16) {
+        unsafe {
+            let val: u16 = ::core::mem::transmute(val);
+            <__BindgenBitfieldUnit<[u8; 2usize]>>::raw_set(
+                ::core::ptr::addr_of_mut!((*this)._bitfield_1),
+                5usize,
+                1u8,
+                val as u64,
+            )
+        }
+    }
+    #[inline]
+    pub fn hopopts(&self) -> __u16 {
+        unsafe { ::core::mem::transmute(self._bitfield_1.get(6usize, 1u8) as u16) }
+    }
+    #[inline]
+    pub fn set_hopopts(&mut self, val: __u16) {
+        unsafe {
+            let val: u16 = ::core::mem::transmute(val);
+            self._bitfield_1.set(6usize, 1u8, val as u64)
+        }
+    }
+    #[inline]
+    pub unsafe fn hopopts_raw(this: *const Self) -> __u16 {
+        unsafe {
+            ::core::mem::transmute(<__BindgenBitfieldUnit<[u8; 2usize]>>::raw_get(
+                ::core::ptr::addr_of!((*this)._bitfield_1),
+                6usize,
+                1u8,
+            ) as u16)
+        }
+    }
+    #[inline]
+    pub unsafe fn set_hopopts_raw(this: *mut Self, val: __u16) {
+        unsafe {
+            let val: u16 = ::core::mem::transmute(val);
+            <__BindgenBitfieldUnit<[u8; 2usize]>>::raw_set(
+                ::core::ptr::addr_of_mut!((*this)._bitfield_1),
+                6usize,
+                1u8,
+                val as u64,
+            )
+        }
+    }
+    #[inline]
+    pub fn ohopopts(&self) -> __u16 {
+        unsafe { ::core::mem::transmute(self._bitfield_1.get(7usize, 1u8) as u16) }
+    }
+    #[inline]
+    pub fn set_ohopopts(&mut self, val: __u16) {
+        unsafe {
+            let val: u16 = ::core::mem::transmute(val);
+            self._bitfield_1.set(7usize, 1u8, val as u64)
+        }
+    }
+    #[inline]
+    pub unsafe fn ohopopts_raw(this: *const Self) -> __u16 {
+        unsafe {
+            ::core::mem::transmute(<__BindgenBitfieldUnit<[u8; 2usize]>>::raw_get(
+                ::core::ptr::addr_of!((*this)._bitfield_1),
+                7usize,
+                1u8,
+            ) as u16)
+        }
+    }
+    #[inline]
+    pub unsafe fn set_ohopopts_raw(this: *mut Self, val: __u16) {
+        unsafe {
+            let val: u16 = ::core::mem::transmute(val);
+            <__BindgenBitfieldUnit<[u8; 2usize]>>::raw_set(
+                ::core::ptr::addr_of_mut!((*this)._bitfield_1),
+                7usize,
+                1u8,
+                val as u64,
+            )
+        }
+    }
+    #[inline]
+    pub fn dstopts(&self) -> __u16 {
+        unsafe { ::core::mem::transmute(self._bitfield_1.get(8usize, 1u8) as u16) }
+    }
+    #[inline]
+    pub fn set_dstopts(&mut self, val: __u16) {
+        unsafe {
+            let val: u16 = ::core::mem::transmute(val);
+            self._bitfield_1.set(8usize, 1u8, val as u64)
+        }
+    }
+    #[inline]
+    pub unsafe fn dstopts_raw(this: *const Self) -> __u16 {
+        unsafe {
+            ::core::mem::transmute(<__BindgenBitfieldUnit<[u8; 2usize]>>::raw_get(
+                ::core::ptr::addr_of!((*this)._bitfield_1),
+                8usize,
+                1u8,
+            ) as u16)
+        }
+    }
+    #[inline]
+    pub unsafe fn set_dstopts_raw(this: *mut Self, val: __u16) {
+        unsafe {
+            let val: u16 = ::core::mem::transmute(val);
+            <__BindgenBitfieldUnit<[u8; 2usize]>>::raw_set(
+                ::core::ptr::addr_of_mut!((*this)._bitfield_1),
+                8usize,
+                1u8,
+                val as u64,
+            )
+        }
+    }
+    #[inline]
+    pub fn odstopts(&self) -> __u16 {
+        unsafe { ::core::mem::transmute(self._bitfield_1.get(9usize, 1u8) as u16) }
+    }
+    #[inline]
+    pub fn set_odstopts(&mut self, val: __u16) {
+        unsafe {
+            let val: u16 = ::core::mem::transmute(val);
+            self._bitfield_1.set(9usize, 1u8, val as u64)
+        }
+    }
+    #[inline]
+    pub unsafe fn odstopts_raw(this: *const Self) -> __u16 {
+        unsafe {
+            ::core::mem::transmute(<__BindgenBitfieldUnit<[u8; 2usize]>>::raw_get(
+                ::core::ptr::addr_of!((*this)._bitfield_1),
+                9usize,
+                1u8,
+            ) as u16)
+        }
+    }
+    #[inline]
+    pub unsafe fn set_odstopts_raw(this: *mut Self, val: __u16) {
+        unsafe {
+            let val: u16 = ::core::mem::transmute(val);
+            <__BindgenBitfieldUnit<[u8; 2usize]>>::raw_set(
+                ::core::ptr::addr_of_mut!((*this)._bitfield_1),
+                9usize,
+                1u8,
+                val as u64,
+            )
+        }
+    }
+    #[inline]
+    pub fn rxflow(&self) -> __u16 {
+        unsafe { ::core::mem::transmute(self._bitfield_1.get(10usize, 1u8) as u16) }
+    }
+    #[inline]
+    pub fn set_rxflow(&mut self, val: __u16) {
+        unsafe {
+            let val: u16 = ::core::mem::transmute(val);
+            self._bitfield_1.set(10usize, 1u8, val as u64)
+        }
+    }
+    #[inline]
+    pub unsafe fn rxflow_raw(this: *const Self) -> __u16 {
+        unsafe {
+            ::core::mem::transmute(<__BindgenBitfieldUnit<[u8; 2usize]>>::raw_get(
+                ::core::ptr::addr_of!((*this)._bitfield_1),
+                10usize,
+                1u8,
+            ) as u16)
+        }
+    }
+    #[inline]
+    pub unsafe fn set_rxflow_raw(this: *mut Self, val: __u16) {
+        unsafe {
+            let val: u16 = ::core::mem::transmute(val);
+            <__BindgenBitfieldUnit<[u8; 2usize]>>::raw_set(
+                ::core::ptr::addr_of_mut!((*this)._bitfield_1),
+                10usize,
+                1u8,
+                val as u64,
+            )
+        }
+    }
+    #[inline]
+    pub fn rxtclass(&self) -> __u16 {
+        unsafe { ::core::mem::transmute(self._bitfield_1.get(11usize, 1u8) as u16) }
+    }
+    #[inline]
+    pub fn set_rxtclass(&mut self, val: __u16) {
+        unsafe {
+            let val: u16 = ::core::mem::transmute(val);
+            self._bitfield_1.set(11usize, 1u8, val as u64)
+        }
+    }
+    #[inline]
+    pub unsafe fn rxtclass_raw(this: *const Self) -> __u16 {
+        unsafe {
+            ::core::mem::transmute(<__BindgenBitfieldUnit<[u8; 2usize]>>::raw_get(
+                ::core::ptr::addr_of!((*this)._bitfield_1),
+                11usize,
+                1u8,
+            ) as u16)
+        }
+    }
+    #[inline]
+    pub unsafe fn set_rxtclass_raw(this: *mut Self, val: __u16) {
+        unsafe {
+            let val: u16 = ::core::mem::transmute(val);
+            <__BindgenBitfieldUnit<[u8; 2usize]>>::raw_set(
+                ::core::ptr::addr_of_mut!((*this)._bitfield_1),
+                11usize,
+                1u8,
+                val as u64,
+            )
+        }
+    }
+    #[inline]
+    pub fn rxpmtu(&self) -> __u16 {
+        unsafe { ::core::mem::transmute(self._bitfield_1.get(12usize, 1u8) as u16) }
+    }
+    #[inline]
+    pub fn set_rxpmtu(&mut self, val: __u16) {
+        unsafe {
+            let val: u16 = ::core::mem::transmute(val);
+            self._bitfield_1.set(12usize, 1u8, val as u64)
+        }
+    }
+    #[inline]
+    pub unsafe fn rxpmtu_raw(this: *const Self) -> __u16 {
+        unsafe {
+            ::core::mem::transmute(<__BindgenBitfieldUnit<[u8; 2usize]>>::raw_get(
+                ::core::ptr::addr_of!((*this)._bitfield_1),
+                12usize,
+                1u8,
+            ) as u16)
+        }
+    }
+    #[inline]
+    pub unsafe fn set_rxpmtu_raw(this: *mut Self, val: __u16) {
+        unsafe {
+            let val: u16 = ::core::mem::transmute(val);
+            <__BindgenBitfieldUnit<[u8; 2usize]>>::raw_set(
+                ::core::ptr::addr_of_mut!((*this)._bitfield_1),
+                12usize,
+                1u8,
+                val as u64,
+            )
+        }
+    }
+    #[inline]
+    pub fn rxorigdstaddr(&self) -> __u16 {
+        unsafe { ::core::mem::transmute(self._bitfield_1.get(13usize, 1u8) as u16) }
+    }
+    #[inline]
+    pub fn set_rxorigdstaddr(&mut self, val: __u16) {
+        unsafe {
+            let val: u16 = ::core::mem::transmute(val);
+            self._bitfield_1.set(13usize, 1u8, val as u64)
+        }
+    }
+    #[inline]
+    pub unsafe fn rxorigdstaddr_raw(this: *const Self) -> __u16 {
+        unsafe {
+            ::core::mem::transmute(<__BindgenBitfieldUnit<[u8; 2usize]>>::raw_get(
+                ::core::ptr::addr_of!((*this)._bitfield_1),
+                13usize,
+                1u8,
+            ) as u16)
+        }
+    }
+    #[inline]
+    pub unsafe fn set_rxorigdstaddr_raw(this: *mut Self, val: __u16) {
+        unsafe {
+            let val: u16 = ::core::mem::transmute(val);
+            <__BindgenBitfieldUnit<[u8; 2usize]>>::raw_set(
+                ::core::ptr::addr_of_mut!((*this)._bitfield_1),
+                13usize,
+                1u8,
+                val as u64,
+            )
+        }
+    }
+    #[inline]
+    pub fn recvfragsize(&self) -> __u16 {
+        unsafe { ::core::mem::transmute(self._bitfield_1.get(14usize, 1u8) as u16) }
+    }
+    #[inline]
+    pub fn set_recvfragsize(&mut self, val: __u16) {
+        unsafe {
+            let val: u16 = ::core::mem::transmute(val);
+            self._bitfield_1.set(14usize, 1u8, val as u64)
+        }
+    }
+    #[inline]
+    pub unsafe fn recvfragsize_raw(this: *const Self) -> __u16 {
+        unsafe {
+            ::core::mem::transmute(<__BindgenBitfieldUnit<[u8; 2usize]>>::raw_get(
+                ::core::ptr::addr_of!((*this)._bitfield_1),
+                14usize,
+                1u8,
+            ) as u16)
+        }
+    }
+    #[inline]
+    pub unsafe fn set_recvfragsize_raw(this: *mut Self, val: __u16) {
+        unsafe {
+            let val: u16 = ::core::mem::transmute(val);
+            <__BindgenBitfieldUnit<[u8; 2usize]>>::raw_set(
+                ::core::ptr::addr_of_mut!((*this)._bitfield_1),
+                14usize,
+                1u8,
+                val as u64,
+            )
+        }
+    }
+    #[inline]
+    pub fn new_bitfield_1(
+        srcrt: __u16,
+        osrcrt: __u16,
+        rxinfo: __u16,
+        rxoinfo: __u16,
+        rxhlim: __u16,
+        rxohlim: __u16,
+        hopopts: __u16,
+        ohopopts: __u16,
+        dstopts: __u16,
+        odstopts: __u16,
+        rxflow: __u16,
+        rxtclass: __u16,
+        rxpmtu: __u16,
+        rxorigdstaddr: __u16,
+        recvfragsize: __u16,
+    ) -> __BindgenBitfieldUnit<[u8; 2usize]> {
+        let mut __bindgen_bitfield_unit: __BindgenBitfieldUnit<[u8; 2usize]> = Default::default();
+        __bindgen_bitfield_unit.set(0usize, 1u8, {
+            let srcrt: u16 = unsafe { ::core::mem::transmute(srcrt) };
+            srcrt as u64
+        });
+        __bindgen_bitfield_unit.set(1usize, 1u8, {
+            let osrcrt: u16 = unsafe { ::core::mem::transmute(osrcrt) };
+            osrcrt as u64
+        });
+        __bindgen_bitfield_unit.set(2usize, 1u8, {
+            let rxinfo: u16 = unsafe { ::core::mem::transmute(rxinfo) };
+            rxinfo as u64
+        });
+        __bindgen_bitfield_unit.set(3usize, 1u8, {
+            let rxoinfo: u16 = unsafe { ::core::mem::transmute(rxoinfo) };
+            rxoinfo as u64
+        });
+        __bindgen_bitfield_unit.set(4usize, 1u8, {
+            let rxhlim: u16 = unsafe { ::core::mem::transmute(rxhlim) };
+            rxhlim as u64
+        });
+        __bindgen_bitfield_unit.set(5usize, 1u8, {
+            let rxohlim: u16 = unsafe { ::core::mem::transmute(rxohlim) };
+            rxohlim as u64
+        });
+        __bindgen_bitfield_unit.set(6usize, 1u8, {
+            let hopopts: u16 = unsafe { ::core::mem::transmute(hopopts) };
+            hopopts as u64
+        });
+        __bindgen_bitfield_unit.set(7usize, 1u8, {
+            let ohopopts: u16 = unsafe { ::core::mem::transmute(ohopopts) };
+            ohopopts as u64
+        });
+        __bindgen_bitfield_unit.set(8usize, 1u8, {
+            let dstopts: u16 = unsafe { ::core::mem::transmute(dstopts) };
+            dstopts as u64
+        });
+        __bindgen_bitfield_unit.set(9usize, 1u8, {
+            let odstopts: u16 = unsafe { ::core::mem::transmute(odstopts) };
+            odstopts as u64
+        });
+        __bindgen_bitfield_unit.set(10usize, 1u8, {
+            let rxflow: u16 = unsafe { ::core::mem::transmute(rxflow) };
+            rxflow as u64
+        });
+        __bindgen_bitfield_unit.set(11usize, 1u8, {
+            let rxtclass: u16 = unsafe { ::core::mem::transmute(rxtclass) };
+            rxtclass as u64
+        });
+        __bindgen_bitfield_unit.set(12usize, 1u8, {
+            let rxpmtu: u16 = unsafe { ::core::mem::transmute(rxpmtu) };
+            rxpmtu as u64
+        });
+        __bindgen_bitfield_unit.set(13usize, 1u8, {
+            let rxorigdstaddr: u16 = unsafe { ::core::mem::transmute(rxorigdstaddr) };
+            rxorigdstaddr as u64
+        });
+        __bindgen_bitfield_unit.set(14usize, 1u8, {
+            let recvfragsize: u16 = unsafe { ::core::mem::transmute(recvfragsize) };
+            recvfragsize as u64
+        });
+        __bindgen_bitfield_unit
+    }
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ipv6_rt_hdr {
+    pub nexthdr: __u8,
+    pub hdrlen: __u8,
+    pub type_: __u8,
+    pub segments_left: __u8,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ipv6_txoptions {
+    pub refcnt: refcount_t,
+    pub tot_len: ::aya_ebpf::cty::c_int,
+    pub opt_flen: __u16,
+    pub opt_nflen: __u16,
+    pub hopopt: *mut ipv6_opt_hdr,
+    pub dst0opt: *mut ipv6_opt_hdr,
+    pub srcrt: *mut ipv6_rt_hdr,
+    pub dst1opt: *mut ipv6_opt_hdr,
+    pub rcu: callback_head,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -39096,6 +40145,14 @@ pub struct mountpoint {
 #[derive(Debug, Copy, Clone)]
 pub struct mptcp_mib {
     pub mibs: [::aya_ebpf::cty::c_ulong; 61usize],
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct sockaddr_in {
+    pub sin_family: __kernel_sa_family_t,
+    pub sin_port: __be16,
+    pub sin_addr: in_addr,
+    pub __pad: [::aya_ebpf::cty::c_uchar; 8usize],
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -52163,6 +53220,11 @@ pub struct sched_rt_entity {
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
+pub struct scm_stat {
+    pub nr_fds: atomic_t,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
 pub struct scsi_sense_hdr {
     pub response_code: u8_,
     pub sense_key: u8_,
@@ -55889,6 +56951,12 @@ impl sock_reuseport {
         });
         __bindgen_bitfield_unit
     }
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct sockaddr_un {
+    pub sun_family: __kernel_sa_family_t,
+    pub sun_path: [::aya_ebpf::cty::c_char; 108usize],
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -59678,6 +60746,39 @@ pub struct unicode_map {
     pub version: ::aya_ebpf::cty::c_uint,
     pub ntab: [*const utf8data; 2usize],
     pub tables: *const utf8data_table,
+}
+#[repr(C)]
+#[derive(Debug)]
+pub struct unix_address {
+    pub refcnt: refcount_t,
+    pub len: ::aya_ebpf::cty::c_int,
+    pub name: __IncompleteArrayField<sockaddr_un>,
+}
+#[repr(C)]
+pub struct unix_sock {
+    pub sk: sock,
+    pub addr: *mut unix_address,
+    pub path: path,
+    pub iolock: mutex,
+    pub bindlock: mutex,
+    pub peer: *mut sock,
+    pub link: list_head,
+    pub inflight: ::aya_ebpf::cty::c_ulong,
+    pub lock: spinlock_t,
+    pub gc_flags: ::aya_ebpf::cty::c_ulong,
+    pub peer_wq: socket_wq,
+    pub peer_wake: wait_queue_entry_t,
+    pub scm_stat: scm_stat,
+    pub oob_skb: *mut sk_buff,
+    pub _bitfield_align_1: [u8; 0],
+    pub _bitfield_1: __BindgenBitfieldUnit<[u8; 8usize]>,
+}
+impl unix_sock {
+    #[inline]
+    pub fn new_bitfield_1() -> __BindgenBitfieldUnit<[u8; 8usize]> {
+        let mut __bindgen_bitfield_unit: __BindgenBitfieldUnit<[u8; 8usize]> = Default::default();
+        __bindgen_bitfield_unit
+    }
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
