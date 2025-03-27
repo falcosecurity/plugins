@@ -154,9 +154,7 @@ fn try___sys_connect_file(ctx: FExitContext) -> Result<u32, i64> {
     let sock: *const vmlinux::socket = file.extract_private_data().unwrap_or(null());
 
     // Parameter 2: tuple.
-    if ret == 0
-    /*TODO(ekoops): || ret = -EINPROGRESS */
-    {
+    if ret == 0 || ret == -defs::EINPROGRESS {
         let sockaddr: *const vmlinux::sockaddr = unsafe { ctx.arg(1) };
         auxmap.store_sock_tuple_param(sock, true, sockaddr, true);
     } else {
