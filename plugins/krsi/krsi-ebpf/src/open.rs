@@ -72,8 +72,8 @@ unsafe fn try_security_file_open(ctx: FExitContext) -> Result<u32, i64> {
     auxmap.preload_event_header(EventType::Open);
     auxmap.store_param(0_u64);
     let file: *const vmlinux::file = ctx.arg(0);
-    let path_ptr = &(*file).f_path as *const vmlinux::path;
-    let Ok(written_bytes) = auxmap.store_path_param(path_ptr, MAX_PATH) else {
+    let path = &(*file).f_path as *const vmlinux::path;
+    let Ok(written_bytes) = auxmap.store_path_param(path, MAX_PATH) else {
         return remove_open_pid(open_pids_map, pid);
     };
 
@@ -141,10 +141,10 @@ pub fn try_fd_install(ctx: &FEntryContext) -> Result<u32, i64> {
 
     #[cfg(debug_assertions)]
     {
-        let name_ptr = unsafe { file.extract_name() }.unwrap_or(null_mut());
+        let name = unsafe { file.extract_name() }.unwrap_or(null_mut());
         let mut buf: [u8; 128] = [0; 128];
         let name = unsafe {
-            core::str::from_utf8_unchecked(bpf_probe_read_kernel_str_bytes(name_ptr, &mut buf)?)
+            core::str::from_utf8_unchecked(bpf_probe_read_kernel_str_bytes(name, &mut buf)?)
         };
         let pid = ctx.pid();
         info!(
