@@ -60,36 +60,35 @@ impl AuxiliaryMap {
         self.push_param_len(0);
     }
 
-    /// This helper stores the charbuf pointed by `charbuf_ptr` into the auxmap. We read until we
-    /// find a `\0`, if the charbuf length is greater than `max_len_to_read`, we read up to
-    /// `max_len_to_read-1` bytes and add the `\0`. `is_kern_mem` allows to specify if the
-    /// `charbuf_ptr` points to kernel or userspace memory.
-    ///
+    /// This helper stores the charbuf pointed by `charbuf` into the auxmap. We read until we find
+    /// a `\0`, if the charbuf length is greater than `max_len_to_read`, we read up to
+    /// `max_len_to_read-1` bytes and add the `\0`. `is_kern_mem` allows to specify if the `charbuf`
+    /// points to kernel or userspace memory.
     pub unsafe fn store_charbuf_param(
         &mut self,
-        charbuf_ptr: *const c_uchar,
+        charbuf: *const c_uchar,
         max_len_to_read: u16,
         is_kern_mem: bool,
     ) -> Result<u16, i64> {
         let mut charbuf_len = 0_u16;
-        if !charbuf_ptr.is_null() {
-            charbuf_len = self.push_charbuf(charbuf_ptr, max_len_to_read as usize, is_kern_mem)?;
+        if !charbuf.is_null() {
+            charbuf_len = self.push_charbuf(charbuf, max_len_to_read as usize, is_kern_mem)?;
         }
         self.push_param_len(charbuf_len);
         Ok(charbuf_len)
     }
 
-    /// This helper stores the path pointed by `path_ptr` into the auxmap. We read until we find a
-    /// `\0`, if the path length is greater than `max_len_to_read`, we read up to
-    /// `max_len_to_read-1` bytes and add the `\0`.
+    /// This helper stores the path pointed by `path` into the auxmap. We read until we find a `\0`,
+    /// if the path length is greater than `max_len_to_read`, we read up to `max_len_to_read-1`
+    /// bytes and add the `\0`.
     pub unsafe fn store_path_param(
         &mut self,
-        path_ptr: *const vmlinux::path,
+        path: *const vmlinux::path,
         max_len_to_read: u16,
     ) -> Result<u16, i64> {
         let mut path_len = 0_u16;
-        if !path_ptr.is_null() {
-            path_len = self.push_path(path_ptr, max_len_to_read as usize)?;
+        if !path.is_null() {
+            path_len = self.push_path(path, max_len_to_read as usize)?;
         }
         self.push_param_len(path_len);
         Ok(path_len)
@@ -97,45 +96,32 @@ impl AuxiliaryMap {
 
     pub fn store_sock_tuple_param(
         &mut self,
-        sock_ptr: *const vmlinux::socket,
+        sock: *const vmlinux::socket,
         is_outbound: bool,
-        sockaddr_ptr: *const vmlinux::sockaddr,
-        is_kern_mem_sockaddr_ptr: bool,
+        sockaddr: *const vmlinux::sockaddr,
+        is_kern_sockaddr: bool,
     ) {
-        if sock_ptr.is_null() {
+        if sock.is_null() {
             self.store_empty_param();
             return;
         }
 
-        let Ok(sk_ptr) = sockets::extract_socket_sk(sock_ptr) else {
+        let Ok(sk) = sockets::extract_socket_sk(sock) else {
             self.store_empty_param();
             return;
         };
 
-        let Ok(sk_family) = sockets::extract_sock_family(sk_ptr) else {
+        let Ok(sk_family) = sockets::extract_sock_family(sk) else {
             self.store_empty_param();
             return;
         };
 
         let final_parameter_len = match sk_family {
-            defs::AF_INET => self.push_inet_sock_tuple(
-                sk_ptr,
-                is_outbound,
-                sockaddr_ptr,
-                is_kern_mem_sockaddr_ptr,
-            ),
-            defs::AF_INET6 => self.push_inet6_sock_tuple(
-                sk_ptr,
-                is_outbound,
-                sockaddr_ptr,
-                is_kern_mem_sockaddr_ptr,
-            ),
-            defs::AF_UNIX => self.push_unix_sock_tuple(
-                sk_ptr,
-                is_outbound,
-                sockaddr_ptr,
-                is_kern_mem_sockaddr_ptr,
-            ),
+            defs::AF_INET => self.push_inet_sock_tuple(sk, is_outbound, sockaddr, is_kern_sockaddr),
+            defs::AF_INET6 => {
+                self.push_inet6_sock_tuple(sk, is_outbound, sockaddr, is_kern_sockaddr)
+            }
+            defs::AF_UNIX => self.push_unix_sock_tuple(sk, is_outbound, sockaddr, is_kern_sockaddr),
             _ => 0,
         };
 
@@ -144,26 +130,24 @@ impl AuxiliaryMap {
 
     fn push_inet_sock_tuple(
         &mut self,
-        sk_ptr: *const vmlinux::sock,
+        sk: *const vmlinux::sock,
         is_outbound: bool,
-        sockaddr_ptr: *const vmlinux::sockaddr,
-        is_kern_sockaddr_ptr: bool,
+        sockaddr: *const vmlinux::sockaddr,
+        is_kern_sockaddr: bool,
     ) -> usize {
-        let inet_sk_ptr = sk_ptr.cast::<vmlinux::inet_sock>();
-        let ipv4_local = sockets::extract_inet_sock_saddr(inet_sk_ptr).unwrap_or(0);
-        let port_local = sockets::extract_inet_sock_sport(inet_sk_ptr).unwrap_or(0);
-        let mut ipv4_remote = sockets::extract_sock_inet_daddr(sk_ptr).unwrap_or(0);
-        let mut port_remote = sockets::extract_sock_inet_dport(sk_ptr).unwrap_or(0);
+        let inet_sk = sk.cast::<vmlinux::inet_sock>();
+        let ipv4_local = sockets::extract_inet_sock_saddr(inet_sk).unwrap_or(0);
+        let port_local = sockets::extract_inet_sock_sport(inet_sk).unwrap_or(0);
+        let mut ipv4_remote = sockets::extract_sock_inet_daddr(sk).unwrap_or(0);
+        let mut port_remote = sockets::extract_sock_inet_dport(sk).unwrap_or(0);
 
         // Kernel doesn't always fill sk->__sk_common in sendto and sendmsg syscalls (as in the case
         // of a UDP connection). We fall back to the address from userspace when the kernel-provided
         // address is NULL.
-        if port_remote == 0 && !sockaddr_ptr.is_null() {
-            (ipv4_remote, port_remote) = sockets::extract_sockaddr_in_saddr_and_sport(
-                sockaddr_ptr.cast(),
-                is_kern_sockaddr_ptr,
-            )
-            .unwrap_or((0, 0));
+        if port_remote == 0 && !sockaddr.is_null() {
+            (ipv4_remote, port_remote) =
+                sockets::extract_sockaddr_in_saddr_and_sport(sockaddr.cast(), is_kern_sockaddr)
+                    .unwrap_or((0, 0));
         }
 
         // Pack the tuple info: (sock_family, local_ipv4, local_port, remote_ipv4, remote_port)
@@ -185,26 +169,24 @@ impl AuxiliaryMap {
 
     fn push_inet6_sock_tuple(
         &mut self,
-        sk_ptr: *const vmlinux::sock,
+        sk: *const vmlinux::sock,
         is_outbound: bool,
-        usr_sockaddr_ptr: *const vmlinux::sockaddr,
-        is_kern_sockaddr_ptr: bool,
+        sockaddr: *const vmlinux::sockaddr,
+        is_kern_sockaddr: bool,
     ) -> usize {
-        let inet6_sk_ptr = sk_ptr.cast::<vmlinux::inet_sock>();
-        let ipv6_local = sockets::extract_sock_inet6_saddr(inet6_sk_ptr).unwrap_or([0, 0, 0, 0]);
-        let port_local = sockets::extract_inet_sock_sport(inet6_sk_ptr).unwrap_or(0);
-        let mut ipv6_remote = sockets::extract_sock_inet6_daddr(sk_ptr).unwrap_or([0, 0, 0, 0]);
-        let mut port_remote = sockets::extract_sock_inet_dport(sk_ptr).unwrap_or(0);
+        let inet6_sk = sk.cast::<vmlinux::inet_sock>();
+        let ipv6_local = sockets::extract_sock_inet6_saddr(inet6_sk).unwrap_or([0, 0, 0, 0]);
+        let port_local = sockets::extract_inet_sock_sport(inet6_sk).unwrap_or(0);
+        let mut ipv6_remote = sockets::extract_sock_inet6_daddr(sk).unwrap_or([0, 0, 0, 0]);
+        let mut port_remote = sockets::extract_sock_inet_dport(sk).unwrap_or(0);
 
         // Kernel doesn't always fill sk->__sk_common in sendto and sendmsg syscalls (as in
         // the case of a UDP connection). We fall back to the address from userspace when
         // the kernel-provided address is NULL.
-        if port_remote == 0 && !usr_sockaddr_ptr.is_null() {
-            (ipv6_remote, port_remote) = sockets::extract_sockaddr_in6_saddr_and_sport(
-                usr_sockaddr_ptr.cast(),
-                is_kern_sockaddr_ptr,
-            )
-            .unwrap_or(([0, 0, 0, 0], 0));
+        if port_remote == 0 && !sockaddr.is_null() {
+            (ipv6_remote, port_remote) =
+                sockets::extract_sockaddr_in6_saddr_and_sport(sockaddr.cast(), is_kern_sockaddr)
+                    .unwrap_or(([0, 0, 0, 0], 0));
         }
 
         // Pack the tuple info: (sock_family, local_ipv6, local_port, remote_ipv6, remote_port)
@@ -226,13 +208,13 @@ impl AuxiliaryMap {
 
     fn push_unix_sock_tuple(
         &mut self,
-        sk_ptr: *const vmlinux::sock,
+        sk: *const vmlinux::sock,
         is_outbound: bool,
-        sockaddr_ptr: *const vmlinux::sockaddr,
-        is_kern_sockaddr_ptr: bool,
+        sockaddr: *const vmlinux::sockaddr,
+        is_kern_sockaddr: bool,
     ) -> usize {
-        let sk_local_ptr = sk_ptr.cast::<vmlinux::unix_sock>();
-        let sk_peer_ptr = sockets::extract_unix_sock_peer(sk_local_ptr).unwrap_or(null());
+        let sk_local = sk.cast::<vmlinux::unix_sock>();
+        let sk_peer = sockets::extract_unix_sock_peer(sk_local).unwrap_or(null());
 
         let mut path: [c_char; defs::UNIX_PATH_MAX] = [0; defs::UNIX_PATH_MAX];
         let path_mut = &mut path;
@@ -240,29 +222,20 @@ impl AuxiliaryMap {
         // Pack the tuple info: (sock_family, dest_os_ptr, src_os_ptr, dest_unix_path)
         self.push(scap::encode_socket_family(defs::AF_UNIX));
         if is_outbound {
-            self.push(sk_peer_ptr as u64);
-            self.push(sk_local_ptr as u64);
-            if sk_peer_ptr.is_null() && !sockaddr_ptr.is_null() {
-                let _ = sockets::extract_sockaddr_un_path_into(
-                    sockaddr_ptr.cast(),
-                    is_kern_sockaddr_ptr,
-                    path_mut,
-                );
+            self.push(sk_peer as u64);
+            self.push(sk_local as u64);
+            if sk_peer.is_null() && !sockaddr.is_null() {
+                let sockaddr: *const vmlinux::sockaddr_un = sockaddr.cast();
+                let _ =
+                    sockets::extract_sockaddr_un_path_into(sockaddr, is_kern_sockaddr, path_mut);
             } else {
-                let _ = sockets::extract_unix_sock_addr_path_into(
-                    sk_peer_ptr,
-                    is_kern_sockaddr_ptr,
-                    path_mut,
-                );
+                let _ =
+                    sockets::extract_unix_sock_addr_path_into(sk_peer, is_kern_sockaddr, path_mut);
             }
         } else {
-            self.push(sk_local_ptr as u64);
-            self.push(sk_peer_ptr as u64);
-            let _ = sockets::extract_unix_sock_addr_path_into(
-                sk_local_ptr,
-                is_kern_sockaddr_ptr,
-                path_mut,
-            );
+            self.push(sk_local as u64);
+            self.push(sk_peer as u64);
+            let _ = sockets::extract_unix_sock_addr_path_into(sk_local, is_kern_sockaddr, path_mut);
         }
 
         // Notice an exception in `sun_path` (https://man7.org/linux/man-pages/man7/unix.7.html):
@@ -321,24 +294,24 @@ impl AuxiliaryMap {
         self.lengths_pos = self.lengths_pos + size_of::<u16>() as u8;
     }
 
-    /// Try to push the char buffer pointed by `charbuf_ptr` into the underlying buffer.
-    /// The maximum length of the char buffer can be at most `max_len_to_read`. In case of success,
-    /// returns the number of written bytes. If the char buffer is empty, an empty string
-    /// (corresponding to `\0`, which has length of 1) is pushed: this means that in case of
-    /// success, a strictly positive integer is returned. `is_kern_mem` allows to specify if the
-    /// `charbuf_ptr` points to kernel or userspace memory.
+    /// Try to push the char buffer pointed by `charbuf` into the underlying buffer. The maximum
+    /// length of the char buffer can be at most `max_len_to_read`. In case of success, returns the
+    /// number of written bytes. If the char buffer is empty, an empty string (corresponding to
+    /// `\0`, which has length of 1) is pushed: this means that in case of success, a strictly
+    /// positive integer is returned. `is_kern_mem` allows to specify if the `charbuf` points to
+    /// kernel or userspace memory.
     fn push_charbuf(
         &mut self,
-        charbuf_ptr: *const c_uchar,
+        charbuf: *const c_uchar,
         max_len_to_read: usize,
         is_kern_mem: bool,
     ) -> Result<u16, i64> {
         let pos = Self::data_safe_access(self.payload_pos);
         let limit = pos + max_len_to_read;
         let written_str = if is_kern_mem {
-            unsafe { bpf_probe_read_kernel_str_bytes(charbuf_ptr, &mut self.data[pos..limit]) }?
+            unsafe { bpf_probe_read_kernel_str_bytes(charbuf, &mut self.data[pos..limit]) }?
         } else {
-            unsafe { bpf_probe_read_user_str_bytes(charbuf_ptr, &mut self.data[pos..limit]) }?
+            unsafe { bpf_probe_read_user_str_bytes(charbuf, &mut self.data[pos..limit]) }?
         };
         let written_bytes = written_str.len();
         if written_bytes == 0 {
@@ -352,17 +325,17 @@ impl AuxiliaryMap {
 
     unsafe fn push_path(
         &mut self,
-        path_ptr: *const vmlinux::path,
+        path: *const vmlinux::path,
         max_len_to_read: usize,
     ) -> Result<u16, i64> {
-        let path_ptr = path_ptr as *mut aya_ebpf::bindings::path;
+        let path = path as *mut aya_ebpf::bindings::path;
         let data_pos = Self::data_safe_access(self.payload_pos);
-        let data_ptr = (&mut self.data)
+        let data = (&mut self.data)
             .as_mut_ptr()
             .cast::<c_char>()
             .byte_add(data_pos);
         let max_len_to_read = max_len_to_read as u32;
-        let written_bytes = bpf_d_path(path_ptr, data_ptr, max_len_to_read);
+        let written_bytes = bpf_d_path(path, data, max_len_to_read);
         if written_bytes < 0 {
             return Err(1);
         }
