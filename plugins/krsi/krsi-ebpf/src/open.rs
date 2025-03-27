@@ -13,16 +13,16 @@
 //! 4. `fexit:do_sys_openat2` | `fexit:io_openat2` - ensure the association for the current
 //! thread's pid is removed from the `OPEN_PIDS` map
 
-use crate::{file, shared_maps, vmlinux};
+use crate::{file, scap, shared_maps, vmlinux};
 use aya_ebpf::cty::{c_int, c_uint};
 use aya_ebpf::helpers::bpf_probe_read_kernel_str_bytes;
 use aya_ebpf::macros::{fentry, fexit};
 use aya_ebpf::maps::HashMap;
-use aya_ebpf::programs::{FEntryContext, FExitContext, RetProbeContext};
+use aya_ebpf::programs::{FEntryContext, FExitContext};
 use aya_ebpf::EbpfContext;
 use aya_log_ebpf::info;
 use core::ptr::null_mut;
-use krsi_common::{scap, EventType};
+use krsi_common::{scap as scap_shared, EventType};
 
 mod maps;
 
@@ -69,7 +69,7 @@ unsafe fn try_security_file_open(ctx: FExitContext) -> Result<u32, i64> {
         return remove_open_pid(open_pids_map, pid);
     };
 
-    auxmap.preload_event_header(EventType::FdInstall);
+    auxmap.preload_event_header(EventType::Open);
     auxmap.store_param(0_u64);
     let file: *const vmlinux::file = ctx.arg(0);
     let path_ptr = &(*file).f_path as *const vmlinux::path;
@@ -96,7 +96,7 @@ pub fn try_fd_install(ctx: &FEntryContext) -> Result<u32, i64> {
     let file_path_len = file_path_len as u16;
 
     let auxmap = shared_maps::get_auxiliary_map().ok_or(1)?;
-    unsafe { auxmap.preload_event_header(EventType::FdInstall) };
+    unsafe { auxmap.preload_event_header(EventType::Open) };
 
     // Parameter 1: fd.
     let fd: c_uint = unsafe { ctx.arg(0) };
@@ -112,14 +112,14 @@ pub fn try_fd_install(ctx: &FEntryContext) -> Result<u32, i64> {
     // The file path has already been stored by the fexit program on `security_file_open` hook, as
     // it is only one of the few places allowed to call the `bpf_d_path` helper to obtain the full
     // file path.
-    auxmap.skip_param(file_path_len);
+    auxmap.skip_stored_param(file_path_len);
 
     // Parameter 3: flags.
     let flags = unsafe { file.extract_flags() }.unwrap_or(0);
     let mut scap_flags = scap::encode_open_flags(flags);
     scap_flags |= match overlay.try_into() {
-        Ok(file::Overlay::Upper) => scap::PPM_FD_UPPER_LAYER,
-        Ok(file::Overlay::Lower) => scap::PPM_FD_LOWER_LAYER,
+        Ok(file::Overlay::Upper) => scap_shared::PPM_FD_UPPER_LAYER,
+        Ok(file::Overlay::Lower) => scap_shared::PPM_FD_LOWER_LAYER,
         _ => 0,
     };
     let mode: c_uint = unsafe { file.extract_mode() }.unwrap_or(0);
@@ -137,7 +137,7 @@ pub fn try_fd_install(ctx: &FEntryContext) -> Result<u32, i64> {
     unsafe { auxmap.store_param(ino) };
 
     unsafe { auxmap.finalize_event_header() };
-    unsafe { auxmap.submit_event() };
+    auxmap.submit_event();
 
     #[cfg(debug_assertions)]
     {

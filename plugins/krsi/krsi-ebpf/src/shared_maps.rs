@@ -22,10 +22,12 @@ pub fn get_events_ringbuf() -> &'static RingBuf {
     &EVENTS
 }
 
+// TODO(ekoops): move this function elsewhere.
 pub fn get_event_num_params(event_type: EventType) -> u8 {
     match event_type.try_into() {
-        // TODO: this should become 6 once we have also the other parameters
-        Ok(EventType::FdInstall) => 6, // TODO: try to generate it automatically
+        // TODO(ekoops): try to generate the following numbers automatically.
+        Ok(EventType::Open) => 6,
+        Ok(EventType::Connect) => 3,
         _ => 0,
     }
 }

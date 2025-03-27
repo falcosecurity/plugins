@@ -1,5 +1,6 @@
+use core::ffi::{c_uchar, c_void};
 use crate::vmlinux;
-use aya_ebpf::cty::{c_long, c_uchar, c_uint};
+use aya_ebpf::cty::{c_long, c_uint};
 use aya_ebpf::helpers::bpf_probe_read_kernel;
 
 mod dev;
@@ -91,6 +92,11 @@ impl File {
 
     pub unsafe fn extract_mode(&self) -> Result<vmlinux::fmode_t, c_long> {
         bpf_probe_read_kernel(&(*self.file).f_mode)
+    }
+
+    /// Extract file's private_data field and convert its value to a `* const T`.
+    pub fn extract_private_data<T>(&self) -> Result<* const T, c_long> {
+        unsafe {bpf_probe_read_kernel(&(*self.file).private_data.cast_const().cast::<T>())}
     }
 
     #[cfg(debug_assertions)]
