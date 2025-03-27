@@ -152,3 +152,11 @@ pub const KERNEL_POINTER: usize = size_of::<u64>();
 // `/include/uapi/linux/un.h` from kernel source tree.
 
 pub const UNIX_PATH_MAX: usize = 108;
+
+/* Errors. */
+
+// FIXME(ekoops): not all architectures are supported by rust. Just take the asm-generic definitions
+//  for the moment.
+// `include/uapi/asm-generic/errno.h` from kernel source tree.
+
+pub const EINPROGRESS: i32 = 115;
