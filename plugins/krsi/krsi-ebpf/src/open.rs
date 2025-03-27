@@ -1,6 +1,6 @@
 //! Flow for extracting parameters upon file opening procedures:
-//! 1. `fentry:do_sys_openat2` - detect the start of an opening request and annotate it by putting
-//! the pid of the current thread in the `OPEN_PIDS` map
+//! 1. `fentry:do_sys_openat2`|`fentry:io_openat2` - detect the start of an opening request and
+//! annotate it by putting the pid of the current thread in the `OPEN_PIDS` map
 //! 2. `fexit:security_file_open` - verify that the opening request has been accepted, extract the
 //! file path, put the extracted file path in the auxmap final location and write the association
 //! between the pid of the current thread and the file path length in the `OPEN_PIDS` map. If any of
@@ -10,8 +10,8 @@
 //! file path length from the aforementioned association, extract the other relevant parameters for
 //! the opening request, complete the event in the auxiliary map by leveraging the information on
 //! the length of the already-extracted file path and submit the event.
-//! 4. `fexit:do_sys_openat2` - ensure the association for the current thread's pid is removed from
-//! the `OPEN_PIDS` map
+//! 4. `fexit:do_sys_openat2` | `fexit:io_openat2` - ensure the association for the current
+//! thread's pid is removed from the `OPEN_PIDS` map
 
 use crate::{file, shared_maps, vmlinux};
 use aya_ebpf::cty::{c_int, c_uint};
@@ -28,6 +28,16 @@ mod maps;
 
 #[fentry]
 pub fn do_sys_openat2_e(ctx: FEntryContext) -> u32 {
+    let pid = ctx.pid();
+    const ZERO: u32 = 0;
+    match maps::get_open_pids_map().insert(&pid, &ZERO, 0) {
+        Ok(_) => 0,
+        Err(_) => 1,
+    }
+}
+
+#[fentry]
+pub fn io_openat2_e(ctx: FEntryContext) -> u32 {
     let pid = ctx.pid();
     const ZERO: u32 = 0;
     match maps::get_open_pids_map().insert(&pid, &ZERO, 0) {
@@ -159,6 +169,15 @@ unsafe fn try_fd_install(ctx: FEntryContext) -> Result<u32, i64> {
 
 #[fexit]
 pub fn do_sys_openat2_x(ctx: FExitContext) -> u32 {
+    let pid = ctx.pid();
+    match maps::get_open_pids_map().remove(&pid) {
+        Ok(_) => 0,
+        Err(_) => 1,
+    }
+}
+
+#[fexit]
+pub fn io_openat2_x(ctx: FExitContext) -> u32 {
     let pid = ctx.pid();
     match maps::get_open_pids_map().remove(&pid) {
         Ok(_) => 0,
