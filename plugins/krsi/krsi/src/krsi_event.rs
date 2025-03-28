@@ -11,6 +11,7 @@ pub struct KrsiEvent {
 pub enum KrsiEventContent {
     Open {
         fd: u32,
+        file_index: u32,
         name: String,
         flags: u32,
         mode: u32,
@@ -21,22 +22,24 @@ pub enum KrsiEventContent {
 
 pub fn parse_ringbuf_event(buf: &[u8]) -> Result<KrsiEvent, ()> {
     let mut ptr = buf.as_ptr();
-    let ev = unsafe { read_and_move::<krsi_common::EventHeader>(&mut ptr) };
+    let ptr_mut = &mut ptr;
+    let ev = unsafe { read_and_move::<krsi_common::EventHeader>(ptr_mut) };
     let mut name_len = 0;
     for i in 0..ev.nparams {
-        let len = unsafe { read_and_move::<u16>(&mut ptr) };
-        if i == 1 {
+        let len = unsafe { read_and_move::<u16>(ptr_mut) };
+        if i == 2 {
             name_len = len;
         }
     }
     match ev.evt_type.try_into() {
         Ok(krsi_common::EventType::Open) => {
-            let fd = unsafe { read_and_move::<i64>(&mut ptr) };
-            let name = unsafe { read_str_and_move(&mut ptr, name_len as usize) };
-            let flags = unsafe { read_and_move::<u32>(&mut ptr) };
-            let mode = unsafe { read_and_move::<u32>(&mut ptr) };
-            let dev = unsafe { read_and_move::<u32>(&mut ptr) };
-            let ino = unsafe { read_and_move::<u64>(&mut ptr) };
+            let fd = unsafe { read_and_move::<i64>(ptr_mut) };
+            let file_index = unsafe { read_and_move::<u32>(ptr_mut)};
+            let name = unsafe { read_str_and_move(ptr_mut, name_len as usize) };
+            let flags = unsafe { read_and_move::<u32>(ptr_mut) };
+            let mode = unsafe { read_and_move::<u32>(ptr_mut) };
+            let dev = unsafe { read_and_move::<u32>(ptr_mut) };
+            let ino = unsafe { read_and_move::<u64>(ptr_mut) };
             let pid = (ev.tgid_pid >> 32) as u32;
             let tid = (ev.tgid_pid & 0xffffffff) as u32;        
             Ok(KrsiEvent {
@@ -44,6 +47,7 @@ pub fn parse_ringbuf_event(buf: &[u8]) -> Result<KrsiEvent, ()> {
                 pid,
                 content: KrsiEventContent::Open {
                     fd: fd as u32,
+                    file_index,
                     name: String::from(name),
                     flags,
                     mode,

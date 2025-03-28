@@ -236,7 +236,7 @@ impl ParsePlugin for KrsiPlugin {
             if thread_exists {
                 // There is a thread, update the fd table and create the event
                 match ev.content {
-                    KrsiEventContent::Open { fd, name, flags, mode: _, dev, ino } => {
+                    KrsiEventContent::Open { fd, file_index: _, name, flags, mode: _, dev, ino } => {
                         let thread = self.threads.get_entry(r, &tid)?;
                         let fd = fd as i64;
                         let fds = thread.get_file_descriptors(r)?;
@@ -367,7 +367,7 @@ impl KrsiPlugin {
         entry.set_tid(w, &tid)?;
         entry.set_pid(w, &pid)?;
         entry.set_ptid(w, &pid)?;
-    
+
         let comm = process.get_comm(r)?;
         entry.set_comm(w, comm)?;
 
@@ -405,6 +405,22 @@ impl KrsiPlugin {
         let ev: KrsiEvent = bincode::serde::decode_from_slice(buf, bincode::config::legacy())?.0;
         let KrsiEventContent::Open { fd, .. } = ev.content;
         Ok(fd as u64)
+    }
+
+    fn extract_file_index(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
+        let event = req.event.event()?;
+        let event = event.load::<AsyncEvent>()?;
+        if event.params.name != Some(c"krsi_open") {
+            anyhow::bail!("event does not support extractor");
+        }
+
+        let Some(buf) = event.params.data else {
+            anyhow::bail!("Missing event data");
+        };
+
+        let ev: KrsiEvent = bincode::serde::decode_from_slice(buf, bincode::config::legacy())?.0;
+        let KrsiEventContent::Open { file_index, .. } = ev.content;
+        Ok(file_index as u64)
     }
 
     fn extract_flags(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
@@ -480,6 +496,11 @@ impl KrsiPlugin {
         fd_install_prog.load("fd_install", btf)?;
         fd_install_prog.attach()?;
 
+        let io_fixed_fd_install_prog: &mut FExit =
+            ebpf.program_mut("io_fixed_fd_install").unwrap().try_into()?;
+        io_fixed_fd_install_prog.load("io_fixed_fd_install", &btf)?;
+        io_fixed_fd_install_prog.attach()?;
+
         let sec_file_open_prog: &mut FExit =
             ebpf.program_mut("security_file_open").unwrap().try_into()?;
         sec_file_open_prog.load("security_file_open", btf)?;
@@ -522,6 +543,7 @@ impl ExtractPlugin for KrsiPlugin {
     const EXTRACT_FIELDS: &'static [ExtractFieldInfo<Self>] = &[
         field("krsi.filename", &Self::extract_filename),
         field("krsi.fd", &Self::extract_fd),
+        field("krsi.file_index", &Self::extract_file_index),
         field("krsi.flags", &Self::extract_flags),
         field("krsi.mode", &Self::extract_mode),
         field("krsi.dev", &Self::extract_dev),
