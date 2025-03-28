@@ -90,30 +90,7 @@ fn remove_open_pid(open_pids_map: &HashMap<u32, u32>, pid: u32) -> Result<u32, i
     }
 }
 
-pub fn try_fd_install(ctx: &FExitContext) -> Result<u32, i64> {
-    let file_descriptor = FileDescriptor::Fd(unsafe { ctx.arg(0) });
-    let file = file::File::new(unsafe { ctx.arg(1) });
-    try_fd_install_core(ctx, file_descriptor, &file)
-}
-
-pub fn try_io_fixed_fd_install(ctx: &FExitContext) -> Result<u32, i64> {
-    let ret = unsafe { ctx.arg(4) };
-    if ret < 0 {
-        return Ok(0);
-    }
-
-    let file_slot: u32 = unsafe { ctx.arg(3) };
-    let file_index = if file_slot == defs::IORING_FILE_INDEX_ALLOC {
-        ret
-    } else {
-        file_slot - 1
-    };
-    let file_descriptor = FileDescriptor::FileIndex(file_index);
-    let file = file::File::new(unsafe { ctx.arg(2) });
-    try_fd_install_core(ctx, file_descriptor, &file)
-}
-
-fn try_fd_install_core(
+pub fn try_fd_install(
     ctx: &FExitContext,
     file_descriptor: FileDescriptor,
     file: &file::File,

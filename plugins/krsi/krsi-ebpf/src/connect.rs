@@ -1,6 +1,6 @@
 //! # Data extraction upon socket creation procedures
 //!
-//! ## Kernel functions call graph
+//! ## Kernel functions call graph (syscall path)
 //! ```
 //! int __sys_socket(int family, int type, int protocol)
 //!     static int sock_map_fd(struct socket *sock, int flags)
@@ -8,21 +8,32 @@
 //!         void fd_install(unsigned int fd, struct file *file)
 //! ```
 //!
+//! ## Kernel functions call graph (`io_uring` path)
+//! ```
+//! io_socket(struct io_kiocb *req, unsigned int issue_flags)
+//!     struct file *__sys_socket_file(int family, int type, int protocol)
+//!         static struct socket *__sys_socket_create(int family, int type, int protocol)
+//!         struct file *sock_alloc_file(struct socket *sock, int flags, const char *dname)
+//!     if (...) void fd_install(unsigned int fd, struct file *file)
+//!     else int io_fixed_fd_install(struct io_kiocb *req, unsigned int issue_flags,
+//!         struct file *file, unsigned int file_slot)
+//! ```
+//!
 //! ## Extraction flow
-//! 1. `fentry:__sys_socket` - detect the start of a socket creation procedure and annotate it by
-//! putting the current task's pid in the `SOCK_PIDS` map
+//! 1. `fentry:__sys_socket` | `fentry:io_socket` - detect the start of a socket creation procedure
+//! and annotate it by putting the current task's pid in the `SOCK_PIDS` map
 //! 2. `fexit:sock_alloc_file` - verify that socket creation has been accepted and, if the
 //! `sock_alloc_file` operation was successful, extract the socket struct pointer, write the
 //! association between the current task's pid and the extracted socket struct pointer in the
 //! `SOCK_PTRS` map. In any case, remove the association for the current task's pid from the
 //! `SOCK_PIDS` map.
-//! 3. `fentry:fd_install` - verify that a socket creation request is currently in progress by
-//! checking the presence of an association for the current task's pid in the `SOCK_PTRS` map,
-//! extract the socket struct pointer from the aforementioned association and write the association
-//! (sock_struct_ptr, tgid) -> fd in the `SOCK_RES` map. In any case, remove the association for the
-//! current task's pid from `SOCK_PTRS`
-//! 4. `fexit:__sys_socket` - ensure the associations for the current task's pid are removed from
-//! the `SOCK_PIDS` and `SOCK_PTRS` maps
+//! 3. `fentry:fd_install` | `fexit:io_fixed_fd_install` - verify that a socket creation request is
+//! currently in progress by checking the presence of an association for the current task's pid in
+//! the `SOCK_PTRS` map, extract the socket struct pointer from the aforementioned association and
+//! write the association (sock_struct_ptr, tgid) -> fd in the `SOCK_RES` map. In any case, remove
+//! the association for the current task's pid from `SOCK_PTRS`
+//! 4. `fexit:__sys_socket` | `fexit:io_socket` - ensure the associations for the current task's pid
+//! are removed from the `SOCK_PIDS` and `SOCK_PTRS` maps
 //!
 //! # Data extraction upon socket connection procedures
 //!
@@ -38,8 +49,8 @@
 //! build the event in the auxiliary map and submit it.
 
 use crate::connect::maps::SockPtrTgid;
-use crate::{defs, shared_maps, sockets, vmlinux};
-use aya_ebpf::cty::{c_int, c_long, c_ulong};
+use crate::{defs, file, scap, shared_maps, sockets, vmlinux, FileDescriptor};
+use aya_ebpf::cty::{c_int, c_long, c_uint, c_ulong};
 use aya_ebpf::helpers::bpf_probe_read_kernel;
 use aya_ebpf::macros::{fentry, fexit};
 use aya_ebpf::maps::HashMap;
@@ -56,6 +67,13 @@ mod maps;
 
 #[fentry]
 fn __sys_socket_e(ctx: FEntryContext) -> u32 {
+    let pid = ctx.pid();
+    const ZERO: u32 = 0;
+    try_insert_entry(maps::get_sock_pids_map(), &pid, &ZERO).unwrap_or(1)
+}
+
+#[fentry]
+fn io_socket_e(ctx: FEntryContext) -> u32 {
     let pid = ctx.pid();
     const ZERO: u32 = 0;
     try_insert_entry(maps::get_sock_pids_map(), &pid, &ZERO).unwrap_or(1)
@@ -91,30 +109,52 @@ fn is_err(file: *const vmlinux::file) -> bool {
     ((file as *const c_void) as c_ulong) >= ((-MAX_ERRNO) as c_ulong)
 }
 
-pub fn try_fd_install(ctx: &FExitContext) -> Result<u32, i64> {
+pub fn try_fd_install(
+    ctx: &FExitContext,
+    file_descriptor: FileDescriptor,
+    file: &file::File,
+) -> Result<u32, i64> {
     let pid = ctx.pid();
     let sock_ptrs_map = maps::get_sock_ptrs_map();
     let Some(&sock) = (unsafe { sock_ptrs_map.get(&pid) }) else {
         return Ok(0);
     };
 
-    let fd = unsafe { ctx.arg(0) };
     let tgid = ctx.tgid();
     let sock_ptr_tgid = SockPtrTgid {
         sock_ptr: sock,
         tgid,
     };
-    let res = try_insert_entry(maps::get_sock_res_amp(), &sock_ptr_tgid, &fd);
+
+    let res = try_insert_entry(maps::get_sock_res_amp(), &sock_ptr_tgid, &file_descriptor);
     #[cfg(debug_assertions)]
-    info!(
-        ctx,
-        "[fd_install][socket]: new association (sock={}, tgid={}) -> fd={}", sock, tgid, fd
-    );
+    match file_descriptor {
+        FileDescriptor::Fd(fd) => info!(
+            ctx,
+            "[fd_install][socket]: new association (sock={}, tgid={}) -> fd={}", sock, tgid, fd
+        ),
+        FileDescriptor::FileIndex(file_index) => info!(
+            ctx,
+            "[fd_install][socket]: new association (sock={}, tgid={}) -> file_index={}",
+            sock,
+            tgid,
+            file_index
+        ),
+    };
+
     try_remove_entry(sock_ptrs_map, &pid).and(res)
 }
 
 #[fexit]
 fn __sys_socket_x(ctx: FExitContext) -> u32 {
+    let pid = ctx.pid();
+    let res1 = try_remove_entry(maps::get_sock_pids_map(), &pid);
+    let res2 = try_remove_entry(maps::get_sock_ptrs_map(), &pid);
+    res1.and(res2).unwrap_or(1)
+}
+
+#[fexit]
+fn io_socket_x(ctx: FExitContext) -> u32 {
     let pid = ctx.pid();
     let res1 = try_remove_entry(maps::get_sock_pids_map(), &pid);
     let res2 = try_remove_entry(maps::get_sock_ptrs_map(), &pid);
@@ -150,7 +190,7 @@ fn try___sys_connect_file(ctx: FExitContext) -> Result<u32, i64> {
     let ret: c_int = unsafe { ctx.arg(4) };
     unsafe { auxmap.store_param(ret as i64) }
 
-    let file = crate::file::File::new(unsafe { ctx.arg(0) });
+    let file = file::File::new(unsafe { ctx.arg(0) });
     let sock: *const vmlinux::socket = file.extract_private_data().unwrap_or(null());
 
     // Parameter 2: tuple.
@@ -161,28 +201,33 @@ fn try___sys_connect_file(ctx: FExitContext) -> Result<u32, i64> {
         auxmap.store_empty_param();
     }
 
-    // Parameter 3: fd
-    match get_fd(sock, ctx.tgid()) {
-        Ok(fd) => unsafe { auxmap.store_param(fd as i64) },
-        Err(_) => auxmap.store_empty_param(),
+    // Parameter 3: fd.
+    // Parameter 4: file_index.
+    match get_file_descriptor(sock, ctx.tgid()) {
+        Ok(file_descriptor) => {
+            let (fd, file_index) = scap::encode_file_descriptor(file_descriptor);
+            unsafe { auxmap.store_param(fd as i64) }
+            unsafe { auxmap.store_param(file_index) }
+        }
+        Err(_) => {
+            auxmap.store_empty_param(); // Store empty fd parameter.
+            auxmap.store_empty_param(); // Store empty file_index parameter.
+        }
     }
 
+    unsafe { auxmap.finalize_event_header() };
     auxmap.submit_event();
     Ok(0)
 }
 
-fn get_fd(sock: *const vmlinux::socket, tgid: u32) -> Result<u32, i64> {
+fn get_file_descriptor(sock: *const vmlinux::socket, tgid: u32) -> Result<FileDescriptor, i64> {
     if sock.is_null() {
         return Err(1);
     }
 
-    let sock_ptr_tgid = SockPtrTgid {
-        sock_ptr: sock as usize,
-        tgid,
-    };
-
+    let sock_ptr_tgid = SockPtrTgid::new(sock as usize, tgid);
     match unsafe { maps::get_sock_res_amp().get(&sock_ptr_tgid) } {
-        Some(fd) => Ok(*fd),
+        Some(file_descriptor) => Ok(*file_descriptor),
         None => Err(1),
     }
 }

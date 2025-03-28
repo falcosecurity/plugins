@@ -27,7 +27,7 @@ pub fn get_event_num_params(event_type: EventType) -> u8 {
     match event_type.try_into() {
         // TODO(ekoops): try to generate the following numbers automatically.
         Ok(EventType::Open) => 7,
-        Ok(EventType::Connect) => 3,
+        Ok(EventType::Connect) => 4,
         _ => 0,
     }
 }
