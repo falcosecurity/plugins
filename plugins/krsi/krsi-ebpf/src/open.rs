@@ -5,15 +5,16 @@
 //! file path, put the extracted file path in the auxmap final location and write the association
 //! between the pid of the current thread and the file path length in the `OPEN_PIDS` map. If any of
 //! aforementioned operations fail, ensure the pid is removed from the `OPEN_PIDS` map.
-//! 3. `fentry:fd_install` - verify that an opening request is currently in progress by checking
-//! the presence of an association for the current thread's pid in the `OPEN_PIDS` map, extract the
-//! file path length from the aforementioned association, extract the other relevant parameters for
-//! the opening request, complete the event in the auxiliary map by leveraging the information on
-//! the length of the already-extracted file path and submit the event.
+//! 3. `fexit:fd_install` | `fexit:io_fixed_fd_install` - verify that an opening request is
+//! currently in progress by checking the presence of an association for the current thread's pid in
+//! the `OPEN_PIDS` map, extract the file path length from the aforementioned association, extract
+//! the other relevant parameters for the opening request, complete the event in the auxiliary map
+//! by leveraging the information on the length of the already-extracted file path and submit the
+//! event.
 //! 4. `fexit:do_sys_openat2` | `fexit:io_openat2` - ensure the association for the current
 //! thread's pid is removed from the `OPEN_PIDS` map
 
-use crate::{file, scap, shared_maps, vmlinux};
+use crate::{defs, file, scap, shared_maps, vmlinux, FileDescriptor};
 use aya_ebpf::cty::{c_int, c_uint};
 use aya_ebpf::helpers::bpf_probe_read_kernel_str_bytes;
 use aya_ebpf::macros::{fentry, fexit};
@@ -70,7 +71,8 @@ unsafe fn try_security_file_open(ctx: FExitContext) -> Result<u32, i64> {
     };
 
     auxmap.preload_event_header(EventType::Open);
-    auxmap.store_param(0_u64);
+    auxmap.skip_param(size_of::<i64>() as u16); // skip fd param.
+    auxmap.skip_param(size_of::<u32>() as u16); // skip file_index param.
     let file: *const vmlinux::file = ctx.arg(0);
     let path = &(*file).f_path as *const vmlinux::path;
     let Ok(written_bytes) = auxmap.store_path_param(path, MAX_PATH) else {
@@ -88,7 +90,34 @@ fn remove_open_pid(open_pids_map: &HashMap<u32, u32>, pid: u32) -> Result<u32, i
     }
 }
 
-pub fn try_fd_install(ctx: &FEntryContext) -> Result<u32, i64> {
+pub fn try_fd_install(ctx: &FExitContext) -> Result<u32, i64> {
+    let file_descriptor = FileDescriptor::Fd(unsafe { ctx.arg(0) });
+    let file = file::File::new(unsafe { ctx.arg(1) });
+    try_fd_install_core(ctx, file_descriptor, &file)
+}
+
+pub fn try_io_fixed_fd_install(ctx: &FExitContext) -> Result<u32, i64> {
+    let ret = unsafe { ctx.arg(4) };
+    if ret < 0 {
+        return Ok(0);
+    }
+
+    let file_slot: u32 = unsafe { ctx.arg(3) };
+    let file_index = if file_slot == defs::IORING_FILE_INDEX_ALLOC {
+        ret
+    } else {
+        file_slot - 1
+    };
+    let file_descriptor = FileDescriptor::FileIndex(file_index);
+    let file = file::File::new(unsafe { ctx.arg(2) });
+    try_fd_install_core(ctx, file_descriptor, &file)
+}
+
+fn try_fd_install_core(
+    ctx: &FExitContext,
+    file_descriptor: FileDescriptor,
+    file: &file::File,
+) -> Result<u32, i64> {
     let pid = ctx.pid();
     let Some(&file_path_len) = (unsafe { maps::get_open_pids_map().get(&pid) }) else {
         return Ok(0);
@@ -99,22 +128,23 @@ pub fn try_fd_install(ctx: &FEntryContext) -> Result<u32, i64> {
     unsafe { auxmap.preload_event_header(EventType::Open) };
 
     // Parameter 1: fd.
-    let fd: c_uint = unsafe { ctx.arg(0) };
+    // Parameter 2: file_index.
+    let (fd, file_index) = scap::encode_file_descriptor(file_descriptor);
     unsafe { auxmap.store_param(fd as i64) };
+    unsafe { auxmap.store_param(file_index) };
 
-    let file = file::File::new(unsafe { ctx.arg(1) });
+    // Parameter 3: name.
+    // The file path has already been stored by the fexit program on `security_file_open` hook, as
+    // it is only one of the few places allowed to call the `bpf_d_path` helper to obtain the full
+    // file path.
+    auxmap.skip_param(file_path_len);
+
     let (dev, ino, overlay) = unsafe {
         file.extract_dev_ino_overlay()
             .unwrap_or((0, 0, file::Overlay::None))
     };
 
-    // Parameter 2: name.
-    // The file path has already been stored by the fexit program on `security_file_open` hook, as
-    // it is only one of the few places allowed to call the `bpf_d_path` helper to obtain the full
-    // file path.
-    auxmap.skip_stored_param(file_path_len);
-
-    // Parameter 3: flags.
+    // Parameter 4: flags.
     let flags = unsafe { file.extract_flags() }.unwrap_or(0);
     let mut scap_flags = scap::encode_open_flags(flags);
     scap_flags |= match overlay.try_into() {
@@ -127,13 +157,13 @@ pub fn try_fd_install(ctx: &FEntryContext) -> Result<u32, i64> {
 
     unsafe { auxmap.store_param(scap_flags) };
 
-    // Parameter 4: mode.
+    // Parameter 5: mode.
     unsafe { auxmap.store_param(scap::encode_open_mode(flags, mode)) };
 
-    // Parameter 5: dev.
+    // Parameter 6: dev.
     unsafe { auxmap.store_param(dev as u32) };
 
-    // Parameter 6: ino.
+    // Parameter 7: ino.
     unsafe { auxmap.store_param(ino) };
 
     unsafe { auxmap.finalize_event_header() };

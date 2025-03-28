@@ -79,3 +79,5 @@ pub const PPM_AF_IEEE802154: u8 = 36; // IEEE802154 sockets
 pub const PPM_AF_CAIF: u8 = 37; // CAIF sockets
 pub const PPM_AF_ALG: u8 = 38; // Algorithm sockets
 pub const PPM_AF_NFC: u8 = 39; // NFC sockets
+
+pub const PPM_IO_URING_INVALID_FILE_INDEX: u32 = !0;

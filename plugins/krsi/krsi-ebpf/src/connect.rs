@@ -91,7 +91,7 @@ fn is_err(file: *const vmlinux::file) -> bool {
     ((file as *const c_void) as c_ulong) >= ((-MAX_ERRNO) as c_ulong)
 }
 
-pub fn try_fd_install(ctx: &FEntryContext) -> Result<u32, i64> {
+pub fn try_fd_install(ctx: &FExitContext) -> Result<u32, i64> {
     let pid = ctx.pid();
     let sock_ptrs_map = maps::get_sock_ptrs_map();
     let Some(&sock) = (unsafe { sock_ptrs_map.get(&pid) }) else {

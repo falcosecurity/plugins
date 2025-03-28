@@ -157,6 +157,12 @@ pub const UNIX_PATH_MAX: usize = 108;
 
 // FIXME(ekoops): not all architectures are supported by rust. Just take the asm-generic definitions
 //  for the moment.
-// `include/uapi/asm-generic/errno.h` from kernel source tree.
+// `/include/uapi/asm-generic/errno.h` from kernel source tree.
 
 pub const EINPROGRESS: i32 = 115;
+
+/* io_uring uapi. */
+
+// `include/uapi/linux/io_uring.h` from kernel source tree.
+
+pub const IORING_FILE_INDEX_ALLOC: u32 = !0;

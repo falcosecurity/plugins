@@ -257,7 +257,7 @@ impl AuxiliaryMap {
         defs::FAMILY_SIZE + defs::KERNEL_POINTER + defs::KERNEL_POINTER + written_bytes as usize
     }
 
-    pub fn skip_stored_param(&mut self, len: u16) {
+    pub fn skip_param(&mut self, len: u16) {
         self.payload_pos += len as u64;
         self.lengths_pos = self.lengths_pos + size_of::<u16>() as u8;
     }
