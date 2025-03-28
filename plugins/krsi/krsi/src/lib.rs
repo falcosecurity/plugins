@@ -314,16 +314,6 @@ impl AsyncEventPlugin for KrsiPlugin {
 
         self.load_and_attach_ebpf_programs()?;
 
-        let io_openat2_x_prog: &mut FExit =
-            self.ebpf.program_mut("io_openat2_x").unwrap().try_into()?;
-        io_openat2_x_prog.load("io_openat2", &self.btf)?;
-        io_openat2_x_prog.attach()?;
-
-        let io_openat2_e_prog: &mut FEntry =
-            self.ebpf.program_mut("io_openat2_e").unwrap().try_into()?;
-        io_openat2_e_prog.load("io_openat2", &self.btf)?;
-        io_openat2_e_prog.attach()?;
-
         let mut ring_buf = RingBuf::try_from(self.ebpf.take_map("EVENTS").unwrap())?;
 
         let handler = Arc::new(handler);
@@ -516,6 +506,16 @@ impl KrsiPlugin {
         do_sys_openat2_e_prog.load("do_sys_openat2", btf)?;
         do_sys_openat2_e_prog.attach()?;
 
+        let io_openat2_x_prog: &mut FExit =
+            ebpf.program_mut("io_openat2_x").unwrap().try_into()?;
+        io_openat2_x_prog.load("io_openat2", &btf)?;
+        io_openat2_x_prog.attach()?;
+
+        let io_openat2_e_prog: &mut FEntry =
+            ebpf.program_mut("io_openat2_e").unwrap().try_into()?;
+        io_openat2_e_prog.load("io_openat2", &btf)?;
+        io_openat2_e_prog.attach()?;
+
         // Socket creation tracking
         let sock_alloc_file_prog: &mut FExit =
             ebpf.program_mut("sock_alloc_file").unwrap().try_into()?;
@@ -531,6 +531,16 @@ impl KrsiPlugin {
             ebpf.program_mut("__sys_socket_e").unwrap().try_into()?;
         sys_socket_e_prog.load("__sys_socket", btf)?;
         sys_socket_e_prog.attach()?;
+
+        let io_socket_x_prog: &mut FExit =
+            ebpf.program_mut("io_socket_x").unwrap().try_into()?;
+        io_socket_x_prog.load("io_socket", btf)?;
+        io_socket_x_prog.attach()?;
+
+        let io_socket_e_prog: &mut FEntry =
+            ebpf.program_mut("io_socket_e").unwrap().try_into()?;
+        io_socket_e_prog.load("io_socket", btf)?;
+        io_socket_e_prog.attach()?;
 
         Ok(())
     }
