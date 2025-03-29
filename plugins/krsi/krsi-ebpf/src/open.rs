@@ -102,13 +102,13 @@ pub fn try_fd_install(
     let file_path_len = file_path_len as u16;
 
     let auxmap = shared_maps::get_auxiliary_map().ok_or(1)?;
-    unsafe { auxmap.preload_event_header(EventType::Open) };
+    auxmap.preload_event_header(EventType::Open);
 
     // Parameter 1: fd.
     // Parameter 2: file_index.
     let (fd, file_index) = scap::encode_file_descriptor(file_descriptor);
-    unsafe { auxmap.store_param(fd as i64) };
-    unsafe { auxmap.store_param(file_index) };
+    auxmap.store_param(fd as i64);
+    auxmap.store_param(file_index);
 
     // Parameter 3: name.
     // The file path has already been stored by the fexit program on `security_file_open` hook, as
@@ -132,18 +132,18 @@ pub fn try_fd_install(
     let mode: c_uint = unsafe { file.extract_mode() }.unwrap_or(0);
     scap_flags |= scap::encode_fmode_created(mode);
 
-    unsafe { auxmap.store_param(scap_flags) };
+    auxmap.store_param(scap_flags);
 
     // Parameter 5: mode.
-    unsafe { auxmap.store_param(scap::encode_open_mode(flags, mode)) };
+    auxmap.store_param(scap::encode_open_mode(flags, mode));
 
     // Parameter 6: dev.
-    unsafe { auxmap.store_param(dev as u32) };
+    auxmap.store_param(dev as u32);
 
     // Parameter 7: ino.
-    unsafe { auxmap.store_param(ino) };
+    auxmap.store_param(ino);
 
-    unsafe { auxmap.finalize_event_header() };
+    auxmap.finalize_event_header();
     auxmap.submit_event();
 
     #[cfg(debug_assertions)]
