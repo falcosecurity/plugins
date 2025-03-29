@@ -184,11 +184,11 @@ fn __sys_connect_file(ctx: FExitContext) -> u32 {
 
 fn try___sys_connect_file(ctx: FExitContext) -> Result<u32, i64> {
     let auxmap = shared_maps::get_auxiliary_map().ok_or(1)?;
-    unsafe { auxmap.preload_event_header(EventType::Connect) };
+    auxmap.preload_event_header(EventType::Connect);
 
     // Parameter 1: res.
     let ret: c_int = unsafe { ctx.arg(4) };
-    unsafe { auxmap.store_param(ret as i64) }
+    auxmap.store_param(ret as i64);
 
     let file = file::File::new(unsafe { ctx.arg(0) });
     let sock: *const vmlinux::socket = file.extract_private_data().unwrap_or(null());
@@ -206,8 +206,8 @@ fn try___sys_connect_file(ctx: FExitContext) -> Result<u32, i64> {
     match get_file_descriptor(sock, ctx.tgid()) {
         Ok(file_descriptor) => {
             let (fd, file_index) = scap::encode_file_descriptor(file_descriptor);
-            unsafe { auxmap.store_param(fd as i64) }
-            unsafe { auxmap.store_param(file_index) }
+            auxmap.store_param(fd as i64);
+            auxmap.store_param(file_index);
         }
         Err(_) => {
             auxmap.store_empty_param(); // Store empty fd parameter.
@@ -215,7 +215,7 @@ fn try___sys_connect_file(ctx: FExitContext) -> Result<u32, i64> {
         }
     }
 
-    unsafe { auxmap.finalize_event_header() };
+    auxmap.finalize_event_header();
     auxmap.submit_event();
     Ok(0)
 }

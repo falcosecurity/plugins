@@ -28,15 +28,15 @@ pub struct AuxiliaryMap {
 }
 
 impl AuxiliaryMap {
-    unsafe fn get_event_header_mut(&mut self) -> &mut EventHeader {
-        &mut *self.data.as_mut_ptr().cast::<EventHeader>()
+    fn event_header_mut(&mut self) -> &mut EventHeader {
+        unsafe {&mut *self.data.as_mut_ptr().cast::<EventHeader>()}
     }
 
-    pub unsafe fn preload_event_header(&mut self, event_type: EventType) {
-        let evt_hdr = self.get_event_header_mut();
+    pub fn preload_event_header(&mut self, event_type: EventType) {
+        let evt_hdr = self.event_header_mut();
         let nparams = shared_maps::get_event_num_params(event_type);
         evt_hdr.nparams = nparams as u32;
-        evt_hdr.ts = shared_maps::get_boot_time() + bpf_ktime_get_boot_ns();
+        evt_hdr.ts = shared_maps::get_boot_time() + unsafe {bpf_ktime_get_boot_ns()};
         evt_hdr.tgid_pid = bpf_get_current_pid_tgid();
         evt_hdr.evt_type = event_type;
         self.payload_pos =
@@ -45,13 +45,13 @@ impl AuxiliaryMap {
         self.event_type = event_type as u16;
     }
 
-    pub unsafe fn finalize_event_header(&mut self) {
+    pub fn finalize_event_header(&mut self) {
         let payload_pos = self.payload_pos as u32;
-        let evt_hdr = self.get_event_header_mut();
+        let evt_hdr = self.event_header_mut();
         evt_hdr.len = payload_pos;
     }
 
-    pub unsafe fn store_param<T: Copy>(&mut self, param: T) {
+    pub fn store_param<T: Copy>(&mut self, param: T) {
         self.push(param);
         self.push_param_len(size_of::<T>() as u16);
     }
