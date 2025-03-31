@@ -3,11 +3,10 @@
 
 use aya_ebpf::macros::fexit;
 use aya_ebpf::programs::FExitContext;
+use operations::*;
 
 mod auxmap;
-mod connect;
 mod file;
-mod open;
 mod shared_maps;
 mod sockets;
 #[allow(clippy::all)]
@@ -18,6 +17,7 @@ mod sockets;
 #[rustfmt::skip]
 mod vmlinux;
 mod defs;
+mod operations;
 mod scap;
 
 #[cfg(not(test))]
@@ -30,7 +30,7 @@ fn panic(_info: &core::panic::PanicInfo) -> ! {
 fn fd_install(ctx: FExitContext) -> u32 {
     let file_descriptor = FileDescriptor::Fd(unsafe { ctx.arg(0) });
     let file = file::File::new(unsafe { ctx.arg(1) });
-    let handlers = [open::try_fd_install, connect::try_fd_install];
+    let handlers = [open::try_fd_install, socket::try_fd_install];
     let mut res = 0;
     for handler in handlers {
         res |= handler(&ctx, file_descriptor, &file).unwrap_or(1);
@@ -47,7 +47,7 @@ pub enum FileDescriptor {
 
 #[fexit]
 fn io_fixed_fd_install(ctx: FExitContext) -> u32 {
-    let handlers = [open::try_fd_install, connect::try_fd_install];
+    let handlers = [open::try_fd_install, socket::try_fd_install];
     let ret = unsafe { ctx.arg(4) };
     if ret < 0 {
         return 0;
