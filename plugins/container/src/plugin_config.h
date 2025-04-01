@@ -6,6 +6,9 @@
 
 #define DEFAULT_LABEL_MAX_LEN 100
 
+#define HOOK_CREATE 1
+#define HOOK_START 2
+
 struct SimpleEngine
 {
     bool enabled;
@@ -57,6 +60,7 @@ struct PluginConfig
 {
     int label_max_len;
     bool with_size;
+    uint8_t hooks;
     std::string host_root;
     Engines engines;
 
@@ -64,6 +68,7 @@ struct PluginConfig
     {
         label_max_len = DEFAULT_LABEL_MAX_LEN;
         with_size = false;
+        hooks = HOOK_CREATE;
         if(const char* hroot = std::getenv("HOST_ROOT"))
         {
             host_root = hroot;
