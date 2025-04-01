@@ -37,6 +37,21 @@ void from_json(const nlohmann::json& j, PluginConfig& cfg)
 {
     cfg.label_max_len = j.value("label_max_len", DEFAULT_LABEL_MAX_LEN);
     cfg.with_size = j.value("with_size", false);
+
+    std::vector<std::string> hooks =
+            j.value("hooks", std::vector<std::string>{"create"});
+    for(const auto& hook : hooks)
+    {
+        if(hook == "create")
+        {
+            cfg.hooks |= HOOK_CREATE;
+        }
+        else if(hook == "start")
+        {
+            cfg.hooks |= HOOK_START;
+        }
+    }
+
     cfg.engines = j.value("engines", Engines{});
 
     // Set default sockets if emtpy
@@ -110,5 +125,6 @@ void to_json(nlohmann::json& j, const PluginConfig& cfg)
     j["label_max_len"] = cfg.label_max_len;
     j["with_size"] = cfg.with_size;
     j["host_root"] = cfg.host_root;
+    j["hooks"] = cfg.hooks;
     j["engines"] = cfg.engines;
 }

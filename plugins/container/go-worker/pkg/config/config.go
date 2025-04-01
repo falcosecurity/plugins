@@ -4,7 +4,11 @@ import (
 	"encoding/json"
 )
 
-const defaultLabelMaxLen = 100
+const (
+	defaultLabelMaxLen = 100
+	HookCreate         = 1
+	HookStart          = 2
+)
 
 type SocketsEngine struct {
 	Enabled bool     `json:"enabled"`
@@ -16,6 +20,7 @@ type EngineCfg struct {
 	LabelMaxLen    int                      `json:"label_max_len"`
 	WithSize       bool                     `json:"with_size"`
 	HostRoot       string                   `json:"host_root"`
+	Hooks          byte                     `json:"hooks"`
 }
 
 var c EngineCfg
@@ -24,6 +29,7 @@ var c EngineCfg
 func init() {
 	c.LabelMaxLen = defaultLabelMaxLen
 	c.WithSize = false
+	c.Hooks = HookCreate
 }
 
 func Load(initCfg string) error {
@@ -48,4 +54,8 @@ func GetWithSize() bool {
 
 func GetHostRoot() string {
 	return c.HostRoot
+}
+
+func IsHookEnabled(hook byte) bool {
+	return c.Hooks&hook != 0
 }

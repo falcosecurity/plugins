@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/config"
-	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
+	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/config"
+	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
 	"strings"
 	"sync"
 	"time"
@@ -348,8 +348,14 @@ func (dc *dockerEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan 
 
 	flts := filters.NewArgs()
 	flts.Add("type", string(events.ContainerEventType))
-	flts.Add("event", string(events.ActionCreate))
+	if config.IsHookEnabled(config.HookCreate) {
+		flts.Add("event", string(events.ActionCreate))
+	}
+	if config.IsHookEnabled(config.HookStart) {
+		flts.Add("event", string(events.ActionStart))
+	}
 	flts.Add("event", string(events.ActionDestroy))
+
 	msgs, _ := dc.Events(ctx, events.ListOptions{Filters: flts})
 	wg.Add(1)
 	go func() {
@@ -360,11 +366,25 @@ func (dc *dockerEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan 
 			case <-ctx.Done():
 				return
 			case msg := <-msgs:
-				err := errors.New("inspect useless on action destroy")
-				ctrJson := types.ContainerJSON{}
-				if msg.Action == events.ActionCreate {
+				var (
+					ctrJson types.ContainerJSON
+					err     error
+				)
+				switch msg.Action {
+				case events.ActionCreate, events.ActionStart:
 					ctrJson, _, err = dc.ContainerInspectWithRaw(ctx, msg.Actor.ID, config.GetWithSize())
+					if err == nil {
+						outCh <- event.Event{
+							Info:     dc.ctrToInfo(ctx, ctrJson),
+							IsCreate: true,
+						}
+					}
+				case events.ActionDestroy:
+					err = errors.New("inspect useless on action destroy")
 				}
+
+				// This is called for ActionDestroy
+				// AND as a fallback whenever ContainerInspectWithRaw fails.
 				if err != nil {
 					// At least send an event with the minimum set of data
 					outCh <- event.Event{
@@ -376,12 +396,7 @@ func (dc *dockerEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan 
 								Image:  msg.Actor.Attributes["image"],
 							},
 						},
-						IsCreate: msg.Action == events.ActionCreate,
-					}
-				} else {
-					outCh <- event.Event{
-						Info:     dc.ctrToInfo(ctx, ctrJson),
-						IsCreate: msg.Action == events.ActionCreate,
+						IsCreate: msg.Action != events.ActionDestroy,
 					}
 				}
 			}
