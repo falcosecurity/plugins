@@ -6,8 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/config"
-	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
 	"github.com/containers/podman/v5/libpod/define"
 	"github.com/containers/podman/v5/pkg/bindings"
 	"github.com/containers/podman/v5/pkg/bindings/containers"
@@ -15,6 +13,8 @@ import (
 	"github.com/containers/podman/v5/pkg/domain/entities/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
+	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/config"
+	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
 	"strconv"
 	"strings"
 	"sync"
@@ -237,13 +237,19 @@ func (pc *podmanEngine) List(_ context.Context) ([]event.Event, error) {
 
 func (pc *podmanEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan event.Event, error) {
 	stream := true
+
 	filters := map[string][]string{
-		"type": {string(events.ContainerEventType)},
-		"event": {
-			string(events.ActionCreate),
-			string(events.ActionRemove),
-		},
+		"type":  {string(events.ContainerEventType)},
+		"event": make([]string, 0),
 	}
+	if config.IsHookEnabled(config.HookCreate) {
+		filters["event"] = append(filters["event"], string(events.ActionCreate))
+	}
+	if config.IsHookEnabled(config.HookStart) {
+		filters["event"] = append(filters["event"], string(events.ActionStart))
+	}
+	filters["event"] = append(filters["event"], string(events.ActionRemove))
+
 	evChn := make(chan types.Event)
 	cancelChan := make(chan bool)
 	wg.Add(1)
@@ -270,11 +276,25 @@ func (pc *podmanEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan 
 			case <-ctx.Done():
 				return
 			case ev := <-evChn:
-				err := errors.New("inspect useless on action destroy")
-				ctr := &define.InspectContainerData{}
-				if ev.Action == events.ActionCreate {
+				var (
+					ctr *define.InspectContainerData
+					err error
+				)
+				switch ev.Action {
+				case events.ActionCreate, events.ActionStart:
 					ctr, err = containers.Inspect(pc.pCtx, ev.Actor.ID, &containers.InspectOptions{Size: &size})
+					if err == nil {
+						outCh <- event.Event{
+							Info:     pc.ctrToInfo(ctr),
+							IsCreate: true,
+						}
+					}
+				case events.ActionRemove:
+					err = errors.New("inspect useless on action destroy")
 				}
+
+				// This is called for ActionRemove
+				// AND as a fallback whenever Inspect fails.
 				if err != nil {
 					// At least send an event with the minimal set of data
 					outCh <- event.Event{
@@ -286,12 +306,7 @@ func (pc *podmanEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan 
 								Image:  ev.Actor.Attributes["image"],
 							},
 						},
-						IsCreate: ev.Action == events.ActionCreate,
-					}
-				} else {
-					outCh <- event.Event{
-						Info:     pc.ctrToInfo(ctr),
-						IsCreate: ev.Action == events.ActionCreate,
+						IsCreate: ev.Action != events.ActionRemove,
 					}
 				}
 			}

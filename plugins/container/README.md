@@ -134,6 +134,7 @@ plugins:
     init_config:
       label_max_len: 100 # (optional, default: 100; container labels larger than this won't be reported)
       with_size: false # (optional, default: false; whether to enable container size inspection, which is inherently slow)
+      hooks: ['create', 'start'] # (optional, default: 'create'. Some fields might not be available in create hook, but we are guaranteed that it gets triggered before first process gets started)
       engines:
         docker:
           enabled: true

@@ -17,8 +17,6 @@ limitations under the License.
 
 #pragma once
 
-// This consts file is shared between the plugin and tests
-
 /////////////////////////
 // Async capability
 /////////////////////////

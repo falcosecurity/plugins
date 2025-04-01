@@ -13,6 +13,8 @@
 #
 
 NAME := container
+ROOT_DIR:=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
+PROJECT_ROOT_DIR = $(shell git rev-parse --show-toplevel)
 
 ifeq ($(OS),Windows_NT)
     detected_OS := Windows
@@ -30,8 +32,6 @@ else
     OUTPUT := lib$(NAME).so
     OUTPUT_FILE := build/$(OUTPUT)
 endif
-
-PROJECT_ROOT_DIR = $(shell git rev-parse --show-toplevel)
 
 all: $(OUTPUT)
 
@@ -54,4 +54,4 @@ readme:
 
 # Requires clang-format-18
 fmt:
-	git ls-files --directory ${PROJECT_ROOT_DIR} | grep -E '\.(cpp|h|c)$$' | xargs clang-format-18 -Werror --style=file:${PROJECT_ROOT_DIR}/.clang-format -i --verbose
+	git ls-files --directory $(ROOT_DIR) | grep -E '\.(cpp|h|c)$$' | xargs clang-format-18 -Werror --style=file:${PROJECT_ROOT_DIR}/.clang-format -i --verbose

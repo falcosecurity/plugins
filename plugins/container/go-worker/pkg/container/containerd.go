@@ -2,14 +2,14 @@ package container
 
 import (
 	"context"
-	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/config"
-	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
 	"github.com/containerd/containerd/api/events"
 	containerd "github.com/containerd/containerd/v2/client"
 	"github.com/containerd/containerd/v2/core/containers"
 	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/containerd/v2/pkg/oci"
 	"github.com/containerd/typeurl/v2"
+	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/config"
+	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"strconv"
 	"strings"
@@ -275,8 +275,17 @@ func (c *containerdEngine) List(ctx context.Context) ([]event.Event, error) {
 func (c *containerdEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan event.Event, error) {
 	outCh := make(chan event.Event)
 	eventsClient := c.client.EventService()
-	eventsCh, _ := eventsClient.Subscribe(ctx,
-		`topic=="/containers/create"`, `topic=="/containers/delete"`)
+
+	topics := make([]string, 0)
+	if config.IsHookEnabled(config.HookCreate) {
+		topics = append(topics, `topic=="/containers/create"`)
+	}
+	if config.IsHookEnabled(config.HookStart) {
+		topics = append(topics, `topic=="/tasks/start"`)
+	}
+	topics = append(topics, `topic=="/containers/delete"`)
+
+	eventsCh, _ := eventsClient.Subscribe(ctx, topics...)
 	wg.Add(1)
 	go func() {
 		defer close(outCh)
@@ -292,25 +301,29 @@ func (c *containerdEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-ch
 					image    string
 					info     event.Info
 				)
-				ctrCreate := events.ContainerCreate{}
-				err := typeurl.UnmarshalTo(ev.Event, &ctrCreate)
-				if err == nil {
+				switch ev.Topic {
+				case "/containers/create":
+					ctrCreate := events.ContainerCreate{}
+					_ = typeurl.UnmarshalTo(ev.Event, &ctrCreate)
 					id = ctrCreate.ID
 					isCreate = true
 					image = ctrCreate.Image
-				} else {
+				case "/tasks/start":
+					ctrStart := events.TaskStart{}
+					_ = typeurl.UnmarshalTo(ev.Event, &ctrStart)
+					id = ctrStart.ContainerID
+					isCreate = true
+				case "/containers/delete":
 					ctrDelete := events.ContainerDelete{}
-					err = typeurl.UnmarshalTo(ev.Event, &ctrDelete)
-					if err == nil {
-						id = ctrDelete.ID
-						isCreate = false
-						image = ""
-					}
+					_ = typeurl.UnmarshalTo(ev.Event, &ctrDelete)
+					id = ctrDelete.ID
+					isCreate = false
 				}
 				namespacedContext := namespaces.WithNamespace(ctx, ev.Namespace)
 				container, err := c.client.LoadContainer(namespacedContext, id)
 				if err != nil {
-					// minimum set of infos
+					// minimum set of infos - either for containers/delete
+					// or for other hooks but with an error.
 					info = event.Info{
 						Container: event.Container{
 							Type:   typeContainerd.ToCTValue(),
