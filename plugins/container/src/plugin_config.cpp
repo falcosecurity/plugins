@@ -40,6 +40,9 @@ void from_json(const nlohmann::json& j, PluginConfig& cfg)
 
     std::vector<std::string> hooks =
             j.value("hooks", std::vector<std::string>{"create"});
+    // Reset: by default, it is HOOK_CREATE,
+    // but we are now setting it from json.
+    cfg.hooks = 0;
     for(const auto& hook : hooks)
     {
         if(hook == "create")

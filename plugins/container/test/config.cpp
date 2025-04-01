@@ -38,7 +38,8 @@ TEST(plugin_config, from_json)
     }
   },
   "label_max_len": 120,
-  "with_size": true
+  "with_size": true,
+  "hooks": ["start"]
 })";
     auto config_json = nlohmann::json::parse(config);
 
@@ -54,6 +55,7 @@ TEST(plugin_config, from_json)
 
     EXPECT_TRUE(cfg.with_size);
     EXPECT_EQ(cfg.label_max_len, 120);
+    EXPECT_EQ(cfg.hooks, HOOK_START);
 }
 
 TEST(plugin_config, from_json_missing_engines)
@@ -77,6 +79,7 @@ TEST(plugin_config, from_json_missing_engines)
 
     EXPECT_TRUE(cfg.with_size);
     EXPECT_EQ(cfg.label_max_len, 120);
+    EXPECT_EQ(cfg.hooks, HOOK_CREATE);
 }
 
 TEST(plugin_config, from_json_empty_json)
@@ -97,6 +100,7 @@ TEST(plugin_config, from_json_empty_json)
 
     EXPECT_FALSE(cfg.with_size);
     EXPECT_EQ(cfg.label_max_len, DEFAULT_LABEL_MAX_LEN);
+    EXPECT_EQ(cfg.hooks, HOOK_CREATE);
 }
 
 TEST(plugin_config, to_json)
@@ -129,6 +133,7 @@ TEST(plugin_config, to_json)
       ]
     }
   },
+  "hooks": 3,
   "host_root": "",
   "label_max_len": 120,
   "with_size": true
@@ -151,6 +156,7 @@ TEST(plugin_config, to_json)
 
     cfg.label_max_len = 120;
     cfg.with_size = true;
+    cfg.hooks = HOOK_CREATE | HOOK_START;
 
     nlohmann::json j(cfg);
     EXPECT_EQ(j.dump(2).c_str(), expected_config);
