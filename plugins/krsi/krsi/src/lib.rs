@@ -516,31 +516,31 @@ impl KrsiPlugin {
         io_openat2_e_prog.load("io_openat2", &btf)?;
         io_openat2_e_prog.attach()?;
 
-        // Socket creation tracking
-        let sock_alloc_file_prog: &mut FExit =
-            ebpf.program_mut("sock_alloc_file").unwrap().try_into()?;
-        sock_alloc_file_prog.load("sock_alloc_file", btf)?;
-        sock_alloc_file_prog.attach()?;
+        // Socket connection tracking.
+        let sys_connect_file_prog: &mut FExit =
+            ebpf.program_mut("__sys_connect_file").unwrap().try_into()?;
+        sys_connect_file_prog.load("__sys_connect_file", btf)?;
+        sys_connect_file_prog.attach()?;
 
-        let sys_socket_x_prog: &mut FExit =
-            ebpf.program_mut("__sys_socket_x").unwrap().try_into()?;
-        sys_socket_x_prog.load("__sys_socket", btf)?;
-        sys_socket_x_prog.attach()?;
+        let io_connect_x_prog: &mut FExit =
+            ebpf.program_mut("io_connect_x").unwrap().try_into()?;
+        io_connect_x_prog.load("io_connect", btf)?;
+        io_connect_x_prog.attach()?;
 
-        let sys_socket_e_prog: &mut FEntry =
-            ebpf.program_mut("__sys_socket_e").unwrap().try_into()?;
-        sys_socket_e_prog.load("__sys_socket", btf)?;
-        sys_socket_e_prog.attach()?;
+        let io_connect_e_prog: &mut FEntry =
+            ebpf.program_mut("io_connect_e").unwrap().try_into()?;
+        io_connect_e_prog.load("io_connect", btf)?;
+        io_connect_e_prog.attach()?;
 
-        let io_socket_x_prog: &mut FExit =
-            ebpf.program_mut("io_socket_x").unwrap().try_into()?;
-        io_socket_x_prog.load("io_socket", btf)?;
-        io_socket_x_prog.attach()?;
-
-        let io_socket_e_prog: &mut FEntry =
-            ebpf.program_mut("io_socket_e").unwrap().try_into()?;
-        io_socket_e_prog.load("io_socket", btf)?;
-        io_socket_e_prog.attach()?;
+        // let sys_connect_x_prog: &mut FExit =
+        //     ebpf.program_mut("__sys_connect_x").unwrap().try_into()?;
+        // sys_connect_x_prog.load("__sys_connect", btf)?;
+        // sys_connect_x_prog.attach()?;
+        //
+        // let sys_connect_e_prog: &mut FEntry =
+        //     ebpf.program_mut("__sys_connect_e").unwrap().try_into()?;
+        // sys_connect_e_prog.load("__sys_connect", btf)?;
+        // sys_connect_e_prog.attach()?;
 
         Ok(())
     }

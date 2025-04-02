@@ -1,25 +1,67 @@
-//! # Data extraction upon socket connection procedures
+//! # Data extraction
 //!
-//! ## Kernel functions call graph
+//! ## Kernel functions call graph (`connect` and `socketcall` syscalls path)
 //! ```
-//! int __sys_connect_file(struct file *file, struct sockaddr_storage *address, int addrlen, int file_flags)
-//!     int security_socket_connect(struct socket *sock, struct sockaddr *address, int addrlen)
-//!     int (*connect)(struct sock *sk, struct sockaddr *uaddr, int addr_len);
+//! int __sys_connect(int fd, struct sockaddr __user *uservaddr, int addrlen)
+//!     int __sys_connect_file(struct file *file, struct sockaddr_storage *address, int addrlen,
+//!         int file_flags)
+//! ```
+//!
+//! ## Kernel function call graph (`io_uring` path)
+//! ```
+//! int io_connect(struct io_kiocb *req, unsigned int issue_flags)
+//!     int __sys_connect_file(struct file *file, struct sockaddr_storage *address, int addrlen,
+//!         int file_flags)
 //! ```
 //!
 //! ## Extraction flow
-//! 3. `fexit:__sys_connect_file` - extract the relevant parameters for the connection request,
-//! build the event in the auxiliary map and submit it.
+//! 1. `fentry:io_connect` | `fentry:__sys_connect`
+//! 2. `fexit:__sys_connect_file`
+//! 3. `fexit:io_connect` | `fexit:__sys_connect`
 
-use crate::{defs, file, scap, shared_maps, vmlinux, FileDescriptor};
-use aya_ebpf::cty::{c_int};
-use aya_ebpf::macros::fexit;
-use aya_ebpf::programs::FExitContext;
+use crate::{defs, file, helpers, scap, shared_maps, vmlinux, FileDescriptor};
+use aya_ebpf::cty::c_int;
+use aya_ebpf::helpers::bpf_probe_read_kernel;
+use aya_ebpf::macros::{fentry, fexit};
+use aya_ebpf::programs::{FEntryContext, FExitContext};
 use aya_ebpf::EbpfContext;
 use core::ptr::null;
 use krsi_common::EventType;
 
 mod maps;
+
+#[fentry]
+fn io_connect_e(ctx: FEntryContext) -> u32 {
+    try_io_connect_e(ctx).unwrap_or(1)
+}
+
+fn try_io_connect_e(ctx: FEntryContext) -> Result<u32, i64> {
+    let req: *const vmlinux::io_kiocb = unsafe { ctx.arg(0) };
+    // TODO(ekoops): handle flags in kernel versions using the `io_req_flags_t` type.
+    let flags = unsafe { bpf_probe_read_kernel(&(*req).flags) }?;
+    let fd = unsafe { bpf_probe_read_kernel(&(*req).cqe.__bindgen_anon_1.fd) }?;
+
+    const REQ_F_FIXED_FILE: u32 = 1;
+    let file_descriptor = if flags & REQ_F_FIXED_FILE == 0 {
+        FileDescriptor::Fd(fd as i32)
+    } else {
+        FileDescriptor::FileIndex(fd as u32)
+    };
+    let pid = ctx.pid();
+    helpers::try_insert_map_entry(maps::get_conn_fds(), &pid, &file_descriptor)
+}
+
+#[fentry]
+fn __sys_connect_e(ctx: FEntryContext) -> u32 {
+    try___sys_connect_e(ctx).unwrap_or(1)
+}
+
+fn try___sys_connect_e(ctx: FEntryContext) -> Result<u32, i64> {
+    let pid = ctx.pid();
+    let fd: c_int = unsafe { ctx.arg(0) };
+    let file_descriptor = FileDescriptor::Fd(fd as i32);
+    helpers::try_insert_map_entry(maps::get_conn_fds(), &pid, &file_descriptor)
+}
 
 #[fexit]
 fn __sys_connect_file(ctx: FExitContext) -> u32 {
@@ -27,6 +69,10 @@ fn __sys_connect_file(ctx: FExitContext) -> u32 {
 }
 
 fn try___sys_connect_file(ctx: FExitContext) -> Result<u32, i64> {
+    let pid = ctx.pid();
+    let Some(file_descriptor) = (unsafe { maps::get_conn_fds().get(&pid) }) else {
+        return Ok(0);
+    };
     let auxmap = shared_maps::get_auxiliary_map().ok_or(1)?;
     auxmap.preload_event_header(EventType::Connect);
 
@@ -45,33 +91,27 @@ fn try___sys_connect_file(ctx: FExitContext) -> Result<u32, i64> {
         auxmap.store_empty_param();
     }
 
+    let (fd, file_index) = scap::encode_file_descriptor(*file_descriptor);
+
     // Parameter 3: fd.
+    auxmap.store_param(fd as i64);
+
     // Parameter 4: file_index.
-    match get_file_descriptor(sock, ctx.tgid()) {
-        Ok(file_descriptor) => {
-            let (fd, file_index) = scap::encode_file_descriptor(file_descriptor);
-            auxmap.store_param(fd as i64);
-            auxmap.store_param(file_index);
-        }
-        Err(_) => {
-            auxmap.store_empty_param(); // Store empty fd parameter.
-            auxmap.store_empty_param(); // Store empty file_index parameter.
-        }
-    }
+    auxmap.store_param(file_index);
 
     auxmap.finalize_event_header();
     auxmap.submit_event();
     Ok(0)
 }
 
-fn get_file_descriptor(sock: *const vmlinux::socket, tgid: u32) -> Result<FileDescriptor, i64> {
-    if sock.is_null() {
-        return Err(1);
-    }
+#[fexit]
+fn io_connect_x(ctx: FExitContext) -> u32 {
+    let pid = ctx.pid();
+    helpers::try_remove_map_entry(maps::get_conn_fds(), &pid).unwrap_or(1)
+}
 
-    let sock_ptr_tgid = crate::operations::socket::SockPtrTgid::new(sock as usize, tgid);
-    match unsafe { crate::operations::socket::get_sock_res_amp().get(&sock_ptr_tgid) } {
-        Some(file_descriptor) => Ok(*file_descriptor),
-        None => Err(1),
-    }
+#[fexit]
+fn __sys_connect_x(ctx: FExitContext) -> u32 {
+    let pid = ctx.pid();
+    helpers::try_remove_map_entry(maps::get_conn_fds(), &pid).unwrap_or(1)
 }
