@@ -19,9 +19,8 @@
 //! 2. `fexit:__sys_connect_file`
 //! 3. `fexit:io_connect` | `fexit:__sys_connect`
 
-use crate::{defs, file, helpers, scap, shared_maps, vmlinux, FileDescriptor};
+use crate::{defs, file, helpers, iouring, shared_maps, vmlinux, FileDescriptor};
 use aya_ebpf::cty::c_int;
-use aya_ebpf::helpers::bpf_probe_read_kernel;
 use aya_ebpf::macros::{fentry, fexit};
 use aya_ebpf::programs::{FEntryContext, FExitContext};
 use aya_ebpf::EbpfContext;
@@ -38,8 +37,8 @@ fn io_connect_e(ctx: FEntryContext) -> u32 {
 fn try_io_connect_e(ctx: FEntryContext) -> Result<u32, i64> {
     let req: *const vmlinux::io_kiocb = unsafe { ctx.arg(0) };
     // TODO(ekoops): handle flags in kernel versions using the `io_req_flags_t` type.
-    let flags = unsafe { bpf_probe_read_kernel(&(*req).flags) }?;
-    let fd = unsafe { bpf_probe_read_kernel(&(*req).cqe.__bindgen_anon_1.fd) }?;
+    let flags = iouring::extract_io_kiocb_flags(req)?;
+    let fd = iouring::extract_io_kiocb_cqe_fd(req)?;
 
     const REQ_F_FIXED_FILE: u32 = 1;
     let file_descriptor = if flags & REQ_F_FIXED_FILE == 0 {
