@@ -43,7 +43,7 @@ fn fd_install(ctx: FExitContext) -> u32 {
 #[derive(Copy, Clone)]
 pub enum FileDescriptor {
     Fd(i32),
-    FileIndex(u32),
+    FileIndex(i32),
 }
 
 #[fexit]
@@ -58,7 +58,7 @@ fn io_fixed_fd_install(ctx: FExitContext) -> u32 {
     let file_index = if file_slot == defs::IORING_FILE_INDEX_ALLOC {
         ret
     } else {
-        file_slot - 1
+        (file_slot - 1) as i32
     };
     let file_descriptor = FileDescriptor::FileIndex(file_index);
     let file = file::File::new(unsafe { ctx.arg(2) });

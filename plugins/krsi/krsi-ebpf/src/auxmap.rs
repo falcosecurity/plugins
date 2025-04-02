@@ -1,4 +1,4 @@
-use crate::{defs, scap, shared_maps, sockets, vmlinux};
+use crate::{defs, scap, shared_maps, sockets, vmlinux, FileDescriptor};
 use aya_ebpf::bindings::BPF_RB_FORCE_WAKEUP;
 use aya_ebpf::cty::{c_char, c_uchar};
 use aya_ebpf::helpers::{
@@ -255,6 +255,19 @@ impl AuxiliaryMap {
         .unwrap_or(0);
 
         defs::FAMILY_SIZE + defs::KERNEL_POINTER + defs::KERNEL_POINTER + written_bytes as usize
+    }
+
+    pub fn store_file_descriptor_param(&mut self, file_descriptor: FileDescriptor) {
+        match file_descriptor.try_into() {
+            Ok(FileDescriptor::Fd(fd)) => {
+                self.store_param(fd as i64);
+                self.store_empty_param();
+            },
+            Ok(FileDescriptor::FileIndex(file_index)) => {
+                self.store_empty_param();
+                self.store_param(file_index);
+            }
+        }
     }
 
     pub fn skip_param(&mut self, len: u16) {
