@@ -532,16 +532,14 @@ impl KrsiPlugin {
         io_connect_e_prog.load("io_connect", btf)?;
         io_connect_e_prog.attach()?;
 
-        // let sys_connect_x_prog: &mut FExit =
-        //     ebpf.program_mut("__sys_connect_x").unwrap().try_into()?;
-        // sys_connect_x_prog.load("__sys_connect", btf)?;
-        // sys_connect_x_prog.attach()?;
-        //
-        // let sys_connect_e_prog: &mut FEntry =
-        //     ebpf.program_mut("__sys_connect_e").unwrap().try_into()?;
-        // sys_connect_e_prog.load("__sys_connect", btf)?;
-        // sys_connect_e_prog.attach()?;
+        // Socket creation tracking.
+        let io_socket_x_prog: &mut FExit = ebpf.program_mut("io_socket_x").unwrap().try_into()?;
+        io_socket_x_prog.load("io_socket", btf)?;
+        io_socket_x_prog.attach()?;
 
+        // let sys_socket_x_prog: &mut FExit = ebpf.program_mut("__sys_socket_x").unwrap().try_into()?;
+        // sys_socket_x_prog.load("__sys_socket", btf)?;
+        // sys_socket_x_prog.attach()?;
         Ok(())
     }
 }
