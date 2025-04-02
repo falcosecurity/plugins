@@ -43,9 +43,9 @@ fn try_io_connect_e(ctx: FEntryContext) -> Result<u32, i64> {
 
     const REQ_F_FIXED_FILE: u32 = 1;
     let file_descriptor = if flags & REQ_F_FIXED_FILE == 0 {
-        FileDescriptor::Fd(fd as i32)
+        FileDescriptor::Fd(fd)
     } else {
-        FileDescriptor::FileIndex(fd as u32)
+        FileDescriptor::FileIndex(fd)
     };
     let pid = ctx.pid();
     helpers::try_insert_map_entry(maps::get_conn_fds(), &pid, &file_descriptor)
@@ -91,13 +91,9 @@ fn try___sys_connect_file(ctx: FExitContext) -> Result<u32, i64> {
         auxmap.store_empty_param();
     }
 
-    let (fd, file_index) = scap::encode_file_descriptor(*file_descriptor);
-
     // Parameter 3: fd.
-    auxmap.store_param(fd as i64);
-
     // Parameter 4: file_index.
-    auxmap.store_param(file_index);
+    auxmap.store_file_descriptor_param(*file_descriptor);
 
     auxmap.finalize_event_header();
     auxmap.submit_event();

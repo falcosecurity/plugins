@@ -106,9 +106,7 @@ pub fn try_fd_install(
 
     // Parameter 1: fd.
     // Parameter 2: file_index.
-    let (fd, file_index) = scap::encode_file_descriptor(file_descriptor);
-    auxmap.store_param(fd as i64);
-    auxmap.store_param(file_index);
+    auxmap.store_file_descriptor_param(file_descriptor);
 
     // Parameter 3: name.
     // The file path has already been stored by the fexit program on `security_file_open` hook, as
@@ -152,6 +150,10 @@ pub fn try_fd_install(
         let mut buf: [u8; 128] = [0; 128];
         let name = unsafe {
             core::str::from_utf8_unchecked(bpf_probe_read_kernel_str_bytes(name, &mut buf)?)
+        };
+        let fd = match file_descriptor.try_into() {
+            Ok(FileDescriptor::Fd(fd)) => fd,
+            Ok(FileDescriptor::FileIndex(file_index)) => file_index
         };
         let pid = ctx.pid();
         info!(

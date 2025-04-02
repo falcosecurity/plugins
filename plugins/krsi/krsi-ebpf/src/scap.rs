@@ -1,13 +1,5 @@
-use crate::{defs, FileDescriptor};
+use crate::defs;
 use krsi_common::scap;
-
-/// Returns a tuple (fd, file_index) encoded using the scap conventions.
-pub fn encode_file_descriptor(file_descriptor: FileDescriptor) -> (i32, u32) {
-    match file_descriptor {
-        FileDescriptor::Fd(fd) => (fd, scap::PPM_IO_URING_INVALID_FILE_INDEX),
-        FileDescriptor::FileIndex(file_index) => (-1, file_index),
-    }
-}
 
 pub fn encode_open_flags(flags: u32) -> u32 {
     let mut res = 0_u32;

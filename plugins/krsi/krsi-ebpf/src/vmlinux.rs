@@ -312,30 +312,28 @@ pub mod bpf_arg_type {
     pub const ARG_ANYTHING: Type = 8;
     pub const ARG_PTR_TO_SPIN_LOCK: Type = 9;
     pub const ARG_PTR_TO_SOCK_COMMON: Type = 10;
-    pub const ARG_PTR_TO_INT: Type = 11;
-    pub const ARG_PTR_TO_LONG: Type = 12;
-    pub const ARG_PTR_TO_SOCKET: Type = 13;
-    pub const ARG_PTR_TO_BTF_ID: Type = 14;
-    pub const ARG_PTR_TO_RINGBUF_MEM: Type = 15;
-    pub const ARG_CONST_ALLOC_SIZE_OR_ZERO: Type = 16;
-    pub const ARG_PTR_TO_BTF_ID_SOCK_COMMON: Type = 17;
-    pub const ARG_PTR_TO_PERCPU_BTF_ID: Type = 18;
-    pub const ARG_PTR_TO_FUNC: Type = 19;
-    pub const ARG_PTR_TO_STACK: Type = 20;
-    pub const ARG_PTR_TO_CONST_STR: Type = 21;
-    pub const ARG_PTR_TO_TIMER: Type = 22;
-    pub const ARG_PTR_TO_KPTR: Type = 23;
-    pub const ARG_PTR_TO_DYNPTR: Type = 24;
-    pub const __BPF_ARG_TYPE_MAX: Type = 25;
+    pub const ARG_PTR_TO_SOCKET: Type = 11;
+    pub const ARG_PTR_TO_BTF_ID: Type = 12;
+    pub const ARG_PTR_TO_RINGBUF_MEM: Type = 13;
+    pub const ARG_CONST_ALLOC_SIZE_OR_ZERO: Type = 14;
+    pub const ARG_PTR_TO_BTF_ID_SOCK_COMMON: Type = 15;
+    pub const ARG_PTR_TO_PERCPU_BTF_ID: Type = 16;
+    pub const ARG_PTR_TO_FUNC: Type = 17;
+    pub const ARG_PTR_TO_STACK: Type = 18;
+    pub const ARG_PTR_TO_CONST_STR: Type = 19;
+    pub const ARG_PTR_TO_TIMER: Type = 20;
+    pub const ARG_PTR_TO_KPTR: Type = 21;
+    pub const ARG_PTR_TO_DYNPTR: Type = 22;
+    pub const __BPF_ARG_TYPE_MAX: Type = 23;
     pub const ARG_PTR_TO_MAP_VALUE_OR_NULL: Type = 259;
     pub const ARG_PTR_TO_MEM_OR_NULL: Type = 260;
     pub const ARG_PTR_TO_CTX_OR_NULL: Type = 263;
-    pub const ARG_PTR_TO_SOCKET_OR_NULL: Type = 269;
-    pub const ARG_PTR_TO_STACK_OR_NULL: Type = 276;
-    pub const ARG_PTR_TO_BTF_ID_OR_NULL: Type = 270;
+    pub const ARG_PTR_TO_SOCKET_OR_NULL: Type = 267;
+    pub const ARG_PTR_TO_STACK_OR_NULL: Type = 274;
+    pub const ARG_PTR_TO_BTF_ID_OR_NULL: Type = 268;
     pub const ARG_PTR_TO_UNINIT_MEM: Type = 32772;
     pub const ARG_PTR_TO_FIXED_SIZE_MEM: Type = 262148;
-    pub const __BPF_ARG_TYPE_LIMIT: Type = 33554431;
+    pub const __BPF_ARG_TYPE_LIMIT: Type = 67108863;
 }
 pub mod bpf_attach_type {
     pub type Type = ::aya_ebpf::cty::c_uint;
@@ -779,7 +777,7 @@ pub mod bpf_reg_type {
     pub const PTR_TO_SOCK_COMMON_OR_NULL: Type = 268;
     pub const PTR_TO_TCP_SOCK_OR_NULL: Type = 269;
     pub const PTR_TO_BTF_ID_OR_NULL: Type = 272;
-    pub const __BPF_REG_TYPE_LIMIT: Type = 33554431;
+    pub const __BPF_REG_TYPE_LIMIT: Type = 67108863;
 }
 pub mod bpf_return_type {
     pub type Type = ::aya_ebpf::cty::c_uint;
@@ -801,7 +799,7 @@ pub mod bpf_return_type {
     pub const RET_PTR_TO_DYNPTR_MEM_OR_NULL: Type = 262;
     pub const RET_PTR_TO_BTF_ID_OR_NULL: Type = 264;
     pub const RET_PTR_TO_BTF_ID_TRUSTED: Type = 1048584;
-    pub const __BPF_RET_TYPE_LIMIT: Type = 33554431;
+    pub const __BPF_RET_TYPE_LIMIT: Type = 67108863;
 }
 pub mod btf_field_type {
     pub type Type = ::aya_ebpf::cty::c_uint;
@@ -8987,7 +8985,7 @@ pub struct bpf_map {
     pub sleepable_refcnt: atomic64_t,
     pub elem_count: *mut s64,
     pub _bitfield_align_2: [u8; 0],
-    pub _bitfield_2: __BindgenBitfieldUnit<[u8; 8usize]>,
+    pub _bitfield_2: __BindgenBitfieldUnit<[u8; 56usize]>,
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -8998,6 +8996,7 @@ pub union bpf_map__bindgen_ty_1 {
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct bpf_map__bindgen_ty_2 {
+    pub attach_func_proto: *const btf_type,
     pub lock: spinlock_t,
     pub type_: bpf_prog_type::Type,
     pub jited: bool_,
@@ -9007,11 +9006,6 @@ impl bpf_map {
     #[inline]
     pub fn new_bitfield_1() -> __BindgenBitfieldUnit<[u8; 16usize]> {
         let mut __bindgen_bitfield_unit: __BindgenBitfieldUnit<[u8; 16usize]> = Default::default();
-        __bindgen_bitfield_unit
-    }
-    #[inline]
-    pub fn new_bitfield_2() -> __BindgenBitfieldUnit<[u8; 8usize]> {
-        let mut __bindgen_bitfield_unit: __BindgenBitfieldUnit<[u8; 8usize]> = Default::default();
         __bindgen_bitfield_unit
     }
 }
@@ -13609,8 +13603,10 @@ impl bpf_insn {
 #[derive(Copy, Clone)]
 pub struct bpf_insn_access_aux {
     pub reg_type: bpf_reg_type::Type,
+    pub is_ldsx: bool_,
     pub __bindgen_anon_1: bpf_insn_access_aux__bindgen_ty_1,
     pub log: *mut bpf_verifier_log,
+    pub is_retval: bool_,
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -29082,6 +29078,8 @@ pub union fs_parse_result__bindgen_ty_1 {
     pub int_32: ::aya_ebpf::cty::c_int,
     pub uint_32: ::aya_ebpf::cty::c_uint,
     pub uint_64: u64_,
+    pub uid: kuid_t,
+    pub gid: kgid_t,
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -30068,7 +30066,7 @@ pub struct napi_struct {
     pub poll_list: list_head,
     pub state: ::aya_ebpf::cty::c_ulong,
     pub weight: ::aya_ebpf::cty::c_int,
-    pub defer_hard_irqs_count: ::aya_ebpf::cty::c_int,
+    pub defer_hard_irqs_count: u32_,
     pub gro_bitmask: ::aya_ebpf::cty::c_ulong,
     pub poll: ::core::option::Option<
         unsafe extern "C" fn(
@@ -35315,6 +35313,17 @@ pub union io_rsrc_node__bindgen_ty_1 {
     pub ctx: *mut io_ring_ctx,
 }
 #[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct io_socket {
+    pub file: *mut file,
+    pub domain: ::aya_ebpf::cty::c_int,
+    pub type_: ::aya_ebpf::cty::c_int,
+    pub protocol: ::aya_ebpf::cty::c_int,
+    pub flags: ::aya_ebpf::cty::c_int,
+    pub file_slot: u32_,
+    pub nofile: ::aya_ebpf::cty::c_ulong,
+}
+#[repr(C)]
 #[derive(Copy, Clone)]
 pub struct io_sq_data {
     pub refs: refcount_t,
@@ -40203,7 +40212,7 @@ pub struct mountpoint {
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct mptcp_mib {
-    pub mibs: [::aya_ebpf::cty::c_ulong; 61usize],
+    pub mibs: [::aya_ebpf::cty::c_ulong; 64usize],
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -41585,6 +41594,7 @@ pub struct net {
     pub fnhe_genid: atomic_t,
     pub list: list_head,
     pub exit_list: list_head,
+    pub defer_free_list: llist_node,
     pub cleanup_list: llist_node,
     pub key_domain: *mut key_tag,
     pub user_ns: *mut user_namespace,
@@ -41613,7 +41623,7 @@ pub struct net {
     pub unx: netns_unix,
     pub nexthop: netns_nexthop,
     pub _bitfield_align_1: [u8; 0],
-    pub _bitfield_1: __BindgenBitfieldUnit<[u8; 24usize]>,
+    pub _bitfield_1: __BindgenBitfieldUnit<[u8; 16usize]>,
     pub ipv4: netns_ipv4,
     pub ipv6: netns_ipv6,
     pub ieee802154_lowpan: netns_ieee802154_lowpan,
@@ -41642,8 +41652,8 @@ pub struct net {
 }
 impl net {
     #[inline]
-    pub fn new_bitfield_1() -> __BindgenBitfieldUnit<[u8; 24usize]> {
-        let mut __bindgen_bitfield_unit: __BindgenBitfieldUnit<[u8; 24usize]> = Default::default();
+    pub fn new_bitfield_1() -> __BindgenBitfieldUnit<[u8; 16usize]> {
+        let mut __bindgen_bitfield_unit: __BindgenBitfieldUnit<[u8; 16usize]> = Default::default();
         __bindgen_bitfield_unit
     }
     #[inline]
@@ -42015,7 +42025,7 @@ pub struct net_device {
     pub real_num_rx_queues: ::aya_ebpf::cty::c_uint,
     pub _rx: *mut netdev_rx_queue,
     pub gro_flush_timeout: ::aya_ebpf::cty::c_ulong,
-    pub napi_defer_hard_irqs: ::aya_ebpf::cty::c_int,
+    pub napi_defer_hard_irqs: u32_,
     pub gro_max_size: ::aya_ebpf::cty::c_uint,
     pub gro_ipv4_max_size: ::aya_ebpf::cty::c_uint,
     pub rx_handler: rx_handler_func_t,
@@ -43299,6 +43309,7 @@ pub struct netlink_callback {
     pub min_dump_alloc: u32_,
     pub prev_seq: ::aya_ebpf::cty::c_uint,
     pub seq: ::aya_ebpf::cty::c_uint,
+    pub flags: ::aya_ebpf::cty::c_int,
     pub strict_check: bool_,
     pub __bindgen_anon_1: netlink_callback__bindgen_ty_1,
 }
@@ -45197,6 +45208,7 @@ pub struct nfs_server {
     pub layouts: list_head,
     pub delegations: list_head,
     pub ss_copies: list_head,
+    pub ss_src_copies: list_head,
     pub delegation_gen: ::aya_ebpf::cty::c_ulong,
     pub mig_gen: ::aya_ebpf::cty::c_ulong,
     pub mig_status: ::aya_ebpf::cty::c_ulong,
@@ -52798,7 +52810,7 @@ pub struct sbitmap_word {
     pub _bitfield_align_1: [u8; 0],
     pub _bitfield_1: __BindgenBitfieldUnit<[u8; 56usize]>,
     pub cleared: ::aya_ebpf::cty::c_ulong,
-    pub swap_lock: spinlock_t,
+    pub swap_lock: raw_spinlock_t,
     pub _bitfield_align_2: [u8; 0],
     pub _bitfield_2: __BindgenBitfieldUnit<[u8; 48usize]>,
     pub __bindgen_padding_0: u32,
@@ -57345,7 +57357,7 @@ pub struct svc_deferred_req {
 pub struct svc_pool {
     pub sp_id: ::aya_ebpf::cty::c_uint,
     pub sp_xprts: lwq,
-    pub sp_nrthreads: atomic_t,
+    pub sp_nrthreads: ::aya_ebpf::cty::c_uint,
     pub sp_all_threads: list_head,
     pub sp_idle_threads: llist_head,
     pub sp_messages_arrived: percpu_counter,
@@ -58158,6 +58170,8 @@ pub struct task_struct {
     pub rcu_tasks_idx: u8_,
     pub rcu_tasks_idle_cpu: ::aya_ebpf::cty::c_int,
     pub rcu_tasks_holdout_list: list_head,
+    pub rcu_tasks_exit_cpu: ::aya_ebpf::cty::c_int,
+    pub rcu_tasks_exit_list: list_head,
     pub trc_reader_nesting: ::aya_ebpf::cty::c_int,
     pub trc_ipi_to_cpu: ::aya_ebpf::cty::c_int,
     pub trc_reader_special: rcu_special,
@@ -58358,8 +58372,6 @@ pub struct task_struct {
     pub l1d_flush_kill: callback_head,
     pub rv: [rv_task_monitor; 1usize],
     pub user_event_mm: *mut user_event_mm,
-    pub _bitfield_align_4: [u8; 0],
-    pub _bitfield_4: __BindgenBitfieldUnit<[u8; 24usize]>,
     pub thread: thread_struct,
 }
 impl task_struct {
@@ -59177,11 +59189,6 @@ impl task_struct {
             let __mce_reserved: u64 = unsafe { ::core::mem::transmute(__mce_reserved) };
             __mce_reserved as u64
         });
-        __bindgen_bitfield_unit
-    }
-    #[inline]
-    pub fn new_bitfield_4() -> __BindgenBitfieldUnit<[u8; 24usize]> {
-        let mut __bindgen_bitfield_unit: __BindgenBitfieldUnit<[u8; 24usize]> = Default::default();
         __bindgen_bitfield_unit
     }
 }
@@ -60867,6 +60874,7 @@ pub struct uprobe_task {
     pub __bindgen_anon_1: uprobe_task__bindgen_ty_1,
     pub active_uprobe: *mut uprobe,
     pub xol_vaddr: ::aya_ebpf::cty::c_ulong,
+    pub auprobe: *mut arch_uprobe,
     pub return_instances: *mut return_instance,
     pub depth: ::aya_ebpf::cty::c_uint,
 }

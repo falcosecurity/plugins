@@ -10,8 +10,8 @@ pub struct KrsiEvent {
 #[derive(Serialize, Deserialize, Debug)]
 pub enum KrsiEventContent {
     Open {
-        fd: u32,
-        file_index: u32,
+        fd: i32,
+        file_index: i32,
         name: String,
         flags: u32,
         mode: u32,
@@ -24,40 +24,47 @@ pub fn parse_ringbuf_event(buf: &[u8]) -> Result<KrsiEvent, ()> {
     let mut ptr = buf.as_ptr();
     let ptr_mut = &mut ptr;
     let ev = unsafe { read_and_move::<krsi_common::EventHeader>(ptr_mut) };
-    let mut name_len = 0;
-    for i in 0..ev.nparams {
-        let len = unsafe { read_and_move::<u16>(ptr_mut) };
-        if i == 2 {
-            name_len = len;
-        }
-    }
     match ev.evt_type.try_into() {
-        Ok(krsi_common::EventType::Open) => {
-            let fd = unsafe { read_and_move::<i64>(ptr_mut) };
-            let file_index = unsafe { read_and_move::<u32>(ptr_mut)};
-            let name = unsafe { read_str_and_move(ptr_mut, name_len as usize) };
-            let flags = unsafe { read_and_move::<u32>(ptr_mut) };
-            let mode = unsafe { read_and_move::<u32>(ptr_mut) };
-            let dev = unsafe { read_and_move::<u32>(ptr_mut) };
-            let ino = unsafe { read_and_move::<u64>(ptr_mut) };
-            let pid = (ev.tgid_pid >> 32) as u32;
-            let tid = (ev.tgid_pid & 0xffffffff) as u32;        
-            Ok(KrsiEvent {
-                tid,
-                pid,
-                content: KrsiEventContent::Open {
-                    fd: fd as u32,
-                    file_index,
-                    name: String::from(name),
-                    flags,
-                    mode,
-                    dev,
-                    ino,
-                },
-            })
-        }
+        Ok(krsi_common::EventType::Open) => parse_ringbuf_open_event(&ev, ptr_mut),
         _ => Err(()),
     }
+}
+
+fn parse_ringbuf_open_event(
+    ev: &krsi_common::EventHeader,
+    ptr: &mut *const u8,
+) -> Result<KrsiEvent, ()> {
+    let lengths = unsafe { read_and_move::<[u16; 7]>(ptr) };
+    let fd = if lengths[0] != 0 {
+        unsafe { read_and_move::<i64>(ptr) }
+    } else {
+        -1
+    };
+    let file_index = if lengths[1] != 0 {
+        unsafe { read_and_move::<i32>(ptr) }
+    } else {
+        -1
+    };
+    let name = unsafe { read_str_and_move(ptr, lengths[2] as usize) };
+    let flags = unsafe { read_and_move::<u32>(ptr) };
+    let mode = unsafe { read_and_move::<u32>(ptr) };
+    let dev = unsafe { read_and_move::<u32>(ptr) };
+    let ino = unsafe { read_and_move::<u64>(ptr) };
+    let pid = (ev.tgid_pid >> 32) as u32;
+    let tid = (ev.tgid_pid & 0xffffffff) as u32;
+    Ok(KrsiEvent {
+        tid,
+        pid,
+        content: KrsiEventContent::Open {
+            fd: fd as i32,
+            file_index,
+            name: String::from(name),
+            flags,
+            mode,
+            dev,
+            ino,
+        },
+    })
 }
 
 unsafe fn read_and_move<T>(ptr: &mut *const u8) -> T {
