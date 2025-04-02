@@ -28,6 +28,7 @@ pub fn get_event_num_params(event_type: EventType) -> u8 {
         // TODO(ekoops): try to generate the following numbers automatically.
         Ok(EventType::Open) => 7,
         Ok(EventType::Connect) => 4,
+        Ok(EventType::Socket) => 6,
         _ => 0,
     }
 }
