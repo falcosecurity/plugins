@@ -18,6 +18,7 @@ mod sockets;
 mod vmlinux;
 mod defs;
 mod helpers;
+mod iouring;
 mod operations;
 mod scap;
 
