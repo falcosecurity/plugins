@@ -1,4 +1,4 @@
-use crate::{defs, scap, shared_maps, sockets, vmlinux, FileDescriptor};
+use crate::{defs, get_event_num_params, scap, shared_maps, sockets, vmlinux, FileDescriptor};
 use aya_ebpf::bindings::BPF_RB_FORCE_WAKEUP;
 use aya_ebpf::cty::{c_char, c_uchar};
 use aya_ebpf::helpers::{
@@ -29,14 +29,14 @@ pub struct AuxiliaryMap {
 
 impl AuxiliaryMap {
     fn event_header_mut(&mut self) -> &mut EventHeader {
-        unsafe {&mut *self.data.as_mut_ptr().cast::<EventHeader>()}
+        unsafe { &mut *self.data.as_mut_ptr().cast::<EventHeader>() }
     }
 
     pub fn preload_event_header(&mut self, event_type: EventType) {
         let evt_hdr = self.event_header_mut();
-        let nparams = shared_maps::get_event_num_params(event_type);
+        let nparams = get_event_num_params(event_type);
         evt_hdr.nparams = nparams as u32;
-        evt_hdr.ts = shared_maps::get_boot_time() + unsafe {bpf_ktime_get_boot_ns()};
+        evt_hdr.ts = shared_maps::get_boot_time() + unsafe { bpf_ktime_get_boot_ns() };
         evt_hdr.tgid_pid = bpf_get_current_pid_tgid();
         evt_hdr.evt_type = event_type;
         self.payload_pos =
@@ -94,26 +94,28 @@ impl AuxiliaryMap {
         Ok(path_len)
     }
 
+    /// Store the socktuple obtained by extracting information from the provided socket and the
+    /// provided sockaddr. Returns the stored lengths.
     pub fn store_sock_tuple_param(
         &mut self,
         sock: *const vmlinux::socket,
         is_outbound: bool,
         sockaddr: *const vmlinux::sockaddr,
         is_kern_sockaddr: bool,
-    ) {
+    ) -> u16 {
         if sock.is_null() {
             self.store_empty_param();
-            return;
+            return 0;
         }
 
         let Ok(sk) = sockets::extract_socket_sk(sock) else {
             self.store_empty_param();
-            return;
+            return 0;
         };
 
         let Ok(sk_family) = sockets::extract_sock_family(sk) else {
             self.store_empty_param();
-            return;
+            return 0;
         };
 
         let final_parameter_len = match sk_family {
@@ -123,9 +125,10 @@ impl AuxiliaryMap {
             }
             defs::AF_UNIX => self.push_unix_sock_tuple(sk, is_outbound, sockaddr, is_kern_sockaddr),
             _ => 0,
-        };
+        } as u16;
 
-        self.push_param_len(final_parameter_len as u16);
+        self.push_param_len(final_parameter_len);
+        final_parameter_len
     }
 
     fn push_inet_sock_tuple(
@@ -262,7 +265,7 @@ impl AuxiliaryMap {
             Ok(FileDescriptor::Fd(fd)) => {
                 self.store_param(fd as i64);
                 self.store_empty_param();
-            },
+            }
             Ok(FileDescriptor::FileIndex(file_index)) => {
                 self.store_empty_param();
                 self.store_param(file_index);

@@ -1,28 +1,28 @@
+use aya::maps::RingBuf;
 use aya::programs::{FEntry, FExit};
+use aya::EbpfLoader;
+use falco_plugin::anyhow::Error;
+use falco_plugin::async_event::{AsyncEvent, AsyncEventPlugin, AsyncHandler};
+use falco_plugin::base::{Json, Plugin};
+use falco_plugin::event::events::types::{EventType, PPME_SYSCALL_CLONE_20_X};
+use falco_plugin::event::events::{Event, EventMetadata};
+use falco_plugin::event::fields::types::PT_PID;
+use falco_plugin::extract::{field, EventInput, ExtractFieldInfo, ExtractPlugin, ExtractRequest};
+use falco_plugin::parse::{ParseInput, ParsePlugin};
+use falco_plugin::schemars::JsonSchema;
+use falco_plugin::tables::import::{Entry, Field, Table, TableMetadata};
+use falco_plugin::tables::{LazyTableReader, LazyTableWriter, TablesInput};
+use falco_plugin::{async_event_plugin, extract_plugin, parse_plugin, plugin};
+use hashlru::Cache;
+use libc::{clock_gettime, timespec, CLOCK_BOOTTIME, CLOCK_REALTIME};
+use serde::Deserialize;
+use std::ffi::{CStr, CString};
 use std::str::FromStr;
 use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::thread::JoinHandle;
 use std::time::{Duration, SystemTime};
-use aya::maps::RingBuf;
-use falco_plugin::async_event::{AsyncEvent, AsyncEventPlugin, AsyncHandler};
-use falco_plugin::event::events::{Event, EventMetadata};
-use falco_plugin::tables::import::{Entry, Field, Table, TableMetadata};
-use falco_plugin::anyhow::Error;
-use falco_plugin::base::{Json, Plugin};
-use falco_plugin::event::events::types::{EventType, PPME_SYSCALL_CLONE_20_X};
-use falco_plugin::extract::{field, EventInput, ExtractFieldInfo, ExtractPlugin, ExtractRequest};
-use falco_plugin::schemars::JsonSchema;
-use falco_plugin::parse::{ParseInput, ParsePlugin};
-use serde::Deserialize;
-use falco_plugin::{async_event_plugin, extract_plugin, parse_plugin, plugin};
-use falco_plugin::tables::{LazyTableReader, LazyTableWriter, TablesInput};
-use std::ffi::{CStr, CString};
-use hashlru::Cache;
-use falco_plugin::event::fields::types::PT_PID;
-use std::sync::atomic::Ordering;
-use aya::EbpfLoader;
-use libc::{clock_gettime, timespec, CLOCK_BOOTTIME, CLOCK_REALTIME};
 #[rustfmt::skip]
 use log::debug;
 
@@ -49,36 +49,34 @@ struct ImportedThreadMetadata {
     pid: Field<i64, ImportedThread>,
     ptid: Field<i64, ImportedThread>,
     comm: Field<CStr, ImportedThread>,
-    file_descriptors: Field<ImportedFileDescriptorTable, ImportedThread>
-
-    // TODO there are more fields
-	// DEFINE_STATIC_FIELD(ret, self, m_tid, "tid");
-	// DEFINE_STATIC_FIELD(ret, self, m_pid, "pid");
-	// DEFINE_STATIC_FIELD(ret, self, m_ptid, "ptid");
-	// DEFINE_STATIC_FIELD(ret, self, m_reaper_tid, "reaper_tid");
-	// DEFINE_STATIC_FIELD(ret, self, m_sid, "sid");
-	// DEFINE_STATIC_FIELD(ret, self, m_comm, "comm");
-	// DEFINE_STATIC_FIELD(ret, self, m_exe, "exe");
-	// DEFINE_STATIC_FIELD(ret, self, m_exepath, "exe_path");
-	// DEFINE_STATIC_FIELD(ret, self, m_exe_writable, "exe_writable");
-	// DEFINE_STATIC_FIELD(ret, self, m_exe_upper_layer, "exe_upper_layer");
-	// DEFINE_STATIC_FIELD(ret, self, m_exe_lower_layer, "exe_lower_layer");
-	// DEFINE_STATIC_FIELD(ret, self, m_exe_from_memfd, "exe_from_memfd");
-	// DEFINE_STATIC_FIELD(ret, self, m_flags, "flags");
-	// DEFINE_STATIC_FIELD(ret, self, m_fdlimit, "fd_limit");
-	// DEFINE_STATIC_FIELD(ret, self, m_uid, "uid");
-	// DEFINE_STATIC_FIELD(ret, self, m_gid, "gid");
-	// DEFINE_STATIC_FIELD(ret, self, m_loginuid, "loginuid");
-	// DEFINE_STATIC_FIELD(ret, self, m_exe_ino, "exe_ino");
-	// DEFINE_STATIC_FIELD(ret, self, m_exe_ino_ctime, "exe_ino_ctime");
-	// DEFINE_STATIC_FIELD(ret, self, m_exe_ino_mtime, "exe_ino_mtime");
-	// DEFINE_STATIC_FIELD(ret, self, m_vtid, "vtid");
-	// DEFINE_STATIC_FIELD(ret, self, m_vpid, "vpid");
-	// DEFINE_STATIC_FIELD(ret, self, m_vpgid, "vpgid");
-	// DEFINE_STATIC_FIELD(ret, self, m_pgid, "pgid");
-	// DEFINE_STATIC_FIELD(ret, self, m_pidns_init_start_ts, "pidns_init_start_ts");
-	// DEFINE_STATIC_FIELD(ret, self, m_root, "root");
-	// DEFINE_STATIC_FIELD(ret, self, m_tty, "tty");
+    file_descriptors: Field<ImportedFileDescriptorTable, ImportedThread>, // TODO there are more fields
+                                                                          // DEFINE_STATIC_FIELD(ret, self, m_tid, "tid");
+                                                                          // DEFINE_STATIC_FIELD(ret, self, m_pid, "pid");
+                                                                          // DEFINE_STATIC_FIELD(ret, self, m_ptid, "ptid");
+                                                                          // DEFINE_STATIC_FIELD(ret, self, m_reaper_tid, "reaper_tid");
+                                                                          // DEFINE_STATIC_FIELD(ret, self, m_sid, "sid");
+                                                                          // DEFINE_STATIC_FIELD(ret, self, m_comm, "comm");
+                                                                          // DEFINE_STATIC_FIELD(ret, self, m_exe, "exe");
+                                                                          // DEFINE_STATIC_FIELD(ret, self, m_exepath, "exe_path");
+                                                                          // DEFINE_STATIC_FIELD(ret, self, m_exe_writable, "exe_writable");
+                                                                          // DEFINE_STATIC_FIELD(ret, self, m_exe_upper_layer, "exe_upper_layer");
+                                                                          // DEFINE_STATIC_FIELD(ret, self, m_exe_lower_layer, "exe_lower_layer");
+                                                                          // DEFINE_STATIC_FIELD(ret, self, m_exe_from_memfd, "exe_from_memfd");
+                                                                          // DEFINE_STATIC_FIELD(ret, self, m_flags, "flags");
+                                                                          // DEFINE_STATIC_FIELD(ret, self, m_fdlimit, "fd_limit");
+                                                                          // DEFINE_STATIC_FIELD(ret, self, m_uid, "uid");
+                                                                          // DEFINE_STATIC_FIELD(ret, self, m_gid, "gid");
+                                                                          // DEFINE_STATIC_FIELD(ret, self, m_loginuid, "loginuid");
+                                                                          // DEFINE_STATIC_FIELD(ret, self, m_exe_ino, "exe_ino");
+                                                                          // DEFINE_STATIC_FIELD(ret, self, m_exe_ino_ctime, "exe_ino_ctime");
+                                                                          // DEFINE_STATIC_FIELD(ret, self, m_exe_ino_mtime, "exe_ino_mtime");
+                                                                          // DEFINE_STATIC_FIELD(ret, self, m_vtid, "vtid");
+                                                                          // DEFINE_STATIC_FIELD(ret, self, m_vpid, "vpid");
+                                                                          // DEFINE_STATIC_FIELD(ret, self, m_vpgid, "vpgid");
+                                                                          // DEFINE_STATIC_FIELD(ret, self, m_pgid, "pgid");
+                                                                          // DEFINE_STATIC_FIELD(ret, self, m_pidns_init_start_ts, "pidns_init_start_ts");
+                                                                          // DEFINE_STATIC_FIELD(ret, self, m_root, "root");
+                                                                          // DEFINE_STATIC_FIELD(ret, self, m_tty, "tty");
 }
 
 type ImportedThread = Entry<Arc<ImportedThreadMetadata>>;
@@ -136,9 +134,9 @@ impl Plugin for KrsiPlugin {
             .set_max_entries("AUXILIARY_MAPS", cpus as u32)
             .set_global("BOOT_TIME", &boot_time, true)
             .load(aya::include_bytes_aligned!(concat!(
-            env!("OUT_DIR"),
-            "/krsi"
-        )))?;
+                env!("OUT_DIR"),
+                "/krsi"
+            )))?;
 
         Ok(Self {
             btf,
@@ -158,12 +156,18 @@ impl Plugin for KrsiPlugin {
 }
 
 fn get_precise_boot_time() -> Result<u64, Error> {
-    let mut boot_ts = timespec{tv_sec: 0, tv_nsec: 0};
+    let mut boot_ts = timespec {
+        tv_sec: 0,
+        tv_nsec: 0,
+    };
     if unsafe { clock_gettime(CLOCK_BOOTTIME, &mut boot_ts) } < 0 {
         return Err(anyhow::anyhow!("failed to get CLOCK_BOOTLINE"));
     }
 
-    let mut wall_ts  = timespec{tv_sec: 0, tv_nsec: 0};
+    let mut wall_ts = timespec {
+        tv_sec: 0,
+        tv_nsec: 0,
+    };
     if unsafe { clock_gettime(CLOCK_REALTIME, &mut wall_ts) } < 0 {
         return Err(anyhow::anyhow!("failed to get CLOCK_REALTIME"));
     }
@@ -175,9 +179,16 @@ fn timespec_to_nsec(ts: &timespec) -> u64 {
     (ts.tv_sec * 1000000000 + ts.tv_nsec) as u64
 }
 
-fn emit_async_event(handler: &AsyncHandler, event: &KrsiEvent, event_name: &CStr) -> Result<(), Error> {
+fn emit_async_event(
+    handler: &AsyncHandler,
+    event: &KrsiEvent,
+    event_name: &CStr,
+) -> Result<(), Error> {
     let serialized = bincode::serde::encode_to_vec(&event, bincode::config::legacy()).unwrap();
-    let ts = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos() as u64;
+    let ts = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos() as u64;
     let tid = event.tid;
 
     let event = AsyncEvent {
@@ -219,7 +230,8 @@ impl ParsePlugin for KrsiPlugin {
                 anyhow::bail!("Missing event data");
             };
 
-            let ev: KrsiEvent = bincode::serde::decode_from_slice(buf, bincode::config::legacy())?.0;
+            let ev: KrsiEvent =
+                bincode::serde::decode_from_slice(buf, bincode::config::legacy())?.0;
             let tid = ev.tid as i64;
             let pid = ev.pid as i64;
 
@@ -236,7 +248,15 @@ impl ParsePlugin for KrsiPlugin {
             if thread_exists {
                 // There is a thread, update the fd table and create the event
                 match ev.content {
-                    KrsiEventContent::Open { fd, file_index: _, name, flags, mode: _, dev, ino } => {
+                    KrsiEventContent::Open {
+                        fd,
+                        file_index: _,
+                        name,
+                        flags,
+                        mode: _,
+                        dev,
+                        ino,
+                    } => {
                         let thread = self.threads.get_entry(r, &tid)?;
                         let fd = fd as i64;
                         let fds = thread.get_file_descriptors(r)?;
@@ -255,9 +275,9 @@ impl ParsePlugin for KrsiPlugin {
                         fd_entry.set_ino(w, &ino)?;
 
                         // keep flags added by the syscall exit probe if present
-				        let mask: u32 = !(krsi_common::scap::PPM_O_F_CREATED - 1);
-				        let added_flags: u32 = flags & mask;
-				        let flags = flags | added_flags;
+                        let mask: u32 = !(krsi_common::scap::PPM_O_F_CREATED - 1);
+                        let added_flags: u32 = flags & mask;
+                        let flags = flags | added_flags;
                         fd_entry.set_flags(w, &flags)?;
 
                         event.params.name = Some(c"krsi_open");
@@ -306,7 +326,10 @@ impl AsyncEventPlugin for KrsiPlugin {
     const ASYNC_EVENTS: &'static [&'static str] = &["krsi_open", "krsi"];
     const EVENT_SOURCES: &'static [&'static str] = &["syscall"];
 
-    fn start_async(&mut self, handler: falco_plugin::async_event::AsyncHandler) -> Result<(), anyhow::Error> {
+    fn start_async(
+        &mut self,
+        handler: falco_plugin::async_event::AsyncHandler,
+    ) -> Result<(), anyhow::Error> {
         // stop the thread if it was already running
         if self.bt_thread.is_some() {
             self.stop_async()?;
@@ -333,7 +356,8 @@ impl AsyncEventPlugin for KrsiPlugin {
                     }
                 } else {
                     std::thread::sleep(retry_interval);
-                    retry_interval = std::cmp::min(retry_interval + retry_interval / 2, RETRY_INTERVAL_MAX);
+                    retry_interval =
+                        std::cmp::min(retry_interval + retry_interval / 2, RETRY_INTERVAL_MAX);
                 }
             }
             Ok(())
@@ -351,7 +375,13 @@ impl AsyncEventPlugin for KrsiPlugin {
 }
 
 impl KrsiPlugin {
-    fn create_child_thread(&mut self, r: &LazyTableReader<'_>, w: &LazyTableWriter<'_>, tid: i64, pid: i64) -> Result<(), Error> {
+    fn create_child_thread(
+        &mut self,
+        r: &LazyTableReader<'_>,
+        w: &LazyTableWriter<'_>,
+        tid: i64,
+        pid: i64,
+    ) -> Result<(), Error> {
         let process = self.threads.get_entry(r, &pid)?;
         let entry = self.threads.create_entry(w)?;
         entry.set_tid(w, &tid)?;
@@ -486,8 +516,10 @@ impl KrsiPlugin {
         fd_install_prog.load("fd_install", btf)?;
         fd_install_prog.attach()?;
 
-        let io_fixed_fd_install_prog: &mut FExit =
-            ebpf.program_mut("io_fixed_fd_install").unwrap().try_into()?;
+        let io_fixed_fd_install_prog: &mut FExit = ebpf
+            .program_mut("io_fixed_fd_install")
+            .unwrap()
+            .try_into()?;
         io_fixed_fd_install_prog.load("io_fixed_fd_install", &btf)?;
         io_fixed_fd_install_prog.attach()?;
 
@@ -506,8 +538,7 @@ impl KrsiPlugin {
         do_sys_openat2_e_prog.load("do_sys_openat2", btf)?;
         do_sys_openat2_e_prog.attach()?;
 
-        let io_openat2_x_prog: &mut FExit =
-            ebpf.program_mut("io_openat2_x").unwrap().try_into()?;
+        let io_openat2_x_prog: &mut FExit = ebpf.program_mut("io_openat2_x").unwrap().try_into()?;
         io_openat2_x_prog.load("io_openat2", &btf)?;
         io_openat2_x_prog.attach()?;
 
@@ -532,6 +563,16 @@ impl KrsiPlugin {
         io_connect_e_prog.load("io_connect", btf)?;
         io_connect_e_prog.attach()?;
 
+        // let sys_connect_x_prog: &mut FExit =
+        //     ebpf.program_mut("__sys_connect_x").unwrap().try_into()?;
+        // sys_connect_x_prog.load("__sys_connect", btf)?;
+        // sys_connect_x_prog.attach()?;
+        //
+        // let sys_connect_e_prog: &mut FEntry =
+        //     ebpf.program_mut("__sys_connect_e").unwrap().try_into()?;
+        // sys_connect_e_prog.load("__sys_connect", btf)?;
+        // sys_connect_e_prog.attach()?;
+
         // Socket creation tracking.
         let io_socket_x_prog: &mut FExit = ebpf.program_mut("io_socket_x").unwrap().try_into()?;
         io_socket_x_prog.load("io_socket", btf)?;
@@ -555,7 +596,7 @@ impl ExtractPlugin for KrsiPlugin {
         field("krsi.flags", &Self::extract_flags),
         field("krsi.mode", &Self::extract_mode),
         field("krsi.dev", &Self::extract_dev),
-        field("krsi.ino", &Self::extract_ino)
+        field("krsi.ino", &Self::extract_ino),
     ];
 }
 

@@ -3,6 +3,7 @@
 
 use aya_ebpf::macros::fexit;
 use aya_ebpf::programs::FExitContext;
+use krsi_common::EventType;
 use operations::*;
 
 mod auxmap;
@@ -15,6 +16,11 @@ mod sockets;
 #[allow(non_snake_case)]
 #[allow(non_upper_case_globals)]
 #[rustfmt::skip]
+/*
+To regenerate `vmlinux.rs`:
+aya-tool generate task_struct file inet_sock unix_sock sockaddr_in sockaddr_in6 io_uring_op \
+    io_socket io_connect io_async_msghdr > krsi-ebpf/src/vmlinux.rs
+*/
 mod vmlinux;
 mod defs;
 mod helpers;
@@ -69,4 +75,15 @@ fn io_fixed_fd_install(ctx: FExitContext) -> u32 {
         res |= handler(&ctx, file_descriptor, &file).unwrap_or(1);
     }
     res
+}
+
+// TODO(ekoops): move this function elsewhere.
+pub fn get_event_num_params(event_type: EventType) -> u8 {
+    match event_type.try_into() {
+        // TODO(ekoops): try to generate the following numbers automatically.
+        Ok(EventType::Open) => 7,
+        Ok(EventType::Connect) => 5,
+        Ok(EventType::Socket) => 6,
+        _ => 0,
+    }
 }

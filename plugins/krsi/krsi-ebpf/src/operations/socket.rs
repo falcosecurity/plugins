@@ -38,8 +38,7 @@ fn try_io_socket_x(ctx: FExitContext) -> Result<u32, i64> {
     auxmap.preload_event_header(EventType::Socket);
 
     let req: *const vmlinux::io_kiocb = unsafe { ctx.arg(0) };
-    let cmd = unsafe { &raw const (*req).__bindgen_anon_1.cmd };
-    let sock: *const vmlinux::io_socket = cmd.cast();
+    let sock: *const vmlinux::io_socket = iouring::extract::io_kiocb_cmd_ptr(req);
 
     let iou_ret: c_int = unsafe { ctx.arg(2) };
 
@@ -57,19 +56,19 @@ fn try_io_socket_x(ctx: FExitContext) -> Result<u32, i64> {
     }
 
     // Parameter 4: domain.
-    match iouring::extract_io_socket_domain(sock) {
+    match iouring::extract::io_socket_domain(sock) {
         Ok(sock_domain) => auxmap.store_param(sock_domain as u32),
         Err(_) => auxmap.store_empty_param(),
     };
 
     // Parameter 5: type.
-    match iouring::extract_io_socket_type(sock) {
+    match iouring::extract::io_socket_type(sock) {
         Ok(sock_type) => auxmap.store_param(sock_type as u32),
         Err(_) => auxmap.store_empty_param(),
     };
 
     // Parameter 6: proto.
-    match iouring::extract_io_socket_protocol(sock) {
+    match iouring::extract::io_socket_protocol(sock) {
         Ok(sock_proto) => auxmap.store_param(sock_proto as u32),
         Err(_) => auxmap.store_empty_param(),
     };
@@ -87,8 +86,8 @@ fn extract_file_descriptor(
     if iou_ret != defs::IOU_OK {
         return Ok(None);
     }
-    let cqe_res = iouring::extract_io_kiocb_cqe_res(req)?;
-    let file_slot = iouring::extract_io_socket_file_slot(sock)?;
+    let cqe_res = iouring::extract::io_kiocb_cqe_res(req)?;
+    let file_slot = iouring::extract::io_socket_file_slot(sock)?;
     let fixed = file_slot != 0;
     Ok(Some(if !fixed {
         FileDescriptor::Fd(cqe_res)
