@@ -84,6 +84,7 @@ pub fn get_event_num_params(event_type: EventType) -> u8 {
         Ok(EventType::Open) => 7,
         Ok(EventType::Connect) => 5,
         Ok(EventType::Socket) => 6,
+        Ok(EventType::Symlinkat) => 5,
         _ => 0,
     }
 }

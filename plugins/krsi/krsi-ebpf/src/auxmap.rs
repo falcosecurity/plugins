@@ -63,7 +63,7 @@ impl AuxiliaryMap {
     /// This helper stores the charbuf pointed by `charbuf` into the auxmap. We read until we find
     /// a `\0`, if the charbuf length is greater than `max_len_to_read`, we read up to
     /// `max_len_to_read-1` bytes and add the `\0`. `is_kern_mem` allows to specify if the `charbuf`
-    /// points to kernel or userspace memory.
+    /// points to kernel or userspace memory. In case of error, the auxmap is left untouched.
     pub unsafe fn store_charbuf_param(
         &mut self,
         charbuf: *const c_uchar,
@@ -312,10 +312,10 @@ impl AuxiliaryMap {
 
     /// Try to push the char buffer pointed by `charbuf` into the underlying buffer. The maximum
     /// length of the char buffer can be at most `max_len_to_read`. In case of success, returns the
-    /// number of written bytes. If the char buffer is empty, an empty string (corresponding to
-    /// `\0`, which has length of 1) is pushed: this means that in case of success, a strictly
-    /// positive integer is returned. `is_kern_mem` allows to specify if the `charbuf` points to
-    /// kernel or userspace memory.
+    /// number of written bytes. The written buffer always includes the `\0` character (even if it
+    /// points to an empty C string), and this is accounted in the returned number of written bytes:
+    /// this means that in case of success, a strictly positive integer is returned. `is_kern_mem`
+    /// allows to specify if the `charbuf` points to kernel or userspace memory.
     fn push_charbuf(
         &mut self,
         charbuf: *const c_uchar,
@@ -329,12 +329,7 @@ impl AuxiliaryMap {
         } else {
             unsafe { bpf_probe_read_user_str_bytes(charbuf, &mut self.data[pos..limit]) }?
         };
-        let written_bytes = written_str.len();
-        if written_bytes == 0 {
-            // Push '\0' and returns 1 as number of written bytes.
-            self.push(0_u8);
-            return Ok(1);
-        }
+        let written_bytes = written_str.len() + 1; // + 1 accounts for `\0`
         self.payload_pos += written_bytes as u64;
         Ok(written_bytes as u16)
     }

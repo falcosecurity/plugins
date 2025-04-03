@@ -169,3 +169,12 @@ pub const IORING_FILE_INDEX_ALLOC: u32 = !0;
 
 // `io_uring/io_uring.h` from kernel source tree.
 pub const IOU_OK: i32 = 0;
+
+/* Max path size. */
+
+pub const MAX_PATH: u16 = 4096;
+
+/* Types of directory notifications that may be requested. */
+
+// `/include/uapi/linux/fcntl.h` from kernel source tree.
+pub const AT_FDCWD: i32 = -100; // Special value for dirfd used to indicate openat should use the current working directory.
