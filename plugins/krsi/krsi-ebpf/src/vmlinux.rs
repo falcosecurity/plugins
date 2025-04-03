@@ -34339,6 +34339,30 @@ impl msghdr {
     }
 }
 #[repr(C)]
+#[derive(Copy, Clone)]
+pub struct io_async_msghdr {
+    pub __bindgen_anon_1: io_async_msghdr__bindgen_ty_1,
+    pub free_iov: *mut iovec,
+    pub uaddr: *mut sockaddr,
+    pub msg: msghdr,
+    pub addr: __kernel_sockaddr_storage,
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub union io_async_msghdr__bindgen_ty_1 {
+    pub fast_iov: [iovec; 8usize],
+    pub __bindgen_anon_1: io_async_msghdr__bindgen_ty_1__bindgen_ty_1,
+    pub cache: io_cache_entry,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct io_async_msghdr__bindgen_ty_1__bindgen_ty_1 {
+    pub fast_iov_one: iovec,
+    pub controllen: __kernel_size_t,
+    pub namelen: ::aya_ebpf::cty::c_int,
+    pub payloadlen: __kernel_size_t,
+}
+#[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct wait_page_queue {
     pub folio: *mut folio,
@@ -34400,6 +34424,15 @@ pub struct io_comp_batch {
     pub req_list: *mut request,
     pub need_ts: bool_,
     pub complete: ::core::option::Option<unsafe extern "C" fn(arg1: *mut io_comp_batch)>,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct io_connect {
+    pub file: *mut file,
+    pub addr: *mut sockaddr,
+    pub addr_len: ::aya_ebpf::cty::c_int,
+    pub in_progress: bool_,
+    pub seen_econnaborted: bool_,
 }
 #[repr(C)]
 #[derive(Copy, Clone)]

@@ -19,6 +19,7 @@
 //! 2. `fexit:__sys_connect_file`
 //! 3. `fexit:io_connect` | `fexit:__sys_connect`
 
+use crate::operations::connect::maps::ConnInfo;
 use crate::{defs, file, helpers, iouring, shared_maps, vmlinux, FileDescriptor};
 use aya_ebpf::cty::c_int;
 use aya_ebpf::macros::{fentry, fexit};
@@ -35,19 +36,12 @@ fn io_connect_e(ctx: FEntryContext) -> u32 {
 }
 
 fn try_io_connect_e(ctx: FEntryContext) -> Result<u32, i64> {
-    let req: *const vmlinux::io_kiocb = unsafe { ctx.arg(0) };
-    // TODO(ekoops): handle flags in kernel versions using the `io_req_flags_t` type.
-    let flags = iouring::extract_io_kiocb_flags(req)?;
-    let fd = iouring::extract_io_kiocb_cqe_fd(req)?;
-
-    const REQ_F_FIXED_FILE: u32 = 1;
-    let file_descriptor = if flags & REQ_F_FIXED_FILE == 0 {
-        FileDescriptor::Fd(fd)
-    } else {
-        FileDescriptor::FileIndex(fd)
-    };
     let pid = ctx.pid();
-    helpers::try_insert_map_entry(maps::get_conn_fds(), &pid, &file_descriptor)
+    let req: *const vmlinux::io_kiocb = unsafe { ctx.arg(0) };
+    let file_descriptor = iouring::get_io_kiocb_cqe_file_descriptor(req)?;
+    const IS_IOU: bool = true;
+    let conn_info = ConnInfo::new(file_descriptor, IS_IOU);
+    helpers::try_insert_map_entry(maps::get_conn_info_map(), &pid, &conn_info)
 }
 
 #[fentry]
@@ -58,8 +52,9 @@ fn __sys_connect_e(ctx: FEntryContext) -> u32 {
 fn try___sys_connect_e(ctx: FEntryContext) -> Result<u32, i64> {
     let pid = ctx.pid();
     let fd: c_int = unsafe { ctx.arg(0) };
-    let file_descriptor = FileDescriptor::Fd(fd as i32);
-    helpers::try_insert_map_entry(maps::get_conn_fds(), &pid, &file_descriptor)
+    const IS_IOU: bool = false;
+    let conn_info = ConnInfo::new(FileDescriptor::Fd(fd as i32), IS_IOU);
+    helpers::try_insert_map_entry(maps::get_conn_info_map(), &pid, &conn_info)
 }
 
 #[fexit]
@@ -69,30 +64,40 @@ fn __sys_connect_file(ctx: FExitContext) -> u32 {
 
 fn try___sys_connect_file(ctx: FExitContext) -> Result<u32, i64> {
     let pid = ctx.pid();
-    let Some(file_descriptor) = (unsafe { maps::get_conn_fds().get(&pid) }) else {
+    let Some(conn_info) = (unsafe { maps::get_conn_info_map().get_ptr_mut(&pid) }) else {
         return Ok(0);
     };
+
     let auxmap = shared_maps::get_auxiliary_map().ok_or(1)?;
     auxmap.preload_event_header(EventType::Connect);
 
-    // Parameter 1: res.
     let ret: c_int = unsafe { ctx.arg(4) };
-    auxmap.store_param(ret as i64);
 
-    let file = file::File::new(unsafe { ctx.arg(0) });
-    let sock: *const vmlinux::socket = file.extract_private_data().unwrap_or(null());
-
-    // Parameter 2: tuple.
-    if ret == 0 || ret == -defs::EINPROGRESS {
+    // Parameter 1: tuple.
+    let socktuple_len = if ret == 0 || ret == -defs::EINPROGRESS {
+        let file = file::File::new(unsafe { ctx.arg(0) });
+        let sock: *const vmlinux::socket = file.extract_private_data().unwrap_or(null());
         let sockaddr: *const vmlinux::sockaddr = unsafe { ctx.arg(1) };
-        auxmap.store_sock_tuple_param(sock, true, sockaddr, true);
+        auxmap.store_sock_tuple_param(sock, true, sockaddr, true)
     } else {
         auxmap.store_empty_param();
+        0
+    };
+
+    if unsafe { (*conn_info).is_iou } {
+        unsafe { (*conn_info).socktuple_len = socktuple_len };
+        return Ok(0);
     }
 
-    // Parameter 3: fd.
-    // Parameter 4: file_index.
-    auxmap.store_file_descriptor_param(*file_descriptor);
+    // Parameter 2: iou_ret.
+    auxmap.store_empty_param();
+
+    // Parameter 3: res.
+    auxmap.store_param(ret as i64);
+
+    // Parameter 4: fd.
+    // Parameter 5: file_index.
+    auxmap.store_file_descriptor_param(unsafe { (*conn_info).file_descriptor });
 
     auxmap.finalize_event_header();
     auxmap.submit_event();
@@ -101,12 +106,46 @@ fn try___sys_connect_file(ctx: FExitContext) -> Result<u32, i64> {
 
 #[fexit]
 fn io_connect_x(ctx: FExitContext) -> u32 {
+    try_io_connect_x(ctx).unwrap_or(1)
+}
+
+fn try_io_connect_x(ctx: FExitContext) -> Result<u32, i64> {
     let pid = ctx.pid();
-    helpers::try_remove_map_entry(maps::get_conn_fds(), &pid).unwrap_or(1)
+    let conn_info_map = maps::get_conn_info_map();
+    let Some(&conn_info) = (unsafe { conn_info_map.get(&pid) }) else {
+        return Err(1);
+    };
+
+    let _ = helpers::try_remove_map_entry(conn_info_map, &pid);
+
+    let auxmap = shared_maps::get_auxiliary_map().ok_or(1)?;
+    auxmap.preload_event_header(EventType::Connect);
+
+    // Parameter 1: tuple. (Already populated on fexit:__sys_connect_file)
+    auxmap.skip_param(conn_info.socktuple_len);
+
+    // Parameter 2: iou_ret.
+    let iou_ret: c_int = unsafe { ctx.arg(2) };
+    auxmap.store_param(iou_ret as i64);
+
+    // Parameter 3: res.
+    let req: *const vmlinux::io_kiocb = unsafe { ctx.arg(0) };
+    match iouring::get_io_kiocb_cqe_res(req, iou_ret) {
+        Ok(Some(cqe_res)) => auxmap.store_param(cqe_res as i64),
+        _ => auxmap.store_empty_param(),
+    }
+
+    // Parameter 4: fd.
+    // Parameter 5: file_index.
+    auxmap.store_file_descriptor_param(conn_info.file_descriptor);
+
+    auxmap.finalize_event_header();
+    auxmap.submit_event();
+    Ok(0)
 }
 
 #[fexit]
 fn __sys_connect_x(ctx: FExitContext) -> u32 {
     let pid = ctx.pid();
-    helpers::try_remove_map_entry(maps::get_conn_fds(), &pid).unwrap_or(1)
+    helpers::try_remove_map_entry(maps::get_conn_info_map(), &pid).unwrap_or(1)
 }
