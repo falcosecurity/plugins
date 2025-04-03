@@ -175,3 +175,11 @@ pub fn encode_socket_family(family: u16) -> u8 {
         _ => scap::PPM_AF_UNSPEC,
     }
 }
+
+pub fn encode_dirfd(dirfd: i32) -> i32 {
+    if dirfd == defs::AT_FDCWD {
+        scap::PPM_AT_FDCWD
+    } else {
+        dirfd
+    }
+}

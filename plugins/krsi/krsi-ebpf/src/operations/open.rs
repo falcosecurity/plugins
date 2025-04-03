@@ -52,8 +52,6 @@ pub fn security_file_open(ctx: FExitContext) -> u32 {
     unsafe { try_security_file_open(ctx) }.unwrap_or(1)
 }
 
-const MAX_PATH: u16 = 4096;
-
 unsafe fn try_security_file_open(ctx: FExitContext) -> Result<u32, i64> {
     let pid = ctx.pid();
     let open_pids_map = maps::get_open_pids_map();
@@ -75,7 +73,7 @@ unsafe fn try_security_file_open(ctx: FExitContext) -> Result<u32, i64> {
     auxmap.skip_param(size_of::<u32>() as u16); // skip file_index param.
     let file: *const vmlinux::file = ctx.arg(0);
     let path = &(*file).f_path as *const vmlinux::path;
-    let Ok(written_bytes) = auxmap.store_path_param(path, MAX_PATH) else {
+    let Ok(written_bytes) = auxmap.store_path_param(path, defs::MAX_PATH) else {
         return remove_open_pid(open_pids_map, pid);
     };
 
