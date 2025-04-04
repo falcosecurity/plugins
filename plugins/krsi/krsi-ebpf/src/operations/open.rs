@@ -31,7 +31,7 @@ mod maps;
 pub fn do_sys_openat2_e(ctx: FEntryContext) -> u32 {
     let pid = ctx.pid();
     const ZERO: u32 = 0;
-    match maps::get_open_pids_map().insert(&pid, &ZERO, 0) {
+    match maps::get_pids_map().insert(&pid, &ZERO, 0) {
         Ok(_) => 0,
         Err(_) => 1,
     }
@@ -41,7 +41,7 @@ pub fn do_sys_openat2_e(ctx: FEntryContext) -> u32 {
 pub fn io_openat2_e(ctx: FEntryContext) -> u32 {
     let pid = ctx.pid();
     const ZERO: u32 = 0;
-    match maps::get_open_pids_map().insert(&pid, &ZERO, 0) {
+    match maps::get_pids_map().insert(&pid, &ZERO, 0) {
         Ok(_) => 0,
         Err(_) => 1,
     }
@@ -54,18 +54,18 @@ pub fn security_file_open(ctx: FExitContext) -> u32 {
 
 unsafe fn try_security_file_open(ctx: FExitContext) -> Result<u32, i64> {
     let pid = ctx.pid();
-    let open_pids_map = maps::get_open_pids_map();
-    if open_pids_map.get(&pid).is_none() {
+    let pids_map = maps::get_pids_map();
+    if pids_map.get(&pid).is_none() {
         return Ok(0);
     };
 
     let ret: c_int = unsafe { ctx.arg(1) };
     if ret != 0 {
-        return remove_open_pid(open_pids_map, pid);
+        return remove_open_pid(pids_map, pid);
     }
 
     let Some(auxmap) = shared_maps::get_auxiliary_map() else {
-        return remove_open_pid(open_pids_map, pid);
+        return remove_open_pid(pids_map, pid);
     };
 
     auxmap.preload_event_header(EventType::Open);
@@ -75,12 +75,12 @@ unsafe fn try_security_file_open(ctx: FExitContext) -> Result<u32, i64> {
     let path = &(*file).f_path as *const vmlinux::path;
     match auxmap.store_path_param(path, defs::MAX_PATH) {
         Ok(_) => Ok(0),
-        Err(_) => remove_open_pid(open_pids_map, pid),
+        Err(_) => remove_open_pid(pids_map, pid),
     }
 }
 
-fn remove_open_pid(open_pids_map: &HashMap<u32, u32>, pid: u32) -> Result<u32, i64> {
-    match open_pids_map.remove(&pid) {
+fn remove_open_pid(pids_map: &HashMap<u32, u32>, pid: u32) -> Result<u32, i64> {
+    match pids_map.remove(&pid) {
         Ok(_) => Ok(0),
         Err(_) => Err(1),
     }
@@ -92,7 +92,7 @@ pub fn try_fd_install(
     file: &file::File,
 ) -> Result<u32, i64> {
     let pid = ctx.pid();
-    let Some(&file_path_len) = (unsafe { maps::get_open_pids_map().get(&pid) }) else {
+    let Some(&file_path_len) = (unsafe { maps::get_pids_map().get(&pid) }) else {
         return Ok(0);
     };
     let file_path_len = file_path_len as u16;
@@ -144,7 +144,7 @@ pub fn try_fd_install(
         };
         let fd = match file_descriptor.try_into() {
             Ok(FileDescriptor::Fd(fd)) => fd,
-            Ok(FileDescriptor::FileIndex(file_index)) => file_index
+            Ok(FileDescriptor::FileIndex(file_index)) => file_index,
         };
         let pid = ctx.pid();
         info!(
@@ -166,7 +166,7 @@ pub fn try_fd_install(
 #[fexit]
 pub fn do_sys_openat2_x(ctx: FExitContext) -> u32 {
     let pid = ctx.pid();
-    match maps::get_open_pids_map().remove(&pid) {
+    match maps::get_pids_map().remove(&pid) {
         Ok(_) => 0,
         Err(_) => 1,
     }
@@ -175,7 +175,7 @@ pub fn do_sys_openat2_x(ctx: FExitContext) -> u32 {
 #[fexit]
 pub fn io_openat2_x(ctx: FExitContext) -> u32 {
     let pid = ctx.pid();
-    match maps::get_open_pids_map().remove(&pid) {
+    match maps::get_pids_map().remove(&pid) {
         Ok(_) => 0,
         Err(_) => 1,
     }
