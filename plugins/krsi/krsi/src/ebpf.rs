@@ -1,5 +1,5 @@
-use anyhow::Error;
 use crate::flags::FeatureFlags;
+use anyhow::Error;
 use aya::maps::RingBuf;
 use aya::programs::{FEntry, FExit};
 use aya::EbpfLoader;
@@ -88,21 +88,24 @@ impl Ebpf {
         feature_flags: &FeatureFlags,
     ) -> Result<(), anyhow::Error> {
         if !feature_flags.is_empty() {
-            let fd_install_prog: &mut FExit = ebpf.program_mut("fd_install").unwrap().try_into()?;
-            fd_install_prog.load("fd_install", btf)?;
-            fd_install_prog.attach()?;
+            let fd_install_x_prog: &mut FExit =
+                ebpf.program_mut("fd_install_x").unwrap().try_into()?;
+            fd_install_x_prog.load("fd_install", btf)?;
+            fd_install_x_prog.attach()?;
 
-            let io_fixed_fd_install_prog: &mut FExit = ebpf
-                .program_mut("io_fixed_fd_install")
+            let io_fixed_fd_install_x_prog: &mut FExit = ebpf
+                .program_mut("io_fixed_fd_install_x")
                 .unwrap()
                 .try_into()?;
-            io_fixed_fd_install_prog.load("io_fixed_fd_install", btf)?;
-            io_fixed_fd_install_prog.attach()?;
+            io_fixed_fd_install_x_prog.load("io_fixed_fd_install", btf)?;
+            io_fixed_fd_install_x_prog.attach()?;
 
-            let sec_file_open_prog: &mut FExit =
-                ebpf.program_mut("security_file_open").unwrap().try_into()?;
-            sec_file_open_prog.load("security_file_open", btf)?;
-            sec_file_open_prog.attach()?;
+            let sec_file_open_x_prog: &mut FExit = ebpf
+                .program_mut("security_file_open_x")
+                .unwrap()
+                .try_into()?;
+            sec_file_open_x_prog.load("security_file_open", btf)?;
+            sec_file_open_x_prog.attach()?;
         }
 
         if feature_flags.contains(FeatureFlags::ENABLE_IO_URING_SUPPORT) {
