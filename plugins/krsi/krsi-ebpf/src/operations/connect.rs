@@ -19,7 +19,7 @@
 //! 2. `fexit:__sys_connect_file`
 //! 3. `fexit:io_connect` | `fexit:__sys_connect`
 
-use crate::operations::connect::maps::ConnInfo;
+use crate::operations::connect::maps::Info;
 use crate::{defs, file, helpers, iouring, shared_maps, vmlinux, FileDescriptor};
 use aya_ebpf::cty::c_int;
 use aya_ebpf::macros::{fentry, fexit};
@@ -40,8 +40,8 @@ fn try_io_connect_e(ctx: FEntryContext) -> Result<u32, i64> {
     let req: *const vmlinux::io_kiocb = unsafe { ctx.arg(0) };
     let file_descriptor = iouring::get_io_kiocb_cqe_file_descriptor(req)?;
     const IS_IOU: bool = true;
-    let conn_info = ConnInfo::new(file_descriptor, IS_IOU);
-    helpers::try_insert_map_entry(maps::get_conn_info_map(), &pid, &conn_info)
+    let info = Info::new(file_descriptor, IS_IOU);
+    helpers::try_insert_map_entry(maps::get_info_map(), &pid, &info)
 }
 
 #[fentry]
@@ -53,18 +53,18 @@ fn try___sys_connect_e(ctx: FEntryContext) -> Result<u32, i64> {
     let pid = ctx.pid();
     let fd: c_int = unsafe { ctx.arg(0) };
     const IS_IOU: bool = false;
-    let conn_info = ConnInfo::new(FileDescriptor::Fd(fd as i32), IS_IOU);
-    helpers::try_insert_map_entry(maps::get_conn_info_map(), &pid, &conn_info)
+    let info = Info::new(FileDescriptor::Fd(fd as i32), IS_IOU);
+    helpers::try_insert_map_entry(maps::get_info_map(), &pid, &info)
 }
 
 #[fexit]
-fn __sys_connect_file(ctx: FExitContext) -> u32 {
-    try___sys_connect_file(ctx).unwrap_or(1)
+fn __sys_connect_file_x(ctx: FExitContext) -> u32 {
+    try___sys_connect_file_x(ctx).unwrap_or(1)
 }
 
-fn try___sys_connect_file(ctx: FExitContext) -> Result<u32, i64> {
+fn try___sys_connect_file_x(ctx: FExitContext) -> Result<u32, i64> {
     let pid = ctx.pid();
-    let Some(conn_info) = (unsafe { maps::get_conn_info_map().get_ptr_mut(&pid) }) else {
+    let Some(info) = (unsafe { maps::get_info_map().get_ptr_mut(&pid) }) else {
         return Ok(0);
     };
 
@@ -84,8 +84,8 @@ fn try___sys_connect_file(ctx: FExitContext) -> Result<u32, i64> {
         0
     };
 
-    if unsafe { (*conn_info).is_iou } {
-        unsafe { (*conn_info).socktuple_len = socktuple_len };
+    if unsafe { (*info).is_iou } {
+        unsafe { (*info).socktuple_len = socktuple_len };
         return Ok(0);
     }
 
@@ -97,7 +97,7 @@ fn try___sys_connect_file(ctx: FExitContext) -> Result<u32, i64> {
 
     // Parameter 4: fd.
     // Parameter 5: file_index.
-    auxmap.store_file_descriptor_param(unsafe { (*conn_info).file_descriptor });
+    auxmap.store_file_descriptor_param(unsafe { (*info).file_descriptor });
 
     auxmap.finalize_event_header();
     auxmap.submit_event();
@@ -111,8 +111,8 @@ fn io_connect_x(ctx: FExitContext) -> u32 {
 
 fn try_io_connect_x(ctx: FExitContext) -> Result<u32, i64> {
     let pid = ctx.pid();
-    let conn_info_map = maps::get_conn_info_map();
-    let Some(&conn_info) = (unsafe { conn_info_map.get(&pid) }) else {
+    let conn_info_map = maps::get_info_map();
+    let Some(&info) = (unsafe { conn_info_map.get(&pid) }) else {
         return Err(1);
     };
 
@@ -122,7 +122,7 @@ fn try_io_connect_x(ctx: FExitContext) -> Result<u32, i64> {
     auxmap.preload_event_header(EventType::Connect);
 
     // Parameter 1: tuple. (Already populated on fexit:__sys_connect_file)
-    auxmap.skip_param(conn_info.socktuple_len);
+    auxmap.skip_param(info.socktuple_len);
 
     // Parameter 2: iou_ret.
     let iou_ret: c_int = unsafe { ctx.arg(2) };
@@ -137,7 +137,7 @@ fn try_io_connect_x(ctx: FExitContext) -> Result<u32, i64> {
 
     // Parameter 4: fd.
     // Parameter 5: file_index.
-    auxmap.store_file_descriptor_param(conn_info.file_descriptor);
+    auxmap.store_file_descriptor_param(info.file_descriptor);
 
     auxmap.finalize_event_header();
     auxmap.submit_event();
@@ -147,5 +147,5 @@ fn try_io_connect_x(ctx: FExitContext) -> Result<u32, i64> {
 #[fexit]
 fn __sys_connect_x(ctx: FExitContext) -> u32 {
     let pid = ctx.pid();
-    helpers::try_remove_map_entry(maps::get_conn_info_map(), &pid).unwrap_or(1)
+    helpers::try_remove_map_entry(maps::get_info_map(), &pid).unwrap_or(1)
 }
