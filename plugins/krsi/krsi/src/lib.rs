@@ -25,8 +25,12 @@ use std::thread::JoinHandle;
 use std::time::{Duration, SystemTime};
 #[rustfmt::skip]
 use log::debug;
+use crate::flags::FeatureFlags;
 
 mod krsi_event;
+mod ebpf;
+mod flags;
+
 use crate::krsi_event::{KrsiEvent, KrsiEventContent};
 
 #[derive(TableMetadata)]
@@ -83,8 +87,8 @@ type ImportedThread = Entry<Arc<ImportedThreadMetadata>>;
 type ImportedThreadTable = Table<i64, ImportedThread>;
 
 pub struct KrsiPlugin {
-    btf: aya::Btf,
-    ebpf: aya::Ebpf,
+    ebpf: ebpf::Ebpf,
+    feature_flags: FeatureFlags,
     threads: ImportedThreadTable,
     async_handler: Option<Arc<AsyncHandler>>,
     missing_events: Cache<i64, Vec<krsi_event::KrsiEvent>>,
@@ -107,40 +111,14 @@ impl Plugin for KrsiPlugin {
     type ConfigType = Json<Config>;
 
     fn new(input: Option<&TablesInput>, Json(_config): Self::ConfigType) -> Result<Self, Error> {
+        let ebpf = ebpf::Ebpf::try_new(false)?;
         let input = input.ok_or_else(|| anyhow::anyhow!("did not get table input"))?;
         let threads: ImportedThreadTable = input.get_table(c"threads")?;
-
-        // Bump the memlock rlimit. This is needed for older kernels that don't use the
-        // new memcg based accounting, see https://lwn.net/Articles/837122/
-        let rlim = libc::rlimit {
-            rlim_cur: libc::RLIM_INFINITY,
-            rlim_max: libc::RLIM_INFINITY,
-        };
-
-        let ret = unsafe { libc::setrlimit(libc::RLIMIT_MEMLOCK, &rlim) };
-        if ret != 0 {
-            debug!("remove limit on locked memory failed, ret is: {}", ret);
-        }
-
-        let btf = aya::Btf::from_sys_fs()?;
-
-        // This will include your eBPF object file as raw bytes at compile-time and load it at
-        // runtime. This approach is recommended for most real-world use cases. If you would
-        // like to specify the eBPF program at runtime rather than at compile-time, you can
-        // reach for `Bpf::load_file` instead.
-        let cpus = num_cpus::get();
-        let boot_time = get_precise_boot_time()?;
-        let ebpf = EbpfLoader::new()
-            .set_max_entries("AUXILIARY_MAPS", cpus as u32)
-            .set_global("BOOT_TIME", &boot_time, true)
-            .load(aya::include_bytes_aligned!(concat!(
-                env!("OUT_DIR"),
-                "/krsi"
-            )))?;
-
+        // TODO(ekoops): allow the customize the feature flags at runtime.
+        let feature_flags = FeatureFlags::ENABLE_IO_URING_SUPPORT;
         Ok(Self {
-            btf,
             ebpf,
+            feature_flags,
             threads,
             async_handler: None,
             missing_events: Cache::new(1024),
@@ -153,30 +131,6 @@ impl Plugin for KrsiPlugin {
     fn set_config(&mut self, _config: Self::ConfigType) -> Result<(), Error> {
         Ok(())
     }
-}
-
-fn get_precise_boot_time() -> Result<u64, Error> {
-    let mut boot_ts = timespec {
-        tv_sec: 0,
-        tv_nsec: 0,
-    };
-    if unsafe { clock_gettime(CLOCK_BOOTTIME, &mut boot_ts) } < 0 {
-        return Err(anyhow::anyhow!("failed to get CLOCK_BOOTLINE"));
-    }
-
-    let mut wall_ts = timespec {
-        tv_sec: 0,
-        tv_nsec: 0,
-    };
-    if unsafe { clock_gettime(CLOCK_REALTIME, &mut wall_ts) } < 0 {
-        return Err(anyhow::anyhow!("failed to get CLOCK_REALTIME"));
-    }
-
-    Ok(timespec_to_nsec(&wall_ts) - timespec_to_nsec(&boot_ts))
-}
-
-fn timespec_to_nsec(ts: &timespec) -> u64 {
-    (ts.tv_sec * 1000000000 + ts.tv_nsec) as u64
 }
 
 fn emit_async_event(
@@ -335,9 +289,8 @@ impl AsyncEventPlugin for KrsiPlugin {
             self.stop_async()?;
         }
 
-        self.load_and_attach_ebpf_programs()?;
-
-        let mut ring_buf = RingBuf::try_from(self.ebpf.take_map("EVENTS").unwrap())?;
+        self.ebpf.load_and_attach_programs(&self.feature_flags)?;
+        let mut ring_buf = self.ebpf.ring_buffer()?;
 
         let handler = Arc::new(handler);
         self.async_handler = Some(handler.clone());
@@ -505,83 +458,6 @@ impl KrsiPlugin {
         let ev: KrsiEvent = bincode::serde::decode_from_slice(buf, bincode::config::legacy())?.0;
         let KrsiEventContent::Open { ino, .. } = ev.content;
         Ok(ino)
-    }
-
-    fn load_and_attach_ebpf_programs(&mut self) -> Result<(), Error> {
-        let ebpf = &mut self.ebpf;
-        let btf = &self.btf;
-
-        // File opening tracking
-        let fd_install_prog: &mut FEntry = ebpf.program_mut("fd_install").unwrap().try_into()?;
-        fd_install_prog.load("fd_install", btf)?;
-        fd_install_prog.attach()?;
-
-        let io_fixed_fd_install_prog: &mut FExit = ebpf
-            .program_mut("io_fixed_fd_install")
-            .unwrap()
-            .try_into()?;
-        io_fixed_fd_install_prog.load("io_fixed_fd_install", &btf)?;
-        io_fixed_fd_install_prog.attach()?;
-
-        let sec_file_open_prog: &mut FExit =
-            ebpf.program_mut("security_file_open").unwrap().try_into()?;
-        sec_file_open_prog.load("security_file_open", btf)?;
-        sec_file_open_prog.attach()?;
-
-        let do_sys_openat2_x_prog: &mut FExit =
-            ebpf.program_mut("do_sys_openat2_x").unwrap().try_into()?;
-        do_sys_openat2_x_prog.load("do_sys_openat2", btf)?;
-        do_sys_openat2_x_prog.attach()?;
-
-        let do_sys_openat2_e_prog: &mut FEntry =
-            ebpf.program_mut("do_sys_openat2_e").unwrap().try_into()?;
-        do_sys_openat2_e_prog.load("do_sys_openat2", btf)?;
-        do_sys_openat2_e_prog.attach()?;
-
-        let io_openat2_x_prog: &mut FExit = ebpf.program_mut("io_openat2_x").unwrap().try_into()?;
-        io_openat2_x_prog.load("io_openat2", &btf)?;
-        io_openat2_x_prog.attach()?;
-
-        let io_openat2_e_prog: &mut FEntry =
-            ebpf.program_mut("io_openat2_e").unwrap().try_into()?;
-        io_openat2_e_prog.load("io_openat2", &btf)?;
-        io_openat2_e_prog.attach()?;
-
-        // Socket connection tracking.
-        let sys_connect_file_prog: &mut FExit =
-            ebpf.program_mut("__sys_connect_file").unwrap().try_into()?;
-        sys_connect_file_prog.load("__sys_connect_file", btf)?;
-        sys_connect_file_prog.attach()?;
-
-        let io_connect_x_prog: &mut FExit =
-            ebpf.program_mut("io_connect_x").unwrap().try_into()?;
-        io_connect_x_prog.load("io_connect", btf)?;
-        io_connect_x_prog.attach()?;
-
-        let io_connect_e_prog: &mut FEntry =
-            ebpf.program_mut("io_connect_e").unwrap().try_into()?;
-        io_connect_e_prog.load("io_connect", btf)?;
-        io_connect_e_prog.attach()?;
-
-        // let sys_connect_x_prog: &mut FExit =
-        //     ebpf.program_mut("__sys_connect_x").unwrap().try_into()?;
-        // sys_connect_x_prog.load("__sys_connect", btf)?;
-        // sys_connect_x_prog.attach()?;
-        //
-        // let sys_connect_e_prog: &mut FEntry =
-        //     ebpf.program_mut("__sys_connect_e").unwrap().try_into()?;
-        // sys_connect_e_prog.load("__sys_connect", btf)?;
-        // sys_connect_e_prog.attach()?;
-
-        // Socket creation tracking.
-        let io_socket_x_prog: &mut FExit = ebpf.program_mut("io_socket_x").unwrap().try_into()?;
-        io_socket_x_prog.load("io_socket", btf)?;
-        io_socket_x_prog.attach()?;
-
-        // let sys_socket_x_prog: &mut FExit = ebpf.program_mut("__sys_socket_x").unwrap().try_into()?;
-        // sys_socket_x_prog.load("__sys_socket", btf)?;
-        // sys_socket_x_prog.attach()?;
-        Ok(())
     }
 }
 

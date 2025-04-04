@@ -586,6 +586,7 @@ dependencies = [
  "aya-build",
  "aya-log",
  "bincode",
+ "bitflags",
  "env_logger",
  "falco_plugin",
  "hashlru",
