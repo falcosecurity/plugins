@@ -183,3 +183,17 @@ pub fn encode_dirfd(dirfd: i32) -> i32 {
         dirfd
     }
 }
+
+pub fn encode_linkat_flags(flags: i32) -> i32 {
+    let mut res = 0_i32;
+
+    if flags & defs::AT_SYMLINK_FOLLOW != 0 {
+        res |= scap::PPM_AT_SYMLINK_FOLLOW;
+    }
+
+    if flags & defs::AT_EMPTY_PATH != 0 {
+        res |= scap::PPM_AT_EMPTY_PATH;
+    }
+
+    res
+}

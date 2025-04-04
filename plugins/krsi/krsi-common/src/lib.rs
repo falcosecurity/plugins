@@ -9,6 +9,7 @@ pub enum EventType {
     Connect = 1,
     Socket = 2,
     Symlinkat = 3,
+    Linkat = 4,
 }
 
 impl TryFrom<u16> for EventType {
@@ -20,6 +21,7 @@ impl TryFrom<u16> for EventType {
             x if x == EventType::Connect as u16 => Ok(EventType::Connect),
             x if x == EventType::Socket as u16 => Ok(EventType::Socket),
             x if x == EventType::Symlinkat as u16 => Ok(EventType::Symlinkat),
+            x if x == EventType::Linkat as u16 => Ok(EventType::Linkat),
             _ => Err(()),
         }
     }

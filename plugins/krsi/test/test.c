@@ -82,7 +82,6 @@ static int io_uring_socket(struct io_uring *ring, int domain, int type, int prot
 	} else {
 		io_uring_prep_socket(sqe, domain, type, protocol, flags);
 	}
-
 	return submit_and_wait(ring);
 }
 
@@ -94,7 +93,17 @@ static int io_uring_symlinkat(struct io_uring *ring, char *target, int newdirfd,
    	}
 
    	io_uring_prep_symlinkat(sqe, target, newdirfd, linkpath);
+   	return submit_and_wait(ring);
+}
 
+static int io_uring_linkat(struct io_uring *ring, int olddirfd, char *oldpath, int newdirfd, char *newpath, int flags) {
+   	struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
+   	if (!sqe) {
+        fprintf(stderr, "io_uring_linkat: io_uring_get_sqe failed\n");
+   		return -1;
+   	}
+
+   	io_uring_prep_linkat(sqe, olddirfd, oldpath, newdirfd, newpath, flags);
    	return submit_and_wait(ring);
 }
 
@@ -109,7 +118,6 @@ static int io_uring_read(struct io_uring *ring, int fd, char *buf, unsigned int 
     if (use_file_indexes) {
         sqe->flags |= IOSQE_FIXED_FILE;
     }
-
     return submit_and_wait(ring);
 }
 
@@ -124,7 +132,6 @@ static int io_uring_write(struct io_uring *ring, int fd, char *buf, unsigned int
     if (use_file_indexes) {
         sqe->flags |= IOSQE_FIXED_FILE;
     }
-
     return submit_and_wait(ring);
 }
 
@@ -140,7 +147,6 @@ static int io_uring_close(struct io_uring *ring, int fd, bool use_file_indexes) 
 	} else {
 		io_uring_prep_close(sqe, fd);
 	}
-
     return submit_and_wait(ring);
 }
 
@@ -164,11 +170,20 @@ static int do_socket(struct io_uring *ring, int domain, int type, int protocol, 
 
 static int do_symlinkat(struct io_uring *ring, char *target, int newdirfd, char *linkpath, bool use_syscalls, bool use_file_indexes) {
     if (use_file_indexes) {
-        printf("warning: do_symlinkat: file indexes not supported by symlinkat");
+        printf("warning: do_symlinkat: file indexes not supported by symlinkat\n");
     }
     return use_syscalls ?
         symlinkat(target, newdirfd, linkpath) :
         io_uring_symlinkat(ring, target, newdirfd, linkpath);
+}
+
+static int do_linkat(struct io_uring *ring, int olddirfd, char *oldpath, int newdirfd, char *newpath, int flags, bool use_syscalls, bool use_file_indexes) {
+    if (use_file_indexes) {
+        printf("warning: do_linkat: file indexes not supported by linkat\n");
+    }
+    return use_syscalls ?
+        linkat(olddirfd, oldpath, newdirfd, newpath, flags) :
+        io_uring_linkat(ring, olddirfd, oldpath, newdirfd, newpath, flags);
 }
 
 static int do_read(struct io_uring *ring, int fd, char *buf, unsigned int nbytes, uint64_t offset, bool use_syscalls, bool use_file_indexes) {
@@ -305,6 +320,21 @@ static int test_symlinkat(struct io_uring *ring, bool use_syscalls, bool use_fil
     return 0;
 }
 
+static int test_linkat(struct io_uring *ring, bool use_syscalls, bool use_file_indexes) {
+    // Create a link to /etc/passwd under /tmp/link_to_passwd.
+    int olddirfd = AT_FDCWD;
+    char *oldpath = "/etc/passwd";
+    int newdirfd = AT_FDCWD;
+    char *newpath = "/tmp/link_to_passwd";
+    int flags = AT_SYMLINK_FOLLOW;
+    int ret = do_linkat(ring, olddirfd, oldpath, newdirfd, newpath, flags, use_syscalls, use_file_indexes);
+    if (ret < 0) {
+        return -1;
+    }
+    unlink(newpath);
+    return 0;
+}
+
 static int test_read(struct io_uring *ring, bool use_syscalls, bool use_file_indexes) {
     int dirfd = AT_FDCWD;
     char *pathname = "/etc/passwd";
@@ -348,14 +378,17 @@ int main(int argc, char **argv) {
         int (*test_func)(struct io_uring *ring, bool use_syscalls, bool use_file_indexes);
     };
 
+#define TEST(test_name) {.name = #test_name, .test_func = test_name}
     struct test tests[] = {
-        {.name = "test_openat", .test_func = test_openat},
-        {.name = "test_connect", .test_func = test_connect},
-        {.name = "test_socket", .test_func = test_socket},
-        {.name = "test_symlinkat", .test_func = test_symlinkat},
-        {.name = "test_read", .test_func = test_read},
+        TEST(test_openat),
+        TEST(test_connect),
+        TEST(test_socket),
+        TEST(test_symlinkat),
+        TEST(test_linkat),
+        TEST(test_read),
         {.name = "", .test_func = NULL},
     };
+#undef TEST
     for (struct test *cur_test = &tests[0]; cur_test->test_func != NULL; cur_test++) {
         ret = cur_test->test_func(&ring, use_syscalls, use_file_indexes);
         if (ret < 0) {

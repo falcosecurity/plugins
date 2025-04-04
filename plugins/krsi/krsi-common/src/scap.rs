@@ -82,3 +82,7 @@ pub const PPM_AF_NFC: u8 = 39; // NFC sockets
 
 // Dirfd-related flags.
 pub const PPM_AT_FDCWD: i32 = -100;
+
+// linkat flags.
+pub const PPM_AT_SYMLINK_FOLLOW: i32 = 0x400;
+pub const PPM_AT_EMPTY_PATH: i32 = 0x1000;
