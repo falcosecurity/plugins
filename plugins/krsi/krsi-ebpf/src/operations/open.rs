@@ -55,7 +55,7 @@ pub fn security_file_open(ctx: FExitContext) -> u32 {
 unsafe fn try_security_file_open(ctx: FExitContext) -> Result<u32, i64> {
     let pid = ctx.pid();
     let open_pids_map = maps::get_open_pids_map();
-    let Some(file_path_len) = open_pids_map.get_ptr_mut(&pid) else {
+    if open_pids_map.get(&pid).is_none() {
         return Ok(0);
     };
 
@@ -69,16 +69,14 @@ unsafe fn try_security_file_open(ctx: FExitContext) -> Result<u32, i64> {
     };
 
     auxmap.preload_event_header(EventType::Open);
-    auxmap.skip_param(size_of::<i64>() as u16); // skip fd param.
-    auxmap.skip_param(size_of::<u32>() as u16); // skip file_index param.
+
+    // Parameter 1: name.
     let file: *const vmlinux::file = ctx.arg(0);
     let path = &(*file).f_path as *const vmlinux::path;
-    let Ok(written_bytes) = auxmap.store_path_param(path, defs::MAX_PATH) else {
-        return remove_open_pid(open_pids_map, pid);
-    };
-
-    *file_path_len = written_bytes as u32;
-    Ok(0)
+    match auxmap.store_path_param(path, defs::MAX_PATH) {
+        Ok(_) => Ok(0),
+        Err(_) => remove_open_pid(open_pids_map, pid),
+    }
 }
 
 fn remove_open_pid(open_pids_map: &HashMap<u32, u32>, pid: u32) -> Result<u32, i64> {
@@ -100,17 +98,12 @@ pub fn try_fd_install(
     let file_path_len = file_path_len as u16;
 
     let auxmap = shared_maps::get_auxiliary_map().ok_or(1)?;
-    auxmap.preload_event_header(EventType::Open);
+    // Don't call auxmap.preload_event_header, because we want to continue to append to the work
+    // already done on `fexit:security_file_open`.
 
-    // Parameter 1: fd.
-    // Parameter 2: file_index.
+    // Parameter 2: fd.
+    // Parameter 3: file_index.
     auxmap.store_file_descriptor_param(file_descriptor);
-
-    // Parameter 3: name.
-    // The file path has already been stored by the fexit program on `security_file_open` hook, as
-    // it is only one of the few places allowed to call the `bpf_d_path` helper to obtain the full
-    // file path.
-    auxmap.skip_param(file_path_len);
 
     let (dev, ino, overlay) = unsafe {
         file.extract_dev_ino_overlay()
