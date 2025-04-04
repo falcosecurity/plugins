@@ -1,5 +1,4 @@
 use crate::flags::FeatureFlags;
-use anyhow::Error;
 use aya::maps::RingBuf;
 use aya::programs::{FEntry, FExit};
 use aya::EbpfLoader;
@@ -44,7 +43,7 @@ impl Ebpf {
         Ok(Self { btf, ebpf })
     }
 
-    fn get_precise_boot_time() -> Result<u64, Error> {
+    fn get_precise_boot_time() -> Result<u64, anyhow::Error> {
         let mut boot_ts = timespec {
             tv_sec: 0,
             tv_nsec: 0,
@@ -163,10 +162,12 @@ impl Ebpf {
         feature_flags: &FeatureFlags,
     ) -> Result<(), anyhow::Error> {
         if !feature_flags.is_empty() {
-            let sys_connect_file_prog: &mut FExit =
-                ebpf.program_mut("__sys_connect_file").unwrap().try_into()?;
-            sys_connect_file_prog.load("__sys_connect_file", btf)?;
-            sys_connect_file_prog.attach()?;
+            let sys_connect_file_x_prog: &mut FExit = ebpf
+                .program_mut("__sys_connect_file_x")
+                .unwrap()
+                .try_into()?;
+            sys_connect_file_x_prog.load("__sys_connect_file", btf)?;
+            sys_connect_file_x_prog.attach()?;
         }
 
         if feature_flags.contains(FeatureFlags::ENABLE_IO_URING_SUPPORT) {
