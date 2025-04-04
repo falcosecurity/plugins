@@ -1,3 +1,4 @@
+use krsi_common::EventHeader;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -23,46 +24,56 @@ pub enum KrsiEventContent {
 pub fn parse_ringbuf_event(buf: &[u8]) -> Result<KrsiEvent, ()> {
     let mut ptr = buf.as_ptr();
     let ptr_mut = &mut ptr;
-    let ev = unsafe { read_and_move::<krsi_common::EventHeader>(ptr_mut) };
+    let ev = unsafe { read_and_move::<EventHeader>(ptr_mut) };
     match ev.evt_type.try_into() {
         Ok(krsi_common::EventType::Open) => parse_ringbuf_open_event(&ev, ptr_mut),
         _ => Err(()),
     }
 }
 
-fn parse_ringbuf_open_event(
-    ev: &krsi_common::EventHeader,
-    ptr: &mut *const u8,
-) -> Result<KrsiEvent, ()> {
+fn parse_ringbuf_open_event(ev: &EventHeader, ptr: &mut *const u8) -> Result<KrsiEvent, ()> {
     let lengths = unsafe { read_and_move::<[u16; 7]>(ptr) };
-    let fd = if lengths[0] != 0 {
-        unsafe { read_and_move::<i64>(ptr) }
-    } else {
-        -1
-    };
-    let file_index = if lengths[1] != 0 {
-        unsafe { read_and_move::<i32>(ptr) }
-    } else {
-        -1
-    };
-    let name = unsafe { read_str_and_move(ptr, lengths[2] as usize) };
-    let flags = unsafe { read_and_move::<u32>(ptr) };
-    let mode = unsafe { read_and_move::<u32>(ptr) };
-    let dev = unsafe { read_and_move::<u32>(ptr) };
-    let ino = unsafe { read_and_move::<u64>(ptr) };
+    let mut name: Option<&str> = None;
+    let mut fd: Option<i64> = None;
+    let mut file_index: Option<i32> = None;
+    let mut flags: Option<u32> = None;
+    let mut mode: Option<u32> = None;
+    let mut dev: Option<u32> = None;
+    let mut ino: Option<u64> = None;
+    if lengths[0] != 0 {
+        name = Some(unsafe { read_str_and_move(ptr, lengths[0] as usize) });
+    }
+    if lengths[1] != 0 {
+        fd = Some(unsafe { read_and_move::<i64>(ptr) });
+    }
+    if lengths[2] != 0 {
+        file_index = Some(unsafe { read_and_move::<i32>(ptr) });
+    }
+    if lengths[3] != 0 {
+        flags = Some(unsafe { read_and_move::<u32>(ptr) });
+    }
+    if lengths[4] != 0 {
+        mode = Some(unsafe { read_and_move::<u32>(ptr) });
+    }
+    if lengths[5] != 0 {
+        dev = Some(unsafe { read_and_move::<u32>(ptr) });
+    }
+    if lengths[6] != 0 {
+        ino = Some(unsafe { read_and_move::<u64>(ptr) });
+    }
     let pid = (ev.tgid_pid >> 32) as u32;
     let tid = (ev.tgid_pid & 0xffffffff) as u32;
     Ok(KrsiEvent {
         tid,
         pid,
         content: KrsiEventContent::Open {
-            fd: fd as i32,
-            file_index,
-            name: String::from(name),
-            flags,
-            mode,
-            dev,
-            ino,
+            fd: fd.unwrap_or(-1) as i32,
+            file_index: file_index.unwrap_or(-1),
+            name: name.unwrap_or("").to_string(),
+            flags: flags.unwrap_or(0),
+            mode: mode.unwrap_or(0),
+            dev: dev.unwrap_or(0),
+            ino: ino.unwrap_or(0),
         },
     })
 }
@@ -74,12 +85,12 @@ unsafe fn read_and_move<T>(ptr: &mut *const u8) -> T {
 }
 
 unsafe fn read_str_and_move(ptr: &mut *const u8, len: usize) -> &'static str {
-    if len == 0 {
+    let real_len = len - 1;
+    let s = if real_len == 0 {
         ""
     } else {
-        // TODO better check for null character here
-        let s = unsafe { std::str::from_utf8_unchecked(std::slice::from_raw_parts(*ptr, len - 1)) };
-        *ptr = (*ptr).byte_add(len);
-        s
-    }
+        unsafe { std::str::from_utf8_unchecked(std::slice::from_raw_parts(*ptr, real_len)) }
+    };
+    *ptr = (*ptr).byte_add(len);
+    s
 }
