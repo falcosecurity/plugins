@@ -20,7 +20,7 @@
 //! 3. `fexit:io_connect` | `fexit:__sys_connect`
 
 use crate::operations::connect::maps::Info;
-use crate::{defs, file, helpers, iouring, shared_maps, vmlinux, FileDescriptor};
+use crate::{defs, files, helpers, iouring, shared_maps, vmlinux, FileDescriptor};
 use aya_ebpf::cty::c_int;
 use aya_ebpf::macros::{fentry, fexit};
 use aya_ebpf::programs::{FEntryContext, FExitContext};
@@ -75,8 +75,9 @@ fn try___sys_connect_file_x(ctx: FExitContext) -> Result<u32, i64> {
 
     // Parameter 1: tuple.
     let socktuple_len = if ret == 0 || ret == -defs::EINPROGRESS {
-        let file = file::File::new(unsafe { ctx.arg(0) });
-        let sock: *const vmlinux::socket = file.extract_private_data().unwrap_or(null());
+        let file: *const vmlinux::file = unsafe { ctx.arg(0) };
+        let sock: *const vmlinux::socket =
+            files::extract::file_private_data(file).unwrap_or(null());
         let sockaddr: *const vmlinux::sockaddr = unsafe { ctx.arg(1) };
         auxmap.store_sock_tuple_param(sock, true, sockaddr, true)
     } else {

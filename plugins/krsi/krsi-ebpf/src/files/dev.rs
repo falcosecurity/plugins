@@ -6,7 +6,7 @@ use crate::vmlinux;
 const MINORBITS: u32 = 20;
 const MINORMASK: u32 = (1_u32 << MINORBITS) - 1;
 
-pub unsafe fn encode(dev: vmlinux::dev_t) -> vmlinux::dev_t {
+pub fn encode(dev: vmlinux::dev_t) -> vmlinux::dev_t {
     let maj = major(dev);
     let min = minor(dev);
     (min & 0xff) | (maj << 8) | ((min & !0xff) << 12)
