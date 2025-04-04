@@ -14,7 +14,7 @@
 //! 4. `fexit:do_sys_openat2` | `fexit:io_openat2` - ensure the association for the current
 //! thread's pid is removed from the `OPEN_PIDS` map
 
-use crate::{defs, file, helpers, scap, shared_maps, vmlinux, FileDescriptor};
+use crate::{defs, files, helpers, scap, shared_maps, vmlinux, FileDescriptor};
 use aya_ebpf::cty::{c_int, c_uint};
 use aya_ebpf::helpers::bpf_probe_read_kernel_str_bytes;
 use aya_ebpf::macros::{fentry, fexit};
@@ -78,7 +78,7 @@ fn try_security_file_open_x(ctx: FExitContext) -> Result<u32, i64> {
 pub fn try_fd_install_x(
     ctx: &FExitContext,
     file_descriptor: FileDescriptor,
-    file: &file::File,
+    file: * const vmlinux::file,
 ) -> Result<u32, i64> {
     let pid = ctx.pid();
     let Some(&file_path_len) = (unsafe { maps::get_pids_map().get(&pid) }) else {
@@ -94,20 +94,18 @@ pub fn try_fd_install_x(
     // Parameter 3: file_index.
     auxmap.store_file_descriptor_param(file_descriptor);
 
-    let (dev, ino, overlay) = unsafe {
-        file.extract_dev_ino_overlay()
-            .unwrap_or((0, 0, file::Overlay::None))
-    };
+    let (dev, ino, overlay) = files::get_dev_ino_overlay(file)
+            .unwrap_or((0, 0, files::Overlay::None));
 
     // Parameter 4: flags.
-    let flags = unsafe { file.extract_flags() }.unwrap_or(0);
+    let flags = files::extract::file_flags(file).unwrap_or(0);
     let mut scap_flags = scap::encode_open_flags(flags);
     scap_flags |= match overlay.try_into() {
-        Ok(file::Overlay::Upper) => scap_shared::PPM_FD_UPPER_LAYER,
-        Ok(file::Overlay::Lower) => scap_shared::PPM_FD_LOWER_LAYER,
+        Ok(files::Overlay::Upper) => scap_shared::PPM_FD_UPPER_LAYER,
+        Ok(files::Overlay::Lower) => scap_shared::PPM_FD_LOWER_LAYER,
         _ => 0,
     };
-    let mode: c_uint = unsafe { file.extract_mode() }.unwrap_or(0);
+    let mode: c_uint = files::extract::file_mode(file).unwrap_or(0);
     scap_flags |= scap::encode_fmode_created(mode);
 
     auxmap.store_param(scap_flags);
@@ -126,7 +124,7 @@ pub fn try_fd_install_x(
 
     #[cfg(debug_assertions)]
     {
-        let name = unsafe { file.extract_name() }.unwrap_or(null_mut());
+        let name = files::extract::file_name(file).unwrap_or(null_mut());
         let mut buf: [u8; 128] = [0; 128];
         let name = unsafe {
             core::str::from_utf8_unchecked(bpf_probe_read_kernel_str_bytes(name, &mut buf)?)

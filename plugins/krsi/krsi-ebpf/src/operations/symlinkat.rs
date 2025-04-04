@@ -24,12 +24,10 @@
 //! 2. `fexit:do_symlinkat`
 //! 3. `fexit:io_symlinkat`
 
-use crate::{defs, helpers, scap, shared_maps, vmlinux};
-use aya_ebpf::helpers::bpf_probe_read_kernel;
+use crate::{defs, files, helpers, scap, shared_maps, vmlinux};
 use aya_ebpf::macros::{fentry, fexit};
 use aya_ebpf::programs::{FEntryContext, FExitContext};
 use aya_ebpf::EbpfContext;
-use core::ffi::c_uchar;
 use krsi_common::EventType;
 
 mod maps;
@@ -56,7 +54,7 @@ fn try_do_symlinkat_x(ctx: FExitContext) -> Result<u32, i64> {
 
     // Parameter 1: target.
     let target: *const vmlinux::filename = unsafe { ctx.arg(0) };
-    let result = extract_filename_name(target)
+    let result = files::extract::filename_name(target)
         .and_then(|name| unsafe { auxmap.store_charbuf_param(name, defs::MAX_PATH, true) });
     if result.is_err() {
         auxmap.store_empty_param();
@@ -68,7 +66,7 @@ fn try_do_symlinkat_x(ctx: FExitContext) -> Result<u32, i64> {
 
     // Parameter 3: linkpath.
     let linkpath: *const vmlinux::filename = unsafe { ctx.arg(2) };
-    let result = extract_filename_name(linkpath)
+    let result = files::extract::filename_name(linkpath)
         .and_then(|name| unsafe { auxmap.store_charbuf_param(name, defs::MAX_PATH, true) });
     if result.is_err() {
         auxmap.store_empty_param();
@@ -89,11 +87,6 @@ fn try_do_symlinkat_x(ctx: FExitContext) -> Result<u32, i64> {
     }
 
     Ok(0)
-}
-
-fn extract_filename_name(filename: *const vmlinux::filename) -> Result<*const c_uchar, i64> {
-    let ptr = unsafe { &raw const (*filename).name }.cast::<*const c_uchar>();
-    unsafe { bpf_probe_read_kernel(ptr) }
 }
 
 #[fexit]
