@@ -35,10 +35,10 @@ fn panic(_info: &core::panic::PanicInfo) -> ! {
 }
 
 #[fexit]
-fn fd_install(ctx: FExitContext) -> u32 {
+fn fd_install_x(ctx: FExitContext) -> u32 {
     let file_descriptor = FileDescriptor::Fd(unsafe { ctx.arg(0) });
     let file = file::File::new(unsafe { ctx.arg(1) });
-    let handlers = [open::try_fd_install];
+    let handlers = [open::try_fd_install_x];
     let mut res = 0;
     for handler in handlers {
         res |= handler(&ctx, file_descriptor, &file).unwrap_or(1);
@@ -54,8 +54,7 @@ pub enum FileDescriptor {
 }
 
 #[fexit]
-fn io_fixed_fd_install(ctx: FExitContext) -> u32 {
-    let handlers = [open::try_fd_install];
+fn io_fixed_fd_install_x(ctx: FExitContext) -> u32 {
     let ret = unsafe { ctx.arg(4) };
     if ret < 0 {
         return 0;
@@ -70,6 +69,7 @@ fn io_fixed_fd_install(ctx: FExitContext) -> u32 {
     let file_descriptor = FileDescriptor::FileIndex(file_index);
     let file = file::File::new(unsafe { ctx.arg(2) });
 
+    let handlers = [open::try_fd_install_x];
     let mut res = 0;
     for handler in handlers {
         res |= handler(&ctx, file_descriptor, &file).unwrap_or(1);

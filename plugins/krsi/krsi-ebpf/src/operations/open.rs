@@ -14,7 +14,7 @@
 //! 4. `fexit:do_sys_openat2` | `fexit:io_openat2` - ensure the association for the current
 //! thread's pid is removed from the `OPEN_PIDS` map
 
-use crate::{defs, file, scap, shared_maps, vmlinux, FileDescriptor};
+use crate::{defs, file, helpers, scap, shared_maps, vmlinux, FileDescriptor};
 use aya_ebpf::cty::{c_int, c_uint};
 use aya_ebpf::helpers::bpf_probe_read_kernel_str_bytes;
 use aya_ebpf::macros::{fentry, fexit};
@@ -28,65 +28,54 @@ use krsi_common::{scap as scap_shared, EventType};
 mod maps;
 
 #[fentry]
-pub fn do_sys_openat2_e(ctx: FEntryContext) -> u32 {
+fn do_sys_openat2_e(ctx: FEntryContext) -> u32 {
+    try_openat2_e(ctx).unwrap_or(1)
+}
+
+fn try_openat2_e(ctx: FEntryContext) -> Result<u32, i64> {
     let pid = ctx.pid();
     const ZERO: u32 = 0;
-    match maps::get_pids_map().insert(&pid, &ZERO, 0) {
-        Ok(_) => 0,
-        Err(_) => 1,
-    }
+    helpers::try_insert_map_entry(maps::get_pids_map(), &pid, &ZERO)
 }
 
 #[fentry]
 pub fn io_openat2_e(ctx: FEntryContext) -> u32 {
-    let pid = ctx.pid();
-    const ZERO: u32 = 0;
-    match maps::get_pids_map().insert(&pid, &ZERO, 0) {
-        Ok(_) => 0,
-        Err(_) => 1,
-    }
+    try_openat2_e(ctx).unwrap_or(1)
 }
 
 #[fexit]
-pub fn security_file_open(ctx: FExitContext) -> u32 {
-    unsafe { try_security_file_open(ctx) }.unwrap_or(1)
+pub fn security_file_open_x(ctx: FExitContext) -> u32 {
+    try_security_file_open_x(ctx).unwrap_or(1)
 }
 
-unsafe fn try_security_file_open(ctx: FExitContext) -> Result<u32, i64> {
+fn try_security_file_open_x(ctx: FExitContext) -> Result<u32, i64> {
     let pid = ctx.pid();
     let pids_map = maps::get_pids_map();
-    if pids_map.get(&pid).is_none() {
+    if unsafe { pids_map.get(&pid) }.is_none() {
         return Ok(0);
     };
 
     let ret: c_int = unsafe { ctx.arg(1) };
     if ret != 0 {
-        return remove_open_pid(pids_map, pid);
+        return helpers::try_remove_map_entry(pids_map, &pid);
     }
 
     let Some(auxmap) = shared_maps::get_auxiliary_map() else {
-        return remove_open_pid(pids_map, pid);
+        return helpers::try_remove_map_entry(pids_map, &pid);
     };
 
     auxmap.preload_event_header(EventType::Open);
 
     // Parameter 1: name.
-    let file: *const vmlinux::file = ctx.arg(0);
-    let path = &(*file).f_path as *const vmlinux::path;
-    match auxmap.store_path_param(path, defs::MAX_PATH) {
+    let file: *const vmlinux::file = unsafe { ctx.arg(0) };
+    let path = unsafe { &(*file).f_path } as *const vmlinux::path;
+    match unsafe { auxmap.store_path_param(path, defs::MAX_PATH) } {
         Ok(_) => Ok(0),
-        Err(_) => remove_open_pid(pids_map, pid),
+        Err(_) => helpers::try_remove_map_entry(pids_map, &pid),
     }
 }
 
-fn remove_open_pid(pids_map: &HashMap<u32, u32>, pid: u32) -> Result<u32, i64> {
-    match pids_map.remove(&pid) {
-        Ok(_) => Ok(0),
-        Err(_) => Err(1),
-    }
-}
-
-pub fn try_fd_install(
+pub fn try_fd_install_x(
     ctx: &FExitContext,
     file_descriptor: FileDescriptor,
     file: &file::File,
@@ -165,18 +154,15 @@ pub fn try_fd_install(
 
 #[fexit]
 pub fn do_sys_openat2_x(ctx: FExitContext) -> u32 {
+    try_openat2_x(ctx).unwrap_or(1)
+}
+
+fn try_openat2_x(ctx: FExitContext) -> Result<u32, i64> {
     let pid = ctx.pid();
-    match maps::get_pids_map().remove(&pid) {
-        Ok(_) => 0,
-        Err(_) => 1,
-    }
+    helpers::try_remove_map_entry(maps::get_pids_map(), &pid)
 }
 
 #[fexit]
 pub fn io_openat2_x(ctx: FExitContext) -> u32 {
-    let pid = ctx.pid();
-    match maps::get_pids_map().remove(&pid) {
-        Ok(_) => 0,
-        Err(_) => 1,
-    }
+    try_openat2_x(ctx).unwrap_or(1)
 }
