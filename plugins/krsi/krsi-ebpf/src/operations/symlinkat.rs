@@ -78,7 +78,7 @@ fn try_do_symlinkat_x(ctx: FExitContext) -> Result<u32, i64> {
 
     let pid = ctx.pid();
     // Not having an entry in the map means that this is not an io_uring operation. In case of an
-    // io_uring operation, don't submit the event but let `fexit:io_symlink` handle it.
+    // io_uring operation, don't submit the event but let `fexit:io_symlinkat` handle it.
     if unsafe { maps::get_iou_pids_map().get(&pid) }.is_none() {
         // Parameter 5: iou_ret
         auxmap.store_empty_param();

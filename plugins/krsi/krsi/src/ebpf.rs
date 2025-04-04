@@ -78,6 +78,7 @@ impl Ebpf {
         Self::load_and_attach_socket_programs(ebpf, btf, feature_flags)?;
         Self::load_and_attach_connect_programs(ebpf, btf, feature_flags)?;
         Self::load_and_attach_symlinkat_programs(ebpf, btf, feature_flags)?;
+        Self::load_and_attach_linkat_programs(ebpf, btf, feature_flags)?;
         Ok(())
     }
 
@@ -219,6 +220,33 @@ impl Ebpf {
                 ebpf.program_mut("io_symlinkat_e").unwrap().try_into()?;
             io_symlinkat_e_prog.load("io_symlinkat", btf)?;
             io_symlinkat_e_prog.attach()?;
+        }
+
+        Ok(())
+    }
+
+    fn load_and_attach_linkat_programs(
+        ebpf: &mut aya::Ebpf,
+        btf: &aya::Btf,
+        feature_flags: &FeatureFlags,
+    ) -> Result<(), anyhow::Error> {
+        if !feature_flags.is_empty() {
+            let do_linkat_x_prog: &mut FExit =
+                ebpf.program_mut("do_linkat_x").unwrap().try_into()?;
+            do_linkat_x_prog.load("do_linkat", btf)?;
+            do_linkat_x_prog.attach()?;
+        }
+
+        if feature_flags.contains(FeatureFlags::ENABLE_IO_URING_SUPPORT) {
+            let io_linkat_x_prog: &mut FExit =
+                ebpf.program_mut("io_linkat_x").unwrap().try_into()?;
+            io_linkat_x_prog.load("io_linkat", btf)?;
+            io_linkat_x_prog.attach()?;
+
+            let io_linkat_e_prog: &mut FEntry =
+                ebpf.program_mut("io_linkat_e").unwrap().try_into()?;
+            io_linkat_e_prog.load("io_linkat", btf)?;
+            io_linkat_e_prog.attach()?;
         }
 
         Ok(())

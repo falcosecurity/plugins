@@ -178,3 +178,12 @@ pub const MAX_PATH: u16 = 4096;
 
 // `/include/uapi/linux/fcntl.h` from kernel source tree.
 pub const AT_FDCWD: i32 = -100; // Special value for dirfd used to indicate openat should use the current working directory.
+
+/* Generic flags for the *at(2) family of syscalls. */
+
+// `/include/uapi/linux/fcntl.h` from kernel source tree.
+
+pub const AT_SYMLINK_NOFOLLOW: i32 = 0x100; // Do not follow symbolic links.
+pub const AT_SYMLINK_FOLLOW: i32 = 0x400; // Follow symbolic links.
+pub const AT_NO_AUTOMOUNT: i32 = 0x800; // Suppress terminal automount traversal.
+pub const AT_EMPTY_PATH: i32 = 0x1000; // Allow empty relative pathname to operate on dirfd directly.
