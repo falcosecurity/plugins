@@ -69,3 +69,19 @@ pub fn io_async_msghdr_addr_ptr(
 ) -> *const vmlinux::__kernel_sockaddr_storage {
     unsafe { &raw const (*io).addr }
 }
+
+/// Return `un->flags`.
+pub fn io_unlink_flags(un: *const vmlinux::io_unlink) -> Result<c_int, i64> {
+    unsafe { bpf_probe_read_kernel(&(*un).flags) }
+}
+
+/// Return `un->dfd`.
+pub fn io_unlink_dfd(un: *const vmlinux::io_unlink) -> Result<c_int, i64> {
+    unsafe { bpf_probe_read_kernel(&(*un).dfd) }
+}
+
+/// Return `un->filename`.
+pub fn io_unlink_filename(un: *const vmlinux::io_unlink) -> Result<*const vmlinux::filename, i64> {
+    let filename = unsafe { bpf_probe_read_kernel(&(*un).filename) }?;
+    Ok(filename.cast_const())
+}

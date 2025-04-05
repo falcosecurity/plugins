@@ -19,7 +19,7 @@ mod sockets;
 /*
 To regenerate `vmlinux.rs`:
 aya-tool generate task_struct file inet_sock unix_sock sockaddr_in sockaddr_in6 io_uring_op \
-    io_socket io_connect io_async_msghdr > krsi-ebpf/src/vmlinux.rs
+    io_socket io_connect io_async_msghdr io_unlink > krsi-ebpf/src/vmlinux.rs
 */
 mod vmlinux;
 mod defs;
@@ -86,6 +86,7 @@ pub fn get_event_num_params(event_type: EventType) -> u8 {
         Ok(EventType::Socket) => 6,
         Ok(EventType::Symlinkat) => 5,
         Ok(EventType::Linkat) => 7,
+        Ok(EventType::Unlinkat) => 5,
         _ => 0,
     }
 }

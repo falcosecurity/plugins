@@ -77,7 +77,7 @@ fn try_do_linkat_x(ctx: FExitContext) -> Result<u32, i64> {
     }
 
     // Parameter 5: flags.
-    let flags: i32 = unsafe {ctx.arg(4)};
+    let flags: i32 = unsafe { ctx.arg(4) };
     auxmap.store_param(scap::encode_linkat_flags(flags) as u32);
 
     // Parameter 6: res.

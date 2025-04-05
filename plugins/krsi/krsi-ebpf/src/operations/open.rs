@@ -78,7 +78,7 @@ fn try_security_file_open_x(ctx: FExitContext) -> Result<u32, i64> {
 pub fn try_fd_install_x(
     ctx: &FExitContext,
     file_descriptor: FileDescriptor,
-    file: * const vmlinux::file,
+    file: *const vmlinux::file,
 ) -> Result<u32, i64> {
     let pid = ctx.pid();
     let Some(&file_path_len) = (unsafe { maps::get_pids_map().get(&pid) }) else {
@@ -94,8 +94,8 @@ pub fn try_fd_install_x(
     // Parameter 3: file_index.
     auxmap.store_file_descriptor_param(file_descriptor);
 
-    let (dev, ino, overlay) = files::get_dev_ino_overlay(file)
-            .unwrap_or((0, 0, files::Overlay::None));
+    let (dev, ino, overlay) =
+        files::get_dev_ino_overlay(file).unwrap_or((0, 0, files::Overlay::None));
 
     // Parameter 4: flags.
     let flags = files::extract::file_flags(file).unwrap_or(0);
