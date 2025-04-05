@@ -35426,6 +35426,14 @@ pub struct io_tw_state {
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
+pub struct io_unlink {
+    pub file: *mut file,
+    pub dfd: ::aya_ebpf::cty::c_int,
+    pub flags: ::aya_ebpf::cty::c_int,
+    pub filename: *mut filename,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
 pub struct io_uring_buf {
     pub addr: __u64,
     pub len: __u32,

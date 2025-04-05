@@ -86,3 +86,6 @@ pub const PPM_AT_FDCWD: i32 = -100;
 // linkat flags.
 pub const PPM_AT_SYMLINK_FOLLOW: i32 = 0x400;
 pub const PPM_AT_EMPTY_PATH: i32 = 0x1000;
+
+// unlinkat flags.
+pub const PPM_AT_REMOVEDIR: i32 = 0x200;

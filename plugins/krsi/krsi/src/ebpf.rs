@@ -79,6 +79,7 @@ impl Ebpf {
         Self::load_and_attach_connect_programs(ebpf, btf, feature_flags)?;
         Self::load_and_attach_symlinkat_programs(ebpf, btf, feature_flags)?;
         Self::load_and_attach_linkat_programs(ebpf, btf, feature_flags)?;
+        Self::load_and_attach_unlinkat_programs(ebpf, btf, feature_flags)?;
         Ok(())
     }
 
@@ -247,6 +248,21 @@ impl Ebpf {
                 ebpf.program_mut("io_linkat_e").unwrap().try_into()?;
             io_linkat_e_prog.load("io_linkat", btf)?;
             io_linkat_e_prog.attach()?;
+        }
+
+        Ok(())
+    }
+
+    fn load_and_attach_unlinkat_programs(
+        ebpf: &mut aya::Ebpf,
+        btf: &aya::Btf,
+        feature_flags: &FeatureFlags,
+    ) -> Result<(), anyhow::Error> {
+        if feature_flags.contains(FeatureFlags::ENABLE_IO_URING_SUPPORT) {
+            let io_unlinkat_x_prog: &mut FExit =
+                ebpf.program_mut("io_unlinkat_x").unwrap().try_into()?;
+            io_unlinkat_x_prog.load("io_unlinkat", btf)?;
+            io_unlinkat_x_prog.attach()?;
         }
 
         Ok(())

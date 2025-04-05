@@ -12,7 +12,6 @@ pub fn encode(dev: vmlinux::dev_t) -> vmlinux::dev_t {
     (min & 0xff) | (maj << 8) | ((min & !0xff) << 12)
 }
 
-
 fn major(dev: vmlinux::dev_t) -> u32 {
     (dev) >> MINORBITS
 }

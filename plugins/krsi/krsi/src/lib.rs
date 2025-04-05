@@ -27,9 +27,9 @@ use std::time::{Duration, SystemTime};
 use log::debug;
 use crate::flags::FeatureFlags;
 
-mod krsi_event;
 mod ebpf;
 mod flags;
+mod krsi_event;
 
 use crate::krsi_event::{KrsiEvent, KrsiEventContent};
 

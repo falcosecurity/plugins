@@ -14,8 +14,10 @@ static BOOT_TIME: u64 = 0;
 static EVENTS: RingBuf = RingBuf::with_byte_size(128 * 4096, 0); // 128 pages = 256KB
 
 pub fn get_auxiliary_map() -> Option<&'static mut crate::auxmap::AuxiliaryMap> {
-    let cpu_id = unsafe {bpf_get_smp_processor_id()};
-    AUXILIARY_MAPS.get_ptr_mut(cpu_id).map(|p| unsafe {&mut *p})
+    let cpu_id = unsafe { bpf_get_smp_processor_id() };
+    AUXILIARY_MAPS
+        .get_ptr_mut(cpu_id)
+        .map(|p| unsafe { &mut *p })
 }
 
 pub fn get_events_ringbuf() -> &'static RingBuf {
@@ -23,5 +25,5 @@ pub fn get_events_ringbuf() -> &'static RingBuf {
 }
 
 pub fn get_boot_time() -> u64 {
-    unsafe {core::ptr::read_volatile(&BOOT_TIME)}
+    unsafe { core::ptr::read_volatile(&BOOT_TIME) }
 }

@@ -16,95 +16,106 @@
 // gcc test/test.c -o test/test -luring && sudo ./test/test {--use-syscalls|--use-file-indexes}
 
 static int submit_and_wait(struct io_uring *ring) {
-	struct io_uring_cqe *cqe;
-	int ret = io_uring_submit(ring);
-	if (ret <= 0) {
-		fprintf(stderr, "sqe submit failed: %d\n", ret);
-		goto err;
-	}
+    struct io_uring_cqe *cqe;
+    int ret = io_uring_submit(ring);
+    if (ret <= 0) {
+        fprintf(stderr, "sqe submit failed: %d\n", ret);
+        goto err;
+    }
 
-	ret = io_uring_wait_cqe(ring, &cqe);
-	if (ret < 0) {
-		fprintf(stderr, "wait completion %d\n", ret);
-		goto err;
-	}
+    ret = io_uring_wait_cqe(ring, &cqe);
+    if (ret < 0) {
+        fprintf(stderr, "wait completion %d\n", ret);
+        goto err;
+    }
 
     // The result contains the file descriptor
-	ret = cqe->res;
-	io_uring_cqe_seen(ring, cqe);
-	return ret;
+    ret = cqe->res;
+    io_uring_cqe_seen(ring, cqe);
+    return ret;
 err:
-	return -1;
+    return -1;
 }
 
 static int io_uring_openat(struct io_uring *ring, int dfd, const char *path, int flags, bool use_file_indexes) {
-	struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
-	if (!sqe) {
+    struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
+    if (!sqe) {
         fprintf(stderr, "io_uring_openat: io_uring_get_sqe failed\n");
-		return -1;
-	}
-	if (use_file_indexes) {
-	    io_uring_prep_openat_direct(sqe, dfd, path, flags, 0, IORING_FILE_INDEX_ALLOC);
-	} else {
-    	io_uring_prep_openat(sqe, dfd, path, flags, 0);
-	}
+        return -1;
+    }
+    if (use_file_indexes) {
+        io_uring_prep_openat_direct(sqe, dfd, path, flags, 0, IORING_FILE_INDEX_ALLOC);
+    } else {
+        io_uring_prep_openat(sqe, dfd, path, flags, 0);
+    }
 
-	return submit_and_wait(ring);
+    return submit_and_wait(ring);
 }
 
 static int io_uring_connect(struct io_uring *ring, int fd, const struct sockaddr *addr, socklen_t addrlen, bool use_file_indexes) {
-	struct io_uring_sqe *sqe;
-	int ret;
+    struct io_uring_sqe *sqe;
+    int ret;
 
-	sqe = io_uring_get_sqe(ring);
-	if (!sqe) {
-		fprintf(stderr, "io_uring_connect: io_uring_get_sqe failed\n");
-		return -1;
-	}
+    sqe = io_uring_get_sqe(ring);
+    if (!sqe) {
+        fprintf(stderr, "io_uring_connect: io_uring_get_sqe failed\n");
+        return -1;
+    }
 
-	io_uring_prep_connect(sqe, fd, addr, addrlen);
-	if (use_file_indexes) {
-		sqe->flags |= IOSQE_FIXED_FILE;
-	}
+    io_uring_prep_connect(sqe, fd, addr, addrlen);
+    if (use_file_indexes) {
+        sqe->flags |= IOSQE_FIXED_FILE;
+    }
 
-	return submit_and_wait(ring);
+    return submit_and_wait(ring);
 }
 
 static int io_uring_socket(struct io_uring *ring, int domain, int type, int protocol, int flags, bool use_file_indexes) {
-	struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
-	if (!sqe) {
+    struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
+    if (!sqe) {
         fprintf(stderr, "io_uring_socket: io_uring_get_sqe failed\n");
-		return -1;
-	}
+        return -1;
+    }
 
-	if (use_file_indexes) {
-		io_uring_prep_socket_direct_alloc(sqe, domain, type, protocol, flags);
-	} else {
-		io_uring_prep_socket(sqe, domain, type, protocol, flags);
-	}
-	return submit_and_wait(ring);
+    if (use_file_indexes) {
+        io_uring_prep_socket_direct_alloc(sqe, domain, type, protocol, flags);
+    } else {
+        io_uring_prep_socket(sqe, domain, type, protocol, flags);
+    }
+    return submit_and_wait(ring);
 }
 
 static int io_uring_symlinkat(struct io_uring *ring, char *target, int newdirfd, char *linkpath) {
-   	struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
-   	if (!sqe) {
+    struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
+    if (!sqe) {
         fprintf(stderr, "io_uring_symlinkat: io_uring_get_sqe failed\n");
-   		return -1;
-   	}
+        return -1;
+    }
 
-   	io_uring_prep_symlinkat(sqe, target, newdirfd, linkpath);
-   	return submit_and_wait(ring);
+    io_uring_prep_symlinkat(sqe, target, newdirfd, linkpath);
+    return submit_and_wait(ring);
 }
 
 static int io_uring_linkat(struct io_uring *ring, int olddirfd, char *oldpath, int newdirfd, char *newpath, int flags) {
-   	struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
-   	if (!sqe) {
+    struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
+    if (!sqe) {
         fprintf(stderr, "io_uring_linkat: io_uring_get_sqe failed\n");
-   		return -1;
-   	}
+        return -1;
+    }
 
-   	io_uring_prep_linkat(sqe, olddirfd, oldpath, newdirfd, newpath, flags);
-   	return submit_and_wait(ring);
+    io_uring_prep_linkat(sqe, olddirfd, oldpath, newdirfd, newpath, flags);
+    return submit_and_wait(ring);
+}
+
+static int io_uring_unlinkat(struct io_uring *ring, int dirfd, char *path, int flags) {
+    struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
+    if (!sqe) {
+        fprintf(stderr, "io_uring_unlinkat: io_uring_get_sqe failed\n");
+        return -1;
+    }
+
+    io_uring_prep_unlinkat(sqe, dirfd, path, flags);
+    return submit_and_wait(ring);
 }
 
 static int io_uring_read(struct io_uring *ring, int fd, char *buf, unsigned int nbytes, uint64_t offset, bool use_file_indexes) {
@@ -170,7 +181,7 @@ static int do_socket(struct io_uring *ring, int domain, int type, int protocol, 
 
 static int do_symlinkat(struct io_uring *ring, char *target, int newdirfd, char *linkpath, bool use_syscalls, bool use_file_indexes) {
     if (use_file_indexes) {
-        printf("warning: do_symlinkat: file indexes not supported by symlinkat\n");
+        printf("warning: do_symlinkat: file indexes not supported by IORING_OP_SYMLINKAT\n");
     }
     return use_syscalls ?
         symlinkat(target, newdirfd, linkpath) :
@@ -179,11 +190,20 @@ static int do_symlinkat(struct io_uring *ring, char *target, int newdirfd, char 
 
 static int do_linkat(struct io_uring *ring, int olddirfd, char *oldpath, int newdirfd, char *newpath, int flags, bool use_syscalls, bool use_file_indexes) {
     if (use_file_indexes) {
-        printf("warning: do_linkat: file indexes not supported by linkat\n");
+        printf("warning: do_linkat: file indexes not supported by IORING_OP_LINKAT\n");
     }
     return use_syscalls ?
         linkat(olddirfd, oldpath, newdirfd, newpath, flags) :
         io_uring_linkat(ring, olddirfd, oldpath, newdirfd, newpath, flags);
+}
+
+static int do_unlinkat(struct io_uring *ring, int dirfd, char *path, int flags, bool use_syscalls, bool use_file_indexes) {
+    if (use_file_indexes) {
+        printf("warning: do_unlinkat: file indexes not supported by IORING_OP_UNLINKAT\n");
+    }
+    return use_syscalls ?
+        unlinkat(dirfd, path, flags) :
+        io_uring_unlinkat(ring, dirfd, path, flags);
 }
 
 static int do_read(struct io_uring *ring, int fd, char *buf, unsigned int nbytes, uint64_t offset, bool use_syscalls, bool use_file_indexes) {
@@ -316,7 +336,7 @@ static int test_symlinkat(struct io_uring *ring, bool use_syscalls, bool use_fil
     if (ret < 0) {
         return -1;
     }
-    unlink(linkpath);
+    do_unlinkat(ring, newdirfd, linkpath, 0, use_syscalls, use_file_indexes);
     return 0;
 }
 
@@ -331,7 +351,7 @@ static int test_linkat(struct io_uring *ring, bool use_syscalls, bool use_file_i
     if (ret < 0) {
         return -1;
     }
-    unlink(newpath);
+    do_unlinkat(ring, newdirfd, newpath, 0, use_syscalls, use_file_indexes);
     return 0;
 }
 
@@ -385,6 +405,7 @@ int main(int argc, char **argv) {
         TEST(test_socket),
         TEST(test_symlinkat),
         TEST(test_linkat),
+        {.name = "test_unlinkat", .test_func = test_linkat },
         TEST(test_read),
         {.name = "", .test_func = NULL},
     };

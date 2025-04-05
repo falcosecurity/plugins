@@ -197,3 +197,13 @@ pub fn encode_linkat_flags(flags: i32) -> i32 {
 
     res
 }
+
+pub fn encode_unlinkat_flags(flags: i32) -> i32 {
+    let mut res = 0_i32;
+
+    if flags & defs::AT_REMOVEDIR != 0 {
+        res |= scap::PPM_AT_REMOVEDIR;
+    }
+
+    res
+}

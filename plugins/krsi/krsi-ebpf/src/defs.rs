@@ -187,3 +187,6 @@ pub const AT_SYMLINK_NOFOLLOW: i32 = 0x100; // Do not follow symbolic links.
 pub const AT_SYMLINK_FOLLOW: i32 = 0x400; // Follow symbolic links.
 pub const AT_NO_AUTOMOUNT: i32 = 0x800; // Suppress terminal automount traversal.
 pub const AT_EMPTY_PATH: i32 = 0x1000; // Allow empty relative pathname to operate on dirfd directly.
+
+/* Flag for unlinkat(2). */
+pub const AT_REMOVEDIR: i32 = 0x200; // Remove directory instead of unlinking file.
