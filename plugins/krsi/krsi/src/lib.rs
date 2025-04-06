@@ -1,6 +1,5 @@
 use std::{
     ffi::{CStr, CString},
-    str::FromStr,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -239,8 +238,7 @@ impl ParsePlugin for KrsiPlugin {
                         };
 
                         fd_entry.set_fd(w, &fd)?;
-                        let c_name = CString::from_str(&name)?;
-                        fd_entry.set_name(w, &c_name)?;
+                        fd_entry.set_name(w, &name)?;
                         fd_entry.set_dev(w, &dev)?;
                         fd_entry.set_ino(w, &ino)?;
 
