@@ -587,6 +587,7 @@ dependencies = [
  "aya-log",
  "bincode",
  "bitflags",
+ "byteorder",
  "env_logger",
  "falco_plugin",
  "hashlru",
@@ -596,6 +597,7 @@ dependencies = [
  "log",
  "num_cpus",
  "serde",
+ "thiserror 2.0.12",
  "tokio",
 ]
 

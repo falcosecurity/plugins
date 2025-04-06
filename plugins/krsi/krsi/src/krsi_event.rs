@@ -1,3 +1,6 @@
+use std::ffi::{CStr, CString};
+use byteorder::ReadBytesExt;
+use byteorder::NativeEndian;
 use krsi_common::EventHeader;
 use serde::{Deserialize, Serialize};
 
@@ -13,7 +16,7 @@ pub enum KrsiEventContent {
     Open {
         fd: i32,
         file_index: i32,
-        name: String,
+        name: CString,
         flags: u32,
         mode: u32,
         dev: u32,
@@ -21,76 +24,111 @@ pub enum KrsiEventContent {
     },
 }
 
-pub fn parse_ringbuf_event(buf: &[u8]) -> Result<KrsiEvent, ()> {
-    let mut ptr = buf.as_ptr();
-    let ptr_mut = &mut ptr;
-    let ev = unsafe { read_and_move::<EventHeader>(ptr_mut) };
-    match ev.evt_type.try_into() {
-        Ok(krsi_common::EventType::Open) => parse_ringbuf_open_event(&ev, ptr_mut),
-        _ => Err(()),
-    }
+#[derive(thiserror::Error)]
+#[derive(Debug)]
+pub enum RingbufParseError {
+    #[error("Truncated event")]
+    TruncatedEvent,
+    #[error("Missing NUL terminator")]
+    MissingNulTerminator,
+    #[error("Invalid event type {0}")]
+    InvalidType(u16),
+    #[error("I/O error")]
+    IoError(#[from] std::io::Error),
+    #[error("Not yet implemented")]
+    NotYetImplemented,
 }
 
-fn parse_ringbuf_open_event(ev: &EventHeader, ptr: &mut *const u8) -> Result<KrsiEvent, ()> {
-    let lengths = unsafe { read_and_move::<[u16; 7]>(ptr) };
-    let mut name: Option<&str> = None;
-    let mut fd: Option<i64> = None;
-    let mut file_index: Option<i32> = None;
-    let mut flags: Option<u32> = None;
-    let mut mode: Option<u32> = None;
-    let mut dev: Option<u32> = None;
-    let mut ino: Option<u64> = None;
-    if lengths[0] != 0 {
-        name = Some(unsafe { read_str_and_move(ptr, lengths[0] as usize) });
-    }
-    if lengths[1] != 0 {
-        fd = Some(unsafe { read_and_move::<i64>(ptr) });
-    }
-    if lengths[2] != 0 {
-        file_index = Some(unsafe { read_and_move::<i32>(ptr) });
-    }
-    if lengths[3] != 0 {
-        flags = Some(unsafe { read_and_move::<u32>(ptr) });
-    }
-    if lengths[4] != 0 {
-        mode = Some(unsafe { read_and_move::<u32>(ptr) });
-    }
-    if lengths[5] != 0 {
-        dev = Some(unsafe { read_and_move::<u32>(ptr) });
-    }
-    if lengths[6] != 0 {
-        ino = Some(unsafe { read_and_move::<u64>(ptr) });
-    }
-    let pid = (ev.tgid_pid >> 32) as u32;
-    let tid = (ev.tgid_pid & 0xffffffff) as u32;
-    Ok(KrsiEvent {
-        tid,
-        pid,
-        content: KrsiEventContent::Open {
-            fd: fd.unwrap_or(-1) as i32,
-            file_index: file_index.unwrap_or(-1),
-            name: name.unwrap_or("").to_string(),
-            flags: flags.unwrap_or(0),
-            mode: mode.unwrap_or(0),
-            dev: dev.unwrap_or(0),
-            ino: ino.unwrap_or(0),
-        },
+fn read_event_header(buf: &mut &[u8]) -> Result<EventHeader, RingbufParseError> {
+    let ts = buf.read_u64::<NativeEndian>()?;
+    let tgid_pid = buf.read_u64::<NativeEndian>()?;
+    let len = buf.read_u32::<NativeEndian>()?;
+    let evt_type = buf.read_u16::<NativeEndian>()?;
+    let evt_type: krsi_common::EventType = evt_type.try_into().map_err(|_| RingbufParseError::InvalidType(evt_type))?;
+    let nparams = buf.read_u32::<NativeEndian>()?;
+
+    Ok(EventHeader {
+        ts,
+        tgid_pid,
+        len,
+        evt_type,
+        nparams,
     })
 }
 
-unsafe fn read_and_move<T>(ptr: &mut *const u8) -> T {
-    let v = (*ptr).cast::<T>().read_unaligned();
-    *ptr = (*ptr).byte_add(size_of::<T>());
-    v
+trait FromBytes<'a>: Sized {
+    fn from_bytes(buf: &mut &'a [u8]) -> Result<Self, RingbufParseError>;
 }
 
-unsafe fn read_str_and_move(ptr: &mut *const u8, len: usize) -> &'static str {
-    let real_len = len - 1;
-    let s = if real_len == 0 {
-        ""
-    } else {
-        unsafe { std::str::from_utf8_unchecked(std::slice::from_raw_parts(*ptr, real_len)) }
+impl FromBytes<'_> for u64 {
+    fn from_bytes(buf: &mut &[u8]) -> Result<Self, RingbufParseError> {
+        Ok(buf.read_u64::<NativeEndian>()?)
+    }
+}
+
+impl FromBytes<'_> for u32 {
+    fn from_bytes(buf: &mut &[u8]) -> Result<Self, RingbufParseError> {
+        Ok(buf.read_u32::<NativeEndian>()?)
+    }
+}
+
+impl FromBytes<'_> for i32 {
+    fn from_bytes(buf: &mut &[u8]) -> Result<Self, RingbufParseError> {
+        Ok(buf.read_i32::<NativeEndian>()?)
+    }
+}
+
+impl<'a> FromBytes<'a> for &'a CStr {
+    fn from_bytes(buf: &mut &'a [u8]) -> Result<Self, RingbufParseError> {
+        CStr::from_bytes_until_nul(buf).map_err(|_| RingbufParseError::MissingNulTerminator)
+    }
+}
+
+fn next_field<'a, T>(lengths: &mut &[u8], payload: &mut &'a [u8], fallback: Result<T, RingbufParseError>) -> Result<T, RingbufParseError>
+where
+    T: FromBytes<'a>,
+{
+    let len = match lengths.read_u16::<NativeEndian>() {
+        Ok(len) => len as usize,
+        Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => return fallback,
+        Err(e) => return Err(RingbufParseError::IoError(e)),
     };
-    *ptr = (*ptr).byte_add(len);
-    s
+    let (mut buf, tail) = Option::ok_or(payload.split_at_checked(len), RingbufParseError::TruncatedEvent)?;
+    *payload = tail;
+
+    T::from_bytes(&mut buf)
+}
+
+pub fn parse_ringbuf_event(mut buf: &[u8]) -> Result<KrsiEvent, RingbufParseError> {
+    let ev = read_event_header(&mut buf)?;
+    let (mut lengths, mut payload) = buf.split_at_checked(ev.nparams as usize * size_of::<u16>()).ok_or(RingbufParseError::TruncatedEvent)?;
+
+    match ev.evt_type {
+        krsi_common::EventType::Open => {
+            let name = CString::from(next_field(&mut lengths, &mut payload, Ok(c""))?);
+            let fd = next_field(&mut lengths, &mut payload, Ok(0u64))?;
+            let file_index = next_field(&mut lengths, &mut payload, Ok(-1i32))?;
+            let flags = next_field(&mut lengths, &mut payload, Ok(0u32))?;
+            let mode = next_field(&mut lengths, &mut payload, Ok(0u32))?;
+            let dev = next_field(&mut lengths, &mut payload, Ok(0u32))?;
+            let ino = next_field(&mut lengths, &mut payload, Ok(0u64))?;
+            let pid = (ev.tgid_pid >> 32) as u32;
+            let tid = (ev.tgid_pid & 0xffffffff) as u32;
+
+            Ok(KrsiEvent {
+                tid,
+                pid,
+                content: KrsiEventContent::Open {
+                    fd: fd as i32,
+                    name,
+                    file_index,
+                    flags,
+                    mode,
+                    dev,
+                    ino,
+                },
+            })
+        }
+        _ => Err(RingbufParseError::NotYetImplemented)
+    }
 }
