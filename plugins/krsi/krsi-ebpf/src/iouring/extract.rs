@@ -1,7 +1,9 @@
-use crate::vmlinux;
-use crate::vmlinux::u32_;
-use aya_ebpf::cty::{c_int, c_uint};
-use aya_ebpf::helpers::bpf_probe_read_kernel;
+use aya_ebpf::{
+    cty::{c_int, c_uint},
+    helpers::bpf_probe_read_kernel,
+};
+
+use crate::{vmlinux, vmlinux::u32_};
 
 /// Returns `req->flags`.
 pub fn io_kiocb_flags(req: *const vmlinux::io_kiocb) -> Result<c_uint, i64> {

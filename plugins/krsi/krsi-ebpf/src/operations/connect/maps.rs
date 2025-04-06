@@ -1,6 +1,6 @@
+use aya_ebpf::{macros::map, maps::HashMap};
+
 use crate::FileDescriptor;
-use aya_ebpf::macros::map;
-use aya_ebpf::maps::HashMap;
 
 #[derive(Clone, Copy)]
 pub struct Info {

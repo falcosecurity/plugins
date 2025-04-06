@@ -22,11 +22,10 @@
 //! ## Extraction flow
 //! 1. `fexit:__sys_socket` | `fexit:io_socket`
 
-use crate::{defs, iouring, shared_maps, vmlinux, FileDescriptor};
-use aya_ebpf::cty::c_int;
-use aya_ebpf::macros::fexit;
-use aya_ebpf::programs::FExitContext;
+use aya_ebpf::{cty::c_int, macros::fexit, programs::FExitContext};
 use krsi_common::EventType;
+
+use crate::{defs, iouring, shared_maps, vmlinux, FileDescriptor};
 
 #[fexit]
 fn io_socket_x(ctx: FExitContext) -> u32 {

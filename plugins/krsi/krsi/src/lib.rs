@@ -1,28 +1,44 @@
-use aya::maps::RingBuf;
-use aya::programs::{FEntry, FExit};
-use aya::EbpfLoader;
-use falco_plugin::anyhow::Error;
-use falco_plugin::async_event::{AsyncEvent, AsyncEventPlugin, AsyncHandler};
-use falco_plugin::base::{Json, Plugin};
-use falco_plugin::event::events::types::{EventType, PPME_SYSCALL_CLONE_20_X};
-use falco_plugin::event::events::{Event, EventMetadata};
-use falco_plugin::event::fields::types::PT_PID;
-use falco_plugin::extract::{field, EventInput, ExtractFieldInfo, ExtractPlugin, ExtractRequest};
-use falco_plugin::parse::{ParseInput, ParsePlugin};
-use falco_plugin::schemars::JsonSchema;
-use falco_plugin::tables::import::{Entry, Field, Table, TableMetadata};
-use falco_plugin::tables::{LazyTableReader, LazyTableWriter, TablesInput};
-use falco_plugin::{async_event_plugin, extract_plugin, parse_plugin, plugin};
+use std::{
+    ffi::{CStr, CString},
+    str::FromStr,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    thread::JoinHandle,
+    time::{Duration, SystemTime},
+};
+
+use aya::{
+    maps::RingBuf,
+    programs::{FEntry, FExit},
+    EbpfLoader,
+};
+use falco_plugin::{
+    anyhow::Error,
+    async_event::{AsyncEvent, AsyncEventPlugin, AsyncHandler},
+    async_event_plugin,
+    base::{Json, Plugin},
+    event::{
+        events::{
+            types::{EventType, PPME_SYSCALL_CLONE_20_X},
+            Event, EventMetadata,
+        },
+        fields::types::PT_PID,
+    },
+    extract::{field, EventInput, ExtractFieldInfo, ExtractPlugin, ExtractRequest},
+    extract_plugin,
+    parse::{ParseInput, ParsePlugin},
+    parse_plugin, plugin,
+    schemars::JsonSchema,
+    tables::{
+        import::{Entry, Field, Table, TableMetadata},
+        LazyTableReader, LazyTableWriter, TablesInput,
+    },
+};
 use hashlru::Cache;
 use libc::{clock_gettime, timespec, CLOCK_BOOTTIME, CLOCK_REALTIME};
 use serde::Deserialize;
-use std::ffi::{CStr, CString};
-use std::str::FromStr;
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
-use std::sync::Arc;
-use std::thread::JoinHandle;
-use std::time::{Duration, SystemTime};
 #[rustfmt::skip]
 use log::debug;
 use crate::flags::FeatureFlags;

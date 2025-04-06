@@ -1,8 +1,7 @@
 #![no_std]
 #![no_main]
 
-use aya_ebpf::macros::fexit;
-use aya_ebpf::programs::FExitContext;
+use aya_ebpf::{macros::fexit, programs::FExitContext};
 use krsi_common::EventType;
 use operations::*;
 

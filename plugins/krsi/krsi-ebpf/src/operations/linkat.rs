@@ -24,11 +24,14 @@
 //! 2. `fexit:do_linkat`
 //! 3. `fexit:io_linkat`
 
-use crate::{defs, files, helpers, scap, shared_maps, vmlinux};
-use aya_ebpf::macros::{fentry, fexit};
-use aya_ebpf::programs::{FEntryContext, FExitContext};
-use aya_ebpf::EbpfContext;
+use aya_ebpf::{
+    macros::{fentry, fexit},
+    programs::{FEntryContext, FExitContext},
+    EbpfContext,
+};
 use krsi_common::EventType;
+
+use crate::{defs, files, helpers, scap, shared_maps, vmlinux};
 
 mod maps;
 

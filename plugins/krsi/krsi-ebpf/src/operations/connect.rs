@@ -19,14 +19,20 @@
 //! 2. `fexit:__sys_connect_file`
 //! 3. `fexit:io_connect` | `fexit:__sys_connect`
 
-use crate::operations::connect::maps::Info;
-use crate::{defs, files, helpers, iouring, shared_maps, vmlinux, FileDescriptor};
-use aya_ebpf::cty::c_int;
-use aya_ebpf::macros::{fentry, fexit};
-use aya_ebpf::programs::{FEntryContext, FExitContext};
-use aya_ebpf::EbpfContext;
 use core::ptr::null;
+
+use aya_ebpf::{
+    cty::c_int,
+    macros::{fentry, fexit},
+    programs::{FEntryContext, FExitContext},
+    EbpfContext,
+};
 use krsi_common::EventType;
+
+use crate::{
+    defs, files, helpers, iouring, operations::connect::maps::Info, shared_maps, vmlinux,
+    FileDescriptor,
+};
 
 mod maps;
 
