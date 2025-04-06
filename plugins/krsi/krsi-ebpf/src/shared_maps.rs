@@ -1,6 +1,8 @@
-use aya_ebpf::helpers::bpf_get_smp_processor_id;
-use aya_ebpf::macros::map;
-use aya_ebpf::maps::{Array, RingBuf};
+use aya_ebpf::{
+    helpers::bpf_get_smp_processor_id,
+    macros::map,
+    maps::{Array, RingBuf},
+};
 use krsi_common::EventType;
 
 #[map]

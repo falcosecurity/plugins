@@ -1,6 +1,9 @@
+use aya_ebpf::{
+    cty::c_char,
+    helpers::{bpf_probe_read_kernel, bpf_probe_read_user},
+};
+
 use crate::{defs, vmlinux};
-use aya_ebpf::cty::c_char;
-use aya_ebpf::helpers::{bpf_probe_read_kernel, bpf_probe_read_user};
 
 /// Returns `sock->sk`.
 pub fn extract_socket_sk(sock: *const vmlinux::socket) -> Result<*const vmlinux::sock, i64> {

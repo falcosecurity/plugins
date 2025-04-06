@@ -1,7 +1,11 @@
-use crate::vmlinux;
-use aya_ebpf::cty::{c_uint, c_ulong};
-use aya_ebpf::helpers::bpf_probe_read_kernel;
 use core::ffi::c_uchar;
+
+use aya_ebpf::{
+    cty::{c_uint, c_ulong},
+    helpers::bpf_probe_read_kernel,
+};
+
+use crate::vmlinux;
 
 /// Returns `file->f_flags`.
 pub fn file_flags(file: *const vmlinux::file) -> Result<c_uint, i64> {

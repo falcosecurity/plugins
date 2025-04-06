@@ -1,10 +1,13 @@
-use crate::flags::FeatureFlags;
-use aya::maps::RingBuf;
-use aya::programs::{FEntry, FExit};
-use aya::EbpfLoader;
+use aya::{
+    maps::RingBuf,
+    programs::{FEntry, FExit},
+    EbpfLoader,
+};
 use aya_log::EbpfLogger;
 use libc::{clock_gettime, timespec, CLOCK_BOOTTIME, CLOCK_REALTIME};
 use log::debug;
+
+use crate::flags::FeatureFlags;
 
 pub struct Ebpf {
     btf: aya::Btf,

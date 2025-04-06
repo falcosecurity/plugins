@@ -1,5 +1,6 @@
-use crate::defs;
 use krsi_common::scap;
+
+use crate::defs;
 
 pub fn encode_open_flags(flags: u32) -> u32 {
     let mut res = 0_u32;

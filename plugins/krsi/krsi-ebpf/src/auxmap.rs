@@ -1,12 +1,16 @@
-use crate::{defs, get_event_num_params, scap, shared_maps, sockets, vmlinux, FileDescriptor};
-use aya_ebpf::bindings::BPF_RB_FORCE_WAKEUP;
-use aya_ebpf::cty::{c_char, c_uchar};
-use aya_ebpf::helpers::{
-    bpf_d_path, bpf_get_current_pid_tgid, bpf_ktime_get_boot_ns, bpf_probe_read_kernel_str_bytes,
-    bpf_probe_read_user_str_bytes,
-};
 use core::ptr::null;
+
+use aya_ebpf::{
+    bindings::BPF_RB_FORCE_WAKEUP,
+    cty::{c_char, c_uchar},
+    helpers::{
+        bpf_d_path, bpf_get_current_pid_tgid, bpf_ktime_get_boot_ns,
+        bpf_probe_read_kernel_str_bytes, bpf_probe_read_user_str_bytes,
+    },
+};
 use krsi_common::{EventHeader, EventType};
+
+use crate::{defs, get_event_num_params, scap, shared_maps, sockets, vmlinux, FileDescriptor};
 
 // Event maximum size.
 const MAX_EVENT_SIZE: u64 = 8 * 1024;

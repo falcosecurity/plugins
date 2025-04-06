@@ -14,16 +14,20 @@
 //! 4. `fexit:do_sys_openat2` | `fexit:io_openat2` - ensure the association for the current
 //! thread's pid is removed from the `OPEN_PIDS` map
 
-use crate::{defs, files, helpers, scap, shared_maps, vmlinux, FileDescriptor};
-use aya_ebpf::cty::{c_int, c_uint};
-use aya_ebpf::helpers::bpf_probe_read_kernel_str_bytes;
-use aya_ebpf::macros::{fentry, fexit};
-use aya_ebpf::maps::HashMap;
-use aya_ebpf::programs::{FEntryContext, FExitContext};
-use aya_ebpf::EbpfContext;
-use aya_log_ebpf::info;
 use core::ptr::null_mut;
+
+use aya_ebpf::{
+    cty::{c_int, c_uint},
+    helpers::bpf_probe_read_kernel_str_bytes,
+    macros::{fentry, fexit},
+    maps::HashMap,
+    programs::{FEntryContext, FExitContext},
+    EbpfContext,
+};
+use aya_log_ebpf::info;
 use krsi_common::{scap as scap_shared, EventType};
+
+use crate::{defs, files, helpers, scap, shared_maps, vmlinux, FileDescriptor};
 
 mod maps;
 

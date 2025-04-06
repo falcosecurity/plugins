@@ -63266,4 +63266,3 @@ pub struct xsk_tx_metadata_ops {
         unsafe extern "C" fn(arg1: u16_, arg2: u16_, arg3: *mut ::aya_ebpf::cty::c_void),
     >,
 }
-

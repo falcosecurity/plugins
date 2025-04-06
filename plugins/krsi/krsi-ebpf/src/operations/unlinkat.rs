@@ -23,11 +23,10 @@
 //! ## Extraction flow
 //! 1. `fexit:io_unlinkat` | TODO(ekoops): add syscalls support
 
-use crate::{defs, files, iouring, scap, shared_maps, vmlinux};
-use aya_ebpf::cty::c_int;
-use aya_ebpf::macros::fexit;
-use aya_ebpf::programs::FExitContext;
+use aya_ebpf::{cty::c_int, macros::fexit, programs::FExitContext};
 use krsi_common::EventType;
+
+use crate::{defs, files, iouring, scap, shared_maps, vmlinux};
 
 #[fexit]
 fn io_unlinkat_x(ctx: FExitContext) -> u32 {

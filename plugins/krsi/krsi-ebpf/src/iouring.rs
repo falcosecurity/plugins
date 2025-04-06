@@ -1,5 +1,6 @@
-use crate::{defs, vmlinux, FileDescriptor};
 use aya_ebpf::cty::c_int;
+
+use crate::{defs, vmlinux, FileDescriptor};
 
 pub mod extract;
 
