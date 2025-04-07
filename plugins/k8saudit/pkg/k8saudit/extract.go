@@ -216,7 +216,7 @@ func (e *Plugin) ExtractFromJSON(req sdk.ExtractRequest, jsonValue *fastjson.Val
 	case "ka.req.configmap.name":
 		return e.extractFromKeys(req, jsonValue, "objectRef", "name")
 	case "ka.req.configmap.obj":
-		return e.extractFromKeys(req, jsonValue, "requestObject", "data")
+		return e.extractFromKeys(req, jsonValue, "requestObject")
 	case "ka.req.pod.containers.image":
 		indexFilter := e.argIndexFilter(req)
 		images, err := e.readContainerImages(jsonValue, indexFilter)
