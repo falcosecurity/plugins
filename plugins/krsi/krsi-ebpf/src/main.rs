@@ -86,6 +86,7 @@ pub fn get_event_num_params(event_type: EventType) -> u8 {
         Ok(EventType::Symlinkat) => 5,
         Ok(EventType::Linkat) => 7,
         Ok(EventType::Unlinkat) => 5,
+        Ok(EventType::Mkdirat) => 5,
         _ => 0,
     }
 }

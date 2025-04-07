@@ -118,6 +118,17 @@ static int io_uring_unlinkat(struct io_uring *ring, int dirfd, char *path, int f
     return submit_and_wait(ring);
 }
 
+static int io_uring_mkdirat(struct io_uring *ring, int dirfd, char *path, int mode) {
+    struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
+    if (!sqe) {
+        fprintf(stderr, "io_uring_mkdirat: io_uring_get_sqe failed\n");
+        return -1;
+    }
+
+    io_uring_prep_mkdirat(sqe, dirfd, path, mode);
+    return submit_and_wait(ring);
+}
+
 static int io_uring_read(struct io_uring *ring, int fd, char *buf, unsigned int nbytes, uint64_t offset, bool use_file_indexes) {
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
     if (!sqe) {
@@ -206,6 +217,15 @@ static int do_unlinkat(struct io_uring *ring, int dirfd, char *path, int flags, 
         io_uring_unlinkat(ring, dirfd, path, flags);
 }
 
+static int do_mkdirat(struct io_uring *ring, int dirfd, char *path, int mode, bool use_syscalls, bool use_file_indexes) {
+    if (use_file_indexes) {
+        printf("warning: do_mkdirat: file indexes not supported by IORING_OP_MKDIRAT\n");
+    }
+    return use_syscalls ?
+        mkdirat(dirfd, path, mode) :
+        io_uring_mkdirat(ring, dirfd, path, mode);
+}
+
 static int do_read(struct io_uring *ring, int fd, char *buf, unsigned int nbytes, uint64_t offset, bool use_syscalls, bool use_file_indexes) {
     return use_syscalls ?
         read(fd, buf, nbytes) :
@@ -230,10 +250,9 @@ static int test_openat(struct io_uring *ring, bool use_syscalls, bool use_file_i
     int flags = O_RDONLY;
     int fd = do_openat(ring, dirfd, pathname, flags, use_syscalls, use_file_indexes);
     if (fd < 0) {
-        fprintf(stderr, "test_openat: do_openat failed with res=%d\n", fd);
         return fd;
     }
-    close(fd);
+    do_close(ring, fd, use_syscalls, use_file_indexes);
     return 0;
 }
 
@@ -283,14 +302,14 @@ static int test_connect(struct io_uring *ring, bool use_syscalls, bool use_file_
 	if (ret < 0) {
 		fprintf(stderr, "test_connect: connect failed: %d\n", ret);
 		do_close(ring, sockfd, use_syscalls, use_file_indexes);
-		return -1;
+		return ret;
 	}
 	printf("test_connect: connected to server\n");
 	ret = do_write(ring, sockfd, "Hello, world!\n", 14, -1, use_syscalls, use_file_indexes);
 	if (ret < 0) {
         fprintf(stderr, "test_connect: writing to server failed: %d\n", ret);
         do_close(ring, sockfd, use_syscalls, use_file_indexes);
-        return -1;
+        return ret;
 	}
 
 	// Close the socket and connection
@@ -315,15 +334,14 @@ static int test_connect(struct io_uring *ring, bool use_syscalls, bool use_file_
 }
 
 static int test_socket(struct io_uring *ring, bool use_syscalls, bool use_file_indexes) {
-    int dirfd = AT_FDCWD;
-    char *pathname = "/etc/passwd";
-    int flags = O_RDONLY;
-    int fd = do_socket(ring, AF_INET, SOCK_STREAM, 0, 0, use_syscalls, use_file_indexes);
+    int domain = AF_INET;
+    int type = SOCK_STREAM;
+    int protocol = 0;
+    int fd = do_socket(ring, domain, type, protocol, 0, use_syscalls, use_file_indexes);
     if (fd < 0) {
-		fprintf(stderr, "test_socket: do_socket failed: %d\n", fd);
-        return -1;
+        return fd;
     }
-    close(fd);
+    do_close(ring, fd, use_syscalls, use_file_indexes);
     return 0;
 }
 
@@ -334,7 +352,7 @@ static int test_symlinkat(struct io_uring *ring, bool use_syscalls, bool use_fil
     char *linkpath = "/tmp/symlink_to_passwd";
     int ret = do_symlinkat(ring, target, newdirfd, linkpath, use_syscalls, use_file_indexes);
     if (ret < 0) {
-        return -1;
+        return ret;
     }
     do_unlinkat(ring, newdirfd, linkpath, 0, use_syscalls, use_file_indexes);
     return 0;
@@ -349,9 +367,22 @@ static int test_linkat(struct io_uring *ring, bool use_syscalls, bool use_file_i
     int flags = AT_SYMLINK_FOLLOW;
     int ret = do_linkat(ring, olddirfd, oldpath, newdirfd, newpath, flags, use_syscalls, use_file_indexes);
     if (ret < 0) {
-        return -1;
+        return ret;
     }
     do_unlinkat(ring, newdirfd, newpath, 0, use_syscalls, use_file_indexes);
+    return 0;
+}
+
+static int test_mkdirat(struct io_uring *ring, bool use_syscalls, bool use_file_indexes) {
+    // Create a dir named tempdir under /tmp.
+    int dirfd = AT_FDCWD;
+    char *path = "/tmp/tempdir";
+    int mode = S_IRWXU | S_IRWXG | S_IRWXO;
+    int ret = do_mkdirat(ring, dirfd, path, mode, use_syscalls, use_file_indexes);
+    if (ret < 0) {
+        return ret;
+    }
+    do_unlinkat(ring, dirfd, path, AT_REMOVEDIR, use_syscalls, use_file_indexes);
     return 0;
 }
 
@@ -361,13 +392,12 @@ static int test_read(struct io_uring *ring, bool use_syscalls, bool use_file_ind
     int flags = O_RDONLY;
     int fd = do_openat(ring, dirfd, pathname, flags, use_syscalls, use_file_indexes);
     if (fd < 0) {
-        fprintf(stderr, "test_read: do_openat failed: %d\n", fd);
         return fd;
     }
 
     char buf[1024];
     int ret = do_read(ring, fd, buf, 1024, 0, use_syscalls, use_file_indexes);
-    close(fd);
+    do_close(ring, fd, use_syscalls, use_file_indexes);
     return ret;
 }
 
@@ -406,6 +436,7 @@ int main(int argc, char **argv) {
         TEST(test_symlinkat),
         TEST(test_linkat),
         {.name = "test_unlinkat", .test_func = test_linkat },
+        TEST(test_mkdirat),
         TEST(test_read),
         {.name = "", .test_func = NULL},
     };
