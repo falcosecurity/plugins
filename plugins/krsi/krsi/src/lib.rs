@@ -40,7 +40,7 @@ use libc::{clock_gettime, timespec, CLOCK_BOOTTIME, CLOCK_REALTIME};
 use serde::Deserialize;
 #[rustfmt::skip]
 use log::debug;
-use crate::flags::FeatureFlags;
+use crate::flags::{FeatureFlags, OpFlags};
 
 mod ebpf;
 mod flags;
@@ -104,6 +104,7 @@ type ImportedThreadTable = Table<i64, ImportedThread>;
 pub struct KrsiPlugin {
     ebpf: ebpf::Ebpf,
     feature_flags: FeatureFlags,
+    op_flags: OpFlags,
     threads: ImportedThreadTable,
     async_handler: Option<Arc<AsyncHandler>>,
     missing_events: Cache<i64, Vec<krsi_event::KrsiEvent>>,
@@ -130,10 +131,12 @@ impl Plugin for KrsiPlugin {
         let input = input.ok_or_else(|| anyhow::anyhow!("did not get table input"))?;
         let threads: ImportedThreadTable = input.get_table(c"threads")?;
         // TODO(ekoops): allow the customize the feature flags at runtime.
-        let feature_flags = FeatureFlags::ENABLE_IO_URING_SUPPORT;
+        let feature_flags = FeatureFlags::IO_URING;
+        let op_flags = OpFlags::all();
         Ok(Self {
             ebpf,
             feature_flags,
+            op_flags,
             threads,
             async_handler: None,
             missing_events: Cache::new(1024),
@@ -303,7 +306,8 @@ impl AsyncEventPlugin for KrsiPlugin {
             self.stop_async()?;
         }
 
-        self.ebpf.load_and_attach_programs(&self.feature_flags)?;
+        self.ebpf
+            .load_and_attach_programs(self.feature_flags, self.op_flags)?;
         let mut ring_buf = self.ebpf.ring_buffer()?;
 
         let handler = Arc::new(handler);

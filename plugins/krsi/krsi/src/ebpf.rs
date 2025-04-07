@@ -7,12 +7,213 @@ use aya_log::EbpfLogger;
 use libc::{clock_gettime, timespec, CLOCK_BOOTTIME, CLOCK_REALTIME};
 use log::debug;
 
-use crate::flags::FeatureFlags;
+use crate::flags::{FeatureFlags, OpFlags};
 
 pub struct Ebpf {
     btf: aya::Btf,
     ebpf: aya::Ebpf,
 }
+
+enum ProgKind {
+    Fentry,
+    Fexit,
+}
+
+struct ProgDef {
+    kind: ProgKind,
+    name: &'static str,
+    fn_name: &'static str,
+    feature_flags: FeatureFlags,
+    op_flags: OpFlags,
+}
+
+impl ProgDef {
+    const fn new(
+        kind: ProgKind,
+        name: &'static str,
+        fn_name: &'static str,
+        feature_flags: FeatureFlags,
+        op_flags: OpFlags,
+    ) -> Self {
+        Self {
+            kind,
+            name,
+            fn_name,
+            feature_flags,
+            op_flags,
+        }
+    }
+}
+
+// Programs are conditionally loaded and attached (conditionally, depending on their flags) by
+// taking into account the definition order.
+const PROG_DEFS: &'static [ProgDef] = &[
+    // Open programs.
+    ProgDef::new(
+        ProgKind::Fexit,
+        "fd_install_x",
+        "fd_install",
+        FeatureFlags::from_bits_truncate(
+            FeatureFlags::IO_URING.bits() | FeatureFlags::SYSCALLS.bits(),
+        ),
+        OpFlags::OPEN,
+    ),
+    ProgDef::new(
+        ProgKind::Fexit,
+        "io_fixed_fd_install_x",
+        "io_fixed_fd_install",
+        FeatureFlags::from_bits_truncate(
+            FeatureFlags::IO_URING.bits() | FeatureFlags::SYSCALLS.bits(),
+        ),
+        OpFlags::OPEN,
+    ),
+    ProgDef::new(
+        ProgKind::Fexit,
+        "security_file_open_x",
+        "security_file_open",
+        FeatureFlags::from_bits_truncate(
+            FeatureFlags::IO_URING.bits() | FeatureFlags::SYSCALLS.bits(),
+        ),
+        OpFlags::OPEN,
+    ),
+    ProgDef::new(
+        ProgKind::Fexit,
+        "io_openat2_x",
+        "io_openat2",
+        FeatureFlags::IO_URING,
+        OpFlags::OPEN,
+    ),
+    ProgDef::new(
+        ProgKind::Fentry,
+        "io_openat2_e",
+        "io_openat2",
+        FeatureFlags::IO_URING,
+        OpFlags::OPEN,
+    ),
+    ProgDef::new(
+        ProgKind::Fexit,
+        "do_sys_openat2_x",
+        "do_sys_openat2",
+        FeatureFlags::SYSCALLS,
+        OpFlags::OPEN,
+    ),
+    ProgDef::new(
+        ProgKind::Fentry,
+        "do_sys_openat2_e",
+        "do_sys_openat2",
+        FeatureFlags::SYSCALLS,
+        OpFlags::OPEN,
+    ),
+    // Socket programs.
+    ProgDef::new(
+        ProgKind::Fexit,
+        "io_socket_x",
+        "io_socket",
+        FeatureFlags::IO_URING,
+        OpFlags::SOCKET,
+    ),
+    ProgDef::new(
+        ProgKind::Fexit,
+        "__sys_socket_x",
+        "__sys_socket",
+        FeatureFlags::SYSCALLS,
+        OpFlags::SOCKET,
+    ),
+    ProgDef::new(
+        ProgKind::Fexit,
+        "__sys_connect_file_x",
+        "__sys_connect_file",
+        FeatureFlags::from_bits_truncate(
+            FeatureFlags::IO_URING.bits() | FeatureFlags::SYSCALLS.bits(),
+        ),
+        OpFlags::CONNECT,
+    ),
+    // Connect programs.
+    ProgDef::new(
+        ProgKind::Fexit,
+        "io_connect_x",
+        "io_connect",
+        FeatureFlags::IO_URING,
+        OpFlags::CONNECT,
+    ),
+    ProgDef::new(
+        ProgKind::Fentry,
+        "io_connect_e",
+        "io_connect",
+        FeatureFlags::IO_URING,
+        OpFlags::CONNECT,
+    ),
+    ProgDef::new(
+        ProgKind::Fexit,
+        "__sys_connect_x",
+        "__sys_connect",
+        FeatureFlags::SYSCALLS,
+        OpFlags::CONNECT,
+    ),
+    ProgDef::new(
+        ProgKind::Fentry,
+        "__sys_connect_e",
+        "__sys_connect",
+        FeatureFlags::SYSCALLS,
+        OpFlags::CONNECT,
+    ),
+    // Symlinkat programs.
+    ProgDef::new(
+        ProgKind::Fexit,
+        "do_symlinkat_x",
+        "do_symlinkat",
+        FeatureFlags::from_bits_truncate(
+            FeatureFlags::IO_URING.bits() | FeatureFlags::SYSCALLS.bits(),
+        ),
+        OpFlags::SYMLINKAT,
+    ),
+    ProgDef::new(
+        ProgKind::Fexit,
+        "io_symlinkat_x",
+        "io_symlinkat",
+        FeatureFlags::IO_URING,
+        OpFlags::SYMLINKAT,
+    ),
+    ProgDef::new(
+        ProgKind::Fentry,
+        "io_symlinkat_e",
+        "io_symlinkat",
+        FeatureFlags::IO_URING,
+        OpFlags::SYMLINKAT,
+    ),
+    // Linkat programs.
+    ProgDef::new(
+        ProgKind::Fexit,
+        "do_linkat_x",
+        "do_linkat",
+        FeatureFlags::from_bits_truncate(
+            FeatureFlags::IO_URING.bits() | FeatureFlags::SYSCALLS.bits(),
+        ),
+        OpFlags::LINKAT,
+    ),
+    ProgDef::new(
+        ProgKind::Fexit,
+        "io_linkat_x",
+        "io_linkat",
+        FeatureFlags::IO_URING,
+        OpFlags::LINKAT,
+    ),
+    ProgDef::new(
+        ProgKind::Fentry,
+        "io_linkat_e",
+        "io_linkat",
+        FeatureFlags::IO_URING,
+        OpFlags::LINKAT,
+    ),
+    // Unlinkat programs.
+    ProgDef::new(
+        ProgKind::Fexit,
+        "io_unlinkat_x",
+        "io_unlinkat",
+        FeatureFlags::IO_URING,
+        OpFlags::UNLINKAT,
+    ),
+];
 
 impl Ebpf {
     pub fn try_new(enable_logging: bool) -> Result<Self, anyhow::Error> {
@@ -72,202 +273,40 @@ impl Ebpf {
 
     pub fn load_and_attach_programs(
         &mut self,
-        feature_flags: &FeatureFlags,
+        feature_flags: FeatureFlags,
+        op_flags: OpFlags,
     ) -> Result<(), anyhow::Error> {
         let ebpf = &mut self.ebpf;
         let btf = &self.btf;
 
-        Self::load_and_attach_open_programs(ebpf, btf, feature_flags)?;
-        Self::load_and_attach_socket_programs(ebpf, btf, feature_flags)?;
-        Self::load_and_attach_connect_programs(ebpf, btf, feature_flags)?;
-        Self::load_and_attach_symlinkat_programs(ebpf, btf, feature_flags)?;
-        Self::load_and_attach_linkat_programs(ebpf, btf, feature_flags)?;
-        Self::load_and_attach_unlinkat_programs(ebpf, btf, feature_flags)?;
-        Ok(())
-    }
-
-    fn load_and_attach_open_programs(
-        ebpf: &mut aya::Ebpf,
-        btf: &aya::Btf,
-        feature_flags: &FeatureFlags,
-    ) -> Result<(), anyhow::Error> {
-        if !feature_flags.is_empty() {
-            let fd_install_x_prog: &mut FExit =
-                ebpf.program_mut("fd_install_x").unwrap().try_into()?;
-            fd_install_x_prog.load("fd_install", btf)?;
-            fd_install_x_prog.attach()?;
-
-            let io_fixed_fd_install_x_prog: &mut FExit = ebpf
-                .program_mut("io_fixed_fd_install_x")
-                .unwrap()
-                .try_into()?;
-            io_fixed_fd_install_x_prog.load("io_fixed_fd_install", btf)?;
-            io_fixed_fd_install_x_prog.attach()?;
-
-            let sec_file_open_x_prog: &mut FExit = ebpf
-                .program_mut("security_file_open_x")
-                .unwrap()
-                .try_into()?;
-            sec_file_open_x_prog.load("security_file_open", btf)?;
-            sec_file_open_x_prog.attach()?;
-        }
-
-        if feature_flags.contains(FeatureFlags::ENABLE_IO_URING_SUPPORT) {
-            let io_openat2_x_prog: &mut FExit =
-                ebpf.program_mut("io_openat2_x").unwrap().try_into()?;
-            io_openat2_x_prog.load("io_openat2", btf)?;
-            io_openat2_x_prog.attach()?;
-
-            let io_openat2_e_prog: &mut FEntry =
-                ebpf.program_mut("io_openat2_e").unwrap().try_into()?;
-            io_openat2_e_prog.load("io_openat2", btf)?;
-            io_openat2_e_prog.attach()?;
-        }
-
-        if feature_flags.contains(FeatureFlags::ENABLE_SYSCALLS_SUPPORT) {
-            let do_sys_openat2_x_prog: &mut FExit =
-                ebpf.program_mut("do_sys_openat2_x").unwrap().try_into()?;
-            do_sys_openat2_x_prog.load("do_sys_openat2", btf)?;
-            do_sys_openat2_x_prog.attach()?;
-
-            let do_sys_openat2_e_prog: &mut FEntry =
-                ebpf.program_mut("do_sys_openat2_e").unwrap().try_into()?;
-            do_sys_openat2_e_prog.load("do_sys_openat2", btf)?;
-            do_sys_openat2_e_prog.attach()?;
+        for prog_def in PROG_DEFS {
+            if prog_def.feature_flags.intersects(feature_flags)
+                && prog_def.op_flags.intersects(op_flags)
+            {
+                Self::load_and_attach_program(ebpf, btf, prog_def)?
+            }
         }
 
         Ok(())
     }
 
-    fn load_and_attach_socket_programs(
+    fn load_and_attach_program(
         ebpf: &mut aya::Ebpf,
         btf: &aya::Btf,
-        feature_flags: &FeatureFlags,
+        prog_def: &ProgDef,
     ) -> Result<(), anyhow::Error> {
-        if feature_flags.contains(FeatureFlags::ENABLE_IO_URING_SUPPORT) {
-            let io_socket_x_prog: &mut FExit =
-                ebpf.program_mut("io_socket_x").unwrap().try_into()?;
-            io_socket_x_prog.load("io_socket", btf)?;
-            io_socket_x_prog.attach()?;
+        match prog_def.kind {
+            ProgKind::Fentry => {
+                let prog: &mut FEntry = ebpf.program_mut(prog_def.name).unwrap().try_into()?;
+                prog.load(prog_def.fn_name, btf)?;
+                prog.attach()?;
+            }
+            ProgKind::Fexit => {
+                let prog: &mut FExit = ebpf.program_mut(prog_def.name).unwrap().try_into()?;
+                prog.load(prog_def.fn_name, btf)?;
+                prog.attach()?;
+            }
         }
-
-        if feature_flags.contains(FeatureFlags::ENABLE_SYSCALLS_SUPPORT) {
-            let sys_socket_x_prog: &mut FExit =
-                ebpf.program_mut("__sys_socket_x").unwrap().try_into()?;
-            sys_socket_x_prog.load("__sys_socket", btf)?;
-            sys_socket_x_prog.attach()?;
-        }
-
-        Ok(())
-    }
-
-    fn load_and_attach_connect_programs(
-        ebpf: &mut aya::Ebpf,
-        btf: &aya::Btf,
-        feature_flags: &FeatureFlags,
-    ) -> Result<(), anyhow::Error> {
-        if !feature_flags.is_empty() {
-            let sys_connect_file_x_prog: &mut FExit = ebpf
-                .program_mut("__sys_connect_file_x")
-                .unwrap()
-                .try_into()?;
-            sys_connect_file_x_prog.load("__sys_connect_file", btf)?;
-            sys_connect_file_x_prog.attach()?;
-        }
-
-        if feature_flags.contains(FeatureFlags::ENABLE_IO_URING_SUPPORT) {
-            let io_connect_x_prog: &mut FExit =
-                ebpf.program_mut("io_connect_x").unwrap().try_into()?;
-            io_connect_x_prog.load("io_connect", btf)?;
-            io_connect_x_prog.attach()?;
-
-            let io_connect_e_prog: &mut FEntry =
-                ebpf.program_mut("io_connect_e").unwrap().try_into()?;
-            io_connect_e_prog.load("io_connect", btf)?;
-            io_connect_e_prog.attach()?;
-        }
-
-        if feature_flags.contains(FeatureFlags::ENABLE_SYSCALLS_SUPPORT) {
-            let sys_connect_x_prog: &mut FExit =
-                ebpf.program_mut("__sys_connect_x").unwrap().try_into()?;
-            sys_connect_x_prog.load("__sys_connect", btf)?;
-            sys_connect_x_prog.attach()?;
-
-            let sys_connect_e_prog: &mut FEntry =
-                ebpf.program_mut("__sys_connect_e").unwrap().try_into()?;
-            sys_connect_e_prog.load("__sys_connect", btf)?;
-            sys_connect_e_prog.attach()?;
-        }
-
-        Ok(())
-    }
-
-    fn load_and_attach_symlinkat_programs(
-        ebpf: &mut aya::Ebpf,
-        btf: &aya::Btf,
-        feature_flags: &FeatureFlags,
-    ) -> Result<(), anyhow::Error> {
-        if !feature_flags.is_empty() {
-            let do_symlinkat_x_prog: &mut FExit =
-                ebpf.program_mut("do_symlinkat_x").unwrap().try_into()?;
-            do_symlinkat_x_prog.load("do_symlinkat", btf)?;
-            do_symlinkat_x_prog.attach()?;
-        }
-
-        if feature_flags.contains(FeatureFlags::ENABLE_IO_URING_SUPPORT) {
-            let io_symlinkat_x_prog: &mut FExit =
-                ebpf.program_mut("io_symlinkat_x").unwrap().try_into()?;
-            io_symlinkat_x_prog.load("io_symlinkat", btf)?;
-            io_symlinkat_x_prog.attach()?;
-
-            let io_symlinkat_e_prog: &mut FEntry =
-                ebpf.program_mut("io_symlinkat_e").unwrap().try_into()?;
-            io_symlinkat_e_prog.load("io_symlinkat", btf)?;
-            io_symlinkat_e_prog.attach()?;
-        }
-
-        Ok(())
-    }
-
-    fn load_and_attach_linkat_programs(
-        ebpf: &mut aya::Ebpf,
-        btf: &aya::Btf,
-        feature_flags: &FeatureFlags,
-    ) -> Result<(), anyhow::Error> {
-        if !feature_flags.is_empty() {
-            let do_linkat_x_prog: &mut FExit =
-                ebpf.program_mut("do_linkat_x").unwrap().try_into()?;
-            do_linkat_x_prog.load("do_linkat", btf)?;
-            do_linkat_x_prog.attach()?;
-        }
-
-        if feature_flags.contains(FeatureFlags::ENABLE_IO_URING_SUPPORT) {
-            let io_linkat_x_prog: &mut FExit =
-                ebpf.program_mut("io_linkat_x").unwrap().try_into()?;
-            io_linkat_x_prog.load("io_linkat", btf)?;
-            io_linkat_x_prog.attach()?;
-
-            let io_linkat_e_prog: &mut FEntry =
-                ebpf.program_mut("io_linkat_e").unwrap().try_into()?;
-            io_linkat_e_prog.load("io_linkat", btf)?;
-            io_linkat_e_prog.attach()?;
-        }
-
-        Ok(())
-    }
-
-    fn load_and_attach_unlinkat_programs(
-        ebpf: &mut aya::Ebpf,
-        btf: &aya::Btf,
-        feature_flags: &FeatureFlags,
-    ) -> Result<(), anyhow::Error> {
-        if feature_flags.contains(FeatureFlags::ENABLE_IO_URING_SUPPORT) {
-            let io_unlinkat_x_prog: &mut FExit =
-                ebpf.program_mut("io_unlinkat_x").unwrap().try_into()?;
-            io_unlinkat_x_prog.load("io_unlinkat", btf)?;
-            io_unlinkat_x_prog.attach()?;
-        }
-
         Ok(())
     }
 
