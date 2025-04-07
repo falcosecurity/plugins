@@ -213,6 +213,30 @@ const PROG_DEFS: &'static [ProgDef] = &[
         FeatureFlags::IO_URING,
         OpFlags::UNLINKAT,
     ),
+    // Mkdirat programs.
+    ProgDef::new(
+        ProgKind::Fexit,
+        "do_mkdirat_x",
+        "do_mkdirat",
+        FeatureFlags::from_bits_truncate(
+            FeatureFlags::IO_URING.bits() | FeatureFlags::SYSCALLS.bits(),
+        ),
+        OpFlags::MKDIRAT,
+    ),
+    ProgDef::new(
+        ProgKind::Fexit,
+        "io_mkdirat_x",
+        "io_mkdirat",
+        FeatureFlags::IO_URING,
+        OpFlags::MKDIRAT,
+    ),
+    ProgDef::new(
+        ProgKind::Fentry,
+        "io_mkdirat_e",
+        "io_mkdirat",
+        FeatureFlags::IO_URING,
+        OpFlags::MKDIRAT,
+    ),
 ];
 
 impl Ebpf {
