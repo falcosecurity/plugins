@@ -31,7 +31,7 @@ use aya_ebpf::{
 };
 use krsi_common::EventType;
 
-use crate::{defs, files, helpers, scap, shared_maps, vmlinux};
+use crate::{defs, helpers, scap, shared_maps, vmlinux};
 
 mod maps;
 
@@ -57,11 +57,7 @@ fn try_do_symlinkat_x(ctx: FExitContext) -> Result<u32, i64> {
 
     // Parameter 1: target.
     let target: *const vmlinux::filename = unsafe { ctx.arg(0) };
-    let result = files::extract::filename_name(target)
-        .and_then(|name| unsafe { auxmap.store_charbuf_param(name, defs::MAX_PATH, true) });
-    if result.is_err() {
-        auxmap.store_empty_param();
-    }
+    auxmap.store_filename_param(target, defs::MAX_PATH, true);
 
     // Parameter 2: linkdirfd.
     let linkdirfd: i32 = unsafe { ctx.arg(1) };
@@ -69,11 +65,7 @@ fn try_do_symlinkat_x(ctx: FExitContext) -> Result<u32, i64> {
 
     // Parameter 3: linkpath.
     let linkpath: *const vmlinux::filename = unsafe { ctx.arg(2) };
-    let result = files::extract::filename_name(linkpath)
-        .and_then(|name| unsafe { auxmap.store_charbuf_param(name, defs::MAX_PATH, true) });
-    if result.is_err() {
-        auxmap.store_empty_param();
-    }
+    auxmap.store_filename_param(linkpath, defs::MAX_PATH, true);
 
     // Parameter 4: res.
     let res: i64 = unsafe { ctx.arg(3) };

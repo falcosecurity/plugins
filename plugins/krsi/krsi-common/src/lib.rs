@@ -12,6 +12,7 @@ pub enum EventType {
     Linkat = 4,
     Unlinkat = 5,
     Mkdirat = 6,
+    Renameat = 7,
 }
 
 impl TryFrom<u16> for EventType {
@@ -26,6 +27,7 @@ impl TryFrom<u16> for EventType {
             x if x == EventType::Linkat as u16 => Ok(EventType::Linkat),
             x if x == EventType::Unlinkat as u16 => Ok(EventType::Unlinkat),
             x if x == EventType::Mkdirat as u16 => Ok(EventType::Mkdirat),
+            x if x == EventType::Renameat as u16 => Ok(EventType::Renameat),
             _ => Err(()),
         }
     }

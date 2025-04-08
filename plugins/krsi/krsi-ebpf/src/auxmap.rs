@@ -10,7 +10,9 @@ use aya_ebpf::{
 };
 use krsi_common::{EventHeader, EventType};
 
-use crate::{defs, get_event_num_params, scap, shared_maps, sockets, vmlinux, FileDescriptor};
+use crate::{
+    defs, files, get_event_num_params, scap, shared_maps, sockets, vmlinux, FileDescriptor,
+};
 
 // Event maximum size.
 const MAX_EVENT_SIZE: u64 = 8 * 1024;
@@ -361,6 +363,19 @@ impl AuxiliaryMap {
         }
         self.payload_pos += written_bytes as u64;
         Ok(written_bytes as u16)
+    }
+
+    pub fn store_filename_param(
+        &mut self,
+        filename: *const vmlinux::filename,
+        max_len_to_read: u16,
+        is_kern_mem: bool,
+    ) {
+        if let Err(_) = files::extract::filename_name(filename).and_then(|name| unsafe {
+            self.store_charbuf_param(name, max_len_to_read, is_kern_mem)
+        }) {
+            self.store_empty_param();
+        }
     }
 
     pub fn submit_event(&self) {

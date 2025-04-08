@@ -34656,6 +34656,16 @@ pub struct io_uring_cqe {
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
+pub struct io_rename {
+    pub file: *mut file,
+    pub old_dfd: ::aya_ebpf::cty::c_int,
+    pub new_dfd: ::aya_ebpf::cty::c_int,
+    pub oldpath: *mut filename,
+    pub newpath: *mut filename,
+    pub flags: ::aya_ebpf::cty::c_int,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
 pub struct io_restriction {
     pub register_op: [::aya_ebpf::cty::c_ulong; 1usize],
     pub sqe_op: [::aya_ebpf::cty::c_ulong; 1usize],

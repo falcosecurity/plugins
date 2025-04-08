@@ -26,7 +26,7 @@
 use aya_ebpf::{cty::c_int, macros::fexit, programs::FExitContext};
 use krsi_common::EventType;
 
-use crate::{defs, files, iouring, scap, shared_maps, vmlinux};
+use crate::{defs, files, iouring, scap, shared_maps, vmlinux, vmlinux::file};
 
 #[fexit]
 fn io_unlinkat_x(ctx: FExitContext) -> u32 {
@@ -57,11 +57,9 @@ fn try_io_unlinkat_x(ctx: FExitContext) -> Result<u32, i64> {
     }
 
     // Parameter 4: path.
-    let result = iouring::extract::io_unlink_filename(un)
-        .and_then(files::extract::filename_name)
-        .and_then(|name| unsafe { auxmap.store_charbuf_param(name, defs::MAX_PATH, true) });
-    if result.is_err() {
-        auxmap.store_empty_param();
+    match iouring::extract::io_unlink_filename(un) {
+        Ok(filename) => auxmap.store_filename_param(filename, defs::MAX_PATH, true),
+        Err(_) => auxmap.store_empty_param(),
     }
 
     // Parameter 5: flags.
