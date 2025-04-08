@@ -18,5 +18,6 @@ bitflags! {
         const LINKAT = 1 << 4;
         const UNLINKAT = 1 << 5;
         const MKDIRAT = 1 << 6;
+        const RENAMEAT = 1 << 7;
     }
 }

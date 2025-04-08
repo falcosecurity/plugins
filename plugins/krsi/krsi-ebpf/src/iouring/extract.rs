@@ -87,3 +87,30 @@ pub fn io_unlink_filename(un: *const vmlinux::io_unlink) -> Result<*const vmlinu
     let filename = unsafe { bpf_probe_read_kernel(&(*un).filename) }?;
     Ok(filename.cast_const())
 }
+
+/// Return `ren->oldpath`.
+pub fn io_rename_oldpath(ren: *const vmlinux::io_rename) -> Result<*const vmlinux::filename, i64> {
+    let filename = unsafe { bpf_probe_read_kernel(&(*ren).oldpath) }?;
+    Ok(filename.cast_const())
+}
+
+/// Return `ren->newpath`.
+pub fn io_rename_newpath(ren: *const vmlinux::io_rename) -> Result<*const vmlinux::filename, i64> {
+    let filename = unsafe { bpf_probe_read_kernel(&(*ren).newpath) }?;
+    Ok(filename.cast_const())
+}
+
+/// Return `ren->old_dfd`.
+pub fn io_rename_old_dfd(ren: *const vmlinux::io_rename) -> Result<c_int, i64> {
+    unsafe { bpf_probe_read_kernel(&(*ren).old_dfd) }
+}
+
+/// Return `ren->new_dfd`.
+pub fn io_rename_new_dfd(ren: *const vmlinux::io_rename) -> Result<c_int, i64> {
+    unsafe { bpf_probe_read_kernel(&(*ren).new_dfd) }
+}
+
+/// Return `ren->flags`.
+pub fn io_rename_flags(ren: *const vmlinux::io_rename) -> Result<c_int, i64> {
+    unsafe { bpf_probe_read_kernel(&(*ren).flags) }
+}

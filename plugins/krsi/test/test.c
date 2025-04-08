@@ -1,9 +1,10 @@
+#define _GNU_SOURCE
 #include <errno.h>
 #include <stdio.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-#include <fcntl.h>
 #include <assert.h>
 #include <stdint.h>
 #include <sys/socket.h>
@@ -85,7 +86,7 @@ static int io_uring_socket(struct io_uring *ring, int domain, int type, int prot
     return submit_and_wait(ring);
 }
 
-static int io_uring_symlinkat(struct io_uring *ring, char *target, int newdirfd, char *linkpath) {
+static int io_uring_symlinkat(struct io_uring *ring, const char *target, int newdirfd, const char *linkpath) {
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
     if (!sqe) {
         fprintf(stderr, "io_uring_symlinkat: io_uring_get_sqe failed\n");
@@ -96,7 +97,7 @@ static int io_uring_symlinkat(struct io_uring *ring, char *target, int newdirfd,
     return submit_and_wait(ring);
 }
 
-static int io_uring_linkat(struct io_uring *ring, int olddirfd, char *oldpath, int newdirfd, char *newpath, int flags) {
+static int io_uring_linkat(struct io_uring *ring, int olddirfd, const char *oldpath, int newdirfd, const char *newpath, int flags) {
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
     if (!sqe) {
         fprintf(stderr, "io_uring_linkat: io_uring_get_sqe failed\n");
@@ -107,7 +108,7 @@ static int io_uring_linkat(struct io_uring *ring, int olddirfd, char *oldpath, i
     return submit_and_wait(ring);
 }
 
-static int io_uring_unlinkat(struct io_uring *ring, int dirfd, char *path, int flags) {
+static int io_uring_unlinkat(struct io_uring *ring, int dirfd, const char *path, int flags) {
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
     if (!sqe) {
         fprintf(stderr, "io_uring_unlinkat: io_uring_get_sqe failed\n");
@@ -118,7 +119,7 @@ static int io_uring_unlinkat(struct io_uring *ring, int dirfd, char *path, int f
     return submit_and_wait(ring);
 }
 
-static int io_uring_mkdirat(struct io_uring *ring, int dirfd, char *path, int mode) {
+static int io_uring_mkdirat(struct io_uring *ring, int dirfd, const char *path, int mode) {
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
     if (!sqe) {
         fprintf(stderr, "io_uring_mkdirat: io_uring_get_sqe failed\n");
@@ -129,21 +130,32 @@ static int io_uring_mkdirat(struct io_uring *ring, int dirfd, char *path, int mo
     return submit_and_wait(ring);
 }
 
-static int io_uring_read(struct io_uring *ring, int fd, char *buf, unsigned int nbytes, uint64_t offset, bool use_file_indexes) {
+static int io_uring_renameat(struct io_uring *ring, int olddirfd, const char *oldpath, int newdirfd, const char *newpath, int flags) {
+    struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
+    if (!sqe) {
+        fprintf(stderr, "io_uring_renameat: io_uring_get_sqe failed\n");
+        return -1;
+    }
+
+    io_uring_prep_renameat(sqe, olddirfd, oldpath, newdirfd, newpath, flags);
+    return submit_and_wait(ring);
+}
+
+static int io_uring_read(struct io_uring *ring, int fd, const char *buf, unsigned int nbytes, uint64_t offset, bool use_file_indexes) {
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
     if (!sqe) {
         fprintf(stderr, "io_uring_read: io_uring_get_sqe failed\n");
         return -1;
     }
 
-    io_uring_prep_read(sqe, fd, buf, nbytes, offset);
+    io_uring_prep_read(sqe, fd, (char *) buf, nbytes, offset);
     if (use_file_indexes) {
         sqe->flags |= IOSQE_FIXED_FILE;
     }
     return submit_and_wait(ring);
 }
 
-static int io_uring_write(struct io_uring *ring, int fd, char *buf, unsigned int nbytes, uint64_t offset, bool use_file_indexes) {
+static int io_uring_write(struct io_uring *ring, int fd, const char *buf, unsigned int nbytes, uint64_t offset, bool use_file_indexes) {
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
     if (!sqe) {
         fprintf(stderr, "io_uring_write: io_uring_get_sqe failed\n");
@@ -172,7 +184,7 @@ static int io_uring_close(struct io_uring *ring, int fd, bool use_file_indexes) 
     return submit_and_wait(ring);
 }
 
-static int do_openat(struct io_uring *ring, int dirfd, char *pathname, int flags, bool use_syscalls, bool use_file_indexes) {
+static int do_openat(struct io_uring *ring, int dirfd, const char *pathname, int flags, bool use_syscalls, bool use_file_indexes) {
     return use_syscalls ?
         openat(dirfd, pathname, flags) :
         io_uring_openat(ring, dirfd, pathname, flags, use_file_indexes);
@@ -190,7 +202,7 @@ static int do_socket(struct io_uring *ring, int domain, int type, int protocol, 
         io_uring_socket(ring, domain, type, protocol, flags, use_file_indexes);
 }
 
-static int do_symlinkat(struct io_uring *ring, char *target, int newdirfd, char *linkpath, bool use_syscalls, bool use_file_indexes) {
+static int do_symlinkat(struct io_uring *ring, const char *target, int newdirfd, const char *linkpath, bool use_syscalls, bool use_file_indexes) {
     if (use_file_indexes) {
         printf("warning: do_symlinkat: file indexes not supported by IORING_OP_SYMLINKAT\n");
     }
@@ -199,7 +211,7 @@ static int do_symlinkat(struct io_uring *ring, char *target, int newdirfd, char 
         io_uring_symlinkat(ring, target, newdirfd, linkpath);
 }
 
-static int do_linkat(struct io_uring *ring, int olddirfd, char *oldpath, int newdirfd, char *newpath, int flags, bool use_syscalls, bool use_file_indexes) {
+static int do_linkat(struct io_uring *ring, int olddirfd, const char *oldpath, int newdirfd, const char *newpath, int flags, bool use_syscalls, bool use_file_indexes) {
     if (use_file_indexes) {
         printf("warning: do_linkat: file indexes not supported by IORING_OP_LINKAT\n");
     }
@@ -208,7 +220,7 @@ static int do_linkat(struct io_uring *ring, int olddirfd, char *oldpath, int new
         io_uring_linkat(ring, olddirfd, oldpath, newdirfd, newpath, flags);
 }
 
-static int do_unlinkat(struct io_uring *ring, int dirfd, char *path, int flags, bool use_syscalls, bool use_file_indexes) {
+static int do_unlinkat(struct io_uring *ring, int dirfd, const char *path, int flags, bool use_syscalls, bool use_file_indexes) {
     if (use_file_indexes) {
         printf("warning: do_unlinkat: file indexes not supported by IORING_OP_UNLINKAT\n");
     }
@@ -217,7 +229,7 @@ static int do_unlinkat(struct io_uring *ring, int dirfd, char *path, int flags, 
         io_uring_unlinkat(ring, dirfd, path, flags);
 }
 
-static int do_mkdirat(struct io_uring *ring, int dirfd, char *path, int mode, bool use_syscalls, bool use_file_indexes) {
+static int do_mkdirat(struct io_uring *ring, int dirfd, const char *path, int mode, bool use_syscalls, bool use_file_indexes) {
     if (use_file_indexes) {
         printf("warning: do_mkdirat: file indexes not supported by IORING_OP_MKDIRAT\n");
     }
@@ -226,13 +238,22 @@ static int do_mkdirat(struct io_uring *ring, int dirfd, char *path, int mode, bo
         io_uring_mkdirat(ring, dirfd, path, mode);
 }
 
-static int do_read(struct io_uring *ring, int fd, char *buf, unsigned int nbytes, uint64_t offset, bool use_syscalls, bool use_file_indexes) {
+static int do_renameat(struct io_uring *ring, int olddirfd, const char *oldpath, int newdirfd, const char *newpath, int flags, bool use_syscalls, bool use_file_indexes) {
+    if (use_file_indexes) {
+        printf("warning: do_renameat: file indexes not supported by IORING_OP_RENAMEAT\n");
+    }
     return use_syscalls ?
-        read(fd, buf, nbytes) :
+        renameat2(olddirfd, oldpath, newdirfd, newpath, flags) :
+        io_uring_renameat(ring, olddirfd, oldpath, newdirfd, newpath, flags);
+}
+
+static int do_read(struct io_uring *ring, int fd, const char *buf, unsigned int nbytes, uint64_t offset, bool use_syscalls, bool use_file_indexes) {
+    return use_syscalls ?
+        read(fd, (char *) buf, nbytes) :
         io_uring_read(ring, fd, buf, nbytes, offset, use_file_indexes);
 }
 
-static int do_write(struct io_uring *ring, int fd, char *buf, unsigned int nbytes, uint64_t offset, bool use_syscalls, bool use_file_indexes) {
+static int do_write(struct io_uring *ring, int fd, const char *buf, unsigned int nbytes, uint64_t offset, bool use_syscalls, bool use_file_indexes) {
     return use_syscalls ?
         write(fd, buf, nbytes) :
         io_uring_write(ring, fd, buf, nbytes, offset, use_file_indexes);
@@ -246,7 +267,7 @@ static int do_close(struct io_uring *ring, int fd, bool use_syscalls, bool use_f
 
 static int test_openat(struct io_uring *ring, bool use_syscalls, bool use_file_indexes) {
     int dirfd = AT_FDCWD;
-    char *pathname = "/etc/passwd";
+    const char *pathname = "/etc/passwd";
     int flags = O_RDONLY;
     int fd = do_openat(ring, dirfd, pathname, flags, use_syscalls, use_file_indexes);
     if (fd < 0) {
@@ -347,9 +368,9 @@ static int test_socket(struct io_uring *ring, bool use_syscalls, bool use_file_i
 
 static int test_symlinkat(struct io_uring *ring, bool use_syscalls, bool use_file_indexes) {
     // Create a symbolic link to /etc/passwd under /tmp/symlink_to_passwd.
-    char *target = "/etc/passwd";
+    const char *target = "/etc/passwd";
     int newdirfd = AT_FDCWD;
-    char *linkpath = "/tmp/symlink_to_passwd";
+    const char *linkpath = "/tmp/symlink_to_passwd";
     int ret = do_symlinkat(ring, target, newdirfd, linkpath, use_syscalls, use_file_indexes);
     if (ret < 0) {
         return ret;
@@ -361,9 +382,9 @@ static int test_symlinkat(struct io_uring *ring, bool use_syscalls, bool use_fil
 static int test_linkat(struct io_uring *ring, bool use_syscalls, bool use_file_indexes) {
     // Create a link to /etc/passwd under /tmp/link_to_passwd.
     int olddirfd = AT_FDCWD;
-    char *oldpath = "/etc/passwd";
+    const char *oldpath = "/etc/passwd";
     int newdirfd = AT_FDCWD;
-    char *newpath = "/tmp/link_to_passwd";
+    const char *newpath = "/tmp/link_to_passwd";
     int flags = AT_SYMLINK_FOLLOW;
     int ret = do_linkat(ring, olddirfd, oldpath, newdirfd, newpath, flags, use_syscalls, use_file_indexes);
     if (ret < 0) {
@@ -376,7 +397,7 @@ static int test_linkat(struct io_uring *ring, bool use_syscalls, bool use_file_i
 static int test_mkdirat(struct io_uring *ring, bool use_syscalls, bool use_file_indexes) {
     // Create a dir named tempdir under /tmp.
     int dirfd = AT_FDCWD;
-    char *path = "/tmp/tempdir";
+    const char *path = "/tmp/tempdir";
     int mode = S_IRWXU | S_IRWXG | S_IRWXO;
     int ret = do_mkdirat(ring, dirfd, path, mode, use_syscalls, use_file_indexes);
     if (ret < 0) {
@@ -386,9 +407,32 @@ static int test_mkdirat(struct io_uring *ring, bool use_syscalls, bool use_file_
     return 0;
 }
 
+static int test_renameat(struct io_uring *ring, bool use_syscalls, bool use_file_indexes) {
+    int olddirfd = AT_FDCWD;
+    const char *oldpath = "/tmp/oldfilename";
+    int newdirfd = AT_FDCWD;
+    const char *newpath = "/tmp/newfilename";
+    int flags = 0;
+    // Create a file named oldfilename under /tmp
+    int ret = do_openat(ring, olddirfd, oldpath, O_CREAT, use_syscalls, use_file_indexes);
+    if (ret < 0) {
+        fprintf(stderr, "test_renameat: failed to execute do_openat\n");
+        return ret;
+    }
+    // Rename the file to newfilename.
+    do_renameat(ring, olddirfd, oldpath, newdirfd, newpath, flags, use_syscalls, use_file_indexes);
+    if (ret < 0) {
+        fprintf(stderr, "test_renameat: failed to execute do_renameat\n");
+        do_unlinkat(ring, olddirfd, oldpath, 0, use_syscalls, use_file_indexes);
+        return ret;
+    }
+    do_unlinkat(ring, newdirfd, newpath, 0, use_syscalls, use_file_indexes);
+    return 0;
+}
+
 static int test_read(struct io_uring *ring, bool use_syscalls, bool use_file_indexes) {
     int dirfd = AT_FDCWD;
-    char *pathname = "/etc/passwd";
+    const char *pathname = "/etc/passwd";
     int flags = O_RDONLY;
     int fd = do_openat(ring, dirfd, pathname, flags, use_syscalls, use_file_indexes);
     if (fd < 0) {
@@ -437,6 +481,7 @@ int main(int argc, char **argv) {
         TEST(test_linkat),
         {.name = "test_unlinkat", .test_func = test_linkat },
         TEST(test_mkdirat),
+        TEST(test_renameat),
         TEST(test_read),
         {.name = "", .test_func = NULL},
     };

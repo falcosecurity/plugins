@@ -237,6 +237,30 @@ const PROG_DEFS: &'static [ProgDef] = &[
         FeatureFlags::IO_URING,
         OpFlags::MKDIRAT,
     ),
+    // Renameat programs.
+    ProgDef::new(
+        ProgKind::Fexit,
+        "do_renameat2_x",
+        "do_renameat2",
+        FeatureFlags::from_bits_truncate(
+            FeatureFlags::IO_URING.bits() | FeatureFlags::SYSCALLS.bits(),
+        ),
+        OpFlags::RENAMEAT,
+    ),
+    ProgDef::new(
+        ProgKind::Fexit,
+        "io_renameat_x",
+        "io_renameat",
+        FeatureFlags::IO_URING,
+        OpFlags::RENAMEAT,
+    ),
+    ProgDef::new(
+        ProgKind::Fentry,
+        "io_renameat_e",
+        "io_renameat",
+        FeatureFlags::IO_URING,
+        OpFlags::RENAMEAT,
+    ),
 ];
 
 impl Ebpf {

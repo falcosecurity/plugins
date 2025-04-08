@@ -30,7 +30,7 @@ use aya_ebpf::{
 };
 use krsi_common::EventType;
 
-use crate::{defs, files, helpers, scap, shared_maps, vmlinux};
+use crate::{defs, helpers, scap, shared_maps, vmlinux};
 
 mod maps;
 
@@ -60,11 +60,7 @@ fn try_do_mkdirat_x(ctx: FExitContext) -> Result<u32, i64> {
 
     // Parameter 2: path.
     let path: *const vmlinux::filename = unsafe { ctx.arg(1) };
-    let result = files::extract::filename_name(path)
-        .and_then(|name| unsafe { auxmap.store_charbuf_param(name, defs::MAX_PATH, true) });
-    if result.is_err() {
-        auxmap.store_empty_param();
-    }
+    auxmap.store_filename_param(path, defs::MAX_PATH, true);
 
     // Parameter 3: mode.
     let mode: u32 = unsafe { ctx.arg(2) };
