@@ -131,6 +131,7 @@ The json object has the following properties:
 * `S3Interval`: value is string. Download log files matching the specified time interval. Note that this matches log file *names*, not event timestamps. CloudTrail logs usually cover [the previous 5 minutes of activity](https://docs.aws.amazon.com/awscloudtrail/latest/userguide/get-and-view-cloudtrail-log-files.html). See *Time Intervals* below for possible formats.
 * `useS3SNS`: value is boolean. If true, then the plugin will expect SNS messages to originate from S3 instead of directly from Cloudtrail (Default: false)
 * `S3AccountList`: value is string. Download log files matching the specified account IDs (in a comma separated list) in an organization trail. See *Read From S3 Bucket Directly* below for more details.
+* `SQSOwnerAccount`: value is string. The AWS account ID that owns the SQS queue in case the queue is owned by a different account. Not required by default.
 
 The init string can be the empty string, which is treated identically to `{}`.
 
@@ -173,6 +174,8 @@ Setting `S3AccountList` to `012345678912,987654321012` and `S3Interval` to `3d-1
 #### Read from SQS Queue
 
 When using `sqs://<SQS Queue Name>`, the plugin will read messages from the provided SQS Queue. The messages are assumed to be [SNS Notifications](https://docs.aws.amazon.com/awscloudtrail/latest/userguide/configure-sns-notifications-for-cloudtrail.html) that announce the presence of new Cloudtrail log files in a S3 bucket. Each new file will be read from the provided s3 bucket.
+
+In case the queue is owned by another AWS account, use the `SQSOwnerAccount` parameter to specify the account ID of the queue's owner. Note that the queue owner must grant you the necessary permissions to access the queue. 
 
 In this mode, the plugin polls the queue forever, waiting for new log files.
 

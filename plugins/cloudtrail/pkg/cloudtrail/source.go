@@ -547,7 +547,12 @@ func (oCtx *PluginInstance) openSQS(input string) error {
 
 	queueName := input[6:]
 
-	urlResult, err := oCtx.sqsClient.GetQueueUrl(ctx, &sqs.GetQueueUrlInput{QueueName: &queueName})
+	var sqsOwnerAccountPtr *string
+	if oCtx.config.SQSOwnerAccount != "" {
+		sqsOwnerAccountPtr = &oCtx.config.SQSOwnerAccount
+	}
+
+	urlResult, err := oCtx.sqsClient.GetQueueUrl(ctx, &sqs.GetQueueUrlInput{QueueName: &queueName, QueueOwnerAWSAccountId: sqsOwnerAccountPtr})
 
 	if err != nil {
 		return err
