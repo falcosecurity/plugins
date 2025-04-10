@@ -25,6 +25,7 @@ type PluginConfig struct {
 	UseAsync              bool            `json:"useAsync" jsonschema:"title=Use async extraction,description=If true then async extraction optimization is enabled (Default: true),default=true"`
 	UseS3SNS              bool            `json:"useS3SNS" jsonschema:"title=Use S3 SNS,description=If true then the plugin will expect SNS messages to originate from S3 instead of directly from Cloudtrail (Default: false),default=false"`
 	S3AccountList         string          `json:"s3AccountList" jsonschema:"title=S3 account list,description=A comma separated list of account IDs for organizational Cloudtrails (Default: no account IDs),default="`
+	SQSOwnerAccount       string          `json:"sqsOwnerAccount" jsonschema:"title=SQS owner account,description=The AWS account ID that owns the SQS queue in case the queue is owned by a different account (Default: no account ID),default="`
 	AWS                   PluginConfigAWS `json:"aws"`
 }
 
@@ -36,5 +37,6 @@ func (p *PluginConfig) Reset() {
 	p.UseAsync = true
 	p.UseS3SNS = false
 	p.S3AccountList = ""
+	p.SQSOwnerAccount = ""
 	p.AWS.Reset()
 }
