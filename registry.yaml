@@ -517,7 +517,7 @@ plugins:
       extraction:
         supported: true
   - name: k8saudit-aks
-    description: Read Kubernetes Audit Events from AWS AKS Clusters
+    description: Read Kubernetes Audit Events from Azure AKS Clusters
     authors: The Falco Authors
     contact: https://falco.org/community
     maintainers:
