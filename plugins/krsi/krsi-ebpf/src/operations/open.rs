@@ -14,18 +14,15 @@
 //! 4. `fexit:do_sys_openat2` | `fexit:io_openat2` - ensure the association for the current
 //! thread's pid is removed from the `OPEN_PIDS` map
 
-use core::ptr::null_mut;
-
 use aya_ebpf::{
     cty::{c_int, c_uint},
-    helpers::bpf_probe_read_kernel_str_bytes,
     macros::{fentry, fexit},
-    maps::HashMap,
     programs::{FEntryContext, FExitContext},
     EbpfContext,
 };
 use aya_log_ebpf::info;
 use krsi_common::{scap as scap_shared, EventType};
+use krsi_ebpf_core::File;
 
 use crate::{defs, files, helpers, scap, shared_maps, vmlinux, FileDescriptor};
 
@@ -82,7 +79,7 @@ fn try_security_file_open_x(ctx: FExitContext) -> Result<u32, i64> {
 pub fn try_fd_install_x(
     ctx: &FExitContext,
     file_descriptor: FileDescriptor,
-    file: *const vmlinux::file,
+    file: &File,
 ) -> Result<u32, i64> {
     let pid = ctx.pid();
     let Some(&file_path_len) = (unsafe { maps::get_pids_map().get(&pid) }) else {
@@ -102,14 +99,14 @@ pub fn try_fd_install_x(
         files::getters::dev_ino_overlay(file).unwrap_or((0, 0, files::Overlay::None));
 
     // Parameter 4: flags.
-    let flags = files::extractors::file_flags(file).unwrap_or(0);
+    let flags = file.f_flags().unwrap_or(0);
     let mut scap_flags = scap::encode_open_flags(flags);
     scap_flags |= match overlay.try_into() {
         Ok(files::Overlay::Upper) => scap_shared::PPM_FD_UPPER_LAYER,
         Ok(files::Overlay::Lower) => scap_shared::PPM_FD_LOWER_LAYER,
         _ => 0,
     };
-    let mode: c_uint = files::extractors::file_mode(file).unwrap_or(0);
+    let mode: c_uint = file.f_mode().unwrap_or(0);
     scap_flags |= scap::encode_fmode_created(mode);
 
     auxmap.store_param(scap_flags);
@@ -126,30 +123,30 @@ pub fn try_fd_install_x(
     auxmap.finalize_event_header();
     auxmap.submit_event();
 
-    #[cfg(debug_assertions)]
-    {
-        let name = files::extractors::file_name(file).unwrap_or(null_mut());
-        let mut buf: [u8; 128] = [0; 128];
-        let name = unsafe {
-            core::str::from_utf8_unchecked(bpf_probe_read_kernel_str_bytes(name, &mut buf)?)
-        };
-        let fd = match file_descriptor.try_into() {
-            Ok(FileDescriptor::Fd(fd)) => fd,
-            Ok(FileDescriptor::FileIndex(file_index)) => file_index,
-        };
-        let pid = ctx.pid();
-        info!(
-            ctx,
-            "[fd_install]: tid={}, fd={}, name={}, mode={}, flags={} dev={} ino={}",
-            pid,
-            fd,
-            name,
-            mode,
-            flags,
-            dev,
-            ino
-        );
-    }
+    // #[cfg(debug_assertions)]
+    // {
+    //     let name = files::extractors::file_name(file).unwrap_or(null_mut());
+    //     let mut buf: [u8; 128] = [0; 128];
+    //     let name = unsafe {
+    //         core::str::from_utf8_unchecked(bpf_probe_read_kernel_str_bytes(name, &mut buf)?)
+    //     };
+    //     let fd = match file_descriptor.try_into() {
+    //         Ok(FileDescriptor::Fd(fd)) => fd,
+    //         Ok(FileDescriptor::FileIndex(file_index)) => file_index,
+    //     };
+    //     let pid = ctx.pid();
+    //     info!(
+    //         ctx,
+    //         "[fd_install]: tid={}, fd={}, name={}, mode={}, flags={} dev={} ino={}",
+    //         pid,
+    //         fd,
+    //         name,
+    //         mode,
+    //         flags,
+    //         dev,
+    //         ino
+    //     );
+    // }
 
     Ok(0)
 }

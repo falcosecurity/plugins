@@ -61,6 +61,7 @@ fn generate_bindings() {
     let bindings = bindgen::Builder::default()
         .use_core()
         .header("src/c/core_helpers.h")
+        .blocklist_type("qstr")
         .generate()
         .expect("generating bindings should not fail");
 
