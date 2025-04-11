@@ -1,32 +1,40 @@
+use krsi_ebpf_core::{Dentry, File, Inode};
+
 use crate::{
     files::{dev, extractors, Overlay, OVERLAYFS_SUPER_MAGIC},
     vmlinux,
 };
 
-pub fn dev_ino_overlay(file: *const vmlinux::file) -> Result<(vmlinux::dev_t, u64, Overlay), i64> {
-    let inode = extractors::file_inode(file)?;
-    let sb = extractors::inode_sb(inode)?;
-    let dev = extractors::super_block_dev(sb)?;
-    let ino = extractors::inode_ino(inode)?;
+pub fn dev_ino_overlay(file: &File) -> Result<(vmlinux::dev_t, u64, Overlay), i64> {
+    let inode = file.f_inode()?;
+    let sb = inode.i_sb()?;
+    let dev = sb.s_dev()?;
+    let ino = inode.i_ino()?;
     Ok((dev::encode(dev), ino, overlay(file)))
 }
 
-fn overlay(file: *const vmlinux::file) -> Overlay {
-    let Ok(dentry) = extractors::file_path_dentry(file) else {
+fn overlay(file: &File) -> Overlay {
+    let Ok(dentry) = file.f_path().dentry() else {
         return Overlay::None;
     };
 
-    if !extractors::dentry_sb(dentry)
-        .and_then(extractors::super_block_magic)
-        .is_ok_and(|sb_magic| sb_magic == OVERLAYFS_SUPER_MAGIC)
+    if !dentry
+        .d_sb()
+        .and_then(|sb| sb.s_magic())
+        .is_ok_and(|s_magic| s_magic == OVERLAYFS_SUPER_MAGIC)
     {
         return Overlay::None;
     }
 
-    match extractors::dentry_inode(dentry)
-        .and_then(extractors::inode_dentry_ptr)
-        .and_then(extractors::dentry_inode)
-        .and_then(extractors::inode_ino)
+    // TODO(ekoops): the following alternates CO-RE and non CO-RE operation due to d_inode() being
+    //   forced to interact with inode_dentry_ptr. We still use the non CO-RE inode_dentry_ptr
+    //   operation because I still haven't found a way to implement it using a CO-RE approach (see
+    //   `core_helpers.h` for more details).
+    match dentry
+        .d_inode()
+        .and_then(|inode| extractors::inode_dentry_ptr(inode.cast()))
+        .and_then(|dentry| unsafe { Dentry::new(dentry.cast()) }.d_inode())
+        .and_then(|inode| unsafe { Inode::new(inode.cast()) }.i_ino())
     {
         Ok(_) => Overlay::Upper,
         Err(_) => Overlay::Lower,
