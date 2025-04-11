@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["krsi", "krsi-common", "krsi-ebpf"]
+members = ["krsi", "krsi-common", "krsi-ebpf-core", "krsi-ebpf"]
 default-members = ["krsi", "krsi-common"]
 
 [workspace.dependencies]
