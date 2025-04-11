@@ -89,9 +89,8 @@ limitations under the License.
 /////////////////////////
 // Generic plugin consts
 /////////////////////////
-#define PLUGIN_NAME "container"
-#define PLUGIN_VERSION "0.1.0"
-#define PLUGIN_DESCRIPTION                                                     \
-    "Enrich syscall events with metadata from the container"
+#define PLUGIN_NAME "@CMAKE_PROJECT_NAME@"
+#define PLUGIN_VERSION "@CMAKE_PROJECT_VERSION@"
+#define PLUGIN_DESCRIPTION "@CMAKE_PROJECT_DESCRIPTION@"
 #define PLUGIN_CONTACT "github.com/falcosecurity/plugins"
 #define PLUGIN_REQUIRED_API_VERSION "3.10.0"

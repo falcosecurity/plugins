@@ -8,8 +8,8 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
 
 # project metadata
 project(
-        container-plugin
-        VERSION 0.1.0
+        container
+        VERSION 0.2.0
         DESCRIPTION "Falco container metadata enrichment Plugin"
         LANGUAGES CXX)
 
@@ -19,6 +19,9 @@ include(compiler)
 # Include capabilities module.
 # This also defines CAPS_SOURCES.
 include(caps)
+
+# Configure the macros header
+configure_file(src/macros.h.in src/macros.h @ONLY)
 
 file(GLOB SOURCES src/*.cpp src/matchers/*.cpp)
 
@@ -48,7 +51,7 @@ target_compile_options(container PUBLIC "$<$<CONFIG:DEBUG>:-DDEBUG>")
 target_compile_features(container PUBLIC cxx_std_20)
 
 # project includes
-target_include_directories(container PRIVATE src/ ${PLUGIN_SDK_INCLUDE} ${PLUGIN_SDK_DEPS_INCLUDE} ${WORKER_INCLUDE})
+target_include_directories(container PRIVATE ${CMAKE_BINARY_DIR}/src/ src/ ${PLUGIN_SDK_INCLUDE} ${PLUGIN_SDK_DEPS_INCLUDE} ${WORKER_INCLUDE})
 
 # project linked libraries
 target_link_libraries(container PRIVATE fmt::fmt-header-only ReflexLibStatic ${WORKER_DEP} ${WORKER_LIB})
