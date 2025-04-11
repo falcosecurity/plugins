@@ -99,17 +99,17 @@ pub fn try_fd_install_x(
     auxmap.store_file_descriptor_param(file_descriptor);
 
     let (dev, ino, overlay) =
-        files::get_dev_ino_overlay(file).unwrap_or((0, 0, files::Overlay::None));
+        files::getters::dev_ino_overlay(file).unwrap_or((0, 0, files::Overlay::None));
 
     // Parameter 4: flags.
-    let flags = files::extract::file_flags(file).unwrap_or(0);
+    let flags = files::extractors::file_flags(file).unwrap_or(0);
     let mut scap_flags = scap::encode_open_flags(flags);
     scap_flags |= match overlay.try_into() {
         Ok(files::Overlay::Upper) => scap_shared::PPM_FD_UPPER_LAYER,
         Ok(files::Overlay::Lower) => scap_shared::PPM_FD_LOWER_LAYER,
         _ => 0,
     };
-    let mode: c_uint = files::extract::file_mode(file).unwrap_or(0);
+    let mode: c_uint = files::extractors::file_mode(file).unwrap_or(0);
     scap_flags |= scap::encode_fmode_created(mode);
 
     auxmap.store_param(scap_flags);
@@ -128,7 +128,7 @@ pub fn try_fd_install_x(
 
     #[cfg(debug_assertions)]
     {
-        let name = files::extract::file_name(file).unwrap_or(null_mut());
+        let name = files::extractors::file_name(file).unwrap_or(null_mut());
         let mut buf: [u8; 128] = [0; 128];
         let name = unsafe {
             core::str::from_utf8_unchecked(bpf_probe_read_kernel_str_bytes(name, &mut buf)?)

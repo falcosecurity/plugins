@@ -38,32 +38,32 @@ fn try_io_unlinkat_x(ctx: FExitContext) -> Result<u32, i64> {
     auxmap.preload_event_header(EventType::Unlinkat);
 
     let req: *const vmlinux::io_kiocb = unsafe { ctx.arg(0) };
-    let un: *const vmlinux::io_unlink = iouring::extract::io_kiocb_cmd_ptr(req);
+    let un: *const vmlinux::io_unlink = iouring::extractors::io_kiocb_cmd_ptr(req);
 
     // Parameter 1: iou_ret.
     let iou_ret: c_int = unsafe { ctx.arg(2) };
     auxmap.store_param(iou_ret as i64);
 
     // Parameter 2: res.
-    match iouring::extract::io_kiocb_cqe_res(req) {
+    match iouring::extractors::io_kiocb_cqe_res(req) {
         Ok(res) => auxmap.store_param(res as i64),
         Err(_) => auxmap.store_empty_param(),
     }
 
     // Parameter 3: dirfd.
-    match iouring::extract::io_unlink_dfd(un) {
+    match iouring::extractors::io_unlink_dfd(un) {
         Ok(dirfd) => auxmap.store_param(scap::encode_dirfd(dirfd) as i64),
         Err(_) => auxmap.store_empty_param(),
     }
 
     // Parameter 4: path.
-    match iouring::extract::io_unlink_filename(un) {
+    match iouring::extractors::io_unlink_filename(un) {
         Ok(filename) => auxmap.store_filename_param(filename, defs::MAX_PATH, true),
         Err(_) => auxmap.store_empty_param(),
     }
 
     // Parameter 5: flags.
-    match iouring::extract::io_unlink_flags(un) {
+    match iouring::extractors::io_unlink_flags(un) {
         Ok(flags) => auxmap.store_param(scap::encode_unlinkat_flags(flags)),
         Err(_) => auxmap.store_empty_param(),
     }

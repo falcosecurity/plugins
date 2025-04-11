@@ -44,7 +44,7 @@ fn io_connect_e(ctx: FEntryContext) -> u32 {
 fn try_io_connect_e(ctx: FEntryContext) -> Result<u32, i64> {
     let pid = ctx.pid();
     let req: *const vmlinux::io_kiocb = unsafe { ctx.arg(0) };
-    let file_descriptor = iouring::get_io_kiocb_cqe_file_descriptor(req)?;
+    let file_descriptor = iouring::getters::io_kiocb_cqe_file_descriptor(req)?;
     const IS_IOU: bool = true;
     let info = Info::new(file_descriptor, IS_IOU);
     helpers::try_insert_map_entry(maps::get_info_map(), &pid, &info)
@@ -83,7 +83,7 @@ fn try___sys_connect_file_x(ctx: FExitContext) -> Result<u32, i64> {
     let socktuple_len = if ret == 0 || ret == -defs::EINPROGRESS {
         let file: *const vmlinux::file = unsafe { ctx.arg(0) };
         let sock: *const vmlinux::socket =
-            files::extract::file_private_data(file).unwrap_or(null());
+            files::extractors::file_private_data(file).unwrap_or(null());
         let sockaddr: *const vmlinux::sockaddr = unsafe { ctx.arg(1) };
         auxmap.store_sock_tuple_param(sock, true, sockaddr, true)
     } else {
@@ -137,7 +137,7 @@ fn try_io_connect_x(ctx: FExitContext) -> Result<u32, i64> {
 
     // Parameter 3: res.
     let req: *const vmlinux::io_kiocb = unsafe { ctx.arg(0) };
-    match iouring::get_io_kiocb_cqe_res(req, iou_ret) {
+    match iouring::getters::io_kiocb_cqe_res(req, iou_ret) {
         Ok(Some(cqe_res)) => auxmap.store_param(cqe_res as i64),
         _ => auxmap.store_empty_param(),
     }

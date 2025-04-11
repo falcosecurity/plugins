@@ -11,7 +11,7 @@ use aya_ebpf::{
 use krsi_common::{EventHeader, EventType};
 
 use crate::{
-    defs, files, get_event_num_params, scap, shared_maps, sockets::extract, vmlinux, FileDescriptor,
+    defs, files, get_event_num_params, scap, shared_maps, sockets, vmlinux, FileDescriptor,
 };
 
 // Event maximum size.
@@ -114,12 +114,12 @@ impl AuxiliaryMap {
             return 0;
         }
 
-        let Ok(sk) = extract::socket_sk(sock) else {
+        let Ok(sk) = sockets::extractors::socket_sk(sock) else {
             self.store_empty_param();
             return 0;
         };
 
-        let Ok(sk_family) = extract::sock_family(sk) else {
+        let Ok(sk_family) = sockets::extractors::sock_family(sk) else {
             self.store_empty_param();
             return 0;
         };
@@ -145,17 +145,17 @@ impl AuxiliaryMap {
         is_kern_sockaddr: bool,
     ) -> usize {
         let inet_sk = sk.cast::<vmlinux::inet_sock>();
-        let ipv4_local = extract::inet_sock_saddr(inet_sk).unwrap_or(0);
-        let port_local = extract::inet_sock_sport(inet_sk).unwrap_or(0);
-        let mut ipv4_remote = extract::sock_inet_daddr(sk).unwrap_or(0);
-        let mut port_remote = extract::sock_inet_dport(sk).unwrap_or(0);
+        let ipv4_local = sockets::extractors::inet_sock_saddr(inet_sk).unwrap_or(0);
+        let port_local = sockets::extractors::inet_sock_sport(inet_sk).unwrap_or(0);
+        let mut ipv4_remote = sockets::extractors::sock_inet_daddr(sk).unwrap_or(0);
+        let mut port_remote = sockets::extractors::sock_inet_dport(sk).unwrap_or(0);
 
         // Kernel doesn't always fill sk->__sk_common in sendto and sendmsg syscalls (as in the case
         // of a UDP connection). We fall back to the address from userspace when the kernel-provided
         // address is NULL.
         if port_remote == 0 && !sockaddr.is_null() {
             (ipv4_remote, port_remote) =
-                extract::sockaddr_in_saddr_and_sport(sockaddr.cast(), is_kern_sockaddr)
+                sockets::extractors::sockaddr_in_saddr_and_sport(sockaddr.cast(), is_kern_sockaddr)
                     .unwrap_or((0, 0));
         }
 
@@ -184,18 +184,20 @@ impl AuxiliaryMap {
         is_kern_sockaddr: bool,
     ) -> usize {
         let inet6_sk = sk.cast::<vmlinux::inet_sock>();
-        let ipv6_local = extract::sock_inet6_saddr(inet6_sk).unwrap_or([0, 0, 0, 0]);
-        let port_local = extract::inet_sock_sport(inet6_sk).unwrap_or(0);
-        let mut ipv6_remote = extract::sock_inet6_daddr(sk).unwrap_or([0, 0, 0, 0]);
-        let mut port_remote = extract::sock_inet_dport(sk).unwrap_or(0);
+        let ipv6_local = sockets::extractors::sock_inet6_saddr(inet6_sk).unwrap_or([0, 0, 0, 0]);
+        let port_local = sockets::extractors::inet_sock_sport(inet6_sk).unwrap_or(0);
+        let mut ipv6_remote = sockets::extractors::sock_inet6_daddr(sk).unwrap_or([0, 0, 0, 0]);
+        let mut port_remote = sockets::extractors::sock_inet_dport(sk).unwrap_or(0);
 
         // Kernel doesn't always fill sk->__sk_common in sendto and sendmsg syscalls (as in
         // the case of a UDP connection). We fall back to the address from userspace when
         // the kernel-provided address is NULL.
         if port_remote == 0 && !sockaddr.is_null() {
-            (ipv6_remote, port_remote) =
-                extract::sockaddr_in6_saddr_and_sport(sockaddr.cast(), is_kern_sockaddr)
-                    .unwrap_or(([0, 0, 0, 0], 0));
+            (ipv6_remote, port_remote) = sockets::extractors::sockaddr_in6_saddr_and_sport(
+                sockaddr.cast(),
+                is_kern_sockaddr,
+            )
+            .unwrap_or(([0, 0, 0, 0], 0));
         }
 
         // Pack the tuple info: (sock_family, local_ipv6, local_port, remote_ipv6, remote_port)
@@ -223,7 +225,7 @@ impl AuxiliaryMap {
         is_kern_sockaddr: bool,
     ) -> usize {
         let sk_local = sk.cast::<vmlinux::unix_sock>();
-        let sk_peer = extract::unix_sock_peer(sk_local).unwrap_or(null());
+        let sk_peer = sockets::extractors::unix_sock_peer(sk_local).unwrap_or(null());
 
         let mut path: [c_char; defs::UNIX_PATH_MAX] = [0; defs::UNIX_PATH_MAX];
         let path_mut = &mut path;
@@ -235,14 +237,23 @@ impl AuxiliaryMap {
             self.push(sk_local as u64);
             if sk_peer.is_null() && !sockaddr.is_null() {
                 let sockaddr: *const vmlinux::sockaddr_un = sockaddr.cast();
-                let _ = extract::sockaddr_un_path_into(sockaddr, is_kern_sockaddr, path_mut);
+                let _ = sockets::extractors::sockaddr_un_path_into(
+                    sockaddr,
+                    is_kern_sockaddr,
+                    path_mut,
+                );
             } else {
-                let _ = extract::unix_sock_addr_path_into(sk_peer, is_kern_sockaddr, path_mut);
+                let _ = sockets::extractors::unix_sock_addr_path_into(
+                    sk_peer,
+                    is_kern_sockaddr,
+                    path_mut,
+                );
             }
         } else {
             self.push(sk_local as u64);
             self.push(sk_peer as u64);
-            let _ = extract::unix_sock_addr_path_into(sk_local, is_kern_sockaddr, path_mut);
+            let _ =
+                sockets::extractors::unix_sock_addr_path_into(sk_local, is_kern_sockaddr, path_mut);
         }
 
         // Notice an exception in `sun_path` (https://man7.org/linux/man-pages/man7/unix.7.html):
@@ -369,7 +380,7 @@ impl AuxiliaryMap {
         max_len_to_read: u16,
         is_kern_mem: bool,
     ) {
-        if let Err(_) = files::extract::filename_name(filename).and_then(|name| unsafe {
+        if let Err(_) = files::extractors::filename_name(filename).and_then(|name| unsafe {
             self.store_charbuf_param(name, max_len_to_read, is_kern_mem)
         }) {
             self.store_empty_param();
