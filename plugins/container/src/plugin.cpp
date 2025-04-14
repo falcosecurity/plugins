@@ -135,7 +135,7 @@ bool my_plugin::init(falcosecurity::init_input& in)
         m_threads_field_category = m_threads_table.add_field(
                 t.fields(), CATEGORY_FIELD_NAME, st::SS_PLUGIN_ST_UINT16);
     }
-    catch(falcosecurity::plugin_exception e)
+    catch(const std::exception& e)
     {
         m_lasterr = "cannot add the '" + std::string(CONTAINER_ID_FIELD_NAME) +
                     "' field into the '" + std::string(THREAD_TABLE_NAME) +
@@ -242,7 +242,7 @@ void my_plugin::write_thread_category(
             return;
         }
     }
-    catch(falcosecurity::plugin_exception& ex)
+    catch(...)
     {
         // nothing
         m_logger.log("no parent thread found",
@@ -301,7 +301,7 @@ void my_plugin::write_thread_category(
                 m_threads_field_ptid.read_value(tr, entry, ptid);
             }
         }
-        catch(falcosecurity::plugin_exception& ex)
+        catch(...)
         {
             // end of loop
             break;
