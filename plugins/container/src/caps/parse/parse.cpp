@@ -192,7 +192,7 @@ bool my_plugin::parse_new_process_event(
         on_new_process(thread_entry, tr, tw);
         return true;
     }
-    catch(falcosecurity::plugin_exception& e)
+    catch(const std::exception& e)
     {
         m_logger.log(fmt::format("cannot attach container_id to new process "
                                  "event for the "

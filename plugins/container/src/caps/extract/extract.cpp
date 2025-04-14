@@ -557,7 +557,7 @@ bool my_plugin::extract(const falcosecurity::extract_fields_input &in)
             // retrieve container_id from the entry
             m_container_id_field.read_value(tr, thread_entry, container_id);
         }
-        catch(falcosecurity::plugin_exception e)
+        catch(const std::exception &e)
         {
             // Debug here since many events do not have thread id info (eg:
             // schedswitch)

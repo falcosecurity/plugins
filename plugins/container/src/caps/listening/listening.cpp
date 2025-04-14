@@ -19,7 +19,7 @@ bool my_plugin::capture_open(const falcosecurity::capture_listen_input& in)
                     on_new_process(e, tr, tw);
                     return true;
                 }
-                catch(falcosecurity::plugin_exception& e)
+                catch(const std::exception& e)
                 {
                     m_logger.log(
                             fmt::format(
