@@ -19,7 +19,7 @@
 //! 2. `fexit:__sys_connect_file`
 //! 3. `fexit:io_connect` | `fexit:__sys_connect`
 
-use core::ptr::null;
+use core::ptr::{null, null_mut};
 
 use aya_ebpf::{
     cty::{c_int, c_uchar},
@@ -30,7 +30,7 @@ use aya_ebpf::{
 };
 use aya_log_ebpf::info;
 use krsi_common::EventType;
-use krsi_ebpf_core::{wrap_arg, Sockaddr, Socket, Wrap};
+use krsi_ebpf_core::{wrap_arg, File, Sockaddr, Socket, Wrap};
 
 use crate::{
     defs, files, helpers, iouring, operations::connect::maps::Info, shared_maps, sockets, vmlinux,
@@ -84,10 +84,8 @@ fn try___sys_connect_file_x(ctx: FExitContext) -> Result<u32, i64> {
 
     // Parameter 1: tuple.
     let socktuple_len = if ret == 0 || ret == -defs::EINPROGRESS {
-        let file: *const vmlinux::file = unsafe { ctx.arg(0) };
-        let sock: *const vmlinux::socket =
-            files::extractors::file_private_data(file).unwrap_or(null());
-        let sock: Socket = Socket::wrap(sock as *mut _);
+        let file: File = wrap_arg(unsafe { ctx.arg(0) });
+        let sock = Socket::wrap(file.private_data().unwrap_or(null_mut()).cast());
         let sockaddr: Sockaddr = wrap_arg(unsafe { ctx.arg(1) });
         auxmap.store_sock_tuple_param(&sock, true, &sockaddr, true)
     } else {

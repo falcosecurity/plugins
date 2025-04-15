@@ -55,6 +55,7 @@ struct path {
 // Taken from 6.13.
 struct file {
     u32 f_mode;
+    void *private_data;
     u32 f_flags;
     struct inode *f_inode;
     struct path f_path;
@@ -143,6 +144,10 @@ struct filename {
 
 inline u32 *file_f_mode(struct file *file) {
 	return &file->f_mode;
+}
+
+inline void **file_private_data(struct file *file) {
+	return &file->private_data;
 }
 
 inline u32 *file_f_flags(struct file *file) {
