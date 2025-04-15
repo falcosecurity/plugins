@@ -42,6 +42,8 @@ pub mod ffi {
     include!(concat!(env!("OUT_DIR"), "/core_helpers.rs"));
 }
 
+use core::ffi::c_void;
+
 use ffi::*;
 
 macro_rules! gen_accessor_plain {
@@ -189,17 +191,6 @@ macro_rules! gen_accessors {
     };
 }
 
-// gen_accessors!(file => {
-//     wrapper mm: MmStruct,
-//     plain pid: u32,
-//     plain tgid: u32,
-//     plain start_time: u64,
-//     wrapper real_parent: TaskStruct,
-//     wrapper group_leader: TaskStruct,
-//     wrapper files: FilesStruct,
-//     no_read comm: *mut [i8; 16],
-// });
-
 gen_accessors!(super_block => {
     plain s_dev: u32,
     plain s_magic: u64,
@@ -223,6 +214,7 @@ gen_accessors!(path => {
 
 gen_accessors!(file => {
     plain f_mode: u32,
+    plain private_data: * mut c_void,
     plain f_flags: u32,
     wrapper f_inode: Inode,
     no_read_wrapped f_path: Path,
