@@ -141,6 +141,15 @@ macro_rules! gen_accessor {
     };
 }
 
+pub trait Wrap {
+    type RawType;
+    fn wrap(arg: *mut Self::RawType) -> Self;
+}
+
+pub fn wrap_arg<T: Wrap>(arg: usize) -> T {
+    T::wrap(arg as *mut _)
+}
+
 macro_rules! gen_accessors {
     ($parent:ident => { $($variant:ident $name:ident: $type:ty),* $(,)? }) => {
         paste::paste! {
@@ -151,12 +160,15 @@ macro_rules! gen_accessors {
                 inner: *mut $parent,
             }
 
-            impl [< $parent:camel >] {
+            impl Wrap for [< $parent:camel >] {
+                type RawType = $parent;
                 #[inline(always)]
-                pub fn new(inner: *mut $parent) -> Self {
+                fn wrap(inner: *mut Self::RawType) -> Self {
                     Self { inner }
                 }
+            }
 
+            impl [< $parent:camel >] {
                 #[inline(always)]
                 pub fn is_null(&self) -> bool {
                     false
@@ -315,3 +327,7 @@ impl Sock {
         }
     }
 }
+
+gen_accessors!(filename => {
+    plain name: * mut char,
+});

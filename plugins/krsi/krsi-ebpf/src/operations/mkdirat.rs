@@ -29,6 +29,7 @@ use aya_ebpf::{
     EbpfContext,
 };
 use krsi_common::EventType;
+use krsi_ebpf_core::{wrap_arg, Filename};
 
 use crate::{defs, helpers, scap, shared_maps, vmlinux};
 
@@ -59,8 +60,8 @@ fn try_do_mkdirat_x(ctx: FExitContext) -> Result<u32, i64> {
     auxmap.store_param(scap::encode_dirfd(dirfd) as i64);
 
     // Parameter 2: path.
-    let path: *const vmlinux::filename = unsafe { ctx.arg(1) };
-    auxmap.store_filename_param(path, defs::MAX_PATH, true);
+    let path: Filename = wrap_arg(unsafe { ctx.arg(1) });
+    auxmap.store_filename_param(&path, defs::MAX_PATH, true);
 
     // Parameter 3: mode.
     let mode: u32 = unsafe { ctx.arg(2) };

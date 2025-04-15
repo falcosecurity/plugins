@@ -2,7 +2,7 @@ use aya_ebpf::{
     cty::c_uchar,
     helpers::{bpf_probe_read_kernel_buf, bpf_probe_read_user_buf},
 };
-use krsi_ebpf_core::{ffi::sockaddr_un, SockaddrUn, UnixSock};
+use krsi_ebpf_core::{ffi::sockaddr_un, SockaddrUn, UnixSock, Wrap};
 
 use crate::defs;
 
@@ -17,7 +17,7 @@ pub fn unix_sock_addr_path_into(
         return Ok(());
     }
 
-    let first_sockaddr = unsafe { SockaddrUn::new(addr.name().cast::<sockaddr_un>()) };
+    let first_sockaddr = unsafe { SockaddrUn::wrap(addr.name().cast::<sockaddr_un>()) };
     let sun_path = first_sockaddr.sun_path();
     unsafe { bpf_probe_read_kernel_buf(sun_path.cast(), path) }
 }

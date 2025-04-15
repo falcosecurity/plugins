@@ -1,4 +1,4 @@
-use krsi_ebpf_core::{Dentry, File, Inode};
+use krsi_ebpf_core::{Dentry, File, Inode, Wrap};
 
 use crate::{
     files::{dev, extractors, Overlay, OVERLAYFS_SUPER_MAGIC},
@@ -33,8 +33,8 @@ fn overlay(file: &File) -> Overlay {
     match dentry
         .d_inode()
         .and_then(|inode| extractors::inode_dentry_ptr(inode.cast()))
-        .and_then(|dentry| unsafe { Dentry::new(dentry.cast()) }.d_inode())
-        .and_then(|inode| unsafe { Inode::new(inode.cast()) }.i_ino())
+        .and_then(|dentry| unsafe { Dentry::wrap(dentry.cast()) }.d_inode())
+        .and_then(|inode| unsafe { Inode::wrap(inode.cast()) }.i_ino())
     {
         Ok(_) => Overlay::Upper,
         Err(_) => Overlay::Lower,

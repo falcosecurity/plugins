@@ -3,7 +3,7 @@
 
 use aya_ebpf::{macros::fexit, programs::FExitContext};
 use krsi_common::EventType;
-use krsi_ebpf_core::File;
+use krsi_ebpf_core::{wrap_arg, File, Wrap};
 use operations::*;
 
 mod auxmap;
@@ -37,8 +37,7 @@ fn panic(_info: &core::panic::PanicInfo) -> ! {
 #[fexit]
 fn fd_install_x(ctx: FExitContext) -> u32 {
     let file_descriptor = FileDescriptor::Fd(unsafe { ctx.arg(0) });
-    let file: usize = unsafe { ctx.arg(1) };
-    let file = unsafe { File::new(file as _) };
+    let file: File = wrap_arg(unsafe { ctx.arg(1) });
     let handlers = [open::try_fd_install_x];
     let mut res = 0;
     for handler in handlers {
@@ -68,8 +67,7 @@ fn io_fixed_fd_install_x(ctx: FExitContext) -> u32 {
         (file_slot - 1) as i32
     };
     let file_descriptor = FileDescriptor::FileIndex(file_index);
-    let file: usize = unsafe { ctx.arg(2) };
-    let file = unsafe { File::new(file as _) };
+    let file: File = wrap_arg(unsafe { ctx.arg(2) });
 
     let handlers = [open::try_fd_install_x];
     let mut res = 0;

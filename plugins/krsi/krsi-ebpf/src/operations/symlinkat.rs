@@ -30,6 +30,7 @@ use aya_ebpf::{
     EbpfContext,
 };
 use krsi_common::EventType;
+use krsi_ebpf_core::{wrap_arg, Filename};
 
 use crate::{defs, helpers, scap, shared_maps, vmlinux};
 
@@ -56,16 +57,16 @@ fn try_do_symlinkat_x(ctx: FExitContext) -> Result<u32, i64> {
     auxmap.preload_event_header(EventType::Symlinkat);
 
     // Parameter 1: target.
-    let target: *const vmlinux::filename = unsafe { ctx.arg(0) };
-    auxmap.store_filename_param(target, defs::MAX_PATH, true);
+    let target: Filename = wrap_arg(unsafe { ctx.arg(0) });
+    auxmap.store_filename_param(&target, defs::MAX_PATH, true);
 
     // Parameter 2: linkdirfd.
     let linkdirfd: i32 = unsafe { ctx.arg(1) };
     auxmap.store_param(scap::encode_dirfd(linkdirfd) as i64);
 
     // Parameter 3: linkpath.
-    let linkpath: *const vmlinux::filename = unsafe { ctx.arg(2) };
-    auxmap.store_filename_param(linkpath, defs::MAX_PATH, true);
+    let linkpath: Filename = wrap_arg(unsafe { ctx.arg(2) });
+    auxmap.store_filename_param(&linkpath, defs::MAX_PATH, true);
 
     // Parameter 4: res.
     let res: i64 = unsafe { ctx.arg(3) };

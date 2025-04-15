@@ -25,6 +25,7 @@
 
 use aya_ebpf::{cty::c_int, macros::fexit, programs::FExitContext};
 use krsi_common::EventType;
+use krsi_ebpf_core::{Filename, Wrap};
 
 use crate::{defs, files, iouring, scap, shared_maps, vmlinux, vmlinux::file};
 
@@ -58,7 +59,10 @@ fn try_io_unlinkat_x(ctx: FExitContext) -> Result<u32, i64> {
 
     // Parameter 4: path.
     match iouring::extractors::io_unlink_filename(un) {
-        Ok(filename) => auxmap.store_filename_param(filename, defs::MAX_PATH, true),
+        Ok(filename) => {
+            let filename = Filename::wrap(filename as *mut _);
+            auxmap.store_filename_param(&filename, defs::MAX_PATH, true)
+        }
         Err(_) => auxmap.store_empty_param(),
     }
 
