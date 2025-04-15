@@ -13,6 +13,18 @@ fn bpf_probe_read_kernel<T>(ptr: *const T) -> Result<T, i64> {
     }
 }
 
+#[inline]
+fn bpf_probe_read_user<T>(ptr: *const T) -> Result<T, i64> {
+    #[cfg(target_arch = "bpf")]
+    unsafe {
+        aya_ebpf::helpers::bpf_probe_read_user(ptr)
+    }
+    #[cfg(not(target_arch = "bpf"))]
+    unsafe {
+        Ok(core::ptr::read(ptr))
+    }
+}
+
 pub mod ffi {
     #![allow(non_upper_case_globals)]
     #![allow(non_camel_case_types)]
@@ -40,6 +52,12 @@ macro_rules! gen_accessor_plain {
             pub fn $name(&self) -> Result<$type, i64> {
                 unsafe { bpf_probe_read_kernel([< $parent _ $name >](self.inner) as *const _) }
             }
+
+            #[doc = "Reads the value of the field `" $parent "." $name "` with CO-RE relocations (user memory variant)."]
+            #[inline(always)]
+            pub fn [< $name _user >](&self) -> Result<$type, i64> {
+                unsafe { bpf_probe_read_user([< $parent _ $name >](self.inner) as *const _) }
+            }
         }
     };
 }
@@ -51,6 +69,12 @@ macro_rules! gen_accessor_wrapper {
             #[inline(always)]
             pub fn $name(&self) -> Result<$type, i64> {
                 Ok($type { inner: unsafe { bpf_probe_read_kernel([< $parent _ $name >](self.inner) as *const _) }? })
+            }
+
+            #[doc = "Reads the value of the field `" $parent "." $name "` with CO-RE relocations (user memory variant)."]
+            #[inline(always)]
+            pub fn [< $name _user >](&self) -> Result<$type, i64> {
+                Ok($type { inner: unsafe { bpf_probe_read_user([< $parent _ $name >](self.inner) as *const _) }? })
             }
         }
     };
@@ -68,7 +92,7 @@ macro_rules! gen_accessor_no_read_wrapped {
     };
 }
 
-macro_rules! _gen_accessor_no_read {
+macro_rules! gen_accessor_no_read {
     ($parent:ident => $name:ident, $type:ty) => {
         paste::paste! {
             #[doc = "Reads the value of the field `" $parent "." $name "` with CO-RE relocations."]
@@ -128,11 +152,21 @@ macro_rules! gen_accessors {
             }
 
             impl [< $parent:camel >] {
-                /// # SAFETY
-                ///
-                /// Must be a valid pointer to struct $type.
-                pub unsafe fn new(inner: *mut $parent) -> Self {
+                #[inline(always)]
+                pub fn new(inner: *mut $parent) -> Self {
                     Self { inner }
+                }
+
+                #[inline(always)]
+                pub fn is_null(&self) -> bool {
+                    false
+                    // self.inner.is_null()
+                }
+
+                /// Returns a serialized representation of the inner pointer.
+                #[inline(always)]
+                pub fn serialize_ptr(&self) -> usize {
+                    self.inner as usize
                 }
 
                 $(
@@ -184,126 +218,100 @@ gen_accessors!(file => {
     // wrapper exe_file: File,
 });
 
-// /// Returns `file->f_inode`.
-// pub fn file_inode(file: *const ffi::file) -> Result<*ffi::inode, i64> {
-//     unsafe { bpf_probe_read_kernel(&(*file).f_inode) }
-// }
-//
-// /// Returns `file->f_mode`.
-// pub fn file_mode(file: *const vmlinux::file) -> Result<vmlinux::fmode_t, i64> {
-//     unsafe { bpf_probe_read_kernel(&(*file).f_mode) }
-// }
-//
-// /// Extract file's private_data field and convert its value to a `* const T`.
-// pub fn file_private_data<T>(file: *const vmlinux::file) -> Result<*const T, i64> {
-//     unsafe { bpf_probe_read_kernel(&(*file).private_data.cast_const().cast::<T>()) }
-// }
-//
-// /// Returns `file->f_path.dentry`.
-// pub fn file_path_dentry(file: *const vmlinux::file) -> Result<*mut vmlinux::dentry, i64> {
-//     unsafe { bpf_probe_read_kernel(&(*file).f_path.dentry) }
-// }
-//
-// #[cfg(debug_assertions)]
-// pub fn file_name(file: *const vmlinux::file) -> Result<*const c_uchar, i64> {
-//     let dentry = unsafe { bpf_probe_read_kernel(&(*file).f_path.dentry) }?;
-//     unsafe { bpf_probe_read_kernel(&(*dentry).d_name.name) }
-// }
-//
-// /// Returns `inode->i_sb`.
-// pub fn inode_sb(inode: *mut vmlinux::inode) -> Result<*mut vmlinux::super_block, i64> {
-//     unsafe { bpf_probe_read_kernel(&(*inode).i_sb) }
-// }
-//
-// /// Returns `inode->i_ino`.
-// pub fn inode_ino(inode: *mut vmlinux::inode) -> Result<c_ulong, i64> {
-//     unsafe { bpf_probe_read_kernel(&(*inode).i_ino) }
-// }
-//
-// /// Returns `dentry->d_sb`.
-// pub fn dentry_sb(dentry: *mut vmlinux::dentry) -> Result<*mut vmlinux::super_block, i64> {
-//     unsafe { bpf_probe_read_kernel(&(*dentry).d_sb) }
-// }
-//
-// /// Returns `dentry->d_inode`.
-// pub fn dentry_inode(dentry: *mut vmlinux::dentry) -> Result<*mut vmlinux::inode, i64> {
-//     unsafe { bpf_probe_read_kernel(&(*dentry).d_inode) }
-// }
-//
-// /// Returns `sb->s_magic`.
-// pub fn super_block_magic(sb: *mut vmlinux::super_block) -> Result<core::ffi::c_ulong, i64> {
-//     unsafe { bpf_probe_read_kernel(&(*sb).s_magic) }
-// }
-//
-// /// Returns `sb->s_dev`.
-// pub fn super_block_dev(sb: *mut vmlinux::super_block) -> Result<vmlinux::dev_t, i64> {
-//     unsafe { bpf_probe_read_kernel(&(*sb).s_dev) }
-// }
-//
-// /// Returns `(struct dentry *) ((char *) inode + sizeof(struct inode))`.
-// pub fn inode_dentry_ptr(inode: *mut vmlinux::inode) -> Result<*mut vmlinux::dentry, i64> {
-//     // We need to compute the size of the inode struct at load time since it can change between
-//     // kernel versions
-//     // TODO(ekoops): actually we don't know if aya is able to patch the type size and patch is
-//     //   in some way; in other words, we don't know if this is the equivalent of doing
-//     //   `bpf_core_type_size(struct inode)`.
-//     let inode_size = size_of::<vmlinux::inode>();
-//     unsafe { bpf_probe_read_kernel(inode.byte_add(inode_size).cast::<*mut vmlinux::dentry>()) }
-// }
-//
-// /// Returns `(char *) filename->name`.
-// pub fn filename_name(filename: *const vmlinux::filename) -> Result<*const c_uchar, i64> {
-//     let ptr = unsafe { &raw const (*filename).name }.cast::<*const c_uchar>();
-//     unsafe { bpf_probe_read_kernel(ptr) }
-// }
+gen_accessors!(in6_addr => {
+    plain in6_u: [u32; 4],
+});
 
-// gen_accessors!(file => {
-//     no_read_wrapped f_path: Path,
-// });
-// gen_accessors!(path => {
-//     wrapper dentry: Dentry,
-//     wrapper mnt: Vfsmount,
-// });
-// gen_accessors!(dentry => {
-//     no_read_wrapped d_name: Qstr,
-//     wrapper d_parent: Dentry,
-// });
-// gen_accessors!(vfsmount => {
-//     no_read_container mnt: Mount,
-//     wrapper mnt_root: Dentry,
-// });
-//
-// gen_accessors!(qstr => {
-//     plain len: u32,
-//     plain name: *const u8,
-// });
-// gen_accessors!(mount => {
-//     wrapper mnt_parent: Mount,
-//     wrapper mnt_mountpoint: Dentry,
-//     no_read_wrapped mnt: Vfsmount,
-// });
-//
-// gen_accessors!(files_struct => {
-//     plain count: atomic_t,
-//     wrapper fdt: Fdtable,
-// });
-//
-// gen_accessors!(fdtable => {
-//     plain max_fds: u32,
-//     no_read fd: *mut *mut *mut file,
-//     plain open_fds: *mut u64,
-// });
-//
-// gen_accessors!(art_heap => {
-//     no_read target_footprint: *mut u64,
-//     no_read num_bytes_allocated: *mut u64,
-//     no_read gc_cause: *mut u32,
-//     no_read duration_ns: *mut u64,
-//     no_read freed_objects: *mut u64,
-//     no_read freed_bytes: *mut u64,
-//     no_read freed_los_objects: *mut u64,
-//     no_read freed_los_bytes: *mut u64,
-//     no_read gcs_completed: *mut u32,
-//     no_read pause_times_begin: *mut u64,
-//     no_read pause_times_end: *mut u64,
-// });
+gen_accessors!(sock_common => {
+    plain skc_daddr: u32,
+    plain skc_family: u16,
+    plain skc_dport: u16,
+    no_read_wrapped skc_v6_daddr: In6Addr,
+});
+
+gen_accessors!(sock => {
+    no_read_wrapped __sk_common: SockCommon,
+});
+
+gen_accessors!(socket => {
+    wrapper sk: Sock,
+});
+
+gen_accessors!(ipv6_pinfo => {
+    no_read_wrapped saddr: In6Addr,
+});
+
+gen_accessors!(inet_sock => {
+    wrapper pinet6: Ipv6Pinfo,
+    plain inet_saddr: u32,
+    plain inet_sport: u16,
+});
+
+gen_accessors!(in_addr => {
+    plain s_addr: u32
+});
+
+gen_accessors!(sockaddr_in => {
+    plain sin_port: u16,
+    no_read_wrapped sin_addr: InAddr,
+});
+
+gen_accessors!(sockaddr_in6 => {
+    plain sin6_port: u16,
+    no_read_wrapped sin6_addr: In6Addr,
+});
+
+gen_accessors!(sockaddr_un => {
+    no_read sun_path: *mut [i8; 108] // TODO(ekoops): use UNIX_PATH_MAX (108).
+});
+
+gen_accessors!(unix_address => {
+    plain len: i32,
+    no_read name: * mut [sockaddr_un; 0], // TODO(ekoops): handle flexible arrays.
+});
+
+gen_accessors!(sockaddr => {});
+
+impl Sockaddr {
+    #[inline(always)]
+    pub fn as_sockaddr_in(&self) -> SockaddrIn {
+        SockaddrIn {
+            inner: self.inner.cast::<sockaddr_in>(),
+        }
+    }
+
+    #[inline(always)]
+    pub fn as_sockaddr_in6(&self) -> SockaddrIn6 {
+        SockaddrIn6 {
+            inner: self.inner.cast::<sockaddr_in6>(),
+        }
+    }
+
+    #[inline(always)]
+    pub fn as_sockaddr_un(&self) -> SockaddrUn {
+        SockaddrUn {
+            inner: self.inner.cast::<sockaddr_un>(),
+        }
+    }
+}
+
+gen_accessors!(unix_sock => {
+    wrapper addr: UnixAddress,
+    wrapper peer: Sock
+});
+
+impl Sock {
+    #[inline(always)]
+    pub fn as_inet_sock(&self) -> InetSock {
+        InetSock {
+            inner: self.inner.cast::<inet_sock>(),
+        }
+    }
+
+    #[inline(always)]
+    pub fn as_unix_sock(&self) -> UnixSock {
+        UnixSock {
+            inner: self.inner.cast::<unix_sock>(),
+        }
+    }
+}
