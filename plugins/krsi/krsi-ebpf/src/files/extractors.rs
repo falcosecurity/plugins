@@ -1,5 +1,3 @@
-use core::ffi::c_uchar;
-
 use aya_ebpf::helpers::bpf_probe_read_kernel;
 
 use crate::vmlinux;
@@ -7,12 +5,6 @@ use crate::vmlinux;
 /// Extract file's private_data field and convert its value to a `* const T`.
 pub fn file_private_data<T>(file: *const vmlinux::file) -> Result<*const T, i64> {
     unsafe { bpf_probe_read_kernel(&(*file).private_data.cast_const().cast::<T>()) }
-}
-
-#[cfg(debug_assertions)]
-pub fn file_name(file: *const vmlinux::file) -> Result<*const c_uchar, i64> {
-    let dentry = unsafe { bpf_probe_read_kernel(&(*file).f_path.dentry) }?;
-    unsafe { bpf_probe_read_kernel(&(*dentry).d_name.name) }
 }
 
 /// Returns `(struct dentry *) ((char *) inode + sizeof(struct inode))`.
