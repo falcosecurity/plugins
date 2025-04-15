@@ -9,7 +9,7 @@ use aya_ebpf::{
     },
 };
 use krsi_common::{EventHeader, EventType};
-use krsi_ebpf_core::{Sock, Sockaddr, Socket};
+use krsi_ebpf_core::{Filename, Sock, Sockaddr, Socket, Wrap};
 
 use crate::{
     defs, files, get_event_num_params, scap, shared_maps, sockets, vmlinux, FileDescriptor,
@@ -246,7 +246,7 @@ impl AuxiliaryMap {
     ) -> usize {
         let sk_local = sk.as_unix_sock();
 
-        let sk_peer = sk_local.peer().unwrap_or(unsafe { Sock::new(null_mut()) });
+        let sk_peer = sk_local.peer().unwrap_or(unsafe { Sock::wrap(null_mut()) });
         let sk_peer = sk_peer.as_unix_sock();
 
         let mut path: [c_uchar; defs::UNIX_PATH_MAX] = [0; defs::UNIX_PATH_MAX];
@@ -393,12 +393,12 @@ impl AuxiliaryMap {
 
     pub fn store_filename_param(
         &mut self,
-        filename: *const vmlinux::filename,
+        filename: &Filename,
         max_len_to_read: u16,
         is_kern_mem: bool,
     ) {
-        if let Err(_) = files::extractors::filename_name(filename).and_then(|name| unsafe {
-            self.store_charbuf_param(name, max_len_to_read, is_kern_mem)
+        if let Err(_) = filename.name().and_then(|name| unsafe {
+            self.store_charbuf_param(name.cast(), max_len_to_read, is_kern_mem)
         }) {
             self.store_empty_param();
         }

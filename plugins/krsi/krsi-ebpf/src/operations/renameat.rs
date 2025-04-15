@@ -41,6 +41,7 @@ use aya_ebpf::{
     EbpfContext,
 };
 use krsi_common::EventType;
+use krsi_ebpf_core::{wrap_arg, Filename};
 
 use crate::{defs, files, helpers, iouring, scap, shared_maps, vmlinux};
 
@@ -71,16 +72,16 @@ fn try_do_renameat2_x(ctx: FExitContext) -> Result<u32, i64> {
     auxmap.store_param(scap::encode_dirfd(olddirfd) as i64);
 
     // Parameter 2: oldpath.
-    let oldpath: *const vmlinux::filename = unsafe { ctx.arg(1) };
-    auxmap.store_filename_param(oldpath, defs::MAX_PATH, true);
+    let oldpath: Filename = wrap_arg(unsafe { ctx.arg(1) });
+    auxmap.store_filename_param(&oldpath, defs::MAX_PATH, true);
 
     // Parameter 3: newdirfd.
     let newdirfd: i32 = unsafe { ctx.arg(2) };
     auxmap.store_param(scap::encode_dirfd(newdirfd) as i64);
 
     // Parameter 4: newpath.
-    let newpath: *const vmlinux::filename = unsafe { ctx.arg(3) };
-    auxmap.store_filename_param(newpath, defs::MAX_PATH, true);
+    let newpath: Filename = wrap_arg(unsafe { ctx.arg(3) });
+    auxmap.store_filename_param(&newpath, defs::MAX_PATH, true);
 
     // Parameter 5: flags.
     let flags: u32 = unsafe { ctx.arg(4) };

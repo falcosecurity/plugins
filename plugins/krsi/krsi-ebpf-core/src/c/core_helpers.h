@@ -136,6 +136,11 @@ struct unix_sock {
     struct sock *peer;
 };
 
+// Taken from 6.13.
+struct filename {
+    char *name;
+};
+
 inline u32 *file_f_mode(struct file *file) {
 	return &file->f_mode;
 }
@@ -284,6 +289,10 @@ inline struct in6_addr *sockaddr_in6_sin6_addr(struct sockaddr_in6 *sockaddr) {
 
 inline char (*sockaddr_un_sun_path(struct sockaddr_un *sockaddr))[UNIX_PATH_MAX] {
     return &sockaddr->sun_path;
+}
+
+inline char **filename_name(struct filename *filename) {
+    return &filename->name;
 }
 
 #if defined(__bpf__)

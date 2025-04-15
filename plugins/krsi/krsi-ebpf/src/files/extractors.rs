@@ -25,9 +25,3 @@ pub fn inode_dentry_ptr(inode: *mut vmlinux::inode) -> Result<*mut vmlinux::dent
     let inode_size = size_of::<vmlinux::inode>();
     unsafe { bpf_probe_read_kernel(inode.byte_add(inode_size).cast::<*mut vmlinux::dentry>()) }
 }
-
-/// Returns `(char *) filename->name`.
-pub fn filename_name(filename: *const vmlinux::filename) -> Result<*const c_uchar, i64> {
-    let ptr = unsafe { &raw const (*filename).name }.cast::<*const c_uchar>();
-    unsafe { bpf_probe_read_kernel(ptr) }
-}
