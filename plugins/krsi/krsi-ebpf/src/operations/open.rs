@@ -123,31 +123,6 @@ pub fn try_fd_install_x(
     auxmap.finalize_event_header();
     auxmap.submit_event();
 
-    // #[cfg(debug_assertions)]
-    // {
-    //     let name = files::extractors::file_name(file).unwrap_or(null_mut());
-    //     let mut buf: [u8; 128] = [0; 128];
-    //     let name = unsafe {
-    //         core::str::from_utf8_unchecked(bpf_probe_read_kernel_str_bytes(name, &mut buf)?)
-    //     };
-    //     let fd = match file_descriptor.try_into() {
-    //         Ok(FileDescriptor::Fd(fd)) => fd,
-    //         Ok(FileDescriptor::FileIndex(file_index)) => file_index,
-    //     };
-    //     let pid = ctx.pid();
-    //     info!(
-    //         ctx,
-    //         "[fd_install]: tid={}, fd={}, name={}, mode={}, flags={} dev={} ino={}",
-    //         pid,
-    //         fd,
-    //         name,
-    //         mode,
-    //         flags,
-    //         dev,
-    //         ino
-    //     );
-    // }
-
     Ok(0)
 }
 
