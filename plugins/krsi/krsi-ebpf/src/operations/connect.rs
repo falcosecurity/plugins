@@ -22,15 +22,18 @@
 use core::ptr::null;
 
 use aya_ebpf::{
-    cty::c_int,
+    cty::{c_int, c_uchar},
+    helpers::{bpf_probe_read_kernel, bpf_probe_read_kernel_buf},
     macros::{fentry, fexit},
     programs::{FEntryContext, FExitContext},
     EbpfContext,
 };
+use aya_log_ebpf::info;
 use krsi_common::EventType;
+use krsi_ebpf_core::{File, Sockaddr, Socket};
 
 use crate::{
-    defs, files, helpers, iouring, operations::connect::maps::Info, shared_maps, vmlinux,
+    defs, files, helpers, iouring, operations::connect::maps::Info, shared_maps, sockets, vmlinux,
     FileDescriptor,
 };
 
@@ -84,8 +87,10 @@ fn try___sys_connect_file_x(ctx: FExitContext) -> Result<u32, i64> {
         let file: *const vmlinux::file = unsafe { ctx.arg(0) };
         let sock: *const vmlinux::socket =
             files::extractors::file_private_data(file).unwrap_or(null());
-        let sockaddr: *const vmlinux::sockaddr = unsafe { ctx.arg(1) };
-        auxmap.store_sock_tuple_param(sock, true, sockaddr, true)
+        let sock = Socket::new(sock as *mut _);
+        let sockaddr: usize = unsafe { ctx.arg(1) };
+        let sockaddr = unsafe { Sockaddr::new(sockaddr as _) };
+        auxmap.store_sock_tuple_param(&sock, true, &sockaddr, true)
     } else {
         auxmap.store_empty_param();
         0
