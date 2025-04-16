@@ -3,9 +3,9 @@ package main
 /*
 #include <stdbool.h>
 #include <stdlib.h>
-typedef void (*async_cb)(const char *json, bool added);
-extern void makeCallback(const char *json, bool added, async_cb cb) {
-	cb(json, added);
+typedef void (*async_cb)(const char *json, bool added, bool initial_state);
+extern void makeCallback(const char *json, bool added, bool initial_state, async_cb cb) {
+	cb(json, added, initial_state);
 }
 */
 import "C"
@@ -20,7 +20,7 @@ import (
 
 const ctxDoneIdx = 0
 
-type asyncCb func(string, bool)
+type asyncCb func(string, bool, bool)
 
 func workerLoop(ctx context.Context, cb asyncCb, containerEngines []container.Engine, wg *sync.WaitGroup) {
 	var evt event.Event
@@ -54,7 +54,7 @@ func workerLoop(ctx context.Context, cb asyncCb, containerEngines []container.En
 			break
 		} else {
 			evt, _ = val.Interface().(event.Event)
-			cb(evt.String(), evt.IsCreate)
+			cb(evt.String(), evt.IsCreate, false)
 		}
 	}
 }
