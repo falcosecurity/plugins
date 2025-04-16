@@ -315,7 +315,7 @@ bool my_plugin::init(falcosecurity::init_input& in)
         m_pod_uid_field = m_thread_table.add_field(
                 t.fields(), POD_UID_FIELD_NAME, st::SS_PLUGIN_ST_STRING);
     }
-    catch(falcosecurity::plugin_exception& e)
+    catch(const std::exception& e)
     {
         m_lasterr = "cannot add the '" + std::string(POD_UID_FIELD_NAME) +
                     "' field into the '" + std::string(THREAD_TABLE_NAME) +
@@ -374,10 +374,10 @@ bool my_plugin::capture_open(const falcosecurity::capture_listen_input& in)
                             });
                     return true;
                 }
-                catch(falcosecurity::plugin_exception& e)
+                catch(const std::exception& ex)
                 {
                     SPDLOG_ERROR("cannot attach pod_uid to process: {}",
-                                 e.what());
+                                 ex.what());
                     // break the loop
                     return false;
                 }
@@ -1047,7 +1047,7 @@ bool my_plugin::extract(const falcosecurity::extract_fields_input& in)
     }
 
     falcosecurity::table_entry thread_entry;
-    std::string pod_uid = "";
+    std::string pod_uid;
     try
     {
         // retrieve the thread entry associated with this thread id
@@ -1055,7 +1055,7 @@ bool my_plugin::extract(const falcosecurity::extract_fields_input& in)
         // retrieve pod_uid from the entry
         m_pod_uid_field.read_value(tr, thread_entry, pod_uid);
     }
-    catch(falcosecurity::plugin_exception e)
+    catch(const std::exception& e)
     {
         SPDLOG_ERROR("cannot extract the pod uid for the thread id '{}': {}",
                      thread_id, e.what());
