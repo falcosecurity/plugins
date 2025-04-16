@@ -46,6 +46,14 @@ func NewFetcherEngine(ctx context.Context, containerEngines []Engine) Engine {
 	return &f
 }
 
+func (f *fetcher) Name() string {
+	return ""
+}
+
+func (f *fetcher) Sock() string {
+	return ""
+}
+
 func (f *fetcher) List(_ context.Context) ([]event.Event, error) {
 	panic("do not call")
 }

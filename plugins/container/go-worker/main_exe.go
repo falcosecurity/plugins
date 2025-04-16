@@ -57,11 +57,14 @@ func main() {
 	}
 	fmt.Println("Starting worker")
 	cstr := C.CString(initCfg)
-	ptr := StartWorker((*[0]byte)(C.echo_cb), cstr)
+	enabledSocks := C.CString("")
+	ptr := StartWorker((*[0]byte)(C.echo_cb), cstr, &enabledSocks)
 	if ptr == nil {
 		fmt.Println("Failed to start worker; nothing configured?")
 		os.Exit(1)
 	}
+	socks := C.GoString(enabledSocks)
+	fmt.Println("Started worker with attached socks:", socks)
 
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, syscall.SIGINT, syscall.SIGTERM)

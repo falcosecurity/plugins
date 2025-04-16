@@ -16,8 +16,6 @@ import (
 	"sync"
 )
 
-const typeContainerd engineType = "containerd"
-
 func init() {
 	engineGenerators[typeContainerd] = newContainerdEngine
 }
@@ -248,6 +246,14 @@ func (c *containerdEngine) get(ctx context.Context, containerId string) (*event.
 		}
 	}
 	return nil, nil
+}
+
+func (c *containerdEngine) Name() string {
+	return string(typeContainerd)
+}
+
+func (c *containerdEngine) Sock() string {
+	return c.socket
 }
 
 func (c *containerdEngine) List(ctx context.Context) ([]event.Event, error) {
