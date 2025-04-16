@@ -408,7 +408,7 @@ func (c *criEngine) Sock() string {
 }
 
 func (c *criEngine) List(ctx context.Context) ([]event.Event, error) {
-	ctrs, err := c.client.ListContainers(ctx, &v1.ContainerFilter{State: &v1.ContainerStateValue{}})
+	ctrs, err := c.client.ListContainers(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
