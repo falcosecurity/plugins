@@ -4,9 +4,7 @@ import (
 	"context"
 	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/config"
 	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
-	"github.com/fsnotify/fsnotify"
 	"net/url"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -49,12 +47,8 @@ type EngineGenerator func(ctx context.Context) (Engine, error)
 // Hooked up by each engine through init()
 var engineGenerators = make(map[engineType]engineGenerator)
 
-func Generators() ([]EngineGenerator, *EngineInotifier, error) {
+func Generators() ([]EngineGenerator, error) {
 	generators := make([]EngineGenerator, 0)
-	engineNotifier := EngineInotifier{
-		watcher:           nil,
-		watcherGenerators: make(map[string]EngineGenerator),
-	}
 
 	c := config.Get()
 	for engineName, engineGen := range engineGenerators {
@@ -65,37 +59,13 @@ func Generators() ([]EngineGenerator, *EngineInotifier, error) {
 		// For each specified socket, return a closure to generate its engine
 		for _, socket := range eCfg.Sockets {
 			// Properly account for HOST_ROOT env variable
-			if config.GetHostRoot() != "" {
-				socket = filepath.Join(config.GetHostRoot(), socket)
-			}
-			if _, statErr := os.Stat(socket); os.IsNotExist(statErr) {
-				// Does not exist; emplace back an inotify listener
-				if engineNotifier.watcher == nil {
-					engineNotifier.watcher, _ = fsnotify.NewWatcher()
-				}
-				if engineNotifier.watcher != nil {
-					dir := filepath.Dir(socket)
-					err := engineNotifier.watcher.Add(dir)
-					if err != nil {
-						// Try to attach watcher to parent dir
-						// eg: /run/user for podman, /run/ for crio, and so on
-						dir = filepath.Dir(dir)
-						err = engineNotifier.watcher.Add(dir)
-					}
-					if err == nil {
-						engineNotifier.watcherGenerators[socket] = func(ctx context.Context) (Engine, error) {
-							return engineGen(ctx, socket)
-						}
-					}
-				}
-			} else {
-				generators = append(generators, func(ctx context.Context) (Engine, error) {
-					return engineGen(ctx, socket)
-				})
-			}
+			socket = filepath.Join(config.GetHostRoot(), socket)
+			generators = append(generators, func(ctx context.Context) (Engine, error) {
+				return engineGen(ctx, socket)
+			})
 		}
 	}
-	return generators, &engineNotifier, nil
+	return generators, nil
 }
 
 type getter interface {

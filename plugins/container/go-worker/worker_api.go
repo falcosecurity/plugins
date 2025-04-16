@@ -10,9 +10,9 @@ import "C"
 
 import (
 	"context"
+	"github.com/falcosecurity/plugin-sdk-go/pkg/ptr"
 	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/config"
 	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/container"
-	"github.com/falcosecurity/plugin-sdk-go/pkg/ptr"
 	"runtime"
 	"runtime/cgo"
 	"sync"
@@ -52,7 +52,7 @@ func StartWorker(cb C.async_cb, initCfg *C.cchar_t) unsafe.Pointer {
 		return nil
 	}
 
-	generators, inotifier, err := container.Generators()
+	generators, err := container.Generators()
 	if err != nil {
 		return nil
 	}
@@ -80,7 +80,7 @@ func StartWorker(cb C.async_cb, initCfg *C.cchar_t) unsafe.Pointer {
 	pluginCtx.wg.Add(1)
 	go func() {
 		defer pluginCtx.wg.Done()
-		workerLoop(ctx, goCb, containerEngines, inotifier, &pluginCtx.wg)
+		workerLoop(ctx, goCb, containerEngines, &pluginCtx.wg)
 	}()
 	h := cgo.NewHandle(&pluginCtx)
 	pluginCtx.pinner.Pin(&h)
