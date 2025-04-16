@@ -95,8 +95,7 @@ pub fn try_fd_install_x(
     // Parameter 3: file_index.
     auxmap.store_file_descriptor_param(file_descriptor);
 
-    let (dev, ino, overlay) =
-        files::getters::dev_ino_overlay(file).unwrap_or((0, 0, files::Overlay::None));
+    let (dev, ino, overlay) = files::dev_ino_overlay(file).unwrap_or((0, 0, files::Overlay::None));
 
     // Parameter 4: flags.
     let flags = file.f_flags().unwrap_or(0);

@@ -24,6 +24,7 @@
 
 use aya_ebpf::{cty::c_int, macros::fexit, programs::FExitContext};
 use krsi_common::EventType;
+use krsi_ebpf_core::{wrap_arg, IoKiocb, IoSocket};
 
 use crate::{defs, iouring, shared_maps, vmlinux, FileDescriptor};
 
@@ -36,17 +37,17 @@ fn try_io_socket_x(ctx: FExitContext) -> Result<u32, i64> {
     let auxmap = shared_maps::get_auxiliary_map().ok_or(1)?;
     auxmap.preload_event_header(EventType::Socket);
 
-    let req: *const vmlinux::io_kiocb = unsafe { ctx.arg(0) };
-    let sock: *const vmlinux::io_socket = iouring::extractors::io_kiocb_cmd_ptr(req);
+    let req: IoKiocb = wrap_arg(unsafe { ctx.arg(0) });
+    let sock: IoSocket = req.cmd_as();
 
-    let iou_ret: c_int = unsafe { ctx.arg(2) };
+    let iou_ret: i64 = unsafe { ctx.arg(2) };
 
     // Parameter 1: iou_ret.
-    auxmap.store_param(iou_ret as i64);
+    auxmap.store_param(iou_ret);
 
     // Parameter 2: fd.
     // Parameter 3: file_index.
-    match extract_file_descriptor(req, sock, iou_ret) {
+    match extract_file_descriptor(&req, &sock, iou_ret) {
         Ok(Some(file_descriptor)) => auxmap.store_file_descriptor_param(file_descriptor),
         _ => {
             auxmap.store_empty_param();
@@ -55,19 +56,19 @@ fn try_io_socket_x(ctx: FExitContext) -> Result<u32, i64> {
     }
 
     // Parameter 4: domain.
-    match iouring::extractors::io_socket_domain(sock) {
+    match sock.domain() {
         Ok(sock_domain) => auxmap.store_param(sock_domain as u32),
         Err(_) => auxmap.store_empty_param(),
     };
 
     // Parameter 5: type.
-    match iouring::extractors::io_socket_type(sock) {
+    match sock.r#type() {
         Ok(sock_type) => auxmap.store_param(sock_type as u32),
         Err(_) => auxmap.store_empty_param(),
     };
 
     // Parameter 6: proto.
-    match iouring::extractors::io_socket_protocol(sock) {
+    match sock.protocol() {
         Ok(sock_proto) => auxmap.store_param(sock_proto as u32),
         Err(_) => auxmap.store_empty_param(),
     };
@@ -78,15 +79,15 @@ fn try_io_socket_x(ctx: FExitContext) -> Result<u32, i64> {
 }
 
 fn extract_file_descriptor(
-    req: *const vmlinux::io_kiocb,
-    sock: *const vmlinux::io_socket,
-    iou_ret: c_int,
+    req: &IoKiocb,
+    sock: &IoSocket,
+    iou_ret: i64,
 ) -> Result<Option<FileDescriptor>, i64> {
     if iou_ret != defs::IOU_OK {
         return Ok(None);
     }
-    let cqe_res = iouring::extractors::io_kiocb_cqe_res(req)?;
-    let file_slot = iouring::extractors::io_socket_file_slot(sock)?;
+    let cqe_res = req.cqe().res()?;
+    let file_slot = sock.file_slot()?;
     let fixed = file_slot != 0;
     Ok(Some(if !fixed {
         FileDescriptor::Fd(cqe_res)

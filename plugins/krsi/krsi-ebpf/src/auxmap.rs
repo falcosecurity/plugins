@@ -259,18 +259,14 @@ impl AuxiliaryMap {
             self.push(sk_local.serialize_ptr() as u64);
             if sk_peer.is_null() && !sockaddr.is_null() {
                 let sockaddr = sockaddr.as_sockaddr_un();
-                let _ = sockets::extractors::sockaddr_un_path_into(
-                    &sockaddr,
-                    is_kern_sockaddr,
-                    path_mut,
-                );
+                let _ = sockets::sockaddr_un_path_into(&sockaddr, is_kern_sockaddr, path_mut);
             } else if !sk_peer.is_null() {
-                let _ = sockets::extractors::unix_sock_addr_path_into(&sk_peer, path_mut);
+                let _ = sockets::unix_sock_addr_path_into(&sk_peer, path_mut);
             }
         } else {
             self.push(sk_local.serialize_ptr() as u64);
             self.push(sk_peer.serialize_ptr() as u64);
-            let _ = sockets::extractors::unix_sock_addr_path_into(&sk_local, path_mut);
+            let _ = sockets::unix_sock_addr_path_into(&sk_local, path_mut);
         }
 
         // Notice an exception in `sun_path` (https://man7.org/linux/man-pages/man7/unix.7.html):
