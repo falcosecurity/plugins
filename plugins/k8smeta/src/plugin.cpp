@@ -52,24 +52,19 @@ limitations under the License.
 // This is the regex needed to extract the pod_uid from the cgroup
 static re2::RE2 pattern(RGX_POD, re2::RE2::POSIX);
 
-std::string get_pod_uid_from_cgroup_string(const std::string& cgroup_first_line)
+static inline std::string
+get_pod_uid_from_cgroup_string(const std::string& cgroup)
 {
     // We set the pod uid to `""` if we are not able to extract it.
-    std::string pod_uid = "";
+    std::string pod_uid;
 
-    // Here `cgroup_first_line` can have 2 layouts:
-    //
-    // 1 - If it arrives from our driver -> `controller=cgroup_path`
-    // Example:
-    // `cpuset=/kubelet.slice/kubelet-kubepods.slice/kubelet-kubepods-pod05869489-8c7f-45dc-9abd-1b1620787bb1.slice/cri-containerd-2f92446a3fbfd0b7a73457b45e96c75a25c5e44e7b1bcec165712b906551c261.scope\0`
-    //
-    // 2 - If it arrives from the /proc scan ->
+    // Here `cgroup_first_line` has the following layout:
     // `hierarchyID:controller:cgroup_path`
     // Example (cgroup v2):
     // `0::/kubepods.slice/kubepods-besteffort.slice/kubepods-besteffort-pod93f64796_43b9_468d_b77b_c652c985d5e0.slice`
     // Example (cgroup v1):
     // `12:perf_event:/kubepods.slice/kubepods-besteffort.slice/kubepods-besteffort-pod93f64796_43b9_468d_b77b_c652c985d5e0.slice`
-    if(re2::RE2::PartialMatch(cgroup_first_line, pattern, &pod_uid))
+    if(re2::RE2::PartialMatch(cgroup, pattern, &pod_uid))
     {
         // Here `pod_uid` could have 2 possible layouts:
         // - (driver cgroup) pod05869489-8c7f-45dc-9abd-1b1620787bb1
@@ -333,51 +328,22 @@ bool my_plugin::init(falcosecurity::init_input& in)
 
 bool my_plugin::capture_open(const falcosecurity::capture_listen_input& in)
 {
-    using st = falcosecurity::state_value_type;
-
     SPDLOG_DEBUG("enriching initial thread table entries");
     auto& tr = in.get_table_reader();
     auto& tw = in.get_table_writer();
     m_thread_table.iterate_entries(
             tr,
-            [this, tr, tw](const falcosecurity::table_entry& e)
+            [this, tr, tw](const falcosecurity::table_entry& thread_entry)
             {
                 try
                 {
-                    auto cgroups_table = m_thread_table.get_subtable(
-                            tr, m_thread_field_cgroups, e,
-                            st::SS_PLUGIN_ST_UINT64);
-                    cgroups_table.iterate_entries(
-                            tr,
-                            [&](const falcosecurity::table_entry& e)
-                            {
-                                // read the "second" field (aka: the cgroup
-                                // path) from the current entry of the cgroups
-                                // table
-                                std::string cgroup;
-                                m_cgroups_field_second.read_value(tr, e,
-                                                                  cgroup);
-                                if(!cgroup.empty())
-                                {
-                                    const std::string pod_uid =
-                                            get_pod_uid_from_cgroup_string(
-                                                    cgroup);
-                                    if(!pod_uid.empty())
-                                    {
-                                        m_pod_uid_field.write_value(
-                                                tw, e, pod_uid.c_str());
-                                        // break the loop
-                                        return false;
-                                    }
-                                }
-                                return true;
-                            });
+                    on_new_process(thread_entry, tr, tw);
                     return true;
                 }
-                catch(const std::exception& ex)
+                catch(const std::exception& e)
                 {
                     SPDLOG_ERROR("cannot attach pod_uid to process: {}",
-                                 ex.what());
+                                 e.what());
                     // break the loop
                     return false;
                 }
@@ -1071,7 +1037,7 @@ bool my_plugin::extract(const falcosecurity::extract_fields_input& in)
     }
 
     // Try to find the entry associated with the pod_uid
-    auto it = m_pod_table.find(pod_uid);
+    const auto it = m_pod_table.find(pod_uid);
     if(it == m_pod_table.end())
     {
         SPDLOG_DEBUG("the plugin has no info for the pod uid '{}'", pod_uid);
@@ -1363,12 +1329,14 @@ static inline const char* get_event_name(uint16_t evt_type)
 bool inline my_plugin::parse_process_events(
         const falcosecurity::parse_event_input& in, uint16_t evt_type)
 {
-    auto res_param = get_syscall_evt_param(in.get_event_reader().get_buf(),
-                                           EXECVE_CLONE_RES_PARAM_IDX);
     int64_t thread_id = in.get_event_reader().get_tid();
+    auto& tr = in.get_table_reader();
+    auto& tw = in.get_table_writer();
 
     // - For execve/execveat we exclude failed syscall events (ret<0)
     // - For clone/fork/vfork/clone3 we exclude failed syscall events (ret<0)
+    auto res_param = get_syscall_evt_param(in.get_event_reader().get_buf(),
+                                           EXECVE_CLONE_RES_PARAM_IDX);
     int64_t ret = 0;
     memcpy(&ret, res_param.param_pointer, sizeof(ret));
     if(ret < 0)
@@ -1384,45 +1352,20 @@ bool inline my_plugin::parse_process_events(
     // container or not. It's also true that if we enable this plugin we are in
     // a k8s environment so we need to evaluate this.
 
-    // Extract cgroup param
-    auto cgroup_param = get_syscall_evt_param(in.get_event_reader().get_buf(),
-                                              EXECVE_CLONE_CGROUP_PARAM_IDX);
-
-    // If croups are empty we don't parse the event
-    if(cgroup_param.param_len == 0)
+    try
     {
-        SPDLOG_TRACE("empty cgroup for thread id '{}'", thread_id);
+        auto thread_entry = m_thread_table.get_entry(tr, thread_id);
+        on_new_process(thread_entry, tr, tw);
+        return true;
+    }
+    catch(const std::exception& e)
+    {
+        SPDLOG_ERROR("cannot attach container_id to new process "
+                     "event for the "
+                     "thread id '{}': {}",
+                     thread_id, e.what());
         return false;
     }
-
-    // Our cgroup an array of charbufs `\0`-termiated. The first charbuf could
-    // be something like this:
-    // cpuset=/kubelet.slice/kubelet-kubepods.slice/kubelet-kubepods-pod05869489-8c7f-45dc-9abd-1b1620787bb1.slice/cri-containerd-2f92446a3fbfd0b7a73457b45e96c75a25c5e44e7b1bcec165712b906551c261.scope\0
-    // So we can put it in a string and apply our regex.
-    std::string cgroup_first_charbuf = (char*)cgroup_param.param_pointer;
-    std::string pod_uid = get_pod_uid_from_cgroup_string(cgroup_first_charbuf);
-
-    // If we don't have a pod_uid we don't need to populate the table
-    if(!pod_uid.empty())
-    {
-        // retrieve thread entry associated with the event tid
-        auto& tr = in.get_table_reader();
-        auto thread_entry = m_thread_table.get_entry(tr, thread_id);
-
-        // Write the pod_uid into the entry
-        auto& tw = in.get_table_writer();
-        m_pod_uid_field.write_value(tw, thread_entry,
-                                    (const char*)pod_uid.c_str());
-        SPDLOG_TRACE("pushed pod uid '{}' for thread id '{}' into the "
-                     "framework table",
-                     pod_uid, thread_id);
-    }
-    else
-    {
-        SPDLOG_TRACE("cannot find pod uid for thread id '{}' with cgroup '{}'",
-                     thread_id, cgroup_first_charbuf);
-    }
-    return true;
 }
 
 bool my_plugin::parse_event(const falcosecurity::parse_event_input& in)
@@ -1444,5 +1387,45 @@ bool my_plugin::parse_event(const falcosecurity::parse_event_input& in)
     default:
         SPDLOG_ERROR("received an unknown event type {}", uint16_t(evt_type));
         return false;
+    }
+}
+
+void my_plugin::on_new_process(const falcosecurity::table_entry& thread_entry,
+                               const falcosecurity::table_reader& tr,
+                               const falcosecurity::table_writer& tw)
+{
+    using st = falcosecurity::state_value_type;
+    try
+    {
+        auto cgroups_table = m_thread_table.get_subtable(
+                tr, m_thread_field_cgroups, thread_entry,
+                st::SS_PLUGIN_ST_UINT64);
+        cgroups_table.iterate_entries(
+                tr,
+                [&](const falcosecurity::table_entry& e)
+                {
+                    // read the "second" field (aka: the cgroup
+                    // path) from the current entry of the cgroups
+                    // table
+                    std::string cgroup;
+                    m_cgroups_field_second.read_value(tr, e, cgroup);
+                    if(!cgroup.empty())
+                    {
+                        const std::string pod_uid =
+                                get_pod_uid_from_cgroup_string(cgroup);
+                        if(!pod_uid.empty())
+                        {
+                            m_pod_uid_field.write_value(tw, thread_entry,
+                                                        pod_uid);
+                            // break the loop
+                            return false;
+                        }
+                    }
+                    return true;
+                });
+    }
+    catch(const std::exception& ex)
+    {
+        SPDLOG_ERROR("cannot attach pod_uid to process: {}", ex.what());
     }
 }

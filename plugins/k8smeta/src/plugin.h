@@ -161,6 +161,9 @@ class my_plugin
         return EXTRACT_EVENT_SOURCES;
     }
 
+    void on_new_process(const falcosecurity::table_entry& thread_entry,
+                        const falcosecurity::table_reader& tr,
+                        const falcosecurity::table_writer& tw);
     std::vector<falcosecurity::field_info> get_fields();
 
     bool inline get_uid_array(nlohmann::json& pod_refs_json,

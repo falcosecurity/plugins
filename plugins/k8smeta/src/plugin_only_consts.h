@@ -41,4 +41,3 @@ constexpr auto PPME_SYSCALL_EXECVEAT_X = (_et)331;
 
 // Data associated to sinsp events used in the plugin
 #define EXECVE_CLONE_RES_PARAM_IDX 0
-#define EXECVE_CLONE_CGROUP_PARAM_IDX 14
