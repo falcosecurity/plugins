@@ -1,6 +1,6 @@
 use std::ffi::{CStr, CString};
-use byteorder::ReadBytesExt;
-use byteorder::NativeEndian;
+
+use byteorder::{NativeEndian, ReadBytesExt};
 use krsi_common::EventHeader;
 use serde::{Deserialize, Serialize};
 
@@ -24,8 +24,7 @@ pub enum KrsiEventContent {
     },
 }
 
-#[derive(thiserror::Error)]
-#[derive(Debug)]
+#[derive(thiserror::Error, Debug)]
 pub enum RingbufParseError {
     #[error("Truncated event")]
     TruncatedEvent,
@@ -44,7 +43,9 @@ fn read_event_header(buf: &mut &[u8]) -> Result<EventHeader, RingbufParseError> 
     let tgid_pid = buf.read_u64::<NativeEndian>()?;
     let len = buf.read_u32::<NativeEndian>()?;
     let evt_type = buf.read_u16::<NativeEndian>()?;
-    let evt_type: krsi_common::EventType = evt_type.try_into().map_err(|_| RingbufParseError::InvalidType(evt_type))?;
+    let evt_type: krsi_common::EventType = evt_type
+        .try_into()
+        .map_err(|_| RingbufParseError::InvalidType(evt_type))?;
     let nparams = buf.read_u32::<NativeEndian>()?;
 
     Ok(EventHeader {
@@ -84,7 +85,11 @@ impl<'a> FromBytes<'a> for &'a CStr {
     }
 }
 
-fn next_field<'a, T>(lengths: &mut &[u8], payload: &mut &'a [u8], fallback: Result<T, RingbufParseError>) -> Result<T, RingbufParseError>
+fn next_field<'a, T>(
+    lengths: &mut &[u8],
+    payload: &mut &'a [u8],
+    fallback: Result<T, RingbufParseError>,
+) -> Result<T, RingbufParseError>
 where
     T: FromBytes<'a>,
 {
@@ -93,7 +98,10 @@ where
         Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => return fallback,
         Err(e) => return Err(RingbufParseError::IoError(e)),
     };
-    let (mut buf, tail) = Option::ok_or(payload.split_at_checked(len), RingbufParseError::TruncatedEvent)?;
+    let (mut buf, tail) = Option::ok_or(
+        payload.split_at_checked(len),
+        RingbufParseError::TruncatedEvent,
+    )?;
     *payload = tail;
 
     T::from_bytes(&mut buf)
@@ -101,7 +109,9 @@ where
 
 pub fn parse_ringbuf_event(mut buf: &[u8]) -> Result<KrsiEvent, RingbufParseError> {
     let ev = read_event_header(&mut buf)?;
-    let (mut lengths, mut payload) = buf.split_at_checked(ev.nparams as usize * size_of::<u16>()).ok_or(RingbufParseError::TruncatedEvent)?;
+    let (mut lengths, mut payload) = buf
+        .split_at_checked(ev.nparams as usize * size_of::<u16>())
+        .ok_or(RingbufParseError::TruncatedEvent)?;
 
     match ev.evt_type {
         krsi_common::EventType::Open => {
@@ -129,6 +139,6 @@ pub fn parse_ringbuf_event(mut buf: &[u8]) -> Result<KrsiEvent, RingbufParseErro
                 },
             })
         }
-        _ => Err(RingbufParseError::NotYetImplemented)
+        _ => Err(RingbufParseError::NotYetImplemented),
     }
 }

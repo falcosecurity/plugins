@@ -30,10 +30,7 @@ use aya_ebpf::{
 use krsi_common::EventType;
 use krsi_ebpf_core::{wrap_arg, File, IoKiocb, Sockaddr, Socket, Wrap};
 
-use crate::{
-    defs, files, helpers, iouring, operations::connect::maps::Info, shared_maps, sockets, vmlinux,
-    FileDescriptor,
-};
+use crate::{defs, helpers, iouring, operations::connect::maps::Info, shared_maps, FileDescriptor};
 
 mod maps;
 
@@ -52,10 +49,12 @@ fn try_io_connect_e(ctx: FEntryContext) -> Result<u32, i64> {
 }
 
 #[fentry]
+#[allow(non_snake_case)]
 fn __sys_connect_e(ctx: FEntryContext) -> u32 {
     try___sys_connect_e(ctx).unwrap_or(1)
 }
 
+#[allow(non_snake_case)]
 fn try___sys_connect_e(ctx: FEntryContext) -> Result<u32, i64> {
     let pid = ctx.pid();
     let fd: c_int = unsafe { ctx.arg(0) };
@@ -65,13 +64,15 @@ fn try___sys_connect_e(ctx: FEntryContext) -> Result<u32, i64> {
 }
 
 #[fexit]
+#[allow(non_snake_case)]
 fn __sys_connect_file_x(ctx: FExitContext) -> u32 {
     try___sys_connect_file_x(ctx).unwrap_or(1)
 }
 
+#[allow(non_snake_case)]
 fn try___sys_connect_file_x(ctx: FExitContext) -> Result<u32, i64> {
     let pid = ctx.pid();
-    let Some(info) = (unsafe { maps::get_info_map().get_ptr_mut(&pid) }) else {
+    let Some(info) = maps::get_info_map().get_ptr_mut(&pid) else {
         return Ok(0);
     };
 

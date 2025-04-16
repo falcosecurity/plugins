@@ -16,7 +16,7 @@ pub fn unix_sock_addr_path_into(
         return Ok(());
     }
 
-    let first_sockaddr = unsafe { SockaddrUn::wrap(addr.name().cast::<sockaddr_un>()) };
+    let first_sockaddr = SockaddrUn::wrap(addr.name().cast::<sockaddr_un>());
     let sun_path = first_sockaddr.sun_path();
     unsafe { bpf_probe_read_kernel_buf(sun_path.cast(), path) }
 }

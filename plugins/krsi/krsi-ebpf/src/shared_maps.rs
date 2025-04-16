@@ -3,7 +3,6 @@ use aya_ebpf::{
     macros::map,
     maps::{Array, RingBuf},
 };
-use krsi_common::EventType;
 
 #[map]
 // The number of max entries is set, in userspace, to the value of available CPU.

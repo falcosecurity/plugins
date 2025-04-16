@@ -30,9 +30,9 @@ use aya_ebpf::{
     EbpfContext,
 };
 use krsi_common::EventType;
-use krsi_ebpf_core::{wrap_arg, Filename, Wrap};
+use krsi_ebpf_core::{wrap_arg, Filename};
 
-use crate::{defs, helpers, scap, shared_maps, vmlinux};
+use crate::{defs, helpers, scap, shared_maps};
 
 mod maps;
 

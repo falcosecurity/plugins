@@ -8,11 +8,6 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use aya::{
-    maps::RingBuf,
-    programs::{FEntry, FExit},
-    EbpfLoader,
-};
 use falco_plugin::{
     anyhow::Error,
     async_event::{AsyncEvent, AsyncEventPlugin, AsyncHandler},
@@ -36,10 +31,8 @@ use falco_plugin::{
     },
 };
 use hashlru::Cache;
-use libc::{clock_gettime, timespec, CLOCK_BOOTTIME, CLOCK_REALTIME};
 use serde::Deserialize;
-#[rustfmt::skip]
-use log::debug;
+
 use crate::flags::{FeatureFlags, OpFlags};
 
 mod ebpf;

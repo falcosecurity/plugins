@@ -43,7 +43,7 @@ use aya_ebpf::{
 use krsi_common::EventType;
 use krsi_ebpf_core::{wrap_arg, Filename};
 
-use crate::{defs, files, helpers, iouring, scap, shared_maps, vmlinux};
+use crate::{defs, helpers, scap, shared_maps};
 
 mod maps;
 
@@ -85,7 +85,7 @@ fn try_do_renameat2_x(ctx: FExitContext) -> Result<u32, i64> {
 
     // Parameter 5: flags.
     let flags: u32 = unsafe { ctx.arg(4) };
-    /// TODO(ekoops): we have to create an helper method to convert these flags to the scap format.
+    // TODO(ekoops): we have to create an helper method to convert these flags to the scap format.
     auxmap.store_param(flags);
 
     // Parameter 6: res.

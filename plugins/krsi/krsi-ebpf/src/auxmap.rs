@@ -11,9 +11,7 @@ use aya_ebpf::{
 use krsi_common::{EventHeader, EventType};
 use krsi_ebpf_core::{Filename, Sock, Sockaddr, Socket, Wrap};
 
-use crate::{
-    defs, files, get_event_num_params, scap, shared_maps, sockets, vmlinux, FileDescriptor,
-};
+use crate::{defs, get_event_num_params, scap, shared_maps, sockets, vmlinux, FileDescriptor};
 
 // Event maximum size.
 const MAX_EVENT_SIZE: u64 = 8 * 1024;
@@ -246,7 +244,7 @@ impl AuxiliaryMap {
     ) -> usize {
         let sk_local = sk.as_unix_sock();
 
-        let sk_peer = sk_local.peer().unwrap_or(unsafe { Sock::wrap(null_mut()) });
+        let sk_peer = sk_local.peer().unwrap_or(Sock::wrap(null_mut()));
         let sk_peer = sk_peer.as_unix_sock();
 
         let mut path: [c_uchar; defs::UNIX_PATH_MAX] = [0; defs::UNIX_PATH_MAX];

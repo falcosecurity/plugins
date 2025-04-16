@@ -26,7 +26,7 @@ use aya_ebpf::{cty::c_int, macros::fexit, programs::FExitContext};
 use krsi_common::EventType;
 use krsi_ebpf_core::{wrap_arg, IoKiocb, IoSocket};
 
-use crate::{defs, iouring, shared_maps, vmlinux, FileDescriptor};
+use crate::{defs, shared_maps, FileDescriptor};
 
 #[fexit]
 fn io_socket_x(ctx: FExitContext) -> u32 {
@@ -99,10 +99,12 @@ fn extract_file_descriptor(
 }
 
 #[fexit]
+#[allow(non_snake_case)]
 fn __sys_socket_x(ctx: FExitContext) -> u32 {
     try___sys_socket_x(ctx).unwrap_or(1)
 }
 
+#[allow(non_snake_case)]
 fn try___sys_socket_x(ctx: FExitContext) -> Result<u32, i64> {
     let auxmap = shared_maps::get_auxiliary_map().ok_or(1)?;
     auxmap.preload_event_header(EventType::Socket);
