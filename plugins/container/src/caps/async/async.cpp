@@ -39,6 +39,15 @@ bool my_plugin::start_async_events(
     m_logger.log(fmt::format("attached engine sockets: {}", enabled_engines),
                  falcosecurity::_internal::SS_PLUGIN_LOG_SEV_DEBUG);
     free((void *)enabled_engines);
+
+    // Merge back pre-existing containers to our cache
+    m_containers = s_preexisting_containers;
+    for(const auto &c : m_containers)
+    {
+        m_logger.log(fmt::format("Added pre-existing container: {}", c.first),
+                     falcosecurity::_internal::SS_PLUGIN_LOG_SEV_TRACE);
+    }
+
     return s_async_ctx != nullptr;
 }
 

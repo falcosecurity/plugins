@@ -348,7 +348,8 @@ void my_plugin::on_new_process(const falcosecurity::table_entry& thread_entry,
         // since the engine has no listener SDK.
         // Just send the event now.
         nlohmann::json j(info);
-        generate_async_event<ASYNC_HANDLER_DEFAULT>(j.dump().c_str(), true);
+        generate_async_event<ASYNC_HANDLER_DEFAULT>(j.dump().c_str(), true,
+                                                    false);
 #endif
         // Immediately cache the container metadata
         m_containers[info->m_id] = info;

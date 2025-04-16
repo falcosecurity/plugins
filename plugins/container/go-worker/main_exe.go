@@ -5,8 +5,12 @@ package main
 /*
 #include <stdio.h>
 #include <stdbool.h>
-void echo_cb(const char *json, bool added) {
-	printf("Added: %d, Json: %s\n", added, json);
+void echo_cb(const char *json, bool added, bool initial_state) {
+	if (initial_state) {
+		printf("[Pre-existing] Json: %s\n", json);
+	} else {
+		printf("[%s] Json: %s\n", added ? "Added" : "Removed", json);
+	}
 }
 */
 import "C"

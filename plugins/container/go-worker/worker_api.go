@@ -3,8 +3,8 @@ package main
 /*
 #include <stdbool.h>
 typedef const char cchar_t;
-typedef void (*async_cb)(const char *json, bool added);
-void makeCallback(const char *json, bool added, async_cb cb);
+typedef void (*async_cb)(const char *json, bool added, bool initial_state);
+void makeCallback(const char *json, bool added, bool initial_state, async_cb cb);
 */
 import "C"
 
@@ -36,16 +36,17 @@ func StartWorker(cb C.async_cb, initCfg *C.cchar_t, enabledSocks **C.cchar_t) un
 	ctx, pluginCtx.ctxCancel = context.WithCancel(context.Background())
 
 	// See https://github.com/enobufs/go-calls-c-pointer/blob/master/counter_api.go
-	goCb := func(containerJson string, added bool) {
+	goCb := func(containerJson string, added bool, initialState bool) {
 		if containerJson == "" {
 			return
 		}
 		// Go cannot call C-function pointers. Instead, use
 		// a C-function to have it call the function pointer.
 		pluginCtx.stringBuffer.Write(containerJson)
-		cbool := C.bool(added)
+		cadded := C.bool(added)
+		cinitialState := C.bool(initialState)
 		cStr := (*C.char)(pluginCtx.stringBuffer.CharPtr())
-		C.makeCallback(cStr, cbool, cb)
+		C.makeCallback(cStr, cadded, cinitialState, cb)
 	}
 
 	err := config.Load(ptr.GoString(unsafe.Pointer(initCfg)))
@@ -74,7 +75,7 @@ func StartWorker(cb C.async_cb, initCfg *C.cchar_t, enabledSocks **C.cchar_t) un
 		containers, err := engine.List(ctx)
 		if err == nil {
 			for _, ctr := range containers {
-				goCb(ctr.String(), true)
+				goCb(ctr.String(), true, true)
 			}
 		}
 	}
