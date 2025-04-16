@@ -20,7 +20,6 @@ use aya_ebpf::{
     programs::{FEntryContext, FExitContext},
     EbpfContext,
 };
-use aya_log_ebpf::info;
 use krsi_common::{scap as scap_shared, EventType};
 use krsi_ebpf_core::File;
 
@@ -82,10 +81,9 @@ pub fn try_fd_install_x(
     file: &File,
 ) -> Result<u32, i64> {
     let pid = ctx.pid();
-    let Some(&file_path_len) = (unsafe { maps::get_pids_map().get(&pid) }) else {
+    if (unsafe { maps::get_pids_map().get(&pid) }).is_none() {
         return Ok(0);
-    };
-    let file_path_len = file_path_len as u16;
+    }
 
     let auxmap = shared_maps::get_auxiliary_map().ok_or(1)?;
     // Don't call auxmap.preload_event_header, because we want to continue to append to the work

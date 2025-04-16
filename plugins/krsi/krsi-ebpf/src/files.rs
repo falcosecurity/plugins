@@ -54,8 +54,8 @@ fn overlay(file: &File) -> Overlay {
     match dentry
         .d_inode()
         .and_then(|inode| inode_dentry_ptr(inode.cast()))
-        .and_then(|dentry| unsafe { Dentry::wrap(dentry.cast()) }.d_inode())
-        .and_then(|inode| unsafe { Inode::wrap(inode.cast()) }.i_ino())
+        .and_then(|dentry| Dentry::wrap(dentry.cast()).d_inode())
+        .and_then(|inode| Inode::wrap(inode.cast()).i_ino())
     {
         Ok(_) => Overlay::Upper,
         Err(_) => Overlay::Lower,

@@ -23,7 +23,7 @@
 //! ## Extraction flow
 //! 1. `fexit:io_unlinkat` | TODO(ekoops): add syscalls support
 
-use aya_ebpf::{cty::c_int, macros::fexit, programs::FExitContext};
+use aya_ebpf::{macros::fexit, programs::FExitContext};
 use krsi_common::EventType;
 use krsi_ebpf_core::{wrap_arg, IoKiocb, IoUnlink};
 

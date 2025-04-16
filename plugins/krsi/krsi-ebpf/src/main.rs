@@ -3,7 +3,7 @@
 
 use aya_ebpf::{macros::fexit, programs::FExitContext};
 use krsi_common::EventType;
-use krsi_ebpf_core::{wrap_arg, File, Wrap};
+use krsi_ebpf_core::{wrap_arg, File};
 use operations::*;
 
 mod auxmap;
