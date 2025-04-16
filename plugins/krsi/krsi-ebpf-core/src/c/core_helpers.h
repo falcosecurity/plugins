@@ -142,6 +142,54 @@ struct filename {
     char *name;
 };
 
+// Taken from 6.13.
+struct io_cqe {
+    s32 res;
+    union {
+        u32	flags;
+        s32	fd;
+    };
+};
+
+struct io_cmd_data {
+    struct file *file;
+};
+
+// Taken from 6.13.
+struct io_kiocb {
+    union {
+        struct file *file;
+        struct io_cmd_data cmd;
+    };
+    u64 flags;
+    struct io_cqe cqe;
+    void *async_data;
+};
+
+// Taken from 6.13.
+struct io_rename {
+    s32 old_dfd;
+    s32 new_dfd;
+    struct filename *oldpath;
+    struct filename *newpath;
+    s32 flags;
+};
+
+// Taken from 6.13.
+struct io_unlink {
+	s32 dfd;
+	s32 flags;
+	struct filename *filename;
+};
+
+struct io_socket {
+	s32 domain;
+	s32 type;
+	s32 protocol;
+	s32 flags;
+	u32 file_slot;
+};
+
 inline u32 *file_f_mode(struct file *file) {
 	return &file->f_mode;
 }
@@ -298,6 +346,86 @@ inline char (*sockaddr_un_sun_path(struct sockaddr_un *sockaddr))[UNIX_PATH_MAX]
 
 inline char **filename_name(struct filename *filename) {
     return &filename->name;
+}
+
+inline s32 *io_cqe_res(struct io_cqe *cqe) {
+    return &cqe->res;
+}
+
+inline s32 *io_cqe_fd(struct io_cqe *cqe) {
+    return &cqe->fd;
+}
+
+inline struct file **io_kiocb_file(struct io_kiocb *req) {
+    return &req->file;
+}
+
+inline struct io_cmd_data *io_kiocb_cmd(struct io_kiocb *req) {
+    return &req->cmd;
+}
+
+inline u64 *io_kiocb_flags(struct io_kiocb *req) {
+    return &req->flags;
+}
+
+inline struct io_cqe *io_kiocb_cqe(struct io_kiocb *req) {
+    return &req->cqe;
+}
+
+inline void **io_kiocb_async_data(struct io_kiocb *req) {
+    return &req->async_data;
+}
+
+inline s32 *io_rename_old_dfd(struct io_rename *ren) {
+    return &ren->old_dfd;
+}
+
+inline s32 *io_rename_new_dfd(struct io_rename *ren) {
+    return &ren->new_dfd;
+}
+
+inline struct filename **io_rename_oldpath(struct io_rename *ren) {
+    return &ren->oldpath;
+}
+
+inline struct filename **io_rename_newpath(struct io_rename *ren) {
+    return &ren->newpath;
+}
+
+inline s32 *io_rename_flags(struct io_rename *ren) {
+    return &ren->flags;
+}
+
+inline s32 *io_unlink_dfd(struct io_unlink *un) {
+    return &un->dfd;
+}
+
+inline s32 *io_unlink_flags(struct io_unlink *un) {
+    return &un->flags;
+}
+
+inline struct filename **io_unlink_filename(struct io_unlink *un) {
+    return &un->filename;
+}
+
+inline s32 *io_socket_domain(struct io_socket *sock) {
+    return &sock->domain;
+}
+
+inline s32 *io_socket_type(struct io_socket *sock) {
+    return &sock->type;
+}
+
+inline s32 *io_socket_protocol(struct io_socket *sock) {
+    return &sock->protocol;
+}
+
+inline s32 *io_socket_flags(struct io_socket *sock) {
+    return &sock->flags;
+}
+
+inline u32 *io_socket_file_slot(struct io_socket *sock) {
+    return &sock->file_slot;
 }
 
 #if defined(__bpf__)

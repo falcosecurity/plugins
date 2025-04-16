@@ -168,7 +168,7 @@ pub const EINPROGRESS: i32 = 115;
 pub const IORING_FILE_INDEX_ALLOC: u32 = !0;
 
 // `io_uring/io_uring.h` from kernel source tree.
-pub const IOU_OK: i32 = 0;
+pub const IOU_OK: i64 = 0;
 
 /* Max path size. */
 

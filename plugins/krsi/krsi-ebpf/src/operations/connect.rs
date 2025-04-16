@@ -19,18 +19,16 @@
 //! 2. `fexit:__sys_connect_file`
 //! 3. `fexit:io_connect` | `fexit:__sys_connect`
 
-use core::ptr::{null, null_mut};
+use core::ptr::null_mut;
 
 use aya_ebpf::{
-    cty::{c_int, c_uchar},
-    helpers::{bpf_probe_read_kernel, bpf_probe_read_kernel_buf},
+    cty::c_int,
     macros::{fentry, fexit},
     programs::{FEntryContext, FExitContext},
     EbpfContext,
 };
-use aya_log_ebpf::info;
 use krsi_common::EventType;
-use krsi_ebpf_core::{wrap_arg, File, Sockaddr, Socket, Wrap};
+use krsi_ebpf_core::{wrap_arg, File, IoKiocb, Sockaddr, Socket, Wrap};
 
 use crate::{
     defs, files, helpers, iouring, operations::connect::maps::Info, shared_maps, sockets, vmlinux,
@@ -46,8 +44,8 @@ fn io_connect_e(ctx: FEntryContext) -> u32 {
 
 fn try_io_connect_e(ctx: FEntryContext) -> Result<u32, i64> {
     let pid = ctx.pid();
-    let req: *const vmlinux::io_kiocb = unsafe { ctx.arg(0) };
-    let file_descriptor = iouring::getters::io_kiocb_cqe_file_descriptor(req)?;
+    let req: IoKiocb = wrap_arg(unsafe { ctx.arg(0) });
+    let file_descriptor = iouring::io_kiocb_cqe_file_descriptor(&req)?;
     const IS_IOU: bool = true;
     let info = Info::new(file_descriptor, IS_IOU);
     helpers::try_insert_map_entry(maps::get_info_map(), &pid, &info)
@@ -134,12 +132,12 @@ fn try_io_connect_x(ctx: FExitContext) -> Result<u32, i64> {
     auxmap.skip_param(info.socktuple_len);
 
     // Parameter 2: iou_ret.
-    let iou_ret: c_int = unsafe { ctx.arg(2) };
-    auxmap.store_param(iou_ret as i64);
+    let iou_ret: i64 = unsafe { ctx.arg(2) };
+    auxmap.store_param(iou_ret);
 
     // Parameter 3: res.
-    let req: *const vmlinux::io_kiocb = unsafe { ctx.arg(0) };
-    match iouring::getters::io_kiocb_cqe_res(req, iou_ret) {
+    let req: IoKiocb = wrap_arg(unsafe { ctx.arg(0) });
+    match iouring::io_kiocb_cqe_res(&req, iou_ret) {
         Ok(Some(cqe_res)) => auxmap.store_param(cqe_res as i64),
         _ => auxmap.store_empty_param(),
     }

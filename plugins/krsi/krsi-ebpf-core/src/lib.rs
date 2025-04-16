@@ -323,3 +323,44 @@ impl Sock {
 gen_accessors!(filename => {
     plain name: * mut char,
 });
+
+gen_accessors!(io_cqe => {
+    plain res: i32,
+    plain fd: i32,
+});
+
+gen_accessors!(io_kiocb => {
+    wrapper file: File,
+    no_read cmd: * mut io_cmd_data,
+    plain flags: u64,
+    no_read_wrapped cqe: IoCqe,
+    plain async_data: * mut c_void,
+});
+
+impl IoKiocb {
+    pub fn cmd_as<T: Wrap>(&self) -> T {
+        T::wrap(self.cmd() as *mut _)
+    }
+}
+
+gen_accessors!(io_rename => {
+    plain old_dfd: i32,
+    plain new_dfd: i32,
+    wrapper oldpath: Filename,
+    wrapper newpath: Filename,
+    plain flags: i32
+});
+
+gen_accessors!(io_unlink => {
+    plain dfd: i32,
+    plain flags: i32,
+    wrapper filename: Filename,
+});
+
+gen_accessors!(io_socket => {
+    plain domain: i32,
+    plain r#type: i32,
+    plain protocol: i32,
+    plain flags: i32,
+    plain file_slot: u32,
+});

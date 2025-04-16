@@ -25,9 +25,9 @@
 
 use aya_ebpf::{cty::c_int, macros::fexit, programs::FExitContext};
 use krsi_common::EventType;
-use krsi_ebpf_core::{Filename, Wrap};
+use krsi_ebpf_core::{wrap_arg, IoKiocb, IoUnlink};
 
-use crate::{defs, files, iouring, scap, shared_maps, vmlinux, vmlinux::file};
+use crate::{defs, scap, shared_maps};
 
 #[fexit]
 fn io_unlinkat_x(ctx: FExitContext) -> u32 {
@@ -38,36 +38,33 @@ fn try_io_unlinkat_x(ctx: FExitContext) -> Result<u32, i64> {
     let auxmap = shared_maps::get_auxiliary_map().ok_or(1)?;
     auxmap.preload_event_header(EventType::Unlinkat);
 
-    let req: *const vmlinux::io_kiocb = unsafe { ctx.arg(0) };
-    let un: *const vmlinux::io_unlink = iouring::extractors::io_kiocb_cmd_ptr(req);
+    let req: IoKiocb = wrap_arg(unsafe { ctx.arg(0) });
+    let un: IoUnlink = req.cmd_as();
 
     // Parameter 1: iou_ret.
-    let iou_ret: c_int = unsafe { ctx.arg(2) };
-    auxmap.store_param(iou_ret as i64);
+    let iou_ret: i64 = unsafe { ctx.arg(2) };
+    auxmap.store_param(iou_ret);
 
     // Parameter 2: res.
-    match iouring::extractors::io_kiocb_cqe_res(req) {
+    match req.cqe().res() {
         Ok(res) => auxmap.store_param(res as i64),
         Err(_) => auxmap.store_empty_param(),
     }
 
     // Parameter 3: dirfd.
-    match iouring::extractors::io_unlink_dfd(un) {
+    match un.dfd() {
         Ok(dirfd) => auxmap.store_param(scap::encode_dirfd(dirfd) as i64),
         Err(_) => auxmap.store_empty_param(),
     }
 
     // Parameter 4: path.
-    match iouring::extractors::io_unlink_filename(un) {
-        Ok(filename) => {
-            let filename = Filename::wrap(filename as *mut _);
-            auxmap.store_filename_param(&filename, defs::MAX_PATH, true)
-        }
+    match un.filename() {
+        Ok(filename) => auxmap.store_filename_param(&filename, defs::MAX_PATH, true),
         Err(_) => auxmap.store_empty_param(),
     }
 
     // Parameter 5: flags.
-    match iouring::extractors::io_unlink_flags(un) {
+    match un.flags() {
         Ok(flags) => auxmap.store_param(scap::encode_unlinkat_flags(flags)),
         Err(_) => auxmap.store_empty_param(),
     }
