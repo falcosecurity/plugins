@@ -18,14 +18,11 @@ import (
 	"sync"
 )
 
-const (
-	ctxDoneIdx   = 0
-	inotifierIdx = 1
-)
+const ctxDoneIdx = 0
 
 type asyncCb func(string, bool)
 
-func workerLoop(ctx context.Context, cb asyncCb, containerEngines []container.Engine, inotifier *container.EngineInotifier, wg *sync.WaitGroup) {
+func workerLoop(ctx context.Context, cb asyncCb, containerEngines []container.Engine, wg *sync.WaitGroup) {
 	var evt event.Event
 
 	// We need to use a reflect.SelectCase here since
@@ -37,15 +34,6 @@ func workerLoop(ctx context.Context, cb asyncCb, containerEngines []container.En
 		Dir:  reflect.SelectRecv,
 		Chan: reflect.ValueOf(ctx.Done()),
 	})
-
-	// Emplace back case for inotifier channel if needed
-	inotifierCh := inotifier.Listen()
-	if inotifierCh != nil {
-		cases = append(cases, reflect.SelectCase{
-			Dir:  reflect.SelectRecv,
-			Chan: reflect.ValueOf(inotifierCh),
-		})
-	}
 
 	// Emplace back cases for each container engine listener
 	for _, engine := range containerEngines {
@@ -64,24 +52,9 @@ func workerLoop(ctx context.Context, cb asyncCb, containerEngines []container.En
 		if chosen == ctxDoneIdx {
 			// ctx.Done!
 			break
-		} else if inotifierCh != nil && chosen == inotifierIdx {
-			// inotifier!
-			engine := inotifier.Process(ctx, val.Interface())
-			if engine != nil {
-				ch, err := engine.Listen(ctx, wg)
-				if err != nil {
-					continue
-				}
-				cases = append(cases, reflect.SelectCase{
-					Dir:  reflect.SelectRecv,
-					Chan: reflect.ValueOf(ch),
-				})
-			}
 		} else {
 			evt, _ = val.Interface().(event.Event)
 			cb(evt.String(), evt.IsCreate)
 		}
 	}
-
-	inotifier.Close()
 }
