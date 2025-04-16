@@ -20,8 +20,6 @@ import (
 	"sync"
 )
 
-const typePodman engineType = "podman"
-
 func init() {
 	engineGenerators[typePodman] = newPodmanEngine
 }
@@ -198,6 +196,14 @@ func (pc *podmanEngine) get(_ context.Context, containerId string) (*event.Event
 		Info:     pc.ctrToInfo(ctrInfo),
 		IsCreate: true,
 	}, nil
+}
+
+func (pc *podmanEngine) Name() string {
+	return string(typePodman)
+}
+
+func (pc *podmanEngine) Sock() string {
+	return pc.socket
 }
 
 func (pc *podmanEngine) List(_ context.Context) ([]event.Event, error) {

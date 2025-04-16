@@ -33,8 +33,12 @@ bool my_plugin::start_async_events(
     m_logger.log("starting async go-worker",
                  falcosecurity::_internal::SS_PLUGIN_LOG_SEV_DEBUG);
     nlohmann::json j(m_cfg);
+    const char *enabled_engines = nullptr;
     s_async_ctx = StartWorker(generate_async_event<ASYNC_HANDLER_GO_WORKER>,
-                              j.dump().c_str());
+                              j.dump().c_str(), &enabled_engines);
+    m_logger.log(fmt::format("attached engine sockets: {}", enabled_engines),
+                 falcosecurity::_internal::SS_PLUGIN_LOG_SEV_DEBUG);
+    free((void *)enabled_engines);
     return s_async_ctx != nullptr;
 }
 

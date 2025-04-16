@@ -5,6 +5,7 @@ import (
 	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/config"
 	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -18,6 +19,12 @@ const (
 	//https://github.com/falcosecurity/libs/blob/39c0e0dcb9d1d23e46b13f4963a9a7106db1f650/userspace/libsinsp/container_info.h#L218
 	defaultCpuPeriod = 100000
 	defaultCpuShares = 1024
+
+	typeDocker     engineType = "docker"
+	typePodman     engineType = "podman"
+	typeCri        engineType = "cri"
+	typeCrio       engineType = "cri-o"
+	typeContainerd engineType = "containerd"
 )
 
 type engineType string
@@ -60,9 +67,13 @@ func Generators() ([]EngineGenerator, error) {
 		for _, socket := range eCfg.Sockets {
 			// Properly account for HOST_ROOT env variable
 			socket = filepath.Join(config.GetHostRoot(), socket)
-			generators = append(generators, func(ctx context.Context) (Engine, error) {
-				return engineGen(ctx, socket)
-			})
+			// Even if `stat` returns an err that is not NotExist,
+			// try to generate an engine for the socket.
+			if _, statErr := os.Stat(socket); !os.IsNotExist(statErr) {
+				generators = append(generators, func(ctx context.Context) (Engine, error) {
+					return engineGen(ctx, socket)
+				})
+			}
 		}
 	}
 	return generators, nil
@@ -79,6 +90,8 @@ type copier interface {
 }
 
 type Engine interface {
+	Name() string
+	Sock() string
 	// List lists all running container for the engine
 	List(ctx context.Context) ([]event.Event, error)
 	// Listen returns a channel where container created/deleted events will be notified

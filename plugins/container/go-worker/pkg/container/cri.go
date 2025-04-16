@@ -15,11 +15,7 @@ import (
 	"time"
 )
 
-const (
-	typeCri   engineType = "cri"
-	typeCrio  engineType = "cri-o"
-	maxCNILen            = 4096
-)
+const maxCNILen = 4096
 
 func init() {
 	engineGenerators[typeCri] = newCriEngine
@@ -401,6 +397,14 @@ func (c *criEngine) get(ctx context.Context, containerId string) (*event.Event, 
 		}, nil
 	}
 	return nil, nil
+}
+
+func (c *criEngine) Name() string {
+	return string(typeCri)
+}
+
+func (c *criEngine) Sock() string {
+	return c.socket
 }
 
 func (c *criEngine) List(ctx context.Context) ([]event.Event, error) {

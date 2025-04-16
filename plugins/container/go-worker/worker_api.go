@@ -10,6 +10,7 @@ import "C"
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/ptr"
 	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/config"
 	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/container"
@@ -27,7 +28,7 @@ type PluginCtx struct {
 }
 
 //export StartWorker
-func StartWorker(cb C.async_cb, initCfg *C.cchar_t) unsafe.Pointer {
+func StartWorker(cb C.async_cb, initCfg *C.cchar_t, enabledSocks **C.cchar_t) unsafe.Pointer {
 	var (
 		pluginCtx PluginCtx
 		ctx       context.Context
@@ -58,12 +59,17 @@ func StartWorker(cb C.async_cb, initCfg *C.cchar_t) unsafe.Pointer {
 	}
 
 	containerEngines := make([]container.Engine, 0)
+	enabledEngines := make(map[string][]string)
 	for _, generator := range generators {
 		engine, err := generator(ctx)
 		if err != nil {
 			continue
 		}
 		containerEngines = append(containerEngines, engine)
+		if _, ok := enabledEngines[engine.Name()]; !ok {
+			enabledEngines[engine.Name()] = make([]string, 0)
+		}
+		enabledEngines[engine.Name()] = append(enabledEngines[engine.Name()], engine.Sock())
 		// List all pre-existing containers and run `goCb` on all of them
 		containers, err := engine.List(ctx)
 		if err == nil {
@@ -75,6 +81,10 @@ func StartWorker(cb C.async_cb, initCfg *C.cchar_t) unsafe.Pointer {
 	// Always append the dummy engine that is required to
 	// be able to fetch container infos on the fly given other enabled engines.
 	containerEngines = append(containerEngines, container.NewFetcherEngine(ctx, containerEngines))
+
+	// Store json of attached sockets in `enabledSocks`
+	bytes, _ := json.Marshal(enabledEngines)
+	*enabledSocks = C.CString(string(bytes))
 
 	// Start worker goroutine
 	pluginCtx.wg.Add(1)

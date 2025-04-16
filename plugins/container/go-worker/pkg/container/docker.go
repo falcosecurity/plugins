@@ -16,10 +16,7 @@ import (
 	"time"
 )
 
-const (
-	typeDocker                engineType = "docker"
-	k8sLastAppliedConfigLabel            = "io.kubernetes.container.last-applied-config"
-)
+const k8sLastAppliedConfigLabel = "io.kubernetes.container.last-applied-config"
 
 func init() {
 	engineGenerators[typeDocker] = newDockerEngine
@@ -308,6 +305,14 @@ func (dc *dockerEngine) get(ctx context.Context, containerId string) (*event.Eve
 		IsCreate: true,
 		Info:     dc.ctrToInfo(ctx, ctrJson),
 	}, nil
+}
+
+func (dc *dockerEngine) Name() string {
+	return string(typeDocker)
+}
+
+func (dc *dockerEngine) Sock() string {
+	return dc.socket
 }
 
 func (dc *dockerEngine) List(ctx context.Context) ([]event.Event, error) {
