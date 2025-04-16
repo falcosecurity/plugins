@@ -42,7 +42,9 @@ func (p *Plugin) Fields() []sdk.FieldEntry {
 		{Type: "string", Name: "github.collaborator.role", Display: "Collaborator Role", Desc: "The member name for message that add or remove users."},
 		{Type: "string", Name: "github.webhook.id", Display: "Webhook ID", Desc: "When a new webhook has been created, the webhook id."},
 		{Type: "string", Name: "github.webhook.type", Display: "Webhook Type", Desc: "When a new webhook has been created, the webhook type, e.g. 'repository'."},
+		{Type: "string", Name: "github.commit.added", Display: "Added Files", Desc: "Comma separated list of files that have been added."},
 		{Type: "string", Name: "github.commit.modified", Display: "Modified Files", Desc: "Comma separated list of files that have been modified."},
+		{Type: "string", Name: "github.commit.removed", Display: "Removed Files", Desc: "Comma separated list of files that have been removed."},
 		{Type: "string", Name: "github.diff.has_secrets", Display: "Contains Secrets", Desc: "For push messages, 'true' if the diff of one of the commits contains a secret."},
 		{Type: "string", Name: "github.diff.committed_secrets.desc", Display: "Secret Descriptions", Desc: "For push messages, if one of the commits includes one or more secrets (AWS keys, github tokens...), this field contains the description of each of the committed secrets, as a comma separated list."},
 		{Type: "string", Name: "github.diff.committed_secrets.files", Display: "Secret Files", Desc: "For push messages, if one of the commits includes one or more secrets (AWS keys, github tokens...), this field contains the names of the files in which each of the secrets was committed, as a comma separated list."},
@@ -107,6 +109,25 @@ func getMinerTypes(jdata *fastjson.Value) (bool, string) {
 	return true, res
 }
 
+func getFilesFromCommits(jdata *fastjson.Value, commitSubKey string) string {
+	res := ""
+	clist := jdata.GetArray("commits")
+	if clist == nil {
+		return res
+	}
+	for _, commit := range clist {
+		mlist := commit.GetArray(commitSubKey)
+		for _, fname := range mlist {
+			res += string(fname.GetStringBytes())
+			res += ","
+		}
+		if len(res) != 0 && res[len(res)-1] == ',' {
+			res = res[0 : len(res)-1]
+		}
+	}
+	return res
+}
+
 func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 	var res string
 
@@ -143,21 +164,12 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 		res = fmt.Sprintf("%v", jdata.GetUint64("hook", "id"))
 	case "github.webhook.type":
 		res = string(jdata.Get("hook", "type").GetStringBytes())
+	case "github.commit.added":
+		res = getFilesFromCommits(jdata, "added")
 	case "github.commit.modified":
-		clist := jdata.GetArray("commits")
-		if clist == nil {
-			break
-		}
-		for _, commit := range clist {
-			mlist := commit.GetArray("modified")
-			for _, fname := range mlist {
-				res += string(fname.GetStringBytes())
-				res += ","
-			}
-			if len(res) != 0 && res[len(res)-1] == ',' {
-				res = res[0 : len(res)-1]
-			}
-		}
+		res = getFilesFromCommits(jdata, "modified")
+	case "github.commit.removed":
+		res = getFilesFromCommits(jdata, "removed")
 	case "github.diff.has_secrets":
 		flist := jdata.GetArray("files")
 		if flist == nil {
