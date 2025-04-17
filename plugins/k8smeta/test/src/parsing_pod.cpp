@@ -51,9 +51,13 @@ limitations under the License.
                                                                                \
     /* We generate a clone exit event for the parent. */                       \
     /* This is parsed but the pod_uid is not extracted. */                     \
-    auto evt = generate_clone_x_event(p1_tid, INIT_TID, INIT_PID, INIT_PTID,   \
-                                      0, INIT_TID, INIT_PTID, "init",          \
-                                      {"cpuset=/"}, event);                    \
+    auto evt = generate_clone_x_event(                                         \
+            p1_tid, INIT_TID, INIT_PID, INIT_PTID, 0, INIT_TID, INIT_PTID,     \
+            "init",                                                            \
+            {"cpuset=/kubepods/besteffort/pod" + expected_pod_uid +            \
+             "/691e0ffb65010b2b611f3a15b7f76c48466192e673e156f38bd2f8e25acd6b" \
+             "bc"},                                                            \
+            event);                                                            \
     ASSERT_EQ(evt->get_type(), event);                                         \
     auto init_thread_entry = thread_table->get_entry(INIT_TID);                \
     ASSERT_NE(init_thread_entry, nullptr);                                     \
@@ -404,5 +408,41 @@ TEST_F(sinsp_with_test_input, plugin_k8s_parse_parent_clone)
                            PPME_SYSCALL_CLONE_20_X);
     // We have again the pod_uid for the parent thread
     p1_thread_entry->get_dynamic_field(fieldacc, pod_uid);
+    ASSERT_EQ(pod_uid, expected_pod_uid);
+}
+
+TEST_F(sinsp_with_test_input, plugin_listen_cap_poduid)
+{
+    std::shared_ptr<sinsp_plugin> plugin_owner;
+    filter_check_list pl_flist;
+    ASSERT_PLUGIN_INITIALIZATION(plugin_owner, pl_flist)
+
+    add_default_init_thread();
+
+    std::string expected_pod_uid = "5eaeeca9-2277-460b-a4bf-5a0783f6d49f";
+
+    // Take default init thread and set a cgroup on it
+    auto &tinfo = m_threads.at(0);
+    strcpy(tinfo.cgroups.path,
+           std::string("cpuset=/kubepods/besteffort/pod" + expected_pod_uid +
+                       "/691e0ffb65010b2b611f3a15b7f76c4846"
+                       "6192e673e156f38bd2f8e25acd6bbc\0")
+                   .c_str());
+    tinfo.cgroups.len = strlen(tinfo.cgroups.path);
+
+    // This will trigger `capture_open` listening CAP
+    // that will write the poduid for the existing tinfo
+    open_inspector();
+
+    auto &reg = m_inspector.get_table_registry();
+    auto thread_table = reg->get_table<int64_t>(THREAD_TABLE_NAME);
+    auto dynamic_fields = thread_table->dynamic_fields();
+    auto field = dynamic_fields->fields().find(POD_UID_FIELD_NAME);
+    auto fieldacc = field->second.new_accessor<std::string>();
+
+    auto init_thread_entry = thread_table->get_entry(INIT_TID);
+    ASSERT_NE(init_thread_entry, nullptr);
+    std::string pod_uid;
+    init_thread_entry->get_dynamic_field(fieldacc, pod_uid);
     ASSERT_EQ(pod_uid, expected_pod_uid);
 }
