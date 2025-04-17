@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /*
-Copyright (C) 2023 The Falco Authors.
+Copyright (C) 2025 The Falco Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -48,7 +48,7 @@ const (
 	PluginName               = "cloudtrail"
 	PluginDescription        = "reads cloudtrail JSON data saved to file in the directory specified in the settings"
 	PluginContact            = "github.com/falcosecurity/plugins/"
-	PluginVersion            = "0.12.5"
+	PluginVersion            = "0.13.0"
 	PluginEventSource        = "aws_cloudtrail"
 )
 
