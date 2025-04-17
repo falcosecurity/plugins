@@ -380,7 +380,7 @@ func (c *criEngine) ctrToInfo(ctx context.Context, ctr *v1.ContainerStatus, podS
 }
 
 func (c *criEngine) get(ctx context.Context, containerId string) (*event.Event, error) {
-	ctrs, err := c.client.ListContainers(ctx, &v1.ContainerFilter{State: &v1.ContainerStateValue{}, Id: containerId})
+	ctrs, err := c.client.ListContainers(ctx, &v1.ContainerFilter{Id: containerId})
 	if err != nil || len(ctrs) == 0 {
 		return nil, err
 	}
