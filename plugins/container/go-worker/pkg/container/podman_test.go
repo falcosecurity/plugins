@@ -5,12 +5,12 @@ package container
 import (
 	"context"
 	"fmt"
-	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/podman/v5/pkg/bindings"
 	"github.com/containers/podman/v5/pkg/bindings/containers"
 	"github.com/containers/podman/v5/pkg/bindings/images"
 	"github.com/containers/podman/v5/pkg/specgen"
+	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/stretchr/testify/assert"
 	"os/user"
@@ -30,7 +30,7 @@ func waitOnChannelOrTimeout(t *testing.T, ch <-chan event.Event) event.Event {
 	return event.Event{}
 }
 
-func TestPodman(t *testing.T) {
+func testPodman(t *testing.T, withFetcher bool) {
 	usr, err := user.Current()
 	assert.NoError(t, err)
 
@@ -85,9 +85,6 @@ func TestPodman(t *testing.T) {
 	}, nil)
 	assert.NoError(t, err)
 
-	events, err := engine.List(context.Background())
-	assert.NoError(t, err)
-
 	imageId := "63b790fccc9078ab8bb913d94a5d869e19fca9b77712b315da3fa45bb8f14636"
 	if runtime.GOARCH == "arm64" {
 		imageId = "511a44083d3a23416fadc62847c45d14c25cbace86e7a72b2b350436978a0450"
@@ -123,6 +120,15 @@ func TestPodman(t *testing.T) {
 		IsCreate: true,
 	}
 
+	if withFetcher {
+		testFetcher(t, engine, expectedEvent.ID, expectedEvent)
+		_, err = containers.Remove(podmanCtx, ctr.ID, nil)
+		assert.NoError(t, err)
+		return
+	}
+
+	events, err := engine.List(context.Background())
+	assert.NoError(t, err)
 	found := false
 	for _, evt := range events {
 		if evt.FullID == ctr.ID {
@@ -164,4 +170,8 @@ func TestPodman(t *testing.T) {
 	}
 	evt := waitOnChannelOrTimeout(t, listCh)
 	assert.Equal(t, expectedEvent, evt)
+}
+
+func TestPodman(t *testing.T) {
+	testPodman(t, false)
 }

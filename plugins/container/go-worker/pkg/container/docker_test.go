@@ -2,10 +2,10 @@ package container
 
 import (
 	"context"
-	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
+	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
 	"github.com/stretchr/testify/assert"
 	"io"
 	"runtime"
@@ -13,7 +13,7 @@ import (
 	"testing"
 )
 
-func TestDocker(t *testing.T) {
+func testDocker(t *testing.T, withFetcher bool) {
 	dockerClient, err := client.NewClientWithOpts(client.FromEnv,
 		client.WithAPIVersionNegotiation())
 	if err != nil {
@@ -47,9 +47,6 @@ func TestDocker(t *testing.T) {
 			CpusetCpus: "0-1",
 		},
 	}, nil, nil, "test_container")
-	assert.NoError(t, err)
-
-	events, err := engine.List(context.Background())
 	assert.NoError(t, err)
 
 	imageId := "63b790fccc9078ab8bb913d94a5d869e19fca9b77712b315da3fa45bb8f14636"
@@ -88,6 +85,15 @@ func TestDocker(t *testing.T) {
 		IsCreate: true,
 	}
 
+	if withFetcher {
+		testFetcher(t, engine, expectedEvent.ID, expectedEvent)
+		err = dockerClient.ContainerRemove(context.Background(), ctr.ID, container.RemoveOptions{})
+		assert.NoError(t, err)
+		return
+	}
+
+	events, err := engine.List(context.Background())
+	assert.NoError(t, err)
 	found := false
 	for _, evt := range events {
 		if evt.FullID == ctr.ID {
@@ -125,4 +131,8 @@ func TestDocker(t *testing.T) {
 
 	evt := waitOnChannelOrTimeout(t, listCh)
 	assert.Equal(t, expectedEvent, evt)
+}
+
+func TestDocker(t *testing.T) {
+	testDocker(t, false)
 }

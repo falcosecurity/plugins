@@ -200,7 +200,7 @@ func TestCRIInfoMap(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestCRIFake(t *testing.T) {
+func testCRIFake(t *testing.T, withFetcher bool) {
 	endpoint, err := fake.GenerateEndpoint()
 	require.NoError(t, err)
 
@@ -254,9 +254,6 @@ func TestCRIFake(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	events, err := engine.List(context.Background())
-	assert.NoError(t, err)
-
 	expectedEvent := event.Event{
 		Info: event.Info{
 			Container: event.Container{
@@ -285,6 +282,17 @@ func TestCRIFake(t *testing.T) {
 		IsCreate: true,
 	}
 
+	if withFetcher {
+		// FakeRuntimeService ListContainers wants the fullID:
+		// https://github.com/kubernetes/cri-api/blob/master/pkg/apis/testing/fake_runtime_service.go#L469
+		testFetcher(t, engine, expectedEvent.FullID, expectedEvent)
+		_, err = fakeRuntime.RemoveContainer(context.Background(), &v1.RemoveContainerRequest{ContainerId: ctr.ContainerId})
+		assert.NoError(t, err)
+		return
+	}
+
+	events, err := engine.List(context.Background())
+	assert.NoError(t, err)
 	// We don't have this before creation
 	found := false
 	for _, evt := range events {
@@ -300,7 +308,11 @@ func TestCRIFake(t *testing.T) {
 	// fakeruntime.GetContainerEvents() returns nil. Cannot be tested.
 }
 
-func TestCRI(t *testing.T) {
+func TestCRIFake(t *testing.T) {
+	testCRIFake(t, false)
+}
+
+func testCRI(t *testing.T, withFetcher bool) {
 	const criSocket = "/run/containerd/containerd.sock"
 	client, err := remote.NewRemoteRuntimeService(criSocket, 5*time.Second, nil, nil)
 	if err != nil {
@@ -358,9 +370,6 @@ func TestCRI(t *testing.T) {
 	}, podSandboxConfig)
 	assert.NoError(t, err)
 
-	events, err := engine.List(context.Background())
-	assert.NoError(t, err)
-
 	expectedEvent := event.Event{
 		Info: event.Info{
 			Container: event.Container{
@@ -390,6 +399,21 @@ func TestCRI(t *testing.T) {
 		IsCreate: true,
 	}
 
+	if withFetcher {
+		// RuntimeService wants the short ID:
+		// https://github.com/cri-o/cri-o/blob/592e805f2423ba55054a16d3a7cc66499e2c0dac/server/container_list.go#L41
+		testFetcher(t, engine, expectedEvent.ID, expectedEvent)
+
+		err = client.RemoveContainer(context.Background(), "test_sandbox_test_container_0")
+		assert.NoError(t, err)
+
+		err = client.RemovePodSandbox(context.Background(), sandboxName)
+		assert.NoError(t, err)
+		return
+	}
+
+	events, err := engine.List(context.Background())
+	assert.NoError(t, err)
 	found := false
 	for _, evt := range events {
 		if evt.FullID == ctr {
@@ -436,4 +460,8 @@ func TestCRI(t *testing.T) {
 			break
 		}
 	}
+}
+
+func TestCRI(t *testing.T) {
+	testCRI(t, false)
 }

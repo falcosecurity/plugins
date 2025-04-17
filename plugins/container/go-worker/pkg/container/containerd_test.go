@@ -2,10 +2,10 @@ package container
 
 import (
 	"context"
-	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
 	containerd "github.com/containerd/containerd/v2/client"
 	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/containerd/v2/pkg/oci"
+	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
 	"github.com/google/uuid"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/stretchr/testify/assert"
@@ -14,7 +14,7 @@ import (
 	"testing"
 )
 
-func TestContainerd(t *testing.T) {
+func testContainerd(t *testing.T, withFetcher bool) {
 	usr, err := user.Current()
 	assert.NoError(t, err)
 	if usr.Uid != "0" {
@@ -70,9 +70,6 @@ func TestContainerd(t *testing.T) {
 			oci.WithPrivileged))
 	assert.NoError(t, err)
 
-	events, err := engine.List(context.Background())
-	assert.NoError(t, err)
-
 	expectedEvent := event.Event{
 		Info: event.Info{
 			Container: event.Container{
@@ -103,6 +100,15 @@ func TestContainerd(t *testing.T) {
 		IsCreate: true,
 	}
 
+	if withFetcher {
+		testFetcher(t, engine, expectedEvent.ID, expectedEvent)
+		err = ctr.Delete(namespacedCtx)
+		assert.NoError(t, err)
+		return
+	}
+
+	events, err := engine.List(context.Background())
+	assert.NoError(t, err)
 	found := false
 	for _, evt := range events {
 		if evt.FullID == ctr.ID() {
@@ -142,4 +148,8 @@ func TestContainerd(t *testing.T) {
 	// receive the "remove" event
 	evt := waitOnChannelOrTimeout(t, listCh)
 	assert.Equal(t, expectedEvent, evt)
+}
+
+func TestContainerd(t *testing.T) {
+	testContainerd(t, false)
 }
