@@ -661,6 +661,7 @@ dependencies = [
  "libc",
  "log",
  "num_cpus",
+ "paste",
  "serde",
  "thiserror 2.0.12",
  "tokio",
@@ -683,6 +684,7 @@ dependencies = [
  "cfg-if",
  "krsi-common",
  "krsi-ebpf-core",
+ "paste",
  "which",
 ]
 

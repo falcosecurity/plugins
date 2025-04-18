@@ -5,14 +5,22 @@ pub mod scap;
 #[derive(Copy, Clone, Debug)]
 #[repr(u16)]
 pub enum EventType {
-    Open = 0,
-    Connect = 1,
-    Socket = 2,
-    Symlinkat = 3,
-    Linkat = 4,
-    Unlinkat = 5,
-    Mkdirat = 6,
-    Renameat = 7,
+    None = 0,
+    Open = 1,
+    Connect = 2,
+    Socket = 3,
+    Symlinkat = 4,
+    Linkat = 5,
+    Unlinkat = 6,
+    Mkdirat = 7,
+    Renameat = 8,
+    Bind = 9,
+}
+
+impl Default for EventType {
+    fn default() -> Self {
+        Self::None
+    }
 }
 
 impl TryFrom<u16> for EventType {
@@ -28,6 +36,7 @@ impl TryFrom<u16> for EventType {
             x if x == EventType::Unlinkat as u16 => Ok(EventType::Unlinkat),
             x if x == EventType::Mkdirat as u16 => Ok(EventType::Mkdirat),
             x if x == EventType::Renameat as u16 => Ok(EventType::Renameat),
+            x if x == EventType::Bind as u16 => Ok(EventType::Bind),
             _ => Err(()),
         }
     }

@@ -119,12 +119,12 @@ fn io_connect_x(ctx: FExitContext) -> u32 {
 
 fn try_io_connect_x(ctx: FExitContext) -> Result<u32, i64> {
     let pid = ctx.pid();
-    let conn_info_map = maps::get_info_map();
-    let Some(&info) = (unsafe { conn_info_map.get(&pid) }) else {
+    let info_map = maps::get_info_map();
+    let Some(&info) = (unsafe { info_map.get(&pid) }) else {
         return Err(1);
     };
 
-    let _ = helpers::try_remove_map_entry(conn_info_map, &pid);
+    let _ = helpers::try_remove_map_entry(info_map, &pid);
 
     let auxmap = shared_maps::get_auxiliary_map().ok_or(1)?;
     auxmap.preload_event_header(EventType::Connect);

@@ -101,9 +101,6 @@ struct inet_sock {
 };
 
 // Taken from 6.13.
-struct sockaddr {};
-
-// Taken from 6.13.
 struct in_addr {
     u32 s_addr;
 };
@@ -151,8 +148,19 @@ struct io_cqe {
     };
 };
 
+// Taken from 6.13.
 struct io_cmd_data {
     struct file *file;
+};
+
+// Taken from 6.13.
+struct sockaddr {
+    u16 sa_family;
+};
+
+// Taken from 6.13.
+struct io_async_msghdr {
+    struct sockaddr addr;
 };
 
 // Taken from 6.13.
@@ -182,12 +190,18 @@ struct io_unlink {
 	struct filename *filename;
 };
 
+// Taken from 6.13.
 struct io_socket {
 	s32 domain;
 	s32 type;
 	s32 protocol;
 	s32 flags;
 	u32 file_slot;
+};
+
+// Taken from 6.13.
+struct io_bind {
+    s32 addr_len;
 };
 
 inline u32 *file_f_mode(struct file *file) {
@@ -356,6 +370,14 @@ inline s32 *io_cqe_fd(struct io_cqe *cqe) {
     return &cqe->fd;
 }
 
+inline u16 *sockaddr_sa_family(struct sockaddr *sockaddr) {
+    return &sockaddr->sa_family;
+}
+
+inline struct sockaddr *io_async_msghdr_addr(struct io_async_msghdr *io) {
+    return &io->addr;
+}
+
 inline struct file **io_kiocb_file(struct io_kiocb *req) {
     return &req->file;
 }
@@ -426,6 +448,10 @@ inline s32 *io_socket_flags(struct io_socket *sock) {
 
 inline u32 *io_socket_file_slot(struct io_socket *sock) {
     return &sock->file_slot;
+}
+
+inline s32 *io_bind_addr_len(struct io_bind *bind) {
+	return &bind->addr_len;
 }
 
 #if defined(__bpf__)

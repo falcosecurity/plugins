@@ -261,6 +261,28 @@ const PROG_DEFS: &'static [ProgDef] = &[
         FeatureFlags::IO_URING,
         OpFlags::RENAMEAT,
     ),
+    // Bind programs.
+    // ProgDef::new(
+    //     ProgKind::Fexit,
+    //     "io_bind_x",
+    //     "io_bind",
+    //     FeatureFlags::IO_URING,
+    //     OpFlags::BIND,
+    // ),
+    // ProgDef::new(
+    //     ProgKind::Fentry,
+    //     "io_bind_e",
+    //     "io_bind",
+    //     FeatureFlags::IO_URING,
+    //     OpFlags::BIND,
+    // ),
+    ProgDef::new(
+        ProgKind::Fexit,
+        "__sys_bind_x",
+        "__sys_bind",
+        FeatureFlags::SYSCALLS,
+        OpFlags::BIND,
+    ),
 ];
 
 impl Ebpf {

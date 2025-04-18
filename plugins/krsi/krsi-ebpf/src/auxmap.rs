@@ -9,7 +9,9 @@ use aya_ebpf::{
     },
 };
 use krsi_common::{EventHeader, EventType};
-use krsi_ebpf_core::{Filename, Sock, Sockaddr, Socket, Wrap};
+use krsi_ebpf_core::{
+    read_field, Filename, Sock, Sockaddr, SockaddrIn, SockaddrIn6, SockaddrUn, Socket, Wrap,
+};
 
 use crate::{defs, get_event_num_params, scap, shared_maps, sockets, vmlinux, FileDescriptor};
 
@@ -97,6 +99,53 @@ impl AuxiliaryMap {
         }
         self.push_param_len(path_len);
         Ok(path_len)
+    }
+
+    pub fn store_sockaddr_param(&mut self, sockaddr: &Sockaddr, is_kern_sockaddr: bool) {
+        let sa_family = read_field!(sockaddr => sa_family, is_kern_sockaddr);
+        let Ok(sa_family) = sa_family else {
+            self.store_empty_param();
+            return;
+        };
+
+        let final_parameter_len = match sa_family {
+            defs::AF_INET => self.push_inet_sockaddr(&sockaddr.as_sockaddr_in(), is_kern_sockaddr),
+            defs::AF_INET6 => {
+                self.push_inet6_sockaddr(&sockaddr.as_sockaddr_in6(), is_kern_sockaddr)
+            }
+            defs::AF_UNIX => self.push_unix_sockaddr(&sockaddr.as_sockaddr_un(), is_kern_sockaddr),
+            _ => 0,
+        } as u16;
+
+        self.push_param_len(final_parameter_len);
+    }
+
+    fn push_inet_sockaddr(&mut self, sockaddr: &SockaddrIn, is_kern_sockaddr: bool) -> usize {
+        let addr = sockaddr.sin_addr();
+        let ipv4_addr = read_field!(addr => s_addr, is_kern_sockaddr).unwrap_or(0);
+        let port = read_field!(sockaddr => sin_port, is_kern_sockaddr).unwrap_or(0);
+        self.push(scap::encode_socket_family(defs::AF_INET));
+        self.push(ipv4_addr);
+        self.push(u16::from_be(port));
+        defs::FAMILY_SIZE + defs::IPV4_SIZE + defs::PORT_SIZE
+    }
+
+    fn push_inet6_sockaddr(&mut self, sockaddr: &SockaddrIn6, is_kern_sockaddr: bool) -> usize {
+        let addr = sockaddr.sin6_addr();
+        let ipv6_addr = read_field!(addr => in6_u, is_kern_sockaddr).unwrap_or([0, 0, 0, 0]);
+        let port = read_field!(sockaddr => sin6_port, is_kern_sockaddr).unwrap_or(0);
+        self.push(scap::encode_socket_family(defs::AF_INET6));
+        self.push(ipv6_addr);
+        self.push(u16::from_be(port));
+        defs::FAMILY_SIZE + defs::IPV6_SIZE + defs::PORT_SIZE
+    }
+
+    fn push_unix_sockaddr(&mut self, sockaddr: &SockaddrUn, is_kern_sockaddr: bool) -> usize {
+        let mut path: [c_uchar; defs::UNIX_PATH_MAX] = [0; defs::UNIX_PATH_MAX];
+        let _ = sockets::sockaddr_un_path_into(&sockaddr, is_kern_sockaddr, &mut path);
+        self.push(scap::encode_socket_family(defs::AF_UNIX));
+        let written_bytes = self.push_sockaddr_path(&mut path).unwrap_or(0);
+        defs::FAMILY_SIZE + written_bytes as usize
     }
 
     /// Store the socktuple obtained by extracting information from the provided socket and the
@@ -267,6 +316,12 @@ impl AuxiliaryMap {
             let _ = sockets::unix_sock_addr_path_into(&sk_local, path_mut);
         }
 
+        let written_bytes = self.push_sockaddr_path(&path).unwrap_or(0);
+
+        defs::FAMILY_SIZE + defs::KERNEL_POINTER + defs::KERNEL_POINTER + written_bytes as usize
+    }
+
+    fn push_sockaddr_path(&mut self, path: &[c_uchar; defs::UNIX_PATH_MAX]) -> Result<u16, i64> {
         // Notice an exception in `sun_path` (https://man7.org/linux/man-pages/man7/unix.7.html):
         // an `abstract socket address` is distinguished (from a pathname socket) by the fact that
         // sun_path[0] is a null byte (`\0`). So in this case, we need to skip the initial `\0`.
@@ -274,16 +329,13 @@ impl AuxiliaryMap {
         // Warning: if you try to extract the path slice in a separate statement as follows, the
         // verifier will complain (maybe because it would lose information about slice length):
         // let path_ref = if path[0] == 0 {&path[1..]} else {&path[..]};
-        let written_bytes = if path[0] == 0 {
+        if path[0] == 0 {
             let path_ref = &path[1..];
             self.push_charbuf(path_ref.as_ptr().cast(), path.len(), true)
         } else {
             let path_ref = &path[..];
             self.push_charbuf(path_ref.as_ptr().cast(), path.len(), true)
         }
-        .unwrap_or(0);
-
-        defs::FAMILY_SIZE + defs::KERNEL_POINTER + defs::KERNEL_POINTER + written_bytes as usize
     }
 
     pub fn store_file_descriptor_param(&mut self, file_descriptor: FileDescriptor) {
