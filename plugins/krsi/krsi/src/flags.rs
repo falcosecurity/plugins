@@ -10,7 +10,7 @@ bitflags! {
 
 bitflags! {
     #[derive(Clone, Copy, Debug)]
-    pub struct OpFlags: u8 {
+    pub struct OpFlags: u64 {
         const OPEN = 1 << 0;
         const CONNECT = 1 << 1;
         const SOCKET = 1 << 2;
@@ -19,5 +19,6 @@ bitflags! {
         const UNLINKAT = 1 << 5;
         const MKDIRAT = 1 << 6;
         const RENAMEAT = 1 << 7;
+        const BIND = 1 << 8;
     }
 }

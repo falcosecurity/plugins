@@ -11,7 +11,7 @@ links = "core_helpers"
 
 [dependencies]
 aya-ebpf = { workspace = true }
-paste = "1.0.15"
+paste = { workspace = true }
 
 [build-dependencies]
 bindgen = { version = "0.71.1", features = ["runtime"] }

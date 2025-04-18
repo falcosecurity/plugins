@@ -152,6 +152,19 @@ pub fn wrap_arg<T: Wrap>(arg: usize) -> T {
     T::wrap(arg as *mut _)
 }
 
+#[macro_export]
+macro_rules! read_field {
+    ($parent:ident => $name:ident, $is_kern_mem:expr) => {
+        paste::paste! {
+            if $is_kern_mem {
+                $parent.$name()
+            } else {
+                $parent.[< $name _user >]()
+            }
+        }
+    };
+}
+
 macro_rules! gen_accessors {
     ($parent:ident => { $($variant:ident $name:ident: $type:ty),* $(,)? }) => {
         paste::paste! {
@@ -274,7 +287,9 @@ gen_accessors!(unix_address => {
     no_read name: * mut [sockaddr_un; 0], // TODO(ekoops): handle flexible arrays.
 });
 
-gen_accessors!(sockaddr => {});
+gen_accessors!(sockaddr => {
+    plain sa_family: u16,
+});
 
 impl Sockaddr {
     #[inline(always)]
@@ -329,6 +344,10 @@ gen_accessors!(io_cqe => {
     plain fd: i32,
 });
 
+gen_accessors!(io_async_msghdr => {
+    no_read_wrapped addr: Sockaddr,
+});
+
 gen_accessors!(io_kiocb => {
     wrapper file: File,
     no_read cmd: * mut io_cmd_data,
@@ -340,6 +359,10 @@ gen_accessors!(io_kiocb => {
 impl IoKiocb {
     pub fn cmd_as<T: Wrap>(&self) -> T {
         T::wrap(self.cmd() as *mut _)
+    }
+
+    pub fn async_data_as<T: Wrap>(&self) -> Result<T, i64> {
+        Ok(T::wrap(self.async_data()? as *mut _))
     }
 }
 
@@ -363,4 +386,8 @@ gen_accessors!(io_socket => {
     plain protocol: i32,
     plain flags: i32,
     plain file_slot: u32,
+});
+
+gen_accessors!(io_bind => {
+    plain addr_len: i32,
 });

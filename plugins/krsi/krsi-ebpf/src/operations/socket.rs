@@ -38,7 +38,7 @@ fn try_io_socket_x(ctx: FExitContext) -> Result<u32, i64> {
     auxmap.preload_event_header(EventType::Socket);
 
     let req: IoKiocb = wrap_arg(unsafe { ctx.arg(0) });
-    let sock: IoSocket = req.cmd_as();
+    let sock = req.cmd_as::<IoSocket>();
 
     let iou_ret: i64 = unsafe { ctx.arg(2) };
 
