@@ -1,5 +1,6 @@
 use std::{
     ffi::{CStr, CString},
+    str::FromStr,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -8,6 +9,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
+use crate::flags::{FeatureFlags, OpFlags};
 use falco_plugin::{
     anyhow::Error,
     async_event::{AsyncEvent, AsyncEventPlugin, AsyncHandler},
@@ -32,8 +34,6 @@ use falco_plugin::{
 };
 use hashlru::Cache;
 use serde::Deserialize;
-
-use crate::flags::{FeatureFlags, OpFlags};
 
 mod ebpf;
 mod flags;
@@ -222,29 +222,91 @@ impl ParsePlugin for KrsiPlugin {
                         dev,
                         ino,
                     } => {
-                        let thread = self.threads.get_entry(r, &tid)?;
-                        let fd = fd as i64;
-                        let fds = thread.get_file_descriptors(r)?;
-                        let fd_entry = if let Ok(existing_fd) = fds.get_entry(r, &fd) {
-                            existing_fd
-                        } else {
-                            let new_fd = fds.create_entry(w)?;
-                            fds.insert(r, w, &fd, new_fd)?;
-                            fds.get_entry(r, &fd)?
-                        };
+                        if let Some(fd) = fd {
+                            let thread = self.threads.get_entry(r, &tid)?;
+                            let fds = thread.get_file_descriptors(r)?;
+                            let fd_entry = if let Ok(existing_fd) = fds.get_entry(r, &fd) {
+                                existing_fd
+                            } else {
+                                let new_fd = fds.create_entry(w)?;
+                                fds.insert(r, w, &fd, new_fd)?;
+                                fds.get_entry(r, &fd)?
+                            };
 
-                        fd_entry.set_fd(w, &fd)?;
-                        fd_entry.set_name(w, &name)?;
-                        fd_entry.set_dev(w, &dev)?;
-                        fd_entry.set_ino(w, &ino)?;
+                            fd_entry.set_fd(w, &fd)?;
+                            if let Some(name) = name {
+                                let c_name = CString::from_str(&name)?;
+                                fd_entry.set_name(w, &c_name)?;
+                            }
 
-                        // keep flags added by the syscall exit probe if present
-                        let mask: u32 = !(krsi_common::scap::PPM_O_F_CREATED - 1);
-                        let added_flags: u32 = flags & mask;
-                        let flags = flags | added_flags;
-                        fd_entry.set_flags(w, &flags)?;
+                            if let Some(dev) = dev {
+                                fd_entry.set_dev(w, &dev)?;
+                            }
+
+                            if let Some(ino) = ino {
+                                fd_entry.set_ino(w, &ino)?;
+                            }
+
+                            if let Some(flags) = flags {
+                                // keep flags added by the syscall exit probe if present
+                                let mask: u32 = !(krsi_common::scap::PPM_O_F_CREATED - 1);
+                                let added_flags: u32 = flags & mask;
+                                let flags = flags | added_flags;
+                                fd_entry.set_flags(w, &flags)?;
+                            }
+                        }
 
                         event.params.name = Some(c"krsi_open");
+                        if let Some(handler) = self.async_handler.as_ref() {
+                            handler.emit(event)?;
+                        }
+                    }
+                    KrsiEventContent::Connect { fd, .. } => {
+                        if let Some(fd) = fd {
+                            let thread = self.threads.get_entry(r, &tid)?;
+                            let fds = thread.get_file_descriptors(r)?;
+                            let fd_entry = if let Ok(existing_fd) = fds.get_entry(r, &fd) {
+                                existing_fd
+                            } else {
+                                let new_fd = fds.create_entry(w)?;
+                                fds.insert(r, w, &fd, new_fd)?;
+                                fds.get_entry(r, &fd)?
+                            };
+                            fd_entry.set_fd(w, &fd)?;
+                        }
+
+                        event.params.name = Some(c"krsi_connect");
+                        if let Some(handler) = self.async_handler.as_ref() {
+                            handler.emit(event)?;
+                        }
+                    }
+                    KrsiEventContent::Socket { .. } => {
+                        // TODO this
+                        event.params.name = Some(c"krsi_socket");
+                        if let Some(handler) = self.async_handler.as_ref() {
+                            handler.emit(event)?;
+                        }
+                    }
+                    KrsiEventContent::Symlinkat { .. } => {
+                        event.params.name = Some(c"krsi_symlinkat");
+                        if let Some(handler) = self.async_handler.as_ref() {
+                            handler.emit(event)?;
+                        }
+                    }
+                    KrsiEventContent::Linkat { .. } => {
+                        event.params.name = Some(c"krsi_linkat");
+                        if let Some(handler) = self.async_handler.as_ref() {
+                            handler.emit(event)?;
+                        }
+                    }
+                    KrsiEventContent::Unlinkat { .. } => {
+                        event.params.name = Some(c"krsi_unlinkat");
+                        if let Some(handler) = self.async_handler.as_ref() {
+                            handler.emit(event)?;
+                        }
+                    }
+                    KrsiEventContent::Mkdirat { .. } => {
+                        event.params.name = Some(c"krsi_mkdirat");
                         if let Some(handler) = self.async_handler.as_ref() {
                             handler.emit(event)?;
                         }
@@ -287,7 +349,16 @@ const RETRY_INTERVAL_START: Duration = Duration::from_nanos(1);
 const RETRY_INTERVAL_MAX: Duration = Duration::from_millis(10);
 
 impl AsyncEventPlugin for KrsiPlugin {
-    const ASYNC_EVENTS: &'static [&'static str] = &["krsi_open", "krsi"];
+    const ASYNC_EVENTS: &'static [&'static str] = &[
+        "krsi_open",
+        "krsi_connect",
+        "krsi_socket",
+        "krsi_symlinkat",
+        "krsi_linkat",
+        "krsi_unlinkat",
+        "krsi_mkdirat",
+        "krsi",
+    ];
     const EVENT_SOURCES: &'static [&'static str] = &["syscall"];
 
     fn start_async(
@@ -359,131 +430,237 @@ impl KrsiPlugin {
         Ok(())
     }
 
-    fn extract_filename(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
-        let event = req.event.event()?;
-        let event = event.load::<AsyncEvent>()?;
-        if event.params.name != Some(c"krsi_open") {
-            anyhow::bail!("event does not support extractor");
+    fn parse_krsi_event<'a>(
+        &self,
+        context: &'a mut Option<KrsiEvent>,
+        event: &EventInput,
+    ) -> Result<&'a KrsiEvent, Error> {
+        match context {
+            Some(parsed_event) => Ok(parsed_event),
+            None => {
+                let event = event.event()?;
+                let event = event.load::<AsyncEvent>()?;
+
+                let Some(buf) = event.params.data else {
+                    anyhow::bail!("Missing event data");
+                };
+
+                let parsed_event: KrsiEvent =
+                    bincode::serde::decode_from_slice(buf, bincode::config::legacy())?.0;
+                *context = Some(parsed_event);
+
+                Ok(context.as_ref().unwrap())
+            }
         }
+    }
 
-        let Some(buf) = event.params.data else {
-            anyhow::bail!("Missing event data");
-        };
-
-        let ev: KrsiEvent = bincode::serde::decode_from_slice(buf, bincode::config::legacy())?.0;
-        let KrsiEventContent::Open { name, .. } = ev.content;
-        Ok(CString::new(name).unwrap())
+    fn extract_fd_name(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
+        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
+        if let Some(name) = ev.content.name() {
+            return Ok(CString::new(name).unwrap());
+        } else {
+            anyhow::bail!("No name field");
+        }
     }
 
     fn extract_fd(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
-        let event = req.event.event()?;
-        let event = event.load::<AsyncEvent>()?;
-        if event.params.name != Some(c"krsi_open") {
-            anyhow::bail!("event does not support extractor");
+        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
+        if let Some(fd) = ev.content.fd() {
+            return Ok(fd as u64);
+        } else {
+            anyhow::bail!("No fd field");
         }
-
-        let Some(buf) = event.params.data else {
-            anyhow::bail!("Missing event data");
-        };
-
-        let ev: KrsiEvent = bincode::serde::decode_from_slice(buf, bincode::config::legacy())?.0;
-        let KrsiEventContent::Open { fd, .. } = ev.content;
-        Ok(fd as u64)
     }
 
     fn extract_file_index(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
-        let event = req.event.event()?;
-        let event = event.load::<AsyncEvent>()?;
-        if event.params.name != Some(c"krsi_open") {
-            anyhow::bail!("event does not support extractor");
+        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
+        if let Some(file_index) = ev.content.file_index() {
+            return Ok(file_index as u64);
+        } else {
+            anyhow::bail!("No file_index field");
         }
-
-        let Some(buf) = event.params.data else {
-            anyhow::bail!("Missing event data");
-        };
-
-        let ev: KrsiEvent = bincode::serde::decode_from_slice(buf, bincode::config::legacy())?.0;
-        let KrsiEventContent::Open { file_index, .. } = ev.content;
-        Ok(file_index as u64)
     }
 
     fn extract_flags(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
-        let event = req.event.event()?;
-        let event = event.load::<AsyncEvent>()?;
-        if event.params.name != Some(c"krsi_open") {
-            anyhow::bail!("event does not support extractor");
+        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
+        if let Some(flags) = ev.content.flags() {
+            return Ok(flags as u64);
+        } else {
+            anyhow::bail!("No flags field");
         }
-
-        let Some(buf) = event.params.data else {
-            anyhow::bail!("Missing event data");
-        };
-
-        let ev: KrsiEvent = bincode::serde::decode_from_slice(buf, bincode::config::legacy())?.0;
-        let KrsiEventContent::Open { flags, .. } = ev.content;
-        Ok(flags as u64)
     }
 
     fn extract_mode(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
-        let event = req.event.event()?;
-        let event = event.load::<AsyncEvent>()?;
-        if event.params.name != Some(c"krsi_open") {
-            anyhow::bail!("event does not support extractor");
+        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
+        if let Some(mode) = ev.content.mode() {
+            return Ok(mode as u64);
+        } else {
+            anyhow::bail!("No mode field");
         }
-
-        let Some(buf) = event.params.data else {
-            anyhow::bail!("Missing event data");
-        };
-
-        let ev: KrsiEvent = bincode::serde::decode_from_slice(buf, bincode::config::legacy())?.0;
-        let KrsiEventContent::Open { mode, .. } = ev.content;
-        Ok(mode as u64)
     }
 
     fn extract_dev(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
-        let event = req.event.event()?;
-        let event = event.load::<AsyncEvent>()?;
-        if event.params.name != Some(c"krsi_open") {
-            anyhow::bail!("event does not support extractor");
+        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
+        if let Some(dev) = ev.content.dev() {
+            return Ok(dev as u64);
+        } else {
+            anyhow::bail!("No dev field");
         }
-
-        let Some(buf) = event.params.data else {
-            anyhow::bail!("Missing event data");
-        };
-
-        let ev: KrsiEvent = bincode::serde::decode_from_slice(buf, bincode::config::legacy())?.0;
-        let KrsiEventContent::Open { dev, .. } = ev.content;
-        Ok(dev as u64)
     }
 
     fn extract_ino(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
-        let event = req.event.event()?;
-        let event = event.load::<AsyncEvent>()?;
-        if event.params.name != Some(c"krsi_open") {
-            anyhow::bail!("event does not support extractor");
+        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
+        if let Some(ino) = ev.content.ino() {
+            return Ok(ino as u64);
+        } else {
+            anyhow::bail!("No ino field");
         }
+    }
 
-        let Some(buf) = event.params.data else {
-            anyhow::bail!("Missing event data");
-        };
+    fn extract_domain(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
+        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
+        if let Some(domain) = ev.content.domain() {
+            return Ok(domain as u64);
+        } else {
+            anyhow::bail!("No domain field");
+        }
+    }
 
-        let ev: KrsiEvent = bincode::serde::decode_from_slice(buf, bincode::config::legacy())?.0;
-        let KrsiEventContent::Open { ino, .. } = ev.content;
-        Ok(ino)
+    // res
+    fn extract_res(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
+        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
+        if let Some(res) = ev.content.res() {
+            return Ok(res as u64);
+        } else {
+            anyhow::bail!("No res field");
+        }
+    }
+
+    fn extract_linkdirfd(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
+        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
+        if let Some(linkdirfd) = ev.content.linkdirfd() {
+            return Ok(linkdirfd as u64);
+        } else {
+            anyhow::bail!("No dirfd field");
+        }
+    }
+
+    fn extract_olddirfd(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
+        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
+        if let Some(olddirfd) = ev.content.olddirfd() {
+            return Ok(olddirfd as u64);
+        } else {
+            anyhow::bail!("No olddirfd field");
+        }
+    }
+
+    fn extract_newdirfd(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
+        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
+        if let Some(newdirfd) = ev.content.newdirfd() {
+            return Ok(newdirfd as u64);
+        } else {
+            anyhow::bail!("No newdirfd field");
+        }
+    }
+
+    fn extract_dirfd(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
+        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
+        if let Some(dirfd) = ev.content.dirfd() {
+            return Ok(dirfd as u64);
+        } else {
+            anyhow::bail!("No dirfd field");
+        }
+    }
+
+    fn extract_linkpath(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
+        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
+        if let Some(linkpath) = ev.content.linkpath() {
+            return Ok(CString::new(linkpath).unwrap());
+        } else {
+            anyhow::bail!("No linkpath field");
+        }
+    }
+
+    fn extract_oldpath(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
+        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
+        if let Some(oldpath) = ev.content.oldpath() {
+            return Ok(CString::new(oldpath).unwrap());
+        } else {
+            anyhow::bail!("No oldpath field");
+        }
+    }
+
+    fn extract_newpath(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
+        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
+        if let Some(newpath) = ev.content.newpath() {
+            return Ok(CString::new(newpath).unwrap());
+        } else {
+            anyhow::bail!("No newpath field");
+        }
+    }
+
+    fn extract_path(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
+        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
+        if let Some(path) = ev.content.path() {
+            return Ok(CString::new(path).unwrap());
+        } else {
+            anyhow::bail!("No path field");
+        }
+    }
+
+    fn extract_target(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
+        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
+        if let Some(target) = ev.content.target() {
+            return Ok(CString::new(target).unwrap());
+        } else {
+            anyhow::bail!("No target field");
+        }
+    }
+
+    fn extract_type(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
+        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
+        if let Some(type_) = ev.content.type_() {
+            return Ok(type_ as u64);
+        } else {
+            anyhow::bail!("No type field");
+        }
+    }
+
+    fn extract_iou_ret(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
+        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
+        if let Some(iou_ret) = ev.content.iou_ret() {
+            return Ok(iou_ret as u64);
+        } else {
+            anyhow::bail!("No iou_ret field");
+        }
     }
 }
 
 impl ExtractPlugin for KrsiPlugin {
     const EVENT_TYPES: &'static [EventType] = &[EventType::ASYNCEVENT_E];
     const EVENT_SOURCES: &'static [&'static str] = &["syscall"];
-    type ExtractContext = ();
+    type ExtractContext = Option<KrsiEvent>;
     const EXTRACT_FIELDS: &'static [ExtractFieldInfo<Self>] = &[
-        field("krsi.filename", &Self::extract_filename),
+        field("krsi.name", &Self::extract_fd_name),
         field("krsi.fd", &Self::extract_fd),
         field("krsi.file_index", &Self::extract_file_index),
         field("krsi.flags", &Self::extract_flags),
         field("krsi.mode", &Self::extract_mode),
         field("krsi.dev", &Self::extract_dev),
         field("krsi.ino", &Self::extract_ino),
+        field("krsi.domain", &Self::extract_domain),
+        field("krsi.type", &Self::extract_type),
+        field("krsi.iou_ret", &Self::extract_iou_ret),
+        field("krsi.res", &Self::extract_res),
+        field("krsi.target", &Self::extract_target),
+        field("krsi.linkdirfd", &Self::extract_linkdirfd),
+        field("krsi.olddirfd", &Self::extract_olddirfd),
+        field("krsi.newdirfd", &Self::extract_newdirfd),
+        field("krsi.dirfd", &Self::extract_dirfd),
+        field("krsi.linkpath", &Self::extract_linkpath),
+        field("krsi.path", &Self::extract_path),
+        field("krsi.oldpath", &Self::extract_oldpath),
+        field("krsi.newpath", &Self::extract_newpath),
     ];
 }
 
