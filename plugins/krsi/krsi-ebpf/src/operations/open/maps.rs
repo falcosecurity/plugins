@@ -1,8 +1,20 @@
 use aya_ebpf::{macros::map, maps::HashMap};
 
-#[map]
-static OPEN_PIDS: HashMap<u32, u32> = HashMap::with_max_entries(32768, 0);
+pub struct Info {
+    pub fd_installed: bool,
+}
 
-pub fn get_pids_map() -> &'static HashMap<u32, u32> {
-    &OPEN_PIDS
+impl Info {
+    pub fn new() -> Self {
+        Self {
+            fd_installed: false,
+        }
+    }
+}
+
+#[map]
+static OPEN_INFO: HashMap<u32, Info> = HashMap::with_max_entries(32768, 0);
+
+pub fn get_info_map() -> &'static HashMap<u32, Info> {
+    &OPEN_INFO
 }

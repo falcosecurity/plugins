@@ -4,8 +4,7 @@ use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr},
 };
 
-use krsi_common::scap;
-use krsi_common::EventHeader;
+use krsi_common::{scap, EventHeader};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -25,6 +24,7 @@ pub enum KrsiEventContent {
         mode: Option<u32>,
         dev: Option<u32>,
         ino: Option<u64>,
+        iou_ret: Option<i64>,
     },
     Socket {
         iou_ret: Option<i64>,
@@ -316,13 +316,14 @@ pub fn parse_ringbuf_event(buf: &[u8]) -> Result<KrsiEvent, String> {
 }
 
 fn parse_ringbuf_open_event(ev: &EventHeader, ptr: &mut *const u8) -> Result<KrsiEvent, String> {
-    let lengths = unsafe { read_and_move::<[u16; 7]>(ptr) };
+    let lengths = unsafe { read_and_move::<[u16; 8]>(ptr) };
     let mut fd: Option<i64> = None;
     let mut file_index: Option<i32> = None;
     let mut flags: Option<u32> = None;
     let mut mode: Option<u32> = None;
     let mut dev: Option<u32> = None;
     let mut ino: Option<u64> = None;
+    let mut iou_ret: Option<i64> = None;
     let name: Option<String> = if lengths[0] != 0 {
         Some(unsafe { read_str_and_move(ptr, lengths[0] as usize) }.into())
     } else {
@@ -346,6 +347,9 @@ fn parse_ringbuf_open_event(ev: &EventHeader, ptr: &mut *const u8) -> Result<Krs
     if lengths[6] != 0 {
         ino = Some(unsafe { read_and_move::<u64>(ptr) });
     }
+    if lengths[7] != 0 {
+        iou_ret = Some(unsafe { read_and_move::<i64>(ptr) });
+    }
     let pid = (ev.tgid_pid >> 32) as u32;
     let tid = (ev.tgid_pid & 0xffffffff) as u32;
     Ok(KrsiEvent {
@@ -359,6 +363,7 @@ fn parse_ringbuf_open_event(ev: &EventHeader, ptr: &mut *const u8) -> Result<Krs
             mode,
             dev,
             ino,
+            iou_ret,
         },
     })
 }
