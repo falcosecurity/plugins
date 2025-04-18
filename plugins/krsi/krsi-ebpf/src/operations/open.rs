@@ -1,21 +1,53 @@
-//! Flow for extracting parameters upon file opening procedures:
-//! 1. `fentry:do_sys_openat2`|`fentry:io_openat2` - detect the start of an opening request and
-//! annotate it by putting the pid of the current thread in the `OPEN_PIDS` map
-//! 2. `fexit:security_file_open` - verify that the opening request has been accepted, extract the
-//! file path, put the extracted file path in the auxmap final location and write the association
-//! between the pid of the current thread and the file path length in the `OPEN_PIDS` map. If any of
-//! aforementioned operations fail, ensure the pid is removed from the `OPEN_PIDS` map.
-//! 3. `fexit:fd_install` | `fexit:io_fixed_fd_install` - verify that an opening request is
-//! currently in progress by checking the presence of an association for the current thread's pid in
-//! the `OPEN_PIDS` map, extract the file path length from the aforementioned association, extract
-//! the other relevant parameters for the opening request, complete the event in the auxiliary map
-//! by leveraging the information on the length of the already-extracted file path and submit the
-//! event.
-//! 4. `fexit:do_sys_openat2` | `fexit:io_openat2` - ensure the association for the current
-//! thread's pid is removed from the `OPEN_PIDS` map
+//! # Data extraction
+//!
+//! ## Kernel functions call graph (`openat` syscall path)
+//! ```
+//! SYSCALL_DEFINE4(openat, int, dfd, const char __user *, filename, int, flags, umode_t, mode)
+//!     long do_sys_open(int dfd, const char __user *filename, int flags, umode_t mode);
+//!         long do_sys_openat2(int dfd, const char __user *filename, struct open_how *how)
+//!             struct file *do_filp_open(int dfd, struct filename *pathname,
+//!                 const struct open_flags *op)
+//!             void fd_install(unsigned int fd, struct file *file)
+//! ```
+//!
+//! ## Kernel functions call graph (`openat2` syscall path)
+//! ```
+//! SYSCALL_DEFINE4(openat2, int, dfd, const char __user *, filename, struct open_how __user *, how,
+//!     size_t, usize)
+//!         long do_sys_openat2(int dfd, const char __user *filename, struct open_how *how)
+//!             struct file *do_filp_open(int dfd, struct filename *pathname,
+//!                 const struct open_flags *op)
+//!             void fd_install(unsigned int fd, struct file *file)
+//! ```
+//!
+//! ## Kernel functions call graph (`io_uring` IORING_OP_OPENAT path)
+//! ```
+//! int io_openat(struct io_kiocb *req, unsigned int issue_flags)
+//!     int io_openat2(struct io_kiocb *req, unsigned int issue_flags)
+//!         struct file *do_filp_open(int dfd, struct filename *pathname,
+//!             const struct open_flags *op)
+//!         if (...) void fd_install(unsigned int fd, struct file *file)
+//!         else (...) int io_fixed_fd_install(struct io_kiocb *req, unsigned int issue_flags,
+//!             struct file *file, unsigned int file_slot);
+//! ```
+//!
+//! ## Kernel functions call graph (`io_uring` IORING_OP_OPENAT2 path)
+//! ```
+//! int io_openat2(struct io_kiocb *req, unsigned int issue_flags)
+//!     struct file *do_filp_open(int dfd, struct filename *pathname, const struct open_flags *op)
+//!     if (...) void fd_install(unsigned int fd, struct file *file)
+//!     else (...) int io_fixed_fd_install(struct io_kiocb *req, unsigned int issue_flags,
+//!         struct file *file, unsigned int file_slot);
+//! ```
+//!
+//! ## Extraction flow
+//! 1. `fentry:do_sys_openat2`|`fentry:io_openat2`
+//! 2. `fexit:security_file_open`
+//! 3. `fexit:fd_install` | `fexit:io_fixed_fd_install`
+//! 4. `fexit:do_sys_openat2` | `fexit:io_openat2`
 
 use aya_ebpf::{
-    cty::{c_int, c_uint},
+    cty::c_uint,
     macros::{fentry, fexit},
     programs::{FEntryContext, FExitContext},
     EbpfContext,
@@ -23,7 +55,9 @@ use aya_ebpf::{
 use krsi_common::{scap as scap_shared, EventType};
 use krsi_ebpf_core::File;
 
-use crate::{defs, files, helpers, scap, shared_maps, vmlinux, FileDescriptor};
+use crate::{
+    defs, files, helpers, operations::open::maps::Info, scap, shared_maps, vmlinux, FileDescriptor,
+};
 
 mod maps;
 
@@ -34,8 +68,8 @@ fn do_sys_openat2_e(ctx: FEntryContext) -> u32 {
 
 fn try_openat2_e(ctx: FEntryContext) -> Result<u32, i64> {
     let pid = ctx.pid();
-    const ZERO: u32 = 0;
-    helpers::try_insert_map_entry(maps::get_pids_map(), &pid, &ZERO)
+    let info = Info::new();
+    helpers::try_insert_map_entry(maps::get_info_map(), &pid, &info)
 }
 
 #[fentry]
@@ -50,18 +84,18 @@ pub fn security_file_open_x(ctx: FExitContext) -> u32 {
 
 fn try_security_file_open_x(ctx: FExitContext) -> Result<u32, i64> {
     let pid = ctx.pid();
-    let pids_map = maps::get_pids_map();
-    if unsafe { pids_map.get(&pid) }.is_none() {
+    let info_map = maps::get_info_map();
+    if unsafe { info_map.get(&pid) }.is_none() {
         return Ok(0);
     };
 
-    let ret: c_int = unsafe { ctx.arg(1) };
+    let ret: i64 = unsafe { ctx.arg(1) };
     if ret != 0 {
-        return helpers::try_remove_map_entry(pids_map, &pid);
+        return helpers::try_remove_map_entry(info_map, &pid);
     }
 
     let Some(auxmap) = shared_maps::get_auxiliary_map() else {
-        return helpers::try_remove_map_entry(pids_map, &pid);
+        return helpers::try_remove_map_entry(info_map, &pid);
     };
 
     auxmap.preload_event_header(EventType::Open);
@@ -71,7 +105,7 @@ fn try_security_file_open_x(ctx: FExitContext) -> Result<u32, i64> {
     let path = unsafe { &(*file).f_path } as *const vmlinux::path;
     match unsafe { auxmap.store_path_param(path, defs::MAX_PATH) } {
         Ok(_) => Ok(0),
-        Err(_) => helpers::try_remove_map_entry(pids_map, &pid),
+        Err(_) => helpers::try_remove_map_entry(info_map, &pid),
     }
 }
 
@@ -81,9 +115,9 @@ pub fn try_fd_install_x(
     file: &File,
 ) -> Result<u32, i64> {
     let pid = ctx.pid();
-    if (unsafe { maps::get_pids_map().get(&pid) }).is_none() {
+    let Some(info) = maps::get_info_map().get_ptr_mut(&pid) else {
         return Ok(0);
-    }
+    };
 
     let auxmap = shared_maps::get_auxiliary_map().ok_or(1)?;
     // Don't call auxmap.preload_event_header, because we want to continue to append to the work
@@ -117,23 +151,66 @@ pub fn try_fd_install_x(
     // Parameter 7: ino.
     auxmap.store_param(ino);
 
-    auxmap.finalize_event_header();
-    auxmap.submit_event();
+    unsafe { (*info).fd_installed = true };
 
     Ok(0)
 }
 
 #[fexit]
-pub fn do_sys_openat2_x(ctx: FExitContext) -> u32 {
+pub fn io_openat2_x(ctx: FExitContext) -> u32 {
     try_openat2_x(ctx).unwrap_or(1)
 }
 
 fn try_openat2_x(ctx: FExitContext) -> Result<u32, i64> {
     let pid = ctx.pid();
-    helpers::try_remove_map_entry(maps::get_pids_map(), &pid)
+    let info_map = maps::get_info_map();
+    let Some(info) = (unsafe { info_map.get(&pid) }) else {
+        return Ok(0);
+    };
+    let _ = helpers::try_remove_map_entry(info_map, &pid);
+
+    if !info.fd_installed {
+        return Ok(0);
+    }
+
+    let auxmap = shared_maps::get_auxiliary_map().ok_or(1)?;
+    // Don't call auxmap.preload_event_header, because we want to continue to append to the work
+    // already done on `fexit:fd_install` or `fexit:io_fixed_fd_install`.
+
+    // Parameter 8: iou_ret.
+    let iou_ret: i64 = unsafe { ctx.arg(2) };
+    auxmap.store_param(iou_ret);
+
+    auxmap.finalize_event_header();
+    auxmap.submit_event();
+    Ok(0)
 }
 
 #[fexit]
-pub fn io_openat2_x(ctx: FExitContext) -> u32 {
-    try_openat2_x(ctx).unwrap_or(1)
+pub fn do_sys_openat2_x(ctx: FExitContext) -> u32 {
+    try_do_sys_openat2_x(ctx).unwrap_or(1)
+}
+
+fn try_do_sys_openat2_x(ctx: FExitContext) -> Result<u32, i64> {
+    let pid = ctx.pid();
+    let info_map = maps::get_info_map();
+    let Some(info) = (unsafe { info_map.get(&pid) }) else {
+        return Ok(0);
+    };
+    let _ = helpers::try_remove_map_entry(info_map, &pid);
+
+    if !info.fd_installed {
+        return Ok(0);
+    }
+
+    let auxmap = shared_maps::get_auxiliary_map().ok_or(1)?;
+    // Don't call auxmap.preload_event_header, because we want to continue to append to the work
+    // already done on `fexit:fd_install`.
+
+    // Parameter 8: iou_ret.
+    auxmap.store_empty_param();
+
+    auxmap.finalize_event_header();
+    auxmap.submit_event();
+    Ok(0)
 }

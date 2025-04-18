@@ -9,7 +9,6 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use crate::flags::{FeatureFlags, OpFlags};
 use falco_plugin::{
     anyhow::Error,
     async_event::{AsyncEvent, AsyncEventPlugin, AsyncHandler},
@@ -34,6 +33,8 @@ use falco_plugin::{
 };
 use hashlru::Cache;
 use serde::Deserialize;
+
+use crate::flags::{FeatureFlags, OpFlags};
 
 mod ebpf;
 mod flags;
@@ -221,6 +222,7 @@ impl ParsePlugin for KrsiPlugin {
                         mode: _,
                         dev,
                         ino,
+                        iou_ret: _,
                     } => {
                         if let Some(fd) = fd {
                             let thread = self.threads.get_entry(r, &tid)?;
