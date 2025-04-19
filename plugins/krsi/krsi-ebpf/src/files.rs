@@ -1,5 +1,5 @@
 use aya_ebpf::helpers::bpf_probe_read_kernel;
-use krsi_ebpf_core::{Dentry, File, Inode, Wrap};
+use krsi_ebpf_core::{ffi, Dentry, File, Inode, Wrap};
 
 use crate::vmlinux;
 
@@ -26,7 +26,7 @@ impl TryFrom<u16> for Overlay {
     }
 }
 
-pub fn dev_ino_overlay(file: &File) -> Result<(vmlinux::dev_t, u64, Overlay), i64> {
+pub fn dev_ino_overlay(file: &File) -> Result<(ffi::dev_t, u64, Overlay), i64> {
     let inode = file.f_inode()?;
     let sb = inode.i_sb()?;
     let dev = sb.s_dev()?;
@@ -54,7 +54,7 @@ fn overlay(file: &File) -> Overlay {
     match dentry
         .d_inode()
         .and_then(|inode| inode_dentry_ptr(inode.cast()))
-        .and_then(|dentry| Dentry::wrap(dentry.cast()).d_inode())
+        .and_then(|dentry| dentry.d_inode())
         .and_then(|inode| Inode::wrap(inode.cast()).i_ino())
     {
         Ok(_) => Overlay::Upper,
@@ -63,12 +63,12 @@ fn overlay(file: &File) -> Overlay {
 }
 
 /// Returns `(struct dentry *) ((char *) inode + sizeof(struct inode))`.
-fn inode_dentry_ptr(inode: *mut vmlinux::inode) -> Result<*mut vmlinux::dentry, i64> {
+fn inode_dentry_ptr(inode: *mut vmlinux::inode) -> Result<Dentry, i64> {
     // We need to compute the size of the inode struct at load time since it can change between
     // kernel versions
-    // TODO(ekoops): actually we don't know if aya is able to patch the type size and patch is
-    //   in some way; in other words, we don't know if this is the equivalent of doing
-    //   `bpf_core_type_size(struct inode)`.
+    // TODO(ekoops): the following is not CO-RE, but we need to figure out how to do the equivalent
+    //   of `bpf_core_type_size(struct inode)` in the core crate.
     let inode_size = size_of::<vmlinux::inode>();
-    unsafe { bpf_probe_read_kernel(inode.byte_add(inode_size).cast::<*mut vmlinux::dentry>()) }
+    let dentry: *mut *mut ffi::dentry = unsafe { inode.byte_add(inode_size).cast() };
+    Ok(Dentry::wrap(unsafe { bpf_probe_read_kernel(dentry) }?))
 }
