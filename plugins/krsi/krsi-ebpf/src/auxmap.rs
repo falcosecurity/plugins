@@ -2,18 +2,18 @@ use core::ptr::null_mut;
 
 use aya_ebpf::{
     bindings::BPF_RB_FORCE_WAKEUP,
-    cty::{c_char, c_uchar},
+    cty::c_uchar,
     helpers::{
-        bpf_d_path, bpf_get_current_pid_tgid, bpf_ktime_get_boot_ns,
-        bpf_probe_read_kernel_str_bytes, bpf_probe_read_user_str_bytes,
+        bpf_get_current_pid_tgid, bpf_ktime_get_boot_ns, bpf_probe_read_kernel_str_bytes,
+        bpf_probe_read_user_str_bytes,
     },
 };
 use krsi_common::{EventHeader, EventType};
 use krsi_ebpf_core::{
-    read_field, Filename, Sock, Sockaddr, SockaddrIn, SockaddrIn6, SockaddrUn, Socket, Wrap,
+    read_field, Filename, Path, Sock, Sockaddr, SockaddrIn, SockaddrIn6, SockaddrUn, Socket, Wrap,
 };
 
-use crate::{defs, get_event_num_params, scap, shared_maps, sockets, vmlinux, FileDescriptor};
+use crate::{defs, get_event_num_params, scap, shared_maps, sockets, FileDescriptor};
 
 // Event maximum size.
 const MAX_EVENT_SIZE: u64 = 8 * 1024;
@@ -90,12 +90,12 @@ impl AuxiliaryMap {
     /// bytes and add the `\0`.
     pub unsafe fn store_path_param(
         &mut self,
-        path: *const vmlinux::path,
+        path: &Path,
         max_len_to_read: u16,
     ) -> Result<u16, i64> {
         let mut path_len = 0_u16;
         if !path.is_null() {
-            path_len = self.push_path(path, max_len_to_read as usize)?;
+            path_len = self.push_path(&path, max_len_to_read as usize)?;
         }
         self.push_param_len(path_len);
         Ok(path_len)
@@ -412,24 +412,12 @@ impl AuxiliaryMap {
         Ok(written_bytes as u16)
     }
 
-    unsafe fn push_path(
-        &mut self,
-        path: *const vmlinux::path,
-        max_len_to_read: usize,
-    ) -> Result<u16, i64> {
-        let path = path as *mut aya_ebpf::bindings::path;
+    fn push_path(&mut self, path: &Path, max_len_to_read: usize) -> Result<u16, i64> {
         let data_pos = Self::data_safe_access(self.payload_pos);
-        let data = (&mut self.data)
-            .as_mut_ptr()
-            .cast::<c_char>()
-            .byte_add(data_pos);
-        let max_len_to_read = max_len_to_read as u32;
-        let written_bytes = bpf_d_path(path, data, max_len_to_read);
-        if written_bytes < 0 {
-            return Err(1);
-        }
+        let data = &mut self.data[data_pos..];
+        let written_bytes = unsafe { path.read_into(data, max_len_to_read as u32)? };
         if written_bytes == 0 {
-            // Push '\0' and returns 1 as number of written bytes.
+            // Push '\0' (empty string) and returns 1 as number of written bytes.
             self.push(0_u8);
             return Ok(1);
         }

@@ -53,10 +53,10 @@ use aya_ebpf::{
     EbpfContext,
 };
 use krsi_common::{scap as scap_shared, EventType};
-use krsi_ebpf_core::File;
+use krsi_ebpf_core::{wrap_arg, File};
 
 use crate::{
-    defs, files, helpers, operations::open::maps::Info, scap, shared_maps, vmlinux, FileDescriptor,
+    defs, files, helpers, operations::open::maps::Info, scap, shared_maps, FileDescriptor,
 };
 
 mod maps;
@@ -101,9 +101,9 @@ fn try_security_file_open_x(ctx: FExitContext) -> Result<u32, i64> {
     auxmap.preload_event_header(EventType::Open);
 
     // Parameter 1: name.
-    let file: *const vmlinux::file = unsafe { ctx.arg(0) };
-    let path = unsafe { &(*file).f_path } as *const vmlinux::path;
-    match unsafe { auxmap.store_path_param(path, defs::MAX_PATH) } {
+    let file: File = wrap_arg(unsafe { ctx.arg(0) });
+    let path = file.f_path();
+    match unsafe { auxmap.store_path_param(&path, defs::MAX_PATH) } {
         Ok(_) => Ok(0),
         Err(_) => helpers::try_remove_map_entry(info_map, &pid),
     }
