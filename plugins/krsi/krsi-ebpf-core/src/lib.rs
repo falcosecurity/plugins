@@ -44,6 +44,7 @@ pub mod ffi {
 
 use core::ffi::c_void;
 
+use aya_ebpf::helpers::bpf_d_path;
 use ffi::*;
 
 macro_rules! gen_accessor_plain {
@@ -224,6 +225,18 @@ gen_accessors!(dentry => {
 gen_accessors!(path => {
     wrapper dentry: Dentry,
 });
+
+impl Path {
+    pub unsafe fn read_into(&self, buf: &mut [u8], max_len_to_read: u32) -> Result<usize, i64> {
+        let buf = buf.as_mut_ptr().cast();
+        let written_bytes = bpf_d_path(self.inner.cast(), buf, max_len_to_read);
+        if written_bytes < 0 {
+            Err(written_bytes)
+        } else {
+            Ok(written_bytes as usize)
+        }
+    }
+}
 
 gen_accessors!(file => {
     plain f_mode: u32,
