@@ -7,26 +7,14 @@ use krsi_ebpf_core::{wrap_arg, File};
 use operations::*;
 
 mod auxmap;
-mod files;
-mod shared_maps;
-mod sockets;
-#[allow(clippy::all)]
-#[allow(dead_code)]
-#[allow(non_camel_case_types)]
-#[allow(non_snake_case)]
-#[allow(non_upper_case_globals)]
-#[rustfmt::skip]
-/*
-To regenerate `vmlinux.rs`:
-aya-tool generate task_struct file inet_sock unix_sock sockaddr_in sockaddr_in6 io_uring_op \
-    io_socket io_connect io_async_msghdr io_unlink io_rename > krsi-ebpf/src/vmlinux.rs
-*/
-mod vmlinux;
 mod defs;
+mod files;
 mod helpers;
 mod iouring;
 mod operations;
 mod scap;
+mod shared_maps;
+mod sockets;
 
 #[cfg(not(test))]
 #[panic_handler]
