@@ -1,7 +1,4 @@
-use aya_ebpf::helpers::bpf_probe_read_kernel;
-use krsi_ebpf_core::{ffi, Dentry, File, Inode, Wrap};
-
-use crate::vmlinux;
+use krsi_ebpf_core::{ffi, File};
 
 mod dev;
 
@@ -47,28 +44,13 @@ fn overlay(file: &File) -> Overlay {
         return Overlay::None;
     }
 
-    // TODO(ekoops): the following alternates CO-RE and non CO-RE operation due to d_inode() being
-    //   forced to interact with inode_dentry_ptr. We still use the non CO-RE inode_dentry_ptr
-    //   operation because I still haven't found a way to implement it using a CO-RE approach (see
-    //   `core_helpers.h` for more details).
     match dentry
         .d_inode()
-        .and_then(|inode| inode_dentry_ptr(inode.cast()))
+        .and_then(|inode| inode.upper_dentry())
         .and_then(|dentry| dentry.d_inode())
-        .and_then(|inode| Inode::wrap(inode.cast()).i_ino())
+        .and_then(|inode| inode.i_ino())
     {
         Ok(_) => Overlay::Upper,
         Err(_) => Overlay::Lower,
     }
-}
-
-/// Returns `(struct dentry *) ((char *) inode + sizeof(struct inode))`.
-fn inode_dentry_ptr(inode: *mut vmlinux::inode) -> Result<Dentry, i64> {
-    // We need to compute the size of the inode struct at load time since it can change between
-    // kernel versions
-    // TODO(ekoops): the following is not CO-RE, but we need to figure out how to do the equivalent
-    //   of `bpf_core_type_size(struct inode)` in the core crate.
-    let inode_size = size_of::<vmlinux::inode>();
-    let dentry: *mut *mut ffi::dentry = unsafe { inode.byte_add(inode_size).cast() };
-    Ok(Dentry::wrap(unsafe { bpf_probe_read_kernel(dentry) }?))
 }
