@@ -385,3 +385,17 @@ impl Ebpf {
         Ok(ring_buf)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    #[ignore]
+    fn load_and_attach_programs() {
+        let mut ebpf = Ebpf::try_new(false).unwrap();
+        let feature_flags = FeatureFlags::all();
+        let op_flags = OpFlags::all();
+        ebpf.load_and_attach_programs(feature_flags, op_flags)
+            .unwrap()
+    }
+}
