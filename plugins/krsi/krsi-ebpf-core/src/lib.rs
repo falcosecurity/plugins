@@ -213,12 +213,11 @@ gen_accessors!(super_block => {
 gen_accessors!(inode => {
     wrapper i_sb: SuperBlock,
     plain i_ino: u64,
+    wrapper upper_dentry: Dentry,
 });
 
 gen_accessors!(dentry => {
-    // TODO(ekoops): use `wrapper` instead of `plain` for `d_inode` once we fix the `core_helpers.h`
-    //   problem related to clang not recognizing `__builtin_preserve_type_info`.
-    plain d_inode: * mut Inode,
+    wrapper d_inode: Inode,
     wrapper d_sb: SuperBlock,
 });
 

@@ -5,6 +5,21 @@
 #pragma clang attribute push(__attribute__((preserve_access_index)), apply_to = record)
 #endif
 
+// bpf_core_type_size definition.
+#if defined(__bpf__)
+    // The following is taken from `https://github.com/libbpf/libbpf/blob/master/src/bpf_core_read.h`.
+    /* second argument to __builtin_preserve_type_info() built-in */
+    enum bpf_type_info_kind {
+        BPF_TYPE_EXISTS = 0,		/* type existence in target kernel */
+        BPF_TYPE_SIZE = 1,		/* type size in target kernel */
+        BPF_TYPE_MATCHES = 2,		/* type match in target kernel */
+    };
+    #define ___bpf_typeof(type) ((typeof(type) *) 0)
+    #define bpf_core_type_size(type) __builtin_preserve_type_info(*___bpf_typeof(type), BPF_TYPE_SIZE)
+#else
+    #define bpf_core_type_size(type) 0
+#endif
+
 typedef long long unsigned int u64;
 typedef unsigned int u32;
 typedef int s32;
@@ -232,23 +247,13 @@ inline u64 *inode_i_ino(struct inode *inode) {
 	return &inode->i_ino;
 }
 
-// FIXME(ekoops): the following doesn't work, as clang doesn't recognize `__builtin_preserve_type_info`
-///* second argument to __builtin_preserve_type_info() built-in */
-//enum bpf_type_info_kind {
-//	BPF_TYPE_EXISTS = 0,		/* type existence in target kernel */
-//	BPF_TYPE_SIZE = 1,		/* type size in target kernel */
-//	BPF_TYPE_MATCHES = 2,		/* type match in target kernel */
-//};
-//#define ___bpf_typeof(type) ((typeof(type) *) 0)
-//#define bpf_core_type_size(type) __builtin_preserve_type_info(*___bpf_typeof(type), BPF_TYPE_SIZE)
-//
-//inline struct dentry *inode_dentry_ptr(struct inode *inode) {
-//    unsigned long inode_size = bpf_core_type_size(struct inode);
-//    if(!inode_size) {
-//        return 0;
-//    }
-//    return (struct dentry*) ((char *)inode + inode_size);
-//}
+inline struct dentry **inode_upper_dentry(struct inode *inode) {
+    unsigned long inode_size = bpf_core_type_size(struct inode);
+    if(!inode_size) {
+        return 0;
+    }
+    return (struct dentry**) ((char *)inode + inode_size);
+}
 
 inline dev_t *super_block_s_dev(struct super_block *sb) {
 	return &sb->s_dev;
