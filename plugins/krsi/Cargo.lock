@@ -650,7 +650,6 @@ dependencies = [
  "aya-build",
  "aya-log",
  "bincode",
- "bitflags",
  "byteorder",
  "cargo_metadata",
  "env_logger",
@@ -672,6 +671,7 @@ name = "krsi-common"
 version = "0.1.0"
 dependencies = [
  "aya",
+ "bitflags",
  "cfg-if",
 ]
 

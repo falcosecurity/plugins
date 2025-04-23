@@ -1,5 +1,6 @@
 #![no_std]
 
+pub mod flags;
 pub mod scap;
 
 #[derive(Copy, Clone, Debug)]
