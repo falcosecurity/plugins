@@ -3,6 +3,7 @@ use bitflags::bitflags;
 bitflags! {
     #[derive(Clone, Copy, Debug)]
     pub struct FeatureFlags: u8 {
+        const NONE = 0;
         const IO_URING = 1 << 0;
         const SYSCALLS = 1 << 1;
     }

@@ -102,8 +102,15 @@ pub struct KrsiPlugin {
 #[derive(JsonSchema, Deserialize)]
 #[schemars(crate = "falco_plugin::schemars")]
 #[serde(crate = "falco_plugin::serde")]
-pub struct Config {}
+pub struct Config {
+    /// io_uring operations enabled
+    #[serde(default)]
+    io_uring: bool,
 
+    /// syscall operations enabled
+    #[serde(default)]
+    syscalls: bool,
+}
 /// Plugin metadata
 impl Plugin for KrsiPlugin {
     const NAME: &'static CStr = c"krsi";
@@ -112,12 +119,19 @@ impl Plugin for KrsiPlugin {
     const CONTACT: &'static CStr = c"https://falco.org";
     type ConfigType = Json<Config>;
 
-    fn new(input: Option<&TablesInput>, Json(_config): Self::ConfigType) -> Result<Self, Error> {
+    fn new(input: Option<&TablesInput>, Json(config): Self::ConfigType) -> Result<Self, Error> {
         let ebpf = ebpf::Ebpf::try_new(false)?;
         let input = input.ok_or_else(|| anyhow::anyhow!("did not get table input"))?;
         let threads: ImportedThreadTable = input.get_table(c"threads")?;
-        // TODO(ekoops): allow the customize the feature flags at runtime.
-        let feature_flags = FeatureFlags::IO_URING;
+        let mut feature_flags = FeatureFlags::NONE;
+        if config.io_uring {
+            feature_flags |= FeatureFlags::IO_URING;
+        }
+
+        if config.syscalls {
+            feature_flags |= FeatureFlags::SYSCALLS;
+        }
+
         let op_flags = OpFlags::all();
         Ok(Self {
             ebpf,
