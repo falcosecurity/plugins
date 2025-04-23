@@ -28,7 +28,10 @@ use aya_ebpf::{
     programs::{FEntryContext, FExitContext},
     EbpfContext,
 };
-use krsi_common::EventType;
+use krsi_common::{
+    flags::{FeatureFlags, OpFlags},
+    EventType,
+};
 use krsi_ebpf_core::{wrap_arg, Filename};
 
 use crate::{defs, helpers, scap, shared_maps};
@@ -52,6 +55,14 @@ fn do_mkdirat_x(ctx: FExitContext) -> u32 {
 }
 
 fn try_do_mkdirat_x(ctx: FExitContext) -> Result<u32, i64> {
+    let pid = ctx.pid();
+    let is_iou = unsafe { maps::get_iou_pids_map().get(&pid) }.is_some();
+    let is_mkdirat_sc_support_enabled =
+        shared_maps::is_support_enabled(FeatureFlags::SYSCALLS, OpFlags::MKDIRAT);
+    if !is_iou && !is_mkdirat_sc_support_enabled {
+        return Ok(0);
+    }
+
     let auxmap = shared_maps::get_auxiliary_map().ok_or(1)?;
     auxmap.preload_event_header(EventType::Mkdirat);
 
@@ -71,11 +82,8 @@ fn try_do_mkdirat_x(ctx: FExitContext) -> Result<u32, i64> {
     let res: i64 = unsafe { ctx.arg(3) };
     auxmap.store_param(res);
 
-    let pid = ctx.pid();
-    // Not having an entry in the map means that this is not an io_uring operation. In case of an
-    // io_uring operation, don't submit the event but let `fexit:io_mkdirat` handle it.
-    if unsafe { maps::get_iou_pids_map().get(&pid) }.is_none() {
-        // Parameter 5: iou_ret
+    if !is_iou {
+        // Parameter 5: iou_ret.
         auxmap.store_empty_param();
         auxmap.finalize_event_header();
         auxmap.submit_event();

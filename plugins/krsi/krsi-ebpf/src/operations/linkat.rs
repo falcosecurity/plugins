@@ -92,7 +92,7 @@ fn try_do_linkat_x(ctx: FExitContext) -> Result<u32, i64> {
     auxmap.store_param(res);
 
     if !is_iou {
-        // Parameter 7: iou_ret
+        // Parameter 7: iou_ret.
         auxmap.store_empty_param();
         auxmap.finalize_event_header();
         auxmap.submit_event();
