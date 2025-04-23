@@ -1,12 +1,8 @@
 use std::{
-    ffi::{CStr, CString},
-    str::FromStr,
-    sync::{
+    ffi::{CStr, CString}, net::IpAddr, str::FromStr, sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
-    },
-    thread::JoinHandle,
-    time::{Duration, SystemTime},
+    }, thread::JoinHandle, time::{Duration, SystemTime}
 };
 
 use falco_plugin::{
@@ -62,34 +58,30 @@ struct ImportedThreadMetadata {
     pid: Field<i64, ImportedThread>,
     ptid: Field<i64, ImportedThread>,
     comm: Field<CStr, ImportedThread>,
-    file_descriptors: Field<ImportedFileDescriptorTable, ImportedThread>, // TODO there are more fields
-                                                                          // DEFINE_STATIC_FIELD(ret, self, m_tid, "tid");
-                                                                          // DEFINE_STATIC_FIELD(ret, self, m_pid, "pid");
-                                                                          // DEFINE_STATIC_FIELD(ret, self, m_ptid, "ptid");
-                                                                          // DEFINE_STATIC_FIELD(ret, self, m_reaper_tid, "reaper_tid");
-                                                                          // DEFINE_STATIC_FIELD(ret, self, m_sid, "sid");
-                                                                          // DEFINE_STATIC_FIELD(ret, self, m_comm, "comm");
-                                                                          // DEFINE_STATIC_FIELD(ret, self, m_exe, "exe");
-                                                                          // DEFINE_STATIC_FIELD(ret, self, m_exepath, "exe_path");
-                                                                          // DEFINE_STATIC_FIELD(ret, self, m_exe_writable, "exe_writable");
-                                                                          // DEFINE_STATIC_FIELD(ret, self, m_exe_upper_layer, "exe_upper_layer");
-                                                                          // DEFINE_STATIC_FIELD(ret, self, m_exe_lower_layer, "exe_lower_layer");
-                                                                          // DEFINE_STATIC_FIELD(ret, self, m_exe_from_memfd, "exe_from_memfd");
-                                                                          // DEFINE_STATIC_FIELD(ret, self, m_flags, "flags");
-                                                                          // DEFINE_STATIC_FIELD(ret, self, m_fdlimit, "fd_limit");
-                                                                          // DEFINE_STATIC_FIELD(ret, self, m_uid, "uid");
-                                                                          // DEFINE_STATIC_FIELD(ret, self, m_gid, "gid");
-                                                                          // DEFINE_STATIC_FIELD(ret, self, m_loginuid, "loginuid");
-                                                                          // DEFINE_STATIC_FIELD(ret, self, m_exe_ino, "exe_ino");
-                                                                          // DEFINE_STATIC_FIELD(ret, self, m_exe_ino_ctime, "exe_ino_ctime");
-                                                                          // DEFINE_STATIC_FIELD(ret, self, m_exe_ino_mtime, "exe_ino_mtime");
-                                                                          // DEFINE_STATIC_FIELD(ret, self, m_vtid, "vtid");
-                                                                          // DEFINE_STATIC_FIELD(ret, self, m_vpid, "vpid");
-                                                                          // DEFINE_STATIC_FIELD(ret, self, m_vpgid, "vpgid");
-                                                                          // DEFINE_STATIC_FIELD(ret, self, m_pgid, "pgid");
-                                                                          // DEFINE_STATIC_FIELD(ret, self, m_pidns_init_start_ts, "pidns_init_start_ts");
-                                                                          // DEFINE_STATIC_FIELD(ret, self, m_root, "root");
-                                                                          // DEFINE_STATIC_FIELD(ret, self, m_tty, "tty");
+    file_descriptors: Field<ImportedFileDescriptorTable, ImportedThread>,
+    reaper_tid: Field<i64, ImportedThread>,
+    sid: Field<i64, ImportedThread>,
+    exe: Field<CStr, ImportedThread>,
+    exe_path: Field<CStr, ImportedThread>,
+    // exe_writable: Field<bool, ImportedThread>,
+    // exe_upper_layer: Field<bool, ImportedThread>,
+    // exe_lower_layer: Field<bool, ImportedThread>,
+    // exe_from_memfd: Field<bool, ImportedThread>,
+    flags: Field<u32, ImportedThread>,
+    fd_limit: Field<i64, ImportedThread>,
+    uid: Field<u32, ImportedThread>,
+    gid: Field<u32, ImportedThread>,
+    loginuid: Field<u32, ImportedThread>,
+    exe_ino: Field<u64, ImportedThread>,
+    exe_ino_ctime: Field<u64, ImportedThread>,
+    exe_ino_mtime: Field<u64, ImportedThread>,
+    vtid: Field<i64, ImportedThread>,
+    vpid: Field<i64, ImportedThread>,
+    vpgid: Field<i64, ImportedThread>,
+    pgid: Field<i64, ImportedThread>,
+    pidns_init_start_ts: Field<u64, ImportedThread>,
+    root: Field<CStr, ImportedThread>,
+    tty: Field<u32, ImportedThread>,
 }
 
 type ImportedThread = Entry<Arc<ImportedThreadMetadata>>;
@@ -427,7 +419,64 @@ impl KrsiPlugin {
 
         let comm = process.get_comm(r)?;
         entry.set_comm(w, comm)?;
-
+        
+        let reaper_tid = process.get_reaper_tid(r)?;
+        entry.set_reaper_tid(w, &reaper_tid)?;
+        
+        let sid = process.get_sid(r)?;
+        entry.set_sid(w, &sid)?;
+        
+        let exe = process.get_exe(r)?;
+        entry.set_exe(w, &exe)?;
+        
+        let exe_path = process.get_exe_path(r)?;
+        entry.set_exe_path(w, &exe_path)?;
+        
+        let flags = process.get_flags(r)?;
+        entry.set_flags(w, &flags)?;
+        
+        let fd_limit = process.get_fd_limit(r)?;
+        entry.set_fd_limit(w, &fd_limit)?;
+        
+        let uid = process.get_uid(r)?;
+        entry.set_uid(w, &uid)?;
+        
+        let gid = process.get_gid(r)?;
+        entry.set_gid(w, &gid)?;
+        
+        let loginuid = process.get_loginuid(r)?;
+        entry.set_loginuid(w, &loginuid)?;
+        
+        let exe_ino = process.get_exe_ino(r)?;
+        entry.set_exe_ino(w, &exe_ino)?;
+        
+        let exe_ino_ctime = process.get_exe_ino_ctime(r)?;
+        entry.set_exe_ino_ctime(w, &exe_ino_ctime)?;
+        
+        let exe_ino_mtime = process.get_exe_ino_mtime(r)?;
+        entry.set_exe_ino_mtime(w, &exe_ino_mtime)?;
+        
+        let vtid = process.get_vtid(r)?;
+        entry.set_vtid(w, &vtid)?;
+        
+        let vpid = process.get_vpid(r)?;
+        entry.set_vpid(w, &vpid)?;
+        
+        let vpgid = process.get_vpgid(r)?;
+        entry.set_vpgid(w, &vpgid)?;
+        
+        let pgid = process.get_pgid(r)?;
+        entry.set_pgid(w, &pgid)?;
+        
+        let pidns_init_start_ts = process.get_pidns_init_start_ts(r)?;
+        entry.set_pidns_init_start_ts(w, &pidns_init_start_ts)?;
+        
+        let root = process.get_root(r)?;
+        entry.set_root(w, &root)?;
+        
+        let tty = process.get_tty(r)?;
+        entry.set_tty(w, &tty)?;
+        
         self.threads.insert(r, w, &tid, entry)?;
         Ok(())
     }
@@ -636,6 +685,43 @@ impl KrsiPlugin {
             anyhow::bail!("No iou_ret field");
         }
     }
+
+    fn extract_cport(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
+        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
+        if let Some(cport) = ev.content.client_port() {
+            return Ok(cport as u64);
+        } else {
+            anyhow::bail!("No cport field");
+        }
+    }
+
+    fn extract_sport(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
+        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
+        if let Some(sport) = ev.content.server_port() {
+            return Ok(sport as u64);
+        } else {
+            anyhow::bail!("No sport field");
+        }
+    }
+
+    fn extract_cip(&mut self, req: ExtractRequest<Self>) -> Result<IpAddr, Error> {
+        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
+        if let Some(cip) = ev.content.client_addr() {
+            return Ok(cip);
+        } else {
+            anyhow::bail!("No cip field");
+        }
+    }
+
+    fn extract_sip(&mut self, req: ExtractRequest<Self>) -> Result<IpAddr, Error> {
+        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
+        if let Some(sip) = ev.content.server_addr() {
+            return Ok(sip);
+        } else {
+            anyhow::bail!("No sip field");
+        }
+    }
+
 }
 
 impl ExtractPlugin for KrsiPlugin {
@@ -663,6 +749,11 @@ impl ExtractPlugin for KrsiPlugin {
         field("krsi.path", &Self::extract_path),
         field("krsi.oldpath", &Self::extract_oldpath),
         field("krsi.newpath", &Self::extract_newpath),
+
+        field("krsi.cip", &Self::extract_cip),
+        field("krsi.sip", &Self::extract_sip),
+        field("krsi.cport", &Self::extract_cport),
+        field("krsi.sport", &Self::extract_sport),
     ];
 }
 

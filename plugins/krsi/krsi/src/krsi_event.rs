@@ -274,6 +274,78 @@ impl KrsiEventContent {
             _ => None,
         }
     }
+
+    pub fn server_port(&self) -> Option<u16> {
+        match &self {
+            KrsiEventContent::Connect { connection, .. } => {
+                if let Some(connection) = connection.as_ref() {
+                    match connection {
+                        Connection::Inet { server_port, .. } => {
+                            Some(*server_port)
+                        },
+                        _ => None
+                    }
+                } else {
+                    None
+                }
+            },
+            _ => None
+        }
+    }
+
+    pub fn client_port(&self) -> Option<u16> {
+        match &self {
+            KrsiEventContent::Connect { connection, .. } => {
+                if let Some(connection) = connection.as_ref() {
+                    match connection {
+                        Connection::Inet { client_port, .. } => {
+                            Some(*client_port)
+                        },
+                        _ => None
+                    }
+                } else {
+                    None
+                }
+            },
+            _ => None
+        }
+    }
+
+    pub fn server_addr(&self) -> Option<IpAddr> {
+        match &self {
+            KrsiEventContent::Connect { connection, .. } => {
+                if let Some(connection) = connection.as_ref() {
+                    match connection {
+                        Connection::Inet { server_addr, .. } => {
+                            Some(*server_addr)
+                        },
+                        _ => None
+                    }
+                } else {
+                    None
+                }
+            },
+            _ => None
+        }
+    }
+
+    pub fn client_addr(&self) -> Option<IpAddr> {
+        match &self {
+            KrsiEventContent::Connect { connection, .. } => {
+                if let Some(connection) = connection.as_ref() {
+                    match connection {
+                        Connection::Inet { client_addr, .. } => {
+                            Some(*client_addr)
+                        },
+                        _ => None
+                    }
+                } else {
+                    None
+                }
+            },
+            _ => None
+        }
+    }
 }
 
 unsafe fn read_and_move<T>(ptr: &mut *const u8) -> T {
