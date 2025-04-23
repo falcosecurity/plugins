@@ -1,8 +1,13 @@
 use std::{
-    ffi::{CStr, CString}, net::IpAddr, str::FromStr, sync::{
+    ffi::{CStr, CString},
+    net::IpAddr,
+    str::FromStr,
+    sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
-    }, thread::JoinHandle, time::{Duration, SystemTime}
+    },
+    thread::JoinHandle,
+    time::{Duration, SystemTime},
 };
 
 use falco_plugin::{
@@ -28,12 +33,10 @@ use falco_plugin::{
     },
 };
 use hashlru::Cache;
+use krsi_common::flags::{FeatureFlags, OpFlags};
 use serde::Deserialize;
 
-use crate::flags::{FeatureFlags, OpFlags};
-
 mod ebpf;
-mod flags;
 mod krsi_event;
 
 use crate::krsi_event::{KrsiEvent, KrsiEventContent};
@@ -89,8 +92,6 @@ type ImportedThreadTable = Table<i64, ImportedThread>;
 
 pub struct KrsiPlugin {
     ebpf: ebpf::Ebpf,
-    feature_flags: FeatureFlags,
-    op_flags: OpFlags,
     threads: ImportedThreadTable,
     async_handler: Option<Arc<AsyncHandler>>,
     missing_events: Cache<i64, Vec<krsi_event::KrsiEvent>>,
@@ -120,23 +121,22 @@ impl Plugin for KrsiPlugin {
     type ConfigType = Json<Config>;
 
     fn new(input: Option<&TablesInput>, Json(config): Self::ConfigType) -> Result<Self, Error> {
-        let ebpf = ebpf::Ebpf::try_new(false)?;
         let input = input.ok_or_else(|| anyhow::anyhow!("did not get table input"))?;
         let threads: ImportedThreadTable = input.get_table(c"threads")?;
+
         let mut feature_flags = FeatureFlags::NONE;
         if config.io_uring {
             feature_flags |= FeatureFlags::IO_URING;
         }
-
         if config.syscalls {
             feature_flags |= FeatureFlags::SYSCALLS;
         }
-
         let op_flags = OpFlags::all();
+
+        let ebpf = ebpf::Ebpf::try_new(false, feature_flags, op_flags)?;
+
         Ok(Self {
             ebpf,
-            feature_flags,
-            op_flags,
             threads,
             async_handler: None,
             missing_events: Cache::new(1024),
@@ -378,8 +378,7 @@ impl AsyncEventPlugin for KrsiPlugin {
             self.stop_async()?;
         }
 
-        self.ebpf
-            .load_and_attach_programs(self.feature_flags, self.op_flags)?;
+        self.ebpf.load_and_attach_programs()?;
         let mut ring_buf = self.ebpf.ring_buffer()?;
 
         let handler = Arc::new(handler);
@@ -433,64 +432,64 @@ impl KrsiPlugin {
 
         let comm = process.get_comm(r)?;
         entry.set_comm(w, comm)?;
-        
+
         let reaper_tid = process.get_reaper_tid(r)?;
         entry.set_reaper_tid(w, &reaper_tid)?;
-        
+
         let sid = process.get_sid(r)?;
         entry.set_sid(w, &sid)?;
-        
+
         let exe = process.get_exe(r)?;
         entry.set_exe(w, &exe)?;
-        
+
         let exe_path = process.get_exe_path(r)?;
         entry.set_exe_path(w, &exe_path)?;
-        
+
         let flags = process.get_flags(r)?;
         entry.set_flags(w, &flags)?;
-        
+
         let fd_limit = process.get_fd_limit(r)?;
         entry.set_fd_limit(w, &fd_limit)?;
-        
+
         let uid = process.get_uid(r)?;
         entry.set_uid(w, &uid)?;
-        
+
         let gid = process.get_gid(r)?;
         entry.set_gid(w, &gid)?;
-        
+
         let loginuid = process.get_loginuid(r)?;
         entry.set_loginuid(w, &loginuid)?;
-        
+
         let exe_ino = process.get_exe_ino(r)?;
         entry.set_exe_ino(w, &exe_ino)?;
-        
+
         let exe_ino_ctime = process.get_exe_ino_ctime(r)?;
         entry.set_exe_ino_ctime(w, &exe_ino_ctime)?;
-        
+
         let exe_ino_mtime = process.get_exe_ino_mtime(r)?;
         entry.set_exe_ino_mtime(w, &exe_ino_mtime)?;
-        
+
         let vtid = process.get_vtid(r)?;
         entry.set_vtid(w, &vtid)?;
-        
+
         let vpid = process.get_vpid(r)?;
         entry.set_vpid(w, &vpid)?;
-        
+
         let vpgid = process.get_vpgid(r)?;
         entry.set_vpgid(w, &vpgid)?;
-        
+
         let pgid = process.get_pgid(r)?;
         entry.set_pgid(w, &pgid)?;
-        
+
         let pidns_init_start_ts = process.get_pidns_init_start_ts(r)?;
         entry.set_pidns_init_start_ts(w, &pidns_init_start_ts)?;
-        
+
         let root = process.get_root(r)?;
         entry.set_root(w, &root)?;
-        
+
         let tty = process.get_tty(r)?;
         entry.set_tty(w, &tty)?;
-        
+
         self.threads.insert(r, w, &tid, entry)?;
         Ok(())
     }
@@ -735,7 +734,6 @@ impl KrsiPlugin {
             anyhow::bail!("No sip field");
         }
     }
-
 }
 
 impl ExtractPlugin for KrsiPlugin {
@@ -763,7 +761,6 @@ impl ExtractPlugin for KrsiPlugin {
         field("krsi.path", &Self::extract_path),
         field("krsi.oldpath", &Self::extract_oldpath),
         field("krsi.newpath", &Self::extract_newpath),
-
         field("krsi.cip", &Self::extract_cip),
         field("krsi.sip", &Self::extract_sip),
         field("krsi.cport", &Self::extract_cport),

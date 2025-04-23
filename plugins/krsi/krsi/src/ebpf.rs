@@ -4,14 +4,15 @@ use aya::{
     EbpfLoader,
 };
 use aya_log::EbpfLogger;
+use krsi_common::flags::{FeatureFlags, OpFlags};
 use libc::{clock_gettime, timespec, CLOCK_BOOTTIME, CLOCK_REALTIME};
 use log::debug;
-
-use crate::flags::{FeatureFlags, OpFlags};
 
 pub struct Ebpf {
     btf: aya::Btf,
     ebpf: aya::Ebpf,
+    feature_flags: FeatureFlags,
+    op_flags: OpFlags,
 }
 
 enum ProgKind {
@@ -286,7 +287,11 @@ const PROG_DEFS: &'static [ProgDef] = &[
 ];
 
 impl Ebpf {
-    pub fn try_new(enable_logging: bool) -> Result<Self, anyhow::Error> {
+    pub fn try_new(
+        enable_logging: bool,
+        feature_flags: FeatureFlags,
+        op_flags: OpFlags,
+    ) -> Result<Self, anyhow::Error> {
         // Bump the memlock rlimit. This is needed for older kernels that don't use the
         // new memcg based accounting, see https://lwn.net/Articles/837122/
         let rlim = libc::rlimit {
@@ -302,9 +307,13 @@ impl Ebpf {
         let btf = aya::Btf::from_sys_fs()?;
         let cpus = num_cpus::get();
         let boot_time = Self::get_precise_boot_time()?;
+        let feature_flags_bits = feature_flags.bits();
+        let op_flags_bits = op_flags.bits();
         let mut ebpf = EbpfLoader::new()
             .set_max_entries("AUXILIARY_MAPS", cpus as u32)
             .set_global("BOOT_TIME", &boot_time, true)
+            .set_global("FEATURE_FLAGS", &feature_flags_bits, true)
+            .set_global("OP_FLAGS", &op_flags_bits, true)
             .load(aya::include_bytes_aligned!(concat!(
                 env!("OUT_DIR"),
                 "/krsi"
@@ -314,7 +323,12 @@ impl Ebpf {
             EbpfLogger::init(&mut ebpf)?;
         }
 
-        Ok(Self { btf, ebpf })
+        Ok(Self {
+            btf,
+            ebpf,
+            feature_flags,
+            op_flags,
+        })
     }
 
     fn get_precise_boot_time() -> Result<u64, anyhow::Error> {
@@ -341,17 +355,13 @@ impl Ebpf {
         (ts.tv_sec * 1000000000 + ts.tv_nsec) as u64
     }
 
-    pub fn load_and_attach_programs(
-        &mut self,
-        feature_flags: FeatureFlags,
-        op_flags: OpFlags,
-    ) -> Result<(), anyhow::Error> {
+    pub fn load_and_attach_programs(&mut self) -> Result<(), anyhow::Error> {
         let ebpf = &mut self.ebpf;
         let btf = &self.btf;
 
         for prog_def in PROG_DEFS {
-            if prog_def.feature_flags.intersects(feature_flags)
-                && prog_def.op_flags.intersects(op_flags)
+            if prog_def.feature_flags.intersects(self.feature_flags)
+                && prog_def.op_flags.intersects(self.op_flags)
             {
                 Self::load_and_attach_program(ebpf, btf, prog_def)?
             }
@@ -392,10 +402,9 @@ mod tests {
     #[test]
     #[ignore]
     fn load_and_attach_programs() {
-        let mut ebpf = Ebpf::try_new(false).unwrap();
         let feature_flags = FeatureFlags::all();
         let op_flags = OpFlags::all();
-        ebpf.load_and_attach_programs(feature_flags, op_flags)
-            .unwrap()
+        let mut ebpf = Ebpf::try_new(false, feature_flags, op_flags).unwrap();
+        ebpf.load_and_attach_programs().unwrap()
     }
 }

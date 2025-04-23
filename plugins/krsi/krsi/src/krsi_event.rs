@@ -280,16 +280,14 @@ impl KrsiEventContent {
             KrsiEventContent::Connect { connection, .. } => {
                 if let Some(connection) = connection.as_ref() {
                     match connection {
-                        Connection::Inet { server_port, .. } => {
-                            Some(*server_port)
-                        },
-                        _ => None
+                        Connection::Inet { server_port, .. } => Some(*server_port),
+                        _ => None,
                     }
                 } else {
                     None
                 }
-            },
-            _ => None
+            }
+            _ => None,
         }
     }
 
@@ -298,16 +296,14 @@ impl KrsiEventContent {
             KrsiEventContent::Connect { connection, .. } => {
                 if let Some(connection) = connection.as_ref() {
                     match connection {
-                        Connection::Inet { client_port, .. } => {
-                            Some(*client_port)
-                        },
-                        _ => None
+                        Connection::Inet { client_port, .. } => Some(*client_port),
+                        _ => None,
                     }
                 } else {
                     None
                 }
-            },
-            _ => None
+            }
+            _ => None,
         }
     }
 
@@ -316,16 +312,14 @@ impl KrsiEventContent {
             KrsiEventContent::Connect { connection, .. } => {
                 if let Some(connection) = connection.as_ref() {
                     match connection {
-                        Connection::Inet { server_addr, .. } => {
-                            Some(*server_addr)
-                        },
-                        _ => None
+                        Connection::Inet { server_addr, .. } => Some(*server_addr),
+                        _ => None,
                     }
                 } else {
                     None
                 }
-            },
-            _ => None
+            }
+            _ => None,
         }
     }
 
@@ -334,16 +328,14 @@ impl KrsiEventContent {
             KrsiEventContent::Connect { connection, .. } => {
                 if let Some(connection) = connection.as_ref() {
                     match connection {
-                        Connection::Inet { client_addr, .. } => {
-                            Some(*client_addr)
-                        },
-                        _ => None
+                        Connection::Inet { client_addr, .. } => Some(*client_addr),
+                        _ => None,
                     }
                 } else {
                     None
                 }
-            },
-            _ => None
+            }
+            _ => None,
         }
     }
 }
