@@ -58,11 +58,11 @@ pub enum KrsiEventContent {
         iou_ret: Option<i64>,
     },
     Unlinkat {
-        iou_ret: Option<i64>,
-        res: Option<i64>,
         dirfd: Option<i64>,
         path: Option<String>,
         flags: Option<u32>,
+        res: Option<i64>,
+        iou_ret: Option<i64>,
     },
     Mkdirat {
         dirfd: Option<i64>,
@@ -690,27 +690,27 @@ fn parse_linkat_event(ev: &EventHeader, ptr: &mut *const u8) -> Result<KrsiEvent
 
 fn parse_unlinkat_event(ev: &EventHeader, ptr: &mut *const u8) -> Result<KrsiEvent, String> {
     let lengths = unsafe { read_and_move::<[u16; 5]>(ptr) };
-    let mut iou_ret: Option<i64> = None;
-    let mut res: Option<i64> = None;
     let mut dirfd: Option<i64> = None;
     let mut flags: Option<u32> = None;
+    let mut res: Option<i64> = None;
+    let mut iou_ret: Option<i64> = None;
 
     if lengths[0] != 0 {
-        iou_ret = Some(unsafe { read_and_move::<i64>(ptr) })
-    }
-    if lengths[1] != 0 {
-        res = Some(unsafe { read_and_move::<i64>(ptr) })
-    }
-    if lengths[2] != 0 {
         dirfd = Some(unsafe { read_and_move::<i64>(ptr) });
     }
-    let path: Option<String> = if lengths[3] != 0 {
-        Some(unsafe { read_str_and_move(ptr, lengths[3] as usize).into() })
+    let path: Option<String> = if lengths[1] != 0 {
+        Some(unsafe { read_str_and_move(ptr, lengths[1] as usize).into() })
     } else {
         None
     };
-    if lengths[4] != 0 {
+    if lengths[2] != 0 {
         flags = Some(unsafe { read_and_move::<u32>(ptr) })
+    }
+    if lengths[3] != 0 {
+        res = Some(unsafe { read_and_move::<i64>(ptr) })
+    }
+    if lengths[4] != 0 {
+        iou_ret = Some(unsafe { read_and_move::<i64>(ptr) })
     }
 
     let pid: u32 = (ev.tgid_pid >> 32) as u32;
@@ -719,11 +719,11 @@ fn parse_unlinkat_event(ev: &EventHeader, ptr: &mut *const u8) -> Result<KrsiEve
         pid,
         tid,
         content: KrsiEventContent::Unlinkat {
-            iou_ret,
-            res,
             dirfd,
             path,
             flags,
+            res,
+            iou_ret,
         },
     })
 }

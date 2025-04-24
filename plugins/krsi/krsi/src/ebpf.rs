@@ -214,6 +214,59 @@ const PROG_DEFS: &'static [ProgDef] = &[
         FeatureFlags::IO_URING,
         OpFlags::UNLINKAT,
     ),
+    ProgDef::new(
+        ProgKind::Fexit,
+        "__x64_sys_unlink_x",
+        "__x64_sys_unlink",
+        FeatureFlags::SYSCALLS,
+        OpFlags::UNLINKAT,
+    ),
+    ProgDef::new(
+        ProgKind::Fexit,
+        "__x64_sys_unlinkat_x",
+        "__x64_sys_unlinkat",
+        FeatureFlags::SYSCALLS,
+        OpFlags::UNLINKAT,
+    ),
+    ProgDef::new(
+        ProgKind::Fexit,
+        "do_unlinkat_x",
+        "do_unlinkat",
+        FeatureFlags::from_bits_truncate(
+            FeatureFlags::IO_URING.bits() | FeatureFlags::SYSCALLS.bits(),
+        ),
+        OpFlags::UNLINKAT,
+    ),
+    ProgDef::new(
+        ProgKind::Fexit,
+        "do_rmdir_x",
+        "do_rmdir",
+        FeatureFlags::from_bits_truncate(
+            FeatureFlags::IO_URING.bits() | FeatureFlags::SYSCALLS.bits(),
+        ),
+        OpFlags::UNLINKAT,
+    ),
+    ProgDef::new(
+        ProgKind::Fentry,
+        "io_unlinkat_e",
+        "io_unlinkat",
+        FeatureFlags::IO_URING,
+        OpFlags::UNLINKAT,
+    ),
+    ProgDef::new(
+        ProgKind::Fentry,
+        "__x64_sys_unlink_e",
+        "__x64_sys_unlink",
+        FeatureFlags::SYSCALLS,
+        OpFlags::UNLINKAT,
+    ),
+    ProgDef::new(
+        ProgKind::Fentry,
+        "__x64_sys_unlinkat_e",
+        "__x64_sys_unlinkat",
+        FeatureFlags::SYSCALLS,
+        OpFlags::UNLINKAT,
+    ),
     // Mkdirat programs.
     ProgDef::new(
         ProgKind::Fexit,

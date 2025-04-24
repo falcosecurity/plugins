@@ -21,13 +21,134 @@
 //! ```
 //!
 //! ## Extraction flow
-//! 1. `fexit:io_unlinkat` | TODO(ekoops): add syscalls support
+//! 1. `fentry:io_unlinkat` | `fentry:__x64_sys_unlink` | `fentry:__x64_sys_unlinkat`
+//! 2. `fexit:do_unlinkat` | `fexit:do_rmdir`
+//! 3. `fexit:io_unlinkat` | `fexit:__x64_sys_unlink` | `fexit:__x64_sys_unlinkat`
 
-use aya_ebpf::{macros::fexit, programs::FExitContext};
+mod maps;
+
+use aya_ebpf::{
+    bindings::pt_regs,
+    macros::{fentry, fexit},
+    programs::{FEntryContext, FExitContext},
+    EbpfContext, PtRegs,
+};
 use krsi_common::EventType;
-use krsi_ebpf_core::{wrap_arg, IoKiocb, IoUnlink};
+use krsi_ebpf_core::{wrap_arg, Filename, IoKiocb, IoUnlink};
 
-use crate::{defs, scap, shared_maps};
+use crate::{defs, helpers, scap, shared_maps};
+
+#[fentry]
+fn io_unlinkat_e(ctx: FEntryContext) -> u32 {
+    try_io_unlinkat_e(ctx).unwrap_or(1)
+}
+
+fn try_io_unlinkat_e(ctx: FEntryContext) -> Result<u32, i64> {
+    let pid = ctx.pid();
+    const IS_IOU: bool = true;
+    let req: IoKiocb = wrap_arg(unsafe { ctx.arg(0) });
+    let un: IoUnlink = req.cmd_as();
+    let flags = un.flags().ok();
+    let info = maps::Info::new(IS_IOU, flags);
+    helpers::try_insert_map_entry(maps::get_info_map(), &pid, &info)
+}
+
+#[fentry]
+#[allow(non_snake_case)]
+fn __x64_sys_unlink_e(ctx: FEntryContext) -> u32 {
+    try___x64_sys_unlink_e(ctx).unwrap_or(1)
+}
+
+#[allow(non_snake_case)]
+fn try___x64_sys_unlink_e(ctx: FEntryContext) -> Result<u32, i64> {
+    let pid = ctx.pid();
+    const IS_IOU: bool = false;
+    let info = maps::Info::new(IS_IOU, Some(0));
+    helpers::try_insert_map_entry(maps::get_info_map(), &pid, &info)
+}
+
+#[fentry]
+#[allow(non_snake_case)]
+fn __x64_sys_unlinkat_e(ctx: FEntryContext) -> u32 {
+    try___x64_sys_unlinkat_e(ctx).unwrap_or(1)
+}
+
+#[allow(non_snake_case)]
+fn try___x64_sys_unlinkat_e(ctx: FEntryContext) -> Result<u32, i64> {
+    let pid = ctx.pid();
+    const IS_IOU: bool = false;
+    let pt_regs = PtRegs::new(unsafe { ctx.arg::<*const pt_regs>(0) } as *mut _);
+    let flags: Option<i32> = pt_regs.arg(2);
+    let info = maps::Info::new(IS_IOU, flags);
+    helpers::try_insert_map_entry(maps::get_info_map(), &pid, &info)
+}
+
+#[fexit]
+fn do_unlinkat_x(ctx: FExitContext) -> u32 {
+    try_do_unlinkat_x(ctx).unwrap_or(1)
+}
+
+fn try_do_unlinkat_x(ctx: FExitContext) -> Result<u32, i64> {
+    let pid = ctx.pid();
+    let Some(info) = (unsafe { maps::get_info_map().get(&pid) }) else {
+        return Ok(0);
+    };
+
+    let auxmap = shared_maps::get_auxiliary_map().ok_or(1)?;
+    auxmap.preload_event_header(EventType::Unlinkat);
+
+    // Parameter 1: dirfd.
+    let dirfd: i32 = unsafe { ctx.arg(0) };
+    auxmap.store_param(scap::encode_dirfd(dirfd) as i64);
+
+    // Parameter 2: path.
+    let path: Filename = wrap_arg(unsafe { ctx.arg(1) });
+    auxmap.store_filename_param(&path, defs::MAX_PATH, true);
+
+    // Parameter 3: flags.
+    match info.flags {
+        Some(flags) => auxmap.store_param(scap::encode_unlinkat_flags(flags)),
+        None => auxmap.store_empty_param(),
+    }
+
+    // parameter 4: res.
+    let res: i64 = unsafe { ctx.arg(2) };
+    auxmap.store_param(res);
+
+    if !info.is_iou {
+        // Parameter 5: iou_ret.
+        auxmap.store_empty_param();
+        auxmap.finalize_event_header();
+        auxmap.submit_event();
+    }
+
+    Ok(0)
+}
+
+#[fexit]
+fn do_rmdir_x(ctx: FExitContext) -> u32 {
+    // Share the same extraction code with do_unlinkat.
+    try_do_unlinkat_x(ctx).unwrap_or(1)
+}
+
+#[fexit]
+#[allow(non_snake_case)]
+fn __x64_sys_unlinkat_x(ctx: FExitContext) -> u32 {
+    try___x64_sys_unlinkat_x(ctx).unwrap_or(1)
+}
+
+#[allow(non_snake_case)]
+fn try___x64_sys_unlinkat_x(ctx: FExitContext) -> Result<u32, i64> {
+    let pid = ctx.pid();
+    helpers::try_remove_map_entry(maps::get_info_map(), &pid)
+}
+
+#[fexit]
+#[allow(non_snake_case)]
+fn __x64_sys_unlink_x(ctx: FExitContext) -> u32 {
+    // Share the same code with x64_sys_unlinkat.
+    try___x64_sys_unlinkat_x(ctx).unwrap_or(1)
+}
 
 #[fexit]
 fn io_unlinkat_x(ctx: FExitContext) -> u32 {
@@ -35,39 +156,16 @@ fn io_unlinkat_x(ctx: FExitContext) -> u32 {
 }
 
 fn try_io_unlinkat_x(ctx: FExitContext) -> Result<u32, i64> {
+    let pid = ctx.pid();
+    let _ = helpers::try_remove_map_entry(maps::get_info_map(), &pid);
+
     let auxmap = shared_maps::get_auxiliary_map().ok_or(1)?;
-    auxmap.preload_event_header(EventType::Unlinkat);
+    // Don't call auxmap.preload_event_header, because we want to continue to append to the work
+    // already done on `fexit:do_unlinkat` or `fexit:do_rmdir`.
 
-    let req: IoKiocb = wrap_arg(unsafe { ctx.arg(0) });
-    let un: IoUnlink = req.cmd_as();
-
-    // Parameter 1: iou_ret.
+    // Parameter 5: iou_ret.
     let iou_ret: i64 = unsafe { ctx.arg(2) };
     auxmap.store_param(iou_ret);
-
-    // Parameter 2: res.
-    match req.cqe().res() {
-        Ok(res) => auxmap.store_param(res as i64),
-        Err(_) => auxmap.store_empty_param(),
-    }
-
-    // Parameter 3: dirfd.
-    match un.dfd() {
-        Ok(dirfd) => auxmap.store_param(scap::encode_dirfd(dirfd) as i64),
-        Err(_) => auxmap.store_empty_param(),
-    }
-
-    // Parameter 4: path.
-    match un.filename() {
-        Ok(filename) => auxmap.store_filename_param(&filename, defs::MAX_PATH, true),
-        Err(_) => auxmap.store_empty_param(),
-    }
-
-    // Parameter 5: flags.
-    match un.flags() {
-        Ok(flags) => auxmap.store_param(scap::encode_unlinkat_flags(flags)),
-        Err(_) => auxmap.store_empty_param(),
-    }
 
     auxmap.finalize_event_header();
     auxmap.submit_event();
