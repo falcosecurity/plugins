@@ -613,3 +613,24 @@ plugins:
       extraction:
         supported: true
         sources: [ syscall ]
+  - name: krsi
+    description: Security (KRSI) events support for Falco
+    authors: The Falco Authors
+    contact: https://falco.org/community
+    maintainers:
+      - name: The Falco Authors
+        email: cncf-falco-dev@lists.cncf.io
+    keywords:
+      - krsi
+      - syscall
+      - extractor
+    url: https://github.com/falcosecurity/plugins/tree/main/plugins/krsi
+    license: Apache-2.0
+    signature:
+      cosign:
+        certificate-oidc-issuer: https://token.actions.githubusercontent.com
+        certificate-identity-regexp: https://github.com/falcosecurity/plugins/
+    capabilities:
+      extraction:
+        supported: true
+        sources: [ syscall ]
