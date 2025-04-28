@@ -5,7 +5,7 @@ all: $(OUTPUT)
 
 .PHONY: $(OUTPUT)
 $(OUTPUT):
-	 $(CARGO) build --release && mv target/release/$(NAME) .
+	 cargo build --release && mv target/release/$(NAME) .
 
 .PHONY: clean
 clean:
