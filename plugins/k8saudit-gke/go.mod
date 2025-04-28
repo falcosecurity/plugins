@@ -10,7 +10,7 @@ require (
 	github.com/falcosecurity/plugin-sdk-go v0.7.5
 	github.com/falcosecurity/plugins/plugins/k8saudit v0.12.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
-	google.golang.org/api v0.229.0
+	google.golang.org/api v0.230.0
 	k8s.io/api v0.32.3
 	k8s.io/apimachinery v0.32.3
 )
@@ -65,7 +65,7 @@ require (
 	google.golang.org/genproto v0.0.0-20250313205543-e70fdf4c4cb4
 	google.golang.org/genproto/googleapis/api v0.0.0-20250313205543-e70fdf4c4cb4
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250414145226-207652e42e2e // indirect
-	google.golang.org/grpc v1.71.1 // indirect
+	google.golang.org/grpc v1.72.0 // indirect
 	google.golang.org/protobuf v1.36.6
 	k8s.io/apiserver v0.32.3
 )
