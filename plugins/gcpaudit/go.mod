@@ -9,7 +9,7 @@ require (
 	github.com/alecthomas/jsonschema v0.0.0-20220216202328-9eeeec9d044b
 	github.com/falcosecurity/plugin-sdk-go v0.7.5
 	github.com/valyala/fastjson v1.6.4
-	google.golang.org/api v0.229.0
+	google.golang.org/api v0.230.0
 )
 
 require (
@@ -43,6 +43,6 @@ require (
 	google.golang.org/genproto v0.0.0-20250313205543-e70fdf4c4cb4 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250313205543-e70fdf4c4cb4 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250414145226-207652e42e2e // indirect
-	google.golang.org/grpc v1.71.1 // indirect
+	google.golang.org/grpc v1.72.0 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 )
