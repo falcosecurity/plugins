@@ -136,6 +136,8 @@ class my_plugin
 
     falcosecurity::logger m_logger;
 
+    void* m_async_ctx = nullptr;
+
     // Last error of the plugin
     std::string m_lasterr;
     // Accessor to the thread table
