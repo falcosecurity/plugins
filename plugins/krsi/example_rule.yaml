@@ -1,0 +1,47 @@
+- rule: KRSI socket
+  desc: KRSI socket
+  condition: evt.type = krsi_socket
+  output: "[KRSI SOCKET] %proc.pid:%thread.tid (name: %proc.name) : fd=%krsi.fd domain=%krsi.domain type=%krsi.type file_index=%krsi.file_index iou_ret=%krsi.iou_ret"
+  priority: INFO
+
+- rule: KRSI connect
+  desc: KRSI connect
+  condition: evt.type = krsi_connect
+  output: "[KRSI CONNECT] %proc.pid:%thread.tid (name: %proc.name) : fd=%krsi.fd file_index=%krsi.file_index name=%krsi.name res=%krsi.res iou_ret=%krsi.iou_ret cip=%krsi.cip cport=%krsi.cport sip=%krsi.sip sport=%krsi.sport"
+  priority: INFO
+
+- rule: KRSI symlinkat
+  desc: KRSI symlinkat
+  condition: evt.type = krsi_symlinkat
+  output: "[KRSI SYMLINKAT] %proc.pid:%thread.tid (name: %proc.name) : target=%krsi.target linkdirfd=%krsi.linkdirfd linkpath=%krsi.linkpath res=%krsi.res iou_ret=%krsi.iou_ret"
+  priority: INFO
+
+- rule: KRSI linkat
+  desc: KRSI linkat
+  condition: evt.type = krsi_linkat
+  output: "[KRSI LINKAT] %proc.pid:%thread.tid (name: %proc.name) : olddirfd=%krsi.olddirfd oldpath=%krsi.oldpath newdirfd=%krsi.newdirfd newpath=%krsi.newpath flags=%krsi.flags res=%krsi.res iou_ret=%krsi.iou_ret"
+  priority: INFO
+
+- rule: KRSI unlinkat
+  desc: KRSI unlinkat
+  condition: evt.type = krsi_unlinkat
+  output: "[KRSI UNLINKAT] %proc.pid:%thread.tid (name: %proc.name) : path=%krsi.path dirfd=%krsi.dirfd flags=%krsi.flags res=%krsi.res iou_ret=%krsi.iou_ret"
+  priority: INFO
+
+- rule: KRSI mkdirat
+  desc: KRSI mkdirat
+  condition: evt.type = krsi_mkdirat
+  output: "[KRSI MKDIRAT] %proc.pid:%thread.tid (name: %proc.name) : path=%krsi.path dirfd=%krsi.dirfd mode=%krsi.mode res=%krsi.res iou_ret=%krsi.iou_ret"
+  priority: INFO
+
+- rule: KRSI open
+  desc: KRSI open received
+  condition: evt.type = krsi_open
+  output: "[KRSI OPEN] %proc.pid:%thread.tid (name: %proc.name) : %krsi.name"
+  priority: INFO
+
+# - rule: krsi generic
+#   desc: krsi generic
+#   condition: evt.type in ("krsi_open", "krsi_connect", "krsi_socket", "krsi_symlinkat", "krsi_linkat", "krsi_unlinkat", "krsi_mkdirat")
+#   output: "[KRSI_GENERIC] %evt.type %proc.pid:%thread.tid:%thread.tid (name: %proc.name)"
+#   priority: INFO
