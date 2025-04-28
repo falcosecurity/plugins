@@ -23,6 +23,17 @@ std::vector<std::string> my_plugin::get_async_event_sources()
 bool my_plugin::start_async_events(
         std::shared_ptr<falcosecurity::async_event_handler_factory> f)
 {
+    // We are already started. This can happen:
+    // * if `start_async_events` is called multiple times
+    // * during Falco hot reload dry-run checks; in that scenario,
+    //   the same library object gets opened once again, thus a new `my_plugin`
+    //   instance is created,
+    //   and all static variables are shared. Just return true and do nothing.
+    if(s_async_handler[ASYNC_HANDLER_DEFAULT] != nullptr)
+    {
+        return true;
+    }
+
     for(int i = 0; i < ASYNC_HANDLER_MAX; i++)
     {
         s_async_handler[i] = std::move(f->new_handler());
