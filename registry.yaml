@@ -22,7 +22,7 @@ reserved_sources: ["syscall", "internal", "plugins"]
 
 # The list of plugins officially recognized by the Falcosecurity organization.
 # Registering your plugin here is required to reserve a given name, source, or id.
-#
+# 
 # License IDs refer to the SPDX License List at https://spdx.org/licenses
 plugins:
   - name: plugin-id-zero-value
