@@ -308,7 +308,7 @@ gen_accessors!(sockaddr_in6 => {
 });
 
 gen_accessors!(sockaddr_un => {
-    no_read sun_path: *mut [i8; 108] // TODO(ekoops): use UNIX_PATH_MAX (108).
+    no_read sun_path: *mut [u8; 108] // TODO(ekoops): use UNIX_PATH_MAX (108).
 });
 
 gen_accessors!(unix_address => {

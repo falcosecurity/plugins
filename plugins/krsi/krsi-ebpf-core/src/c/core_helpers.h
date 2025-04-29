@@ -151,7 +151,7 @@ struct sockaddr_in6 {
 #define UNIX_PATH_MAX	108
 // Taken from 6.13.
 struct sockaddr_un {
-    char sun_path[UNIX_PATH_MAX];
+    unsigned char sun_path[UNIX_PATH_MAX];
 };
 
 // Taken from 6.13.
@@ -376,7 +376,7 @@ inline struct in6_addr *sockaddr_in6_sin6_addr(struct sockaddr_in6 *sockaddr) {
     return &sockaddr->sin6_addr;
 }
 
-inline char (*sockaddr_un_sun_path(struct sockaddr_un *sockaddr))[UNIX_PATH_MAX] {
+inline unsigned char (*sockaddr_un_sun_path(struct sockaddr_un *sockaddr))[UNIX_PATH_MAX] {
     return &sockaddr->sun_path;
 }
 
