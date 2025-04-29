@@ -54,7 +54,7 @@ fn main() {
     let mut cmd = Command::new("cargo");
     cmd.env("CARGO_ENCODED_RUSTFLAGS", "-Cdebuginfo=2");
     cmd.args([
-        "+nightly",
+        "+nightly-2025-03-15",
         "build",
         "-Z",
         "build-std=core",
