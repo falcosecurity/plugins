@@ -132,7 +132,7 @@ pub struct Config {
 /// Plugin metadata
 impl Plugin for KrsiPlugin {
     const NAME: &'static CStr = c"krsi";
-    const PLUGIN_VERSION: &'static CStr = c"0.0.1";
+    const PLUGIN_VERSION: &'static CStr = c"0.1.0";
     const DESCRIPTION: &'static CStr = c"Falco support for Kernel Runtime Security Instrumentation";
     const CONTACT: &'static CStr = c"https://falco.org";
     type ConfigType = Json<Config>;
