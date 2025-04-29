@@ -217,15 +217,27 @@ std::vector<falcosecurity::field_info> my_plugin::get_fields()
              "field may not be "
              "available yet.",
              req_both_arg},
-            {ft::FTYPE_STRING, "container.image.repository", "Repository",
+            {ft::FTYPE_STRING,
+             "container.image.repository",
+             "Repository",
              "The container image repository (e.g. falcosecurity/falco). In "
              "instances of userspace "
              "container engine lookup delays, this field may not be available "
-             "yet."},
-            {ft::FTYPE_STRING, "container.image.tag", "Image Tag",
+             "yet.",
+             {},
+             false,
+             {},
+             true}, // use as suggested output format
+            {ft::FTYPE_STRING,
+             "container.image.tag",
+             "Image Tag",
              "The container image tag (e.g. stable, latest). In instances of "
              "userspace container "
-             "engine lookup delays, this field may not be available yet."},
+             "engine lookup delays, this field may not be available yet.",
+             {},
+             false,
+             {},
+             true}, // use as suggested output format
             {ft::FTYPE_STRING, "container.image.digest", "Registry Digest",
              "The container image registry digest (e.g. "
              "sha256:"
@@ -311,18 +323,30 @@ std::vector<falcosecurity::field_info> my_plugin::get_fields()
              "Process Is Container Readiness",
              "'true' if this process is running as a part of the container's "
              "readiness probe."},
-            {ft::FTYPE_STRING, "k8s.pod.name", "Pod Name",
+            {ft::FTYPE_STRING,
+             "k8s.pod.name",
+             "Pod Name",
              "The Kubernetes pod name. This field is extracted from the "
              "container runtime socket "
              "simultaneously as we look up the 'container.*' fields. In cases "
              "of lookup delays, it may "
-             "not be available yet."},
-            {ft::FTYPE_STRING, "k8s.ns.name", "Namespace Name",
+             "not be available yet.",
+             {},
+             false,
+             {},
+             true}, // use as suggested output format
+            {ft::FTYPE_STRING,
+             "k8s.ns.name",
+             "Namespace Name",
              "The Kubernetes namespace name. This field is extracted from the "
              "container runtime socket "
              "simultaneously as we look up the 'container.*' fields. In cases "
              "of lookup delays, it may "
-             "not be available yet."},
+             "not be available yet.",
+             {},
+             false,
+             {},
+             true}, // use as suggested output format
             {ft::FTYPE_STRING, "k8s.pod.id", "Legacy Pod UID",
              "[LEGACY] The Kubernetes pod UID, e.g. "
              "3e41dc6b-08a8-44db-bc2a-3724b18ab19a. This legacy "
