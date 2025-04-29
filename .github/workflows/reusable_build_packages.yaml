@@ -25,7 +25,15 @@ jobs:
       - name: Install deps
         run: |
           apt update
-          apt install -y --no-install-recommends awscli build-essential autoconf libelf-dev libtool autotools-dev automake zip unzip ninja-build
+          apt install -y --no-install-recommends awscli build-essential autoconf libelf-dev libtool autotools-dev \
+            automake zip unzip ninja-build wget lsb-release software-properties-common gnupg
+
+      - name: Install updated clang version ⛓️
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod u+x llvm.sh
+          ./llvm.sh 19
+          ln -s /usr/bin/clang-19 /usr/bin/clang
 
       - name: Install updated cmake version ⛓️
         run: |
@@ -36,7 +44,13 @@ jobs:
           rm -rf /tmp/cmake-3.31.4-linux-$(uname -m)
 
       - name: Install Rust 🦀
-        uses: dtolnay/rust-toolchain@f9f65f52341ba3c1d5e1901c77dc7a9e58186191 # stable
+        uses: dtolnay/rust-toolchain@888c2e1ea69ab0d4330cbf0af1ecc7b68f368cc1 # v1
+        with:
+          toolchain: "1.86.0"
+
+      - name: Install bpf-linker
+        run: |
+          cargo install bpf-linker@0.9.14
 
       - name: Configure Rust cache
         uses: Swatinem/rust-cache@9d47c6ad4b02e050fd481d890b2ea34778fd09d6 #v2
@@ -45,7 +59,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
-          submodules: 'recursive'
+          submodules: "recursive"
 
       - name: Safe directory
         run: git config --global --add safe.directory $GITHUB_WORKSPACE

@@ -5,11 +5,13 @@ all: $(OUTPUT)
 
 .PHONY: $(OUTPUT)
 $(OUTPUT):
-	 cargo build --release && mv target/release/$(NAME) .
+	 rustup component add rust-src --toolchain nightly-2025-03-15-$(shell uname -m)-unknown-linux-gnu
+	 cargo build --release && mv target/release/$(OUTPUT) .
 
 .PHONY: clean
 clean:
 	cargo clean
+	@rm -f $(OUTPUT)
 
 .PHONY: fmt
 fmt:
