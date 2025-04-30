@@ -105,8 +105,9 @@ checksum = "1c7a8fb8a9fbf66c1f703fe16184d10ca0ee9d23be5b4436400408ba54a95005"
 
 [[package]]
 name = "falco_event"
-version = "0.4.2"
-source = "git+https://github.com/falcosecurity/plugin-sdk-rs?tag=v0.4.2#98553184b97d3a41f5cf66c31c387aeefd09703e"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a3d07d47493dd78a637f53f5c1d207d2a0b36c42050372eaf559dd4643db260"
 dependencies = [
  "anyhow",
  "bitflags",
@@ -122,8 +123,9 @@ dependencies = [
 
 [[package]]
 name = "falco_event_derive"
-version = "0.4.2"
-source = "git+https://github.com/falcosecurity/plugin-sdk-rs?tag=v0.4.2#98553184b97d3a41f5cf66c31c387aeefd09703e"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af275e411a52c5cbe87c5535e54e9266f0a0929f58da8e46f30dd069c67669da"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -132,8 +134,9 @@ dependencies = [
 
 [[package]]
 name = "falco_plugin"
-version = "0.4.2"
-source = "git+https://github.com/falcosecurity/plugin-sdk-rs?tag=v0.4.2#98553184b97d3a41f5cf66c31c387aeefd09703e"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09731e1281e2e2482465268ae2025a4c703594a2c72fe94c4511148b6bbd41c5"
 dependencies = [
  "anyhow",
  "bumpalo",
@@ -155,13 +158,15 @@ dependencies = [
 
 [[package]]
 name = "falco_plugin_api"
-version = "0.4.2"
-source = "git+https://github.com/falcosecurity/plugin-sdk-rs?tag=v0.4.2#98553184b97d3a41f5cf66c31c387aeefd09703e"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c243f02295ea9e29667a86fbb6bddd078f5f62c410f4b5346f8f480b3be30123"
 
 [[package]]
 name = "falco_plugin_derive"
-version = "0.4.2"
-source = "git+https://github.com/falcosecurity/plugin-sdk-rs?tag=v0.4.2#98553184b97d3a41f5cf66c31c387aeefd09703e"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "031772500fe12501b7b3560e8a9c3563d028b86fdf6523e90a0ba0a1011d01c4"
 dependencies = [
  "proc-macro2",
  "quote",
