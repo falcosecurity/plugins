@@ -7,58 +7,36 @@ The main difference between these operations and regular Falco events is that:
 * The arguments are collected directly from the kernel, making data collection more resilient against TOCTOU attacks and other conditions that could prevent Falco from getting accurate data
 * File path and network connection data resolution is performed directly in the kernel to provide more accurate information
 
-It generates the following types of events with parameters:
-* `krsi_open`: open operation, only generated if the operation is successful
-  * `krsi.name` (string) : full path to file
-  * `krsi.fd` (int) : fd number
-  * `krsi.file_index` (int) : file index (if available)
-  * `krsi.flags` (int) : flags (same as a regular file open from the Falco instrumentation)
-  * `krsi.mode` (int) : file mode
-  * `krsi.dev` (int) : device number
-  * `krsi.ino` (int) : inode number
-  * `krsi.iou_ret` (int) : io_uring return value (if available)
-* `krsi_socket`: 
-  * `krsi.fd` (int) : fd number (if available)
-  * `krsi.domain` (int) : socket domain
-  * `krsi.type` (int) : socket type
-  * `krsi.file_index` (int) : file index (if available)
-  * `krsi.iou_ret` (int) : io_uring return value (if available)
-* `krsi_connect`: 
-  * `krsi.fd` (int) : fd number (if available)
-  * `krsi.file_index` (int) : file index number (if available)
-  * `krsi.name` (string) : connection display name (e.g. `127.0.0.1:54321->10.0.0.1:8000`)
-  * `krsi.res` (int) : operation result (if available)
-  * `krsi.iou_ret` (int) : io_uring return value (if available)
-  * `krsi.sip` (IP address): server IP
-  * `krsi.sport` (int): server port
-  * `krsi.cip` (IP address): client IP
-  * `krsi.cport` (int): client port
-* `krsi_symlinkat`: 
-  * `krsi.target` (string) : target file name (oldpath)
-  * `krsi.linkdirfd` (int) : link dirfd
-  * `krsi.linkpath` (string) : link path
-  * `krsi.res` (int) : operation result (if available)
-  * `krsi.iou_ret` (int) : io_uring return value (if available)
-* `krsi_linkat`:
-  * `krsi.olddirfd` (int) : dir fd for the existing file
-  * `krsi.oldpath` (string) : path to the existing file
-  * `krsi.newdirfd` (int) : dir fd for the new link location
-  * `krsi.newpath` (string) : path for the new link location
-  * `krsi.flags` (int) : flags
-  * `krsi.res` (int) : operation result (if available)
-  * `krsi.iou_ret` (int) : io_uring return value (if available)
-* `krsi_unlinkat`:
-  * `krsi.path` (string) : operation path
-  * `krsi.dirfd` (int) : dirfd
-  * `krsi.flags` (int) : flags
-  * `krsi.res` (int) : operation result (if available)
-  * `krsi.iou_ret` (int) : io_uring return value (if available)
-* `krsi_mkdirat`:
-  * `krsi.path` (string) : operation path
-  * `krsi.dirfd` (int) : dirfd
-  * `krsi.mode` (int) : mode
-  * `krsi.res` (int) : operation result (if available)
-  * `krsi.iou_ret` (int) : io_uring return value (if available)
+## Supported fields
+
+<!-- README-PLUGIN-FIELDS -->
+|       NAME        |   TYPE   | ARG  |                                                                                                               DESCRIPTION                                                                                                               |
+|-------------------|----------|------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `krsi.name`       | `string` | None | Availability: `krsi_open`, `krsi_connect`.<br/>Per-event descriptions:<br/>- `krsi_open`: full path to file<br/>- `krsi_connect`: connection display name (e.g. `127.0.0.1:54321->10.0.0.1:8000`)                                       |
+| `krsi.fd`         | `uint64` | None | Availability: `krsi_open`, `krsi_socket`, `krsi_connect`.<br/>Description: fd number (if available)                                                                                                                                     |
+| `krsi.file_index` | `uint64` | None | Availability: `krsi_open`, `krsi_socket`, `krsi_connect`.<br/>Description: file index number (if available)                                                                                                                             |
+| `krsi.flags`      | `uint64` | None | Availability: `krsi_open`, `krsi_linkat`, `krsi_unlinkat`.<br/>Per-event descriptions:<br/>- `krsi_open`: open* flags, equivalent to open* syscall family flags<br/>- `krsi_linkat`: linkat flags<br/>- `krsi_unlinkat`: unlinkat flags |
+| `krsi.mode`       | `uint64` | None | Availability: `krsi_open`, `krsi_mkdirat`.<br/>Per-event descriptions:<br/>- `krsi_open`: open file mode<br/>- `krsi_mkdirat`: mkdirat mode, indicating permission to use                                                               |
+| `krsi.dev`        | `uint64` | None | Availability: `krsi_open`.<br/>Per-event descriptions:<br/>- `krsi_open`: file device number                                                                                                                                            |
+| `krsi.ino`        | `uint64` | None | Availability: `krsi_open`.<br/>Per-event descriptions:<br/>- `krsi_open`: file inode number                                                                                                                                             |
+| `krsi.domain`     | `uint64` | None | Availability: `krsi_socket`.<br/>Per-event descriptions:<br/>- `krsi_socket`: socket domain                                                                                                                                             |
+| `krsi.type`       | `uint64` | None | Availability: `krsi_socket`.<br/>Per-event descriptions:<br/>- `krsi_socket`: socket type                                                                                                                                               |
+| `krsi.iou_ret`    | `uint64` | None | Availability: `krsi_open`, `krsi_socket`, `krsi_connect`, `krsi_symlinkat`, `krsi_linkat`, `krsi_unlinkat`, `krsi_mkdirat`.<br/>Description: io_uring internal return value (if available)                                              |
+| `krsi.res`        | `uint64` | None | Availability: `krsi_connect`, `krsi_symlinkat`, `krsi_linkat`, `krsi_unlinkat`, `krsi_mkdirat`.<br/>Description: `operation return value (if available)                                                                                 |
+| `krsi.target`     | `string` | None | Availability: `krsi_symlinkat`.<br/>Per-event descriptions:<br/>- `krsi_symlinkat`: symbolic link target path                                                                                                                           |
+| `krsi.linkdirfd`  | `uint64` | None | Availability: `krsi_symlinkat`.<br/>Per-event descriptions:<br/>- `krsi_symlinkat`: symbolic link dir fd                                                                                                                                |
+| `krsi.linkpath`   | `string` | None | Availability: `krsi_symlinkat`.<br/>Per-event descriptions:<br/>- `krsi_symlinkat`: symbolic link path                                                                                                                                  |
+| `krsi.olddirfd`   | `uint64` | None | Availability: `krsi_linkat`.<br/>Per-event descriptions:<br/>- `krsi_linkat`: dir fd for the target path                                                                                                                                |
+| `krsi.newdirfd`   | `uint64` | None | Availability: `krsi_linkat`.<br/>Per-event descriptions:<br/>- `krsi_linkat`: dir fd for the link path                                                                                                                                  |
+| `krsi.dirfd`      | `uint64` | None | Availability: `krsi_unlinkat`, `krsi_mkdirat`.<br/>Description: dir fd of the path                                                                                                                                                      |
+| `krsi.path`       | `string` | None | Availability: `krsi_unlinkat`, `krsi_mkdirat`.<br/>Per-event descriptions:<br/>- `krsi_unlinkat`: path to be unlinked<br/>- `krsi_mkdirat`: path to the directory to be created                                                         |
+| `krsi.oldpath`    | `string` | None | Availability: `krsi_linkat`.<br/>Per-event descriptions:<br/>- `krsi_linkat`: target path                                                                                                                                               |
+| `krsi.newpath`    | `string` | None | Availability: `krsi_linkat`.<br/>Per-event descriptions:<br/>- `krsi_linkat`: link path                                                                                                                                                 |
+| `krsi.cip`        | `ipaddr` | None | Availability: `krsi_connect`.<br/>Per-event descriptions:<br/>- `krsi_connect`: client IP address                                                                                                                                       |
+| `krsi.sip`        | `ipaddr` | None | Availability: `krsi_connect`.<br/>Per-event descriptions:<br/>- `krsi_connect`: server IP address                                                                                                                                       |
+| `krsi.cport`      | `uint64` | None | Availability: `krsi_connect`.<br/>Per-event descriptions:<br/>- `krsi_connect`: client port                                                                                                                                             |
+| `krsi.sport`      | `uint64` | None | Availability: `krsi_connect`.<br/>Per-event descriptions:<br/>- `krsi_connect`: server port                                                                                                                                             |
+<!-- /README-PLUGIN-FIELDS -->
 
 ## Running and configuring the plugin
 
