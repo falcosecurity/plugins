@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.13.0
+
+* [`ecff28f`](https://github.com/falcosecurity/plugins/commit/ecff28f8) update(cloudtrail): bump to v0.13.0
+
+* [`ce4e3fc`](https://github.com/falcosecurity/plugins/commit/ce4e3fcf) build(deps): bump github.com/aws/aws-lambda-go in /plugins/cloudtrail
+
+* [`65c9973`](https://github.com/falcosecurity/plugins/commit/65c9973a) chore(cloudtrail): allow SQSOwnerAccount parameter
+
+* [`ba252e3`](https://github.com/falcosecurity/plugins/commit/ba252e31) update(plugins/cloudtrail): upgrade deps
+
+
+## v0.12.5
+
+* [`f2fe57d`](https://github.com/falcosecurity/plugins/commit/f2fe57d1) update(plugins/cloudtrail): support pre-ControlTower organization trails
+
+* [`2ea1083`](https://github.com/falcosecurity/plugins/commit/2ea10833) update(plugins/cloudtrail): upgrade direct deps
+
+
 ## v0.12.4
 
 * [`9663407`](https://github.com/falcosecurity/plugins/commit/96634075) build(deps): bump github.com/aws/aws-sdk-go-v2 in /plugins/cloudtrail
