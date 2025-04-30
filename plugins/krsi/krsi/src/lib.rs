@@ -757,31 +757,105 @@ impl ExtractPlugin for KrsiPlugin {
     const EVENT_TYPES: &'static [EventType] = &[EventType::ASYNCEVENT_E];
     const EVENT_SOURCES: &'static [&'static str] = &["syscall"];
     type ExtractContext = Option<KrsiEvent>;
+    #[rustfmt::skip]
     const EXTRACT_FIELDS: &'static [ExtractFieldInfo<Self>] = &[
-        field("krsi.name", &Self::extract_fd_name),
-        field("krsi.fd", &Self::extract_fd),
-        field("krsi.file_index", &Self::extract_file_index),
-        field("krsi.flags", &Self::extract_flags),
-        field("krsi.mode", &Self::extract_mode),
-        field("krsi.dev", &Self::extract_dev),
-        field("krsi.ino", &Self::extract_ino),
-        field("krsi.domain", &Self::extract_domain),
-        field("krsi.type", &Self::extract_type),
-        field("krsi.iou_ret", &Self::extract_iou_ret),
-        field("krsi.res", &Self::extract_res),
-        field("krsi.target", &Self::extract_target),
-        field("krsi.linkdirfd", &Self::extract_linkdirfd),
-        field("krsi.olddirfd", &Self::extract_olddirfd),
-        field("krsi.newdirfd", &Self::extract_newdirfd),
-        field("krsi.dirfd", &Self::extract_dirfd),
-        field("krsi.linkpath", &Self::extract_linkpath),
-        field("krsi.path", &Self::extract_path),
-        field("krsi.oldpath", &Self::extract_oldpath),
-        field("krsi.newpath", &Self::extract_newpath),
-        field("krsi.cip", &Self::extract_cip),
-        field("krsi.sip", &Self::extract_sip),
-        field("krsi.cport", &Self::extract_cport),
-        field("krsi.sport", &Self::extract_sport),
+        field("krsi.name", &Self::extract_fd_name).with_description(
+"Availability: `krsi_open`, `krsi_connect`.
+Per-event descriptions:
+- `krsi_open`: full path to file
+- `krsi_connect`: connection display name (e.g. `127.0.0.1:54321->10.0.0.1:8000`)"),
+        field("krsi.fd", &Self::extract_fd).with_description(
+"Availability: `krsi_open`, `krsi_socket`, `krsi_connect`.
+Description: fd number (if available)"),
+        field("krsi.file_index", &Self::extract_file_index).with_description(
+"Availability: `krsi_open`, `krsi_socket`, `krsi_connect`.
+Description: file index number (if available)"),
+        field("krsi.flags", &Self::extract_flags).with_description(
+"Availability: `krsi_open`, `krsi_linkat`, `krsi_unlinkat`.
+Per-event descriptions:
+- `krsi_open`: open* flags, equivalent to open* syscall family flags
+- `krsi_linkat`: linkat flags
+- `krsi_unlinkat`: unlinkat flags"),
+        field("krsi.mode", &Self::extract_mode).with_description(
+"Availability: `krsi_open`, `krsi_mkdirat`.
+Per-event descriptions:
+- `krsi_open`: open file mode
+- `krsi_mkdirat`: mkdirat mode, indicating permission to use"),
+        field("krsi.dev", &Self::extract_dev).with_description(
+"Availability: `krsi_open`.
+Per-event descriptions:
+- `krsi_open`: file device number"),
+        field("krsi.ino", &Self::extract_ino).with_description(
+"Availability: `krsi_open`.
+Per-event descriptions:
+- `krsi_open`: file inode number"),
+        field("krsi.domain", &Self::extract_domain).with_description(
+"Availability: `krsi_socket`.
+Per-event descriptions:
+- `krsi_socket`: socket domain"),
+        field("krsi.type", &Self::extract_type).with_description(
+"Availability: `krsi_socket`.
+Per-event descriptions:
+- `krsi_socket`: socket type"),
+        field("krsi.iou_ret", &Self::extract_iou_ret).with_description(
+"Availability: `krsi_open`, `krsi_socket`, `krsi_connect`, `krsi_symlinkat`, `krsi_linkat`, \
+`krsi_unlinkat`, `krsi_mkdirat`.
+Description: io_uring internal return value (if available)"),
+        field("krsi.res", &Self::extract_res).with_description(
+"Availability: `krsi_connect`, `krsi_symlinkat`, `krsi_linkat`, `krsi_unlinkat`, `krsi_mkdirat`.
+Description: `operation return value (if available)"),
+        field("krsi.target", &Self::extract_target).with_description(
+"Availability: `krsi_symlinkat`.
+Per-event descriptions:
+- `krsi_symlinkat`: symbolic link target path"),
+        field("krsi.linkdirfd", &Self::extract_linkdirfd).with_description(
+"Availability: `krsi_symlinkat`.
+Per-event descriptions:
+- `krsi_symlinkat`: symbolic link dir fd"),
+        field("krsi.linkpath", &Self::extract_linkpath).with_description(
+"Availability: `krsi_symlinkat`.
+Per-event descriptions:
+- `krsi_symlinkat`: symbolic link path"),
+        field("krsi.olddirfd", &Self::extract_olddirfd).with_description(
+"Availability: `krsi_linkat`.
+Per-event descriptions:
+- `krsi_linkat`: dir fd for the target path"),
+        field("krsi.newdirfd", &Self::extract_newdirfd).with_description(
+"Availability: `krsi_linkat`.
+Per-event descriptions:
+- `krsi_linkat`: dir fd for the link path"),
+        field("krsi.dirfd", &Self::extract_dirfd).with_description(
+"Availability: `krsi_unlinkat`, `krsi_mkdirat`.
+Description: dir fd of the path"),
+        field("krsi.path", &Self::extract_path).with_description(
+"Availability: `krsi_unlinkat`, `krsi_mkdirat`.
+Per-event descriptions:
+- `krsi_unlinkat`: path to be unlinked
+- `krsi_mkdirat`: path to the directory to be created"),
+        field("krsi.oldpath", &Self::extract_oldpath).with_description(
+"Availability: `krsi_linkat`.
+Per-event descriptions:
+- `krsi_linkat`: target path"),
+        field("krsi.newpath", &Self::extract_newpath).with_description(
+"Availability: `krsi_linkat`.
+Per-event descriptions:
+- `krsi_linkat`: link path"),
+        field("krsi.cip", &Self::extract_cip).with_description(
+"Availability: `krsi_connect`.
+Per-event descriptions:
+- `krsi_connect`: client IP address"),
+        field("krsi.sip", &Self::extract_sip).with_description(
+"Availability: `krsi_connect`.
+Per-event descriptions:
+- `krsi_connect`: server IP address"),
+        field("krsi.cport", &Self::extract_cport).with_description(
+"Availability: `krsi_connect`.
+Per-event descriptions:
+- `krsi_connect`: client port"),
+        field("krsi.sport", &Self::extract_sport).with_description(
+"Availability: `krsi_connect`.
+Per-event descriptions:
+- `krsi_connect`: server port"),
     ];
 }
 

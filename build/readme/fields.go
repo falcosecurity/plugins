@@ -48,6 +48,11 @@ func fieldsRenderArgRow(a *sdk.FieldEntryArg) string {
 	return strings.Join(res, ", ")
 }
 
+// renderNewLines replaces '\n' character with "<br/>" for proper table formatting.
+func renderNewLines(desc string) string {
+    return strings.ReplaceAll(desc, "\n", "<br/>")
+}
+
 func fieldsEditor(p *loader.Plugin, s string) (string, error) {
 	if !p.HasCapExtraction() {
 		return s, nil
@@ -74,7 +79,7 @@ func fieldsEditor(p *loader.Plugin, s string) (string, error) {
 			row = append(row, "`"+f.Type+"`")
 		}
 		row = append(row, fieldsRenderArgRow(&f.Arg))
-		row = append(row, f.Desc)
+		row = append(row, renderNewLines(f.Desc))
 		table.Append(row)
 	}
 	table.Render()
