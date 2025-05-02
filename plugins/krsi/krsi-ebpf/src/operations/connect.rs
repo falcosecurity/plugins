@@ -48,10 +48,10 @@ use krsi_common::EventType;
 use krsi_ebpf_core::{wrap_arg, File, IoKiocb, Sockaddr, Socket, Wrap};
 
 use crate::{
-    defs, helpers, iouring, operations::connect::maps::Info, shared_state, FileDescriptor,
+    defs, iouring, shared_state,
+    shared_state::op_info::{ConnectData, OpInfo},
+    FileDescriptor,
 };
-
-mod maps;
 
 #[fentry]
 fn io_connect_e(ctx: FEntryContext) -> u32 {
@@ -62,9 +62,12 @@ fn try_io_connect_e(ctx: FEntryContext) -> Result<u32, i64> {
     let pid = ctx.pid();
     let req: IoKiocb = wrap_arg(unsafe { ctx.arg(0) });
     let file_descriptor = iouring::io_kiocb_cqe_file_descriptor(&req)?;
-    const IS_IOU: bool = true;
-    let info = Info::new(file_descriptor, IS_IOU);
-    helpers::try_insert_map_entry(maps::get_info_map(), &pid, &info)
+    let op_info = OpInfo::Connect(ConnectData {
+        file_descriptor,
+        is_iou: true,
+        socktuple_len: 0,
+    });
+    shared_state::op_info::insert(pid, &op_info)
 }
 
 #[fentry]
@@ -76,10 +79,13 @@ fn __sys_connect_e(ctx: FEntryContext) -> u32 {
 #[allow(non_snake_case)]
 fn try___sys_connect_e(ctx: FEntryContext) -> Result<u32, i64> {
     let pid = ctx.pid();
-    let fd: c_int = unsafe { ctx.arg(0) };
-    const IS_IOU: bool = false;
-    let info = Info::new(FileDescriptor::Fd(fd as i32), IS_IOU);
-    helpers::try_insert_map_entry(maps::get_info_map(), &pid, &info)
+    let fd: i32 = unsafe { ctx.arg(0) };
+    let op_info = OpInfo::Connect(ConnectData {
+        file_descriptor: FileDescriptor::Fd(fd),
+        is_iou: false,
+        socktuple_len: 0,
+    });
+    shared_state::op_info::insert(pid, &op_info)
 }
 
 #[fexit]
@@ -91,7 +97,7 @@ fn __sys_connect_file_x(ctx: FExitContext) -> u32 {
 #[allow(non_snake_case)]
 fn try___sys_connect_file_x(ctx: FExitContext) -> Result<u32, i64> {
     let pid = ctx.pid();
-    let Some(info) = maps::get_info_map().get_ptr_mut(&pid) else {
+    let Some(OpInfo::Connect(op_data)) = (unsafe { shared_state::op_info::get_mut(pid) }) else {
         return Ok(0);
     };
 
@@ -111,8 +117,8 @@ fn try___sys_connect_file_x(ctx: FExitContext) -> Result<u32, i64> {
         0
     };
 
-    if unsafe { (*info).is_iou } {
-        unsafe { (*info).socktuple_len = socktuple_len };
+    if op_data.is_iou {
+        op_data.socktuple_len = socktuple_len;
         return Ok(0);
     }
 
@@ -124,7 +130,7 @@ fn try___sys_connect_file_x(ctx: FExitContext) -> Result<u32, i64> {
 
     // Parameter 4: fd.
     // Parameter 5: file_index.
-    auxmap.store_file_descriptor_param(unsafe { (*info).file_descriptor });
+    auxmap.store_file_descriptor_param(op_data.file_descriptor);
 
     auxmap.finalize_event_header();
     auxmap.submit_event();
@@ -138,18 +144,17 @@ fn io_connect_x(ctx: FExitContext) -> u32 {
 
 fn try_io_connect_x(ctx: FExitContext) -> Result<u32, i64> {
     let pid = ctx.pid();
-    let info_map = maps::get_info_map();
-    let Some(&info) = (unsafe { info_map.get(&pid) }) else {
+    let Some(OpInfo::Connect(op_data)) = (unsafe { shared_state::op_info::get(pid) }) else {
         return Err(1);
     };
 
-    let _ = helpers::try_remove_map_entry(info_map, &pid);
+    let _ = shared_state::op_info::remove(pid);
 
     let auxmap = shared_state::auxiliary_map().ok_or(1)?;
     auxmap.preload_event_header(EventType::Connect);
 
     // Parameter 1: tuple. (Already populated on fexit:__sys_connect_file)
-    auxmap.skip_param(info.socktuple_len);
+    auxmap.skip_param(op_data.socktuple_len);
 
     // Parameter 2: iou_ret.
     let iou_ret: i64 = unsafe { ctx.arg(2) };
@@ -164,7 +169,7 @@ fn try_io_connect_x(ctx: FExitContext) -> Result<u32, i64> {
 
     // Parameter 4: fd.
     // Parameter 5: file_index.
-    auxmap.store_file_descriptor_param(info.file_descriptor);
+    auxmap.store_file_descriptor_param(op_data.file_descriptor);
 
     auxmap.finalize_event_header();
     auxmap.submit_event();
@@ -174,5 +179,5 @@ fn try_io_connect_x(ctx: FExitContext) -> Result<u32, i64> {
 #[fexit]
 fn __sys_connect_x(ctx: FExitContext) -> u32 {
     let pid = ctx.pid();
-    helpers::try_remove_map_entry(maps::get_info_map(), &pid).unwrap_or(1)
+    shared_state::op_info::remove(pid).unwrap_or(1)
 }

@@ -51,9 +51,10 @@ use krsi_common::{
 };
 use krsi_ebpf_core::{wrap_arg, Filename};
 
-use crate::{defs, helpers, scap, shared_state};
-
-mod maps;
+use crate::{
+    defs, scap, shared_state,
+    shared_state::op_info::{MkdiratData, OpInfo},
+};
 
 #[fentry]
 fn io_mkdirat_e(ctx: FEntryContext) -> u32 {
@@ -62,8 +63,8 @@ fn io_mkdirat_e(ctx: FEntryContext) -> u32 {
 
 fn try_io_mkdirat_e(ctx: FEntryContext) -> Result<u32, i64> {
     let pid = ctx.pid();
-    const ZERO: u32 = 0;
-    helpers::try_insert_map_entry(maps::get_iou_pids_map(), &pid, &ZERO)
+    let op_info = OpInfo::Mkdirat(MkdiratData {});
+    shared_state::op_info::insert(pid, &op_info)
 }
 
 #[fexit]
@@ -73,7 +74,10 @@ fn do_mkdirat_x(ctx: FExitContext) -> u32 {
 
 fn try_do_mkdirat_x(ctx: FExitContext) -> Result<u32, i64> {
     let pid = ctx.pid();
-    let is_iou = unsafe { maps::get_iou_pids_map().get(&pid) }.is_some();
+    let is_iou = match unsafe { shared_state::op_info::get(pid) } {
+        Some(OpInfo::Mkdirat(_)) => true,
+        _ => false,
+    };
     let is_mkdirat_sc_support_enabled =
         shared_state::is_support_enabled(FeatureFlags::SYSCALLS, OpFlags::MKDIRAT);
     if !is_iou && !is_mkdirat_sc_support_enabled {
@@ -116,7 +120,7 @@ fn io_mkdirat_x(ctx: FExitContext) -> u32 {
 
 fn try_io_mkdirat_x(ctx: FExitContext) -> Result<u32, i64> {
     let pid = ctx.pid();
-    let _ = helpers::try_remove_map_entry(maps::get_iou_pids_map(), &pid);
+    let _ = shared_state::op_info::remove(pid);
 
     let auxmap = shared_state::auxiliary_map().ok_or(1)?;
     // Don't call auxmap.preload_event_header, because we want to continue to append to the work

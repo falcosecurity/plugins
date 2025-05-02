@@ -73,10 +73,10 @@ use krsi_common::{scap as scap_shared, EventType};
 use krsi_ebpf_core::{wrap_arg, File};
 
 use crate::{
-    defs, files, helpers, operations::open::maps::Info, scap, shared_state, FileDescriptor,
+    defs, files, scap, shared_state,
+    shared_state::op_info::{OpInfo, OpenData},
+    FileDescriptor,
 };
-
-mod maps;
 
 #[fentry]
 fn do_sys_openat2_e(ctx: FEntryContext) -> u32 {
@@ -85,8 +85,10 @@ fn do_sys_openat2_e(ctx: FEntryContext) -> u32 {
 
 fn try_openat2_e(ctx: FEntryContext) -> Result<u32, i64> {
     let pid = ctx.pid();
-    let info = Info::new();
-    helpers::try_insert_map_entry(maps::get_info_map(), &pid, &info)
+    let op_info = OpInfo::Open(OpenData {
+        fd_installed: false,
+    });
+    shared_state::op_info::insert(pid, &op_info)
 }
 
 #[fentry]
@@ -101,18 +103,17 @@ pub fn security_file_open_x(ctx: FExitContext) -> u32 {
 
 fn try_security_file_open_x(ctx: FExitContext) -> Result<u32, i64> {
     let pid = ctx.pid();
-    let info_map = maps::get_info_map();
-    if unsafe { info_map.get(&pid) }.is_none() {
+    if unsafe { shared_state::op_info::get(pid) }.is_none() {
         return Ok(0);
     };
 
     let ret: i64 = unsafe { ctx.arg(1) };
     if ret != 0 {
-        return helpers::try_remove_map_entry(info_map, &pid);
+        return shared_state::op_info::remove(pid);
     }
 
     let Some(auxmap) = shared_state::auxiliary_map() else {
-        return helpers::try_remove_map_entry(info_map, &pid);
+        return shared_state::op_info::remove(pid);
     };
 
     auxmap.preload_event_header(EventType::Open);
@@ -122,7 +123,7 @@ fn try_security_file_open_x(ctx: FExitContext) -> Result<u32, i64> {
     let path = file.f_path();
     match unsafe { auxmap.store_path_param(&path, defs::MAX_PATH) } {
         Ok(_) => Ok(0),
-        Err(_) => helpers::try_remove_map_entry(info_map, &pid),
+        Err(_) => shared_state::op_info::remove(pid),
     }
 }
 
@@ -132,7 +133,7 @@ pub fn try_fd_install_x(
     file: &File,
 ) -> Result<u32, i64> {
     let pid = ctx.pid();
-    let Some(info) = maps::get_info_map().get_ptr_mut(&pid) else {
+    let Some(OpInfo::Open(op_data)) = (unsafe { shared_state::op_info::get_mut(pid) }) else {
         return Ok(0);
     };
 
@@ -168,7 +169,7 @@ pub fn try_fd_install_x(
     // Parameter 7: ino.
     auxmap.store_param(ino);
 
-    unsafe { (*info).fd_installed = true };
+    op_data.fd_installed = true;
 
     Ok(0)
 }
@@ -180,13 +181,14 @@ pub fn io_openat2_x(ctx: FExitContext) -> u32 {
 
 fn try_openat2_x(ctx: FExitContext) -> Result<u32, i64> {
     let pid = ctx.pid();
-    let info_map = maps::get_info_map();
-    let Some(info) = (unsafe { info_map.get(&pid) }) else {
+    let Some(OpInfo::Open(OpenData { fd_installed })) =
+        (unsafe { shared_state::op_info::get(pid) })
+    else {
         return Ok(0);
     };
-    let _ = helpers::try_remove_map_entry(info_map, &pid);
+    let _ = shared_state::op_info::remove(pid);
 
-    if !info.fd_installed {
+    if !fd_installed {
         return Ok(0);
     }
 
@@ -210,13 +212,14 @@ pub fn do_sys_openat2_x(ctx: FExitContext) -> u32 {
 
 fn try_do_sys_openat2_x(ctx: FExitContext) -> Result<u32, i64> {
     let pid = ctx.pid();
-    let info_map = maps::get_info_map();
-    let Some(info) = (unsafe { info_map.get(&pid) }) else {
+    let Some(&OpInfo::Open(OpenData { fd_installed })) =
+        (unsafe { shared_state::op_info::get(pid) })
+    else {
         return Ok(0);
     };
-    let _ = helpers::try_remove_map_entry(info_map, &pid);
+    let _ = shared_state::op_info::remove(pid);
 
-    if !info.fd_installed {
+    if !fd_installed {
         return Ok(0);
     }
 
