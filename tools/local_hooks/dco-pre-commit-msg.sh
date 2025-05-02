@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (C) 2025 The Falco Authors.
 #
@@ -12,8 +14,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-#!/bin/bash
 
 # This is a git pre-commit-msg hook which automatically add a DCO signed-off message if one is missing.
 
