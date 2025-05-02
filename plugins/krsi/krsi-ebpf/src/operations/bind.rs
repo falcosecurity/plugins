@@ -43,8 +43,6 @@ limitations under the License.
 //! 1. `fentry:io_bind`
 //! 2. `fexit:io_bind` | `fexit:__sys_bind`
 
-mod maps;
-
 use aya_ebpf::{
     macros::{fentry, fexit},
     programs::{FEntryContext, FExitContext},
@@ -53,7 +51,11 @@ use aya_ebpf::{
 use krsi_common::EventType;
 use krsi_ebpf_core::{wrap_arg, IoAsyncMsghdr, IoKiocb, Sockaddr};
 
-use crate::{helpers, iouring, shared_state, FileDescriptor};
+use crate::{
+    iouring, shared_state,
+    shared_state::op_info::{BindData, OpInfo},
+    FileDescriptor,
+};
 
 #[fentry]
 fn io_bind_e(ctx: FEntryContext) -> u32 {
@@ -64,7 +66,8 @@ fn try_io_bind_e(ctx: FEntryContext) -> Result<u32, i64> {
     let pid = ctx.pid();
     let req: IoKiocb = wrap_arg(unsafe { ctx.arg(0) });
     let file_descriptor = iouring::io_kiocb_cqe_file_descriptor(&req)?;
-    helpers::try_insert_map_entry(maps::get_file_descriptors_map(), &pid, &file_descriptor)
+    let op_info = OpInfo::Bind(BindData { file_descriptor });
+    shared_state::op_info::insert(pid, &op_info)
 }
 
 #[fexit]
@@ -74,12 +77,13 @@ fn io_bind_x(ctx: FExitContext) -> u32 {
 
 fn try_io_bind_x(ctx: FExitContext) -> Result<u32, i64> {
     let pid = ctx.pid();
-    let file_descriptors_map = maps::get_file_descriptors_map();
-    let Some(&file_descriptor) = (unsafe { file_descriptors_map.get(&pid) }) else {
+    let Some(OpInfo::Bind(BindData { file_descriptor })) =
+        (unsafe { shared_state::op_info::get(pid) })
+    else {
         return Err(1);
     };
 
-    let _ = helpers::try_remove_map_entry(file_descriptors_map, &pid);
+    let _ = shared_state::op_info::remove(pid);
 
     let auxmap = shared_state::auxiliary_map().ok_or(1)?;
     auxmap.preload_event_header(EventType::Bind);
@@ -103,7 +107,7 @@ fn try_io_bind_x(ctx: FExitContext) -> Result<u32, i64> {
 
     // Parameter 4: fd.
     // Parameter 5: file_index.
-    auxmap.store_file_descriptor_param(file_descriptor);
+    auxmap.store_file_descriptor_param(*file_descriptor);
 
     auxmap.finalize_event_header();
     auxmap.submit_event();

@@ -26,7 +26,6 @@ use operations::*;
 mod auxmap;
 mod defs;
 mod files;
-mod helpers;
 mod iouring;
 mod operations;
 mod scap;

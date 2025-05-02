@@ -22,6 +22,8 @@ use aya_ebpf::{
 };
 use krsi_common::flags::{FeatureFlags, OpFlags};
 
+pub mod op_info;
+
 #[map]
 // The number of max entries is set, in userspace, to the value of available CPU.
 static AUXILIARY_MAPS: Array<crate::auxmap::AuxiliaryMap> = Array::with_max_entries(0, 0);
