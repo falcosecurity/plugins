@@ -14,19 +14,23 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-use falco_plugin::anyhow::Error;
-use falco_plugin::base::{Json, Plugin};
-use falco_plugin::event::events::types::EventType;
-use falco_plugin::extract::{EventInput, ExtractFieldInfo, ExtractPlugin, ExtractRequest, field};
-use falco_plugin::schemars::JsonSchema;
-use falco_plugin::serde::Deserialize;
-use falco_plugin::source::{EventBatch, PluginEvent, SourcePlugin, SourcePluginInstance};
-use falco_plugin::tables::TablesInput;
-use falco_plugin::{FailureReason, extract_plugin, plugin, source_plugin};
-use rand::Rng;
-use rand::rngs::ThreadRng;
-use serde_json;
 use std::ffi::{CStr, CString};
+
+use falco_plugin::{
+    FailureReason,
+    anyhow::Error,
+    base::{Json, Plugin},
+    event::events::types::EventType,
+    extract::{EventInput, ExtractFieldInfo, ExtractPlugin, ExtractRequest, field},
+    extract_plugin, plugin,
+    schemars::JsonSchema,
+    serde::Deserialize,
+    source::{EventBatch, PluginEvent, SourcePlugin, SourcePluginInstance},
+    source_plugin,
+    tables::TablesInput,
+};
+use rand::{Rng, rngs::ThreadRng};
+use serde_json;
 
 /// Plugin configuration
 #[derive(JsonSchema, Deserialize)]
