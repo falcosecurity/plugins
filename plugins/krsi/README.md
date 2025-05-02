@@ -106,23 +106,4 @@ A small utility to generate syscalls/io_uring events is provided under `test/`. 
 
 ### Enforcing coding style and repo policies locally
 
-This repo supports enforcing coding style and policies locally through the `pre-commit` framework. `pre-commit` allows
-you to automatically install `git-hooks` that will be executed at every new commit. The following is the list of
-`git-hooks` defined in `.pre-commit-config.yaml`:
-1. the `rust-fmt` hook - a `pre-commit` git hook running `rust fmt` on the staged changes
-2. the `dco` hook - a `pre-commit-msg` git hook running adding the `DCO` on the commit if not present
-
-The following steps describe how to install these hooks.
-
-##### Step 1
-
-Install `pre-commit` framework following the [official documentation](https://pre-commit.com/#installation).
-
-> __Please note__: you have to follow only the "Installation" section.
-
-#### Step 2
-
-Install `pre-commit` git hooks:
-```bash
-pre-commit install --hook-type pre-commit --hook-type prepare-commit-msg  --overwrite
-```
+See the [repo corresponding section](../../README.md#enforcing-coding-style-and-repo-policies-locally) for more details.

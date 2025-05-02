@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+edition = "2021"
+style_edition = "2021"
 group_imports = "StdExternalCrate"
 imports_granularity = "Crate"
 reorder_imports = true

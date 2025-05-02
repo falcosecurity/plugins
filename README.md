@@ -94,6 +94,30 @@ If you want to help and wish to contribute, please review our [contribution guid
 
 If you wish to contribute a plugin to The Falco Project, simply open a Pull Request to add your plugin to the `/plugins` folder and [update the registry accordingly](./docs/registering-a-plugin.md). Note that to be hosted in this repository, plugins must be licensed under the [Apache 2.0 License](./LICENSE).
 
+### Enforcing coding style and repo policies locally
+
+This repository supports enforcing coding style and policies locally through the `pre-commit` framework. `pre-commit`
+allows to automatically install `git-hooks` that will be executed at every new commit. The following is the list of
+`git-hooks` defined in `.pre-commit-config.yaml` (notice that some of them only target files written in a specific
+language):
+1. the `rust-fmt` hook - a `pre-commit` git hook running `rust fmt` on the staged changes
+2. the `dco` hook - a `pre-commit-msg` git hook running adding the `DCO` on the commit if not present
+
+The following steps describe how to install these hooks.
+
+##### Step 1
+
+Install `pre-commit` framework following the [official documentation](https://pre-commit.com/#installation).
+
+> __Please note__: you have to follow only the "Installation" section.
+
+#### Step 2
+
+Install `pre-commit` git hooks:
+```bash
+pre-commit install --hook-type pre-commit --hook-type prepare-commit-msg  --overwrite
+```
+
 ## License
 
 This project is licensed to you under the [Apache 2.0 Open Source License](./LICENSE).
