@@ -47,7 +47,9 @@ use aya_ebpf::{
 use krsi_common::EventType;
 use krsi_ebpf_core::{wrap_arg, File, IoKiocb, Sockaddr, Socket, Wrap};
 
-use crate::{defs, helpers, iouring, operations::connect::maps::Info, shared_maps, FileDescriptor};
+use crate::{
+    defs, helpers, iouring, operations::connect::maps::Info, shared_state, FileDescriptor,
+};
 
 mod maps;
 
@@ -93,7 +95,7 @@ fn try___sys_connect_file_x(ctx: FExitContext) -> Result<u32, i64> {
         return Ok(0);
     };
 
-    let auxmap = shared_maps::get_auxiliary_map().ok_or(1)?;
+    let auxmap = shared_state::auxiliary_map().ok_or(1)?;
     auxmap.preload_event_header(EventType::Connect);
 
     let ret: c_int = unsafe { ctx.arg(4) };
@@ -143,7 +145,7 @@ fn try_io_connect_x(ctx: FExitContext) -> Result<u32, i64> {
 
     let _ = helpers::try_remove_map_entry(info_map, &pid);
 
-    let auxmap = shared_maps::get_auxiliary_map().ok_or(1)?;
+    let auxmap = shared_state::auxiliary_map().ok_or(1)?;
     auxmap.preload_event_header(EventType::Connect);
 
     // Parameter 1: tuple. (Already populated on fexit:__sys_connect_file)

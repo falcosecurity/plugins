@@ -73,7 +73,7 @@ use krsi_common::{scap as scap_shared, EventType};
 use krsi_ebpf_core::{wrap_arg, File};
 
 use crate::{
-    defs, files, helpers, operations::open::maps::Info, scap, shared_maps, FileDescriptor,
+    defs, files, helpers, operations::open::maps::Info, scap, shared_state, FileDescriptor,
 };
 
 mod maps;
@@ -111,7 +111,7 @@ fn try_security_file_open_x(ctx: FExitContext) -> Result<u32, i64> {
         return helpers::try_remove_map_entry(info_map, &pid);
     }
 
-    let Some(auxmap) = shared_maps::get_auxiliary_map() else {
+    let Some(auxmap) = shared_state::auxiliary_map() else {
         return helpers::try_remove_map_entry(info_map, &pid);
     };
 
@@ -136,7 +136,7 @@ pub fn try_fd_install_x(
         return Ok(0);
     };
 
-    let auxmap = shared_maps::get_auxiliary_map().ok_or(1)?;
+    let auxmap = shared_state::auxiliary_map().ok_or(1)?;
     // Don't call auxmap.preload_event_header, because we want to continue to append to the work
     // already done on `fexit:security_file_open`.
 
@@ -190,7 +190,7 @@ fn try_openat2_x(ctx: FExitContext) -> Result<u32, i64> {
         return Ok(0);
     }
 
-    let auxmap = shared_maps::get_auxiliary_map().ok_or(1)?;
+    let auxmap = shared_state::auxiliary_map().ok_or(1)?;
     // Don't call auxmap.preload_event_header, because we want to continue to append to the work
     // already done on `fexit:fd_install` or `fexit:io_fixed_fd_install`.
 
@@ -220,7 +220,7 @@ fn try_do_sys_openat2_x(ctx: FExitContext) -> Result<u32, i64> {
         return Ok(0);
     }
 
-    let auxmap = shared_maps::get_auxiliary_map().ok_or(1)?;
+    let auxmap = shared_state::auxiliary_map().ok_or(1)?;
     // Don't call auxmap.preload_event_header, because we want to continue to append to the work
     // already done on `fexit:fd_install`.
 
