@@ -53,7 +53,7 @@ use aya_ebpf::{
 use krsi_common::EventType;
 use krsi_ebpf_core::{wrap_arg, IoAsyncMsghdr, IoKiocb, Sockaddr};
 
-use crate::{helpers, iouring, shared_maps, FileDescriptor};
+use crate::{helpers, iouring, shared_state, FileDescriptor};
 
 #[fentry]
 fn io_bind_e(ctx: FEntryContext) -> u32 {
@@ -81,7 +81,7 @@ fn try_io_bind_x(ctx: FExitContext) -> Result<u32, i64> {
 
     let _ = helpers::try_remove_map_entry(file_descriptors_map, &pid);
 
-    let auxmap = shared_maps::get_auxiliary_map().ok_or(1)?;
+    let auxmap = shared_state::auxiliary_map().ok_or(1)?;
     auxmap.preload_event_header(EventType::Bind);
 
     // Parameter 1: iou_ret.
@@ -118,7 +118,7 @@ fn __sys_bind_x(ctx: FExitContext) -> u32 {
 
 #[allow(non_snake_case)]
 fn try___sys_bind_x(ctx: FExitContext) -> Result<u32, i64> {
-    let auxmap = shared_maps::get_auxiliary_map().ok_or(1)?;
+    let auxmap = shared_state::auxiliary_map().ok_or(1)?;
     auxmap.preload_event_header(EventType::Bind);
 
     // Parameter 1: iou_ret.

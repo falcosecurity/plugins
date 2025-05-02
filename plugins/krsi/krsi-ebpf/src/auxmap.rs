@@ -30,7 +30,7 @@ use krsi_ebpf_core::{
     read_field, Filename, Path, Sock, Sockaddr, SockaddrIn, SockaddrIn6, SockaddrUn, Socket, Wrap,
 };
 
-use crate::{defs, get_event_num_params, scap, shared_maps, sockets, FileDescriptor};
+use crate::{defs, get_event_num_params, scap, shared_state, sockets, FileDescriptor};
 
 // Event maximum size.
 const MAX_EVENT_SIZE: u64 = 8 * 1024;
@@ -60,7 +60,7 @@ impl AuxiliaryMap {
         let evt_hdr = self.event_header_mut();
         let nparams = get_event_num_params(event_type);
         evt_hdr.nparams = nparams as u32;
-        evt_hdr.ts = shared_maps::get_boot_time() + unsafe { bpf_ktime_get_boot_ns() };
+        evt_hdr.ts = shared_state::boot_time() + unsafe { bpf_ktime_get_boot_ns() };
         evt_hdr.tgid_pid = bpf_get_current_pid_tgid();
         evt_hdr.evt_type = event_type;
         self.payload_pos =
@@ -461,7 +461,7 @@ impl AuxiliaryMap {
             return;
         }
 
-        let _ = shared_maps::get_events_ringbuf()
-            .output(self.data.as_ref(), BPF_RB_FORCE_WAKEUP as u64);
+        let _ =
+            shared_state::events_ringbuf().output(self.data.as_ref(), BPF_RB_FORCE_WAKEUP as u64);
     }
 }

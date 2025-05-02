@@ -53,7 +53,7 @@ use aya_ebpf::{
 use krsi_common::EventType;
 use krsi_ebpf_core::{wrap_arg, Filename, IoKiocb, IoUnlink};
 
-use crate::{defs, helpers, scap, shared_maps};
+use crate::{defs, helpers, scap, shared_state};
 
 #[fentry]
 fn io_unlinkat_e(ctx: FEntryContext) -> u32 {
@@ -111,7 +111,7 @@ fn try_do_unlinkat_x(ctx: FExitContext) -> Result<u32, i64> {
         return Ok(0);
     };
 
-    let auxmap = shared_maps::get_auxiliary_map().ok_or(1)?;
+    let auxmap = shared_state::auxiliary_map().ok_or(1)?;
     auxmap.preload_event_header(EventType::Unlinkat);
 
     // Parameter 1: dirfd.
@@ -176,7 +176,7 @@ fn try_io_unlinkat_x(ctx: FExitContext) -> Result<u32, i64> {
     let pid = ctx.pid();
     let _ = helpers::try_remove_map_entry(maps::get_info_map(), &pid);
 
-    let auxmap = shared_maps::get_auxiliary_map().ok_or(1)?;
+    let auxmap = shared_state::auxiliary_map().ok_or(1)?;
     // Don't call auxmap.preload_event_header, because we want to continue to append to the work
     // already done on `fexit:do_unlinkat` or `fexit:do_rmdir`.
 

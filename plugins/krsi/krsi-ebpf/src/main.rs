@@ -30,7 +30,7 @@ mod helpers;
 mod iouring;
 mod operations;
 mod scap;
-mod shared_maps;
+mod shared_state;
 mod sockets;
 
 #[cfg(not(test))]

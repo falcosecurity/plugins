@@ -43,7 +43,7 @@ use aya_ebpf::{cty::c_int, macros::fexit, programs::FExitContext};
 use krsi_common::EventType;
 use krsi_ebpf_core::{wrap_arg, IoKiocb, IoSocket};
 
-use crate::{defs, shared_maps, FileDescriptor};
+use crate::{defs, shared_state, FileDescriptor};
 
 #[fexit]
 fn io_socket_x(ctx: FExitContext) -> u32 {
@@ -51,7 +51,7 @@ fn io_socket_x(ctx: FExitContext) -> u32 {
 }
 
 fn try_io_socket_x(ctx: FExitContext) -> Result<u32, i64> {
-    let auxmap = shared_maps::get_auxiliary_map().ok_or(1)?;
+    let auxmap = shared_state::auxiliary_map().ok_or(1)?;
     auxmap.preload_event_header(EventType::Socket);
 
     let req: IoKiocb = wrap_arg(unsafe { ctx.arg(0) });
@@ -123,7 +123,7 @@ fn __sys_socket_x(ctx: FExitContext) -> u32 {
 
 #[allow(non_snake_case)]
 fn try___sys_socket_x(ctx: FExitContext) -> Result<u32, i64> {
-    let auxmap = shared_maps::get_auxiliary_map().ok_or(1)?;
+    let auxmap = shared_state::auxiliary_map().ok_or(1)?;
     auxmap.preload_event_header(EventType::Socket);
 
     // Parameter 1: iou_ret.
