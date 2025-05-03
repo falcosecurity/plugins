@@ -12,6 +12,17 @@ updates:
       gomod:
         update-types:
           - "patch"
+  - package-ecosystem: cargo
+    directories:
+      - /plugins/*
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      cargo:
+        update-types:
+          - "minor"
+          - "patch"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
