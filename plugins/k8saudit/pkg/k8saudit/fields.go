@@ -51,6 +51,11 @@ func (k *Plugin) Fields() []sdk.FieldEntry {
 		},
 		{
 			Type: "string",
+			Name: "ka.validations.admission.policy.failure",
+			Desc: "The validation failure reason from a Validation Admission Policy",
+		},
+		{
+			Type: "string",
 			Name: "ka.auth.openshift.username",
 			Desc: "The user name performing the openshift authentication operation. Only available on openshift clusters",
 		},
