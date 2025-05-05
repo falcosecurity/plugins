@@ -31,9 +31,9 @@ anyhow = { version = "1", default-features = false }
 #
 # See https://github.com/clap-rs/clap/blob/61f5ee5/clap_builder/src/lib.rs#L15.
 clap = { version = "4.5.20", default-features = false, features = ["std"] }
-env_logger = { version = "0.11.5", default-features = false }
-libc = { version = "0.2.159", default-features = false }
-log = { version = "0.4.22", default-features = false }
+env_logger = { version = "0.11.8", default-features = false }
+libc = { version = "0.2.172", default-features = false }
+log = { version = "0.4.27", default-features = false }
 tokio = { version = "1.44.2", default-features = false }
 which = { version = "6.0.0", default-features = false }
 
