@@ -61,9 +61,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.97"
+version = "1.0.98"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dcfed56ad506cb2c684a14971b8861fdc3baaaae314b9e5f9bb532cbe3ba7a4f"
+checksum = "e16d2d3311acee920a9eb8d33b8cbc1787ce4a264e85f964c2404b969bdcd487"
 
 [[package]]
 name = "assert_matches"
@@ -327,9 +327,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.2.16"
+version = "1.2.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be714c154be609ec7f5dad223a33bf1482fff90472de28f7362806e6d4832b8c"
+checksum = "8691782945451c1c383942c4874dbe63814f61cb57ef773cda2972682b7bb3c0"
 dependencies = [
  "shlex",
 ]
@@ -427,9 +427,9 @@ dependencies = [
 
 [[package]]
 name = "env_logger"
-version = "0.11.7"
+version = "0.11.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3716d7a920fb4fac5d84e9d4bce8ceb321e9414b4409da61b07b75c1e3d0697"
+checksum = "13c863f0904021b108aa8b2f55046443e6b1ebde8fd4a15c399893aae4fa069f"
 dependencies = [
  "env_filter",
  "log",
@@ -453,9 +453,9 @@ dependencies = [
 
 [[package]]
 name = "falco_event"
-version = "0.4.2"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "70e4baf2b2f5620c735dee70bffdbca1f6774bd62fc0a4e690c5d122cf5133c5"
+checksum = "5a3d07d47493dd78a637f53f5c1d207d2a0b36c42050372eaf559dd4643db260"
 dependencies = [
  "anyhow",
  "bitflags",
@@ -471,9 +471,9 @@ dependencies = [
 
 [[package]]
 name = "falco_event_derive"
-version = "0.4.2"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "05ebb246bdce2e53ba655fbb86cd39c9d05c0b58b1dd85b81cf851999a5459f2"
+checksum = "af275e411a52c5cbe87c5535e54e9266f0a0929f58da8e46f30dd069c67669da"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -482,9 +482,9 @@ dependencies = [
 
 [[package]]
 name = "falco_plugin"
-version = "0.4.2"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e34e6d958237731f6f06894661d8838ab9ff7416b4bfae27c3abd55dcb598ae"
+checksum = "09731e1281e2e2482465268ae2025a4c703594a2c72fe94c4511148b6bbd41c5"
 dependencies = [
  "anyhow",
  "bumpalo",
@@ -506,15 +506,15 @@ dependencies = [
 
 [[package]]
 name = "falco_plugin_api"
-version = "0.4.2"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "54b936e5a1904f55126f6621208bb4c73dab690c806ef76dd1eb0c87ca8c4e21"
+checksum = "c243f02295ea9e29667a86fbb6bddd078f5f62c410f4b5346f8f480b3be30123"
 
 [[package]]
 name = "falco_plugin_derive"
-version = "0.4.2"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "238fa4e84b34777ce2746b23d463f0cb7b9bbb46a6e9973a723d5ace6daddeee"
+checksum = "031772500fe12501b7b3560e8a9c3563d028b86fdf6523e90a0ba0a1011d01c4"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -700,9 +700,9 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.171"
+version = "0.2.172"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c19937216e9d3aa9956d9bb8dfc0b0c8beb6058fc4f7a4dc4d850edf86a237d6"
+checksum = "d750af042f7ef4f724306de029d18836c26c1765a54a6a3f094cbd23a7267ffa"
 
 [[package]]
 name = "libloading"
@@ -732,9 +732,9 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.4.26"
+version = "0.4.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30bde2b3dc3671ae49d8e2e9f044c7c005836e7a023ee57cffa25ab82764bb9e"
+checksum = "13dc2df351e3202783a1fe0d44375f7295ffb4049267b0f3018346dc122a1d94"
 
 [[package]]
 name = "memchr"

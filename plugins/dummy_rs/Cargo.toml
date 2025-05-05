@@ -9,5 +9,5 @@ path = "src/libdummy_rs.rs"
 
 [dependencies]
 falco_plugin = "0.4"
-rand = "0.8.5"
+rand = "0.9.1"
 serde_json = "1.0"
