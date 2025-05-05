@@ -16,7 +16,7 @@
 - rule: KRSI socket
   desc: KRSI socket
   condition: evt.type = krsi_socket
-  output: "[KRSI SOCKET] %proc.pid:%thread.tid (name: %proc.name) : fd=%krsi.fd domain=%krsi.domain type=%krsi.type file_index=%krsi.file_index iou_ret=%krsi.iou_ret"
+  output: "[KRSI SOCKET] %proc.pid:%thread.tid (name: %proc.name) : fd=%krsi.fd domain=%krsi.domain type=%krsi.type protocol=%krsi.protocol file_index=%krsi.file_index iou_ret=%krsi.iou_ret"
   priority: INFO
 
 - rule: KRSI connect

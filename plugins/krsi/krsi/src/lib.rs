@@ -707,6 +707,15 @@ impl KrsiPlugin {
         }
     }
 
+    fn extract_protocol(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
+        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
+        if let Some(protocol) = ev.content.protocol() {
+            Ok(protocol as u64)
+        } else {
+            anyhow::bail!("No protocol field")
+        }
+    }
+
     fn extract_iou_ret(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
         let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
         if let Some(iou_ret) = ev.content.iou_ret() {
@@ -797,6 +806,10 @@ Per-event descriptions:
 "Availability: `krsi_socket`.
 Per-event descriptions:
 - `krsi_socket`: socket type"),
+        field("krsi.protocol", &Self::extract_protocol).with_description(
+"Availability: `krsi_socket`.
+Per-event descriptions:
+- `krsi_socket`: socket protocol"),
         field("krsi.iou_ret", &Self::extract_iou_ret).with_description(
 "Availability: `krsi_open`, `krsi_socket`, `krsi_connect`, `krsi_symlinkat`, `krsi_linkat`, \
 `krsi_unlinkat`, `krsi_mkdirat`.

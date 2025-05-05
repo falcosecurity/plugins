@@ -216,6 +216,13 @@ impl KrsiEventContent {
         }
     }
 
+    pub fn protocol(&self) -> Option<u32> {
+        match &self {
+            KrsiEventContent::Socket { protocol, .. } => *protocol,
+            _ => None,
+        }
+    }
+
     pub fn res(&self) -> Option<i64> {
         match &self {
             KrsiEventContent::Connect { res, .. } => *res,
