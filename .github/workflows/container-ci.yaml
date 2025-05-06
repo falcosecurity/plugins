@@ -153,82 +153,10 @@ jobs:
 
   libs-tests:
     needs: [build-linux]
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Install deps ⛓️
-        run: |
-          sudo apt-get update && sudo apt-get install -y --no-install-recommends \
-            ca-certificates \
-            cmake \
-            build-essential \
-            clang-14 llvm-14 \
-            git \
-            clang \
-            llvm \
-            pkg-config \
-            autoconf \
-            automake \
-            libtool \
-            libelf-dev \
-            wget \
-            libbpf-dev \
-            libcap-dev \
-            libtbb-dev \
-            libjq-dev \
-            libjsoncpp-dev \
-            libgtest-dev \
-            libprotobuf-dev \
-            protobuf-compiler \
-            "linux-headers-$(uname -r)"
-          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-14 90
-          sudo update-alternatives --install /usr/bin/llvm-strip llvm-strip /usr/bin/llvm-strip-14 90
-          sudo update-alternatives --install /usr/bin/llc llc /usr/bin/llc-14 90
-
-      - name: Checkout libs
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          fetch-depth: 0
-          submodules: 'recursive'
-          repository: "falcosecurity/libs"
-
-      - name: Install deps
-        run: sudo .github/install-deps.sh
-
-      - name: Build e2e tests 🏗️🧪
-        env:
-          # This avoids random failures on CI.
-          # (https://github.com/google/sanitizers/issues/1322#issuecomment-699946942)
-          ASAN_OPTIONS: intercept_tls_get_addr=0
-        run: |
-          mkdir -p build && cd build
-          cmake -DBUILD_BPF=ON \
-             -DBUILD_LIBSCAP_MODERN_BPF=ON \
-             -DBUILD_LIBSCAP_GVISOR=OFF \
-             -DENABLE_E2E_TESTS=ON \
-             -DUSE_BUNDLED_DEPS=OFF \
-             -DUSE_BUNDLED_LIBBPF=ON \
-             ..
-          make -j$(nproc) sinsp-example driver bpf container_plugin
-          sudo -E make e2e-install-deps
-
-      - name: Download library overriding built library
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: libcontainer-amd64
-          path: build/test/e2e/container_plugin-prefix/src/container_plugin/
-
-      - name: Run e2e tests
-        run: |
-          cd build
-          sudo -E ../test/e2e/scripts/run_tests.sh
-
-      - name: Archive test reports
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: always()
-        with:
-          name: libs_e2e_report
-          path: |
-            /tmp/report/
+    uses: falcosecurity/libs/.github/workflows/reusable_e2e_tests.yaml@master
+    with:
+      container_plugin_artifact_name: 'libcontainer-amd64'
+    secrets: inherit
 
   formatting-check:
     runs-on: ubuntu-24.04
