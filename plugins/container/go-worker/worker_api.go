@@ -113,7 +113,7 @@ func StopWorker(pCtx unsafe.Pointer) {
 
 //export AskForContainerInfo
 func AskForContainerInfo(containerId *C.cchar_t) {
-	containerID := ptr.GoString(unsafe.Pointer(containerId))
+	containerID := C.GoString(containerId)
 	ch := container.GetFetcherChan()
 	if ch != nil {
 		ch <- containerID
