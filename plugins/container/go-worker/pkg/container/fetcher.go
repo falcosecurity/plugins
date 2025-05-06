@@ -22,14 +22,20 @@ func GetFetcherChan() chan<- string {
 
 type fetcher struct {
 	getters []getter
+	ctx     context.Context
 }
 
 // NewFetcherEngine returns a fetcher engine.
 // The fetcher engine is responsible to allow us to get() single container
 // trying all container engines enabled.
-func NewFetcherEngine(ctx context.Context, containerEngines []Engine) Engine {
+func NewFetcherEngine(_ context.Context, containerEngines []Engine) Engine {
 	f := fetcher{
 		getters: make([]getter, len(containerEngines)),
+		// Since podman relies upon context to store
+		// connection-related info,
+		// we need a unique context for fetcher
+		// to avoid tampering with real podman engine context.
+		ctx: context.Background(),
 	}
 	for i, engine := range containerEngines {
 		copyEngine, ok := engine.(copier)
@@ -37,7 +43,7 @@ func NewFetcherEngine(ctx context.Context, containerEngines []Engine) Engine {
 			// We need all engines to implement the copier interface to be copied by fetcher.
 			panic("not a copier")
 		}
-		e, _ := copyEngine.copy(ctx)
+		e, _ := copyEngine.copy(f.ctx)
 		if e != nil {
 			// No type check since Engine interface extends getter.
 			f.getters[i] = e.(getter)
@@ -75,7 +81,7 @@ func (f *fetcher) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan event.
 				return
 			case containerId := <-fetcherChan:
 				for _, e := range f.getters {
-					evt, _ := e.get(ctx, containerId)
+					evt, _ := e.get(f.ctx, containerId)
 					if evt != nil {
 						outCh <- *evt
 						break
