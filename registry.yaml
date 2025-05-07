@@ -22,7 +22,7 @@ reserved_sources: ["syscall", "internal", "plugins"]
 
 # The list of plugins officially recognized by the Falcosecurity organization.
 # Registering your plugin here is required to reserve a given name, source, or id.
-# 
+#
 # License IDs refer to the SPDX License List at https://spdx.org/licenses
 plugins:
   - name: plugin-id-zero-value
@@ -612,7 +612,7 @@ plugins:
     capabilities:
       extraction:
         supported: true
-        sources: [ syscall ]
+        sources: [syscall]
   - name: krsi
     description: Security (KRSI) events support for Falco
     authors: The Falco Authors
@@ -633,4 +633,27 @@ plugins:
     capabilities:
       extraction:
         supported: true
-        sources: [ syscall ]
+        sources: [syscall]
+  - name: collector
+    description: Generic collector to ingest raw payloads into Falco
+    authors: The Falco Authors
+    contact: https://falco.org/community
+    maintainers:
+      - name: The Falco Authors
+        email: cncf-falco-dev@lists.cncf.io
+    keywords:
+      - collector
+      - json
+      - raw
+      - payload
+    url: https://github.com/falcosecurity/plugins/tree/main/plugins/collector
+    license: Apache-2.0
+    signature:
+      cosign:
+        certificate-oidc-issuer: https://token.actions.githubusercontent.com
+        certificate-identity-regexp: https://github.com/falcosecurity/plugins/
+    capabilities:
+      sourcing:
+        supported: true
+        id: 24
+        source: collector
