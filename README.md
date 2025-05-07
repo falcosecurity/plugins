@@ -55,6 +55,7 @@ These comments and the text between them should not be edited by hand -->
 | [dummy_rs](https://github.com/falcosecurity/plugins/tree/main/plugins/dummy_rs) | **Event Sourcing** <br/>ID: 23 <br/>`dummy_rs` <br/>**Field Extraction** <br/> `dummy_rs` | Like dummy, but written in Rust  <br/><br/> Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
 | [container](https://github.com/falcosecurity/plugins/tree/main/plugins/container) | **Field Extraction** <br/> `syscall` | Enriche Falco syscall flow with Container Metadata  <br/><br/> Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
 | [krsi](https://github.com/falcosecurity/plugins/tree/main/plugins/krsi) | **Field Extraction** <br/> `syscall` | Security (KRSI) events support for Falco  <br/><br/> Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
+| [collector](https://github.com/falcosecurity/plugins/tree/main/plugins/collector) | **Event Sourcing** <br/>ID: 24 <br/>`collector` | Generic collector to ingest raw payloads into Falco  <br/><br/> Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
 
 <!-- REGISTRY:TABLE -->
 
