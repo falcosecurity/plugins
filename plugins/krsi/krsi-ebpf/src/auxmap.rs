@@ -461,7 +461,7 @@ impl AuxiliaryMap {
             return;
         }
 
-        let _ =
-            shared_state::events_ringbuf().output(self.data.as_ref(), BPF_RB_FORCE_WAKEUP as u64);
+        let evt = &self.data.as_ref()[..self.payload_pos as usize];
+        let _ = shared_state::events_ringbuf().output(evt, BPF_RB_FORCE_WAKEUP as u64);
     }
 }
