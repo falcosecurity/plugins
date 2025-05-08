@@ -61,7 +61,7 @@ impl TryFrom<u16> for EventType {
 }
 
 #[derive(Debug)]
-#[repr(C)]
+#[repr(C, packed)]
 pub struct EventHeader {
     pub ts: u64,
     pub tgid_pid: u64,
