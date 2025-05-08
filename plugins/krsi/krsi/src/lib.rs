@@ -370,6 +370,46 @@ impl ParsePlugin for KrsiPlugin {
     }
 }
 
+macro_rules! gen_extract_int_impl {
+    ($field:ident) => {
+        paste::paste! {
+            fn [< extract_ $field >](&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
+                let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
+                ev.content
+                    .$field()
+                    .map(|$field| $field as u64)
+                    .ok_or(anyhow::anyhow!(concat!("Unknown ", stringify!($field), " field")))
+            }
+        }
+    };
+}
+
+macro_rules! gen_extract_cstr_impl {
+    ($field:ident) => {
+        paste::paste! {
+            fn [< extract_ $field >](&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
+                let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
+                if let Some($field) = ev.content.$field() {
+                    Ok(CString::new($field).unwrap())
+                } else {
+                    anyhow::bail!(concat!("Unknown ", stringify!($field), " field"));
+                }
+            }
+        }
+    };
+}
+
+macro_rules! gen_extract_addr_impl {
+    ($field:ident) => {
+        paste::paste! {
+            fn [< extract_ $field >](&mut self, req: ExtractRequest<Self>) -> Result<IpAddr, Error> {
+                let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
+                ev.content.$field().ok_or(anyhow::anyhow!(concat!("Unknown ", stringify!($field), " field")))
+            }
+        }
+    };
+}
+
 const RETRY_INTERVAL_START: Duration = Duration::from_nanos(1);
 const RETRY_INTERVAL_MAX: Duration = Duration::from_millis(10);
 
@@ -535,231 +575,31 @@ impl KrsiPlugin {
         }
     }
 
-    fn extract_fd_name(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
-        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
-        if let Some(name) = ev.content.name() {
-            return Ok(CString::new(name).unwrap());
-        } else {
-            anyhow::bail!("No name field");
-        }
-    }
-
-    fn extract_fd(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
-        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
-        if let Some(fd) = ev.content.fd() {
-            return Ok(fd as u64);
-        } else {
-            anyhow::bail!("No fd field");
-        }
-    }
-
-    fn extract_file_index(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
-        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
-        if let Some(file_index) = ev.content.file_index() {
-            return Ok(file_index as u64);
-        } else {
-            anyhow::bail!("No file_index field");
-        }
-    }
-
-    fn extract_flags(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
-        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
-        if let Some(flags) = ev.content.flags() {
-            return Ok(flags as u64);
-        } else {
-            anyhow::bail!("No flags field");
-        }
-    }
-
-    fn extract_mode(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
-        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
-        if let Some(mode) = ev.content.mode() {
-            return Ok(mode as u64);
-        } else {
-            anyhow::bail!("No mode field");
-        }
-    }
-
-    fn extract_dev(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
-        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
-        if let Some(dev) = ev.content.dev() {
-            return Ok(dev as u64);
-        } else {
-            anyhow::bail!("No dev field");
-        }
-    }
-
-    fn extract_ino(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
-        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
-        if let Some(ino) = ev.content.ino() {
-            return Ok(ino as u64);
-        } else {
-            anyhow::bail!("No ino field");
-        }
-    }
-
-    fn extract_domain(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
-        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
-        if let Some(domain) = ev.content.domain() {
-            return Ok(domain as u64);
-        } else {
-            anyhow::bail!("No domain field");
-        }
-    }
-
-    // res
-    fn extract_res(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
-        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
-        if let Some(res) = ev.content.res() {
-            return Ok(res as u64);
-        } else {
-            anyhow::bail!("No res field");
-        }
-    }
-
-    fn extract_linkdirfd(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
-        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
-        if let Some(linkdirfd) = ev.content.linkdirfd() {
-            return Ok(linkdirfd as u64);
-        } else {
-            anyhow::bail!("No dirfd field");
-        }
-    }
-
-    fn extract_olddirfd(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
-        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
-        if let Some(olddirfd) = ev.content.olddirfd() {
-            return Ok(olddirfd as u64);
-        } else {
-            anyhow::bail!("No olddirfd field");
-        }
-    }
-
-    fn extract_newdirfd(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
-        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
-        if let Some(newdirfd) = ev.content.newdirfd() {
-            return Ok(newdirfd as u64);
-        } else {
-            anyhow::bail!("No newdirfd field");
-        }
-    }
-
-    fn extract_dirfd(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
-        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
-        if let Some(dirfd) = ev.content.dirfd() {
-            return Ok(dirfd as u64);
-        } else {
-            anyhow::bail!("No dirfd field");
-        }
-    }
-
-    fn extract_linkpath(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
-        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
-        if let Some(linkpath) = ev.content.linkpath() {
-            return Ok(CString::new(linkpath).unwrap());
-        } else {
-            anyhow::bail!("No linkpath field");
-        }
-    }
-
-    fn extract_oldpath(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
-        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
-        if let Some(oldpath) = ev.content.oldpath() {
-            return Ok(CString::new(oldpath).unwrap());
-        } else {
-            anyhow::bail!("No oldpath field");
-        }
-    }
-
-    fn extract_newpath(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
-        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
-        if let Some(newpath) = ev.content.newpath() {
-            return Ok(CString::new(newpath).unwrap());
-        } else {
-            anyhow::bail!("No newpath field");
-        }
-    }
-
-    fn extract_path(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
-        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
-        if let Some(path) = ev.content.path() {
-            return Ok(CString::new(path).unwrap());
-        } else {
-            anyhow::bail!("No path field");
-        }
-    }
-
-    fn extract_target(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
-        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
-        if let Some(target) = ev.content.target() {
-            return Ok(CString::new(target).unwrap());
-        } else {
-            anyhow::bail!("No target field");
-        }
-    }
-
-    fn extract_type(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
-        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
-        if let Some(type_) = ev.content.type_() {
-            return Ok(type_ as u64);
-        } else {
-            anyhow::bail!("No type field");
-        }
-    }
-
-    fn extract_protocol(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
-        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
-        if let Some(protocol) = ev.content.protocol() {
-            Ok(protocol as u64)
-        } else {
-            anyhow::bail!("No protocol field")
-        }
-    }
-
-    fn extract_iou_ret(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
-        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
-        if let Some(iou_ret) = ev.content.iou_ret() {
-            return Ok(iou_ret as u64);
-        } else {
-            anyhow::bail!("No iou_ret field");
-        }
-    }
-
-    fn extract_cport(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
-        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
-        if let Some(cport) = ev.content.client_port() {
-            return Ok(cport as u64);
-        } else {
-            anyhow::bail!("No cport field");
-        }
-    }
-
-    fn extract_sport(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
-        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
-        if let Some(sport) = ev.content.server_port() {
-            return Ok(sport as u64);
-        } else {
-            anyhow::bail!("No sport field");
-        }
-    }
-
-    fn extract_cip(&mut self, req: ExtractRequest<Self>) -> Result<IpAddr, Error> {
-        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
-        if let Some(cip) = ev.content.client_addr() {
-            return Ok(cip);
-        } else {
-            anyhow::bail!("No cip field");
-        }
-    }
-
-    fn extract_sip(&mut self, req: ExtractRequest<Self>) -> Result<IpAddr, Error> {
-        let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
-        if let Some(sip) = ev.content.server_addr() {
-            return Ok(sip);
-        } else {
-            anyhow::bail!("No sip field");
-        }
-    }
+    gen_extract_int_impl!(fd);
+    gen_extract_int_impl!(file_index);
+    gen_extract_int_impl!(flags);
+    gen_extract_int_impl!(mode);
+    gen_extract_int_impl!(dev);
+    gen_extract_int_impl!(ino);
+    gen_extract_int_impl!(domain);
+    gen_extract_int_impl!(res);
+    gen_extract_int_impl!(linkdirfd);
+    gen_extract_int_impl!(olddirfd);
+    gen_extract_int_impl!(newdirfd);
+    gen_extract_int_impl!(dirfd);
+    gen_extract_int_impl!(protocol);
+    gen_extract_int_impl!(iou_ret);
+    gen_extract_int_impl!(client_port);
+    gen_extract_int_impl!(server_port);
+    gen_extract_int_impl!(type_);
+    gen_extract_cstr_impl!(name);
+    gen_extract_cstr_impl!(linkpath);
+    gen_extract_cstr_impl!(oldpath);
+    gen_extract_cstr_impl!(newpath);
+    gen_extract_cstr_impl!(path);
+    gen_extract_cstr_impl!(target);
+    gen_extract_addr_impl!(client_addr);
+    gen_extract_addr_impl!(server_addr);
 }
 
 impl ExtractPlugin for KrsiPlugin {
@@ -768,7 +608,7 @@ impl ExtractPlugin for KrsiPlugin {
     type ExtractContext = Option<KrsiEvent>;
     #[rustfmt::skip]
     const EXTRACT_FIELDS: &'static [ExtractFieldInfo<Self>] = &[
-        field("krsi.name", &Self::extract_fd_name).with_description(
+        field("krsi.name", &Self::extract_name).with_description(
 "Availability: `krsi_open`, `krsi_connect`.
 Per-event descriptions:
 - `krsi_open`: full path to file
@@ -802,7 +642,7 @@ Per-event descriptions:
 "Availability: `krsi_socket`.
 Per-event descriptions:
 - `krsi_socket`: socket domain"),
-        field("krsi.type", &Self::extract_type).with_description(
+        field("krsi.type", &Self::extract_type_).with_description(
 "Availability: `krsi_socket`.
 Per-event descriptions:
 - `krsi_socket`: socket type"),
@@ -853,19 +693,19 @@ Per-event descriptions:
 "Availability: `krsi_linkat`.
 Per-event descriptions:
 - `krsi_linkat`: link path"),
-        field("krsi.cip", &Self::extract_cip).with_description(
+        field("krsi.cip", &Self::extract_client_addr).with_description(
 "Availability: `krsi_connect`.
 Per-event descriptions:
 - `krsi_connect`: client IP address"),
-        field("krsi.sip", &Self::extract_sip).with_description(
+        field("krsi.sip", &Self::extract_server_addr).with_description(
 "Availability: `krsi_connect`.
 Per-event descriptions:
 - `krsi_connect`: server IP address"),
-        field("krsi.cport", &Self::extract_cport).with_description(
+        field("krsi.cport", &Self::extract_client_port).with_description(
 "Availability: `krsi_connect`.
 Per-event descriptions:
 - `krsi_connect`: client port"),
-        field("krsi.sport", &Self::extract_sport).with_description(
+        field("krsi.sport", &Self::extract_server_port).with_description(
 "Availability: `krsi_connect`.
 Per-event descriptions:
 - `krsi_connect`: server port"),
