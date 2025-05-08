@@ -260,8 +260,7 @@ impl ParsePlugin for KrsiPlugin {
 
                             fd_entry.set_fd(w, &fd)?;
                             if let Some(name) = name {
-                                let c_name = CString::from_str(&name)?;
-                                fd_entry.set_name(w, &c_name)?;
+                                fd_entry.set_name(w, &name)?;
                             }
 
                             if let Some(dev) = dev {
@@ -389,11 +388,7 @@ macro_rules! gen_extract_cstr_impl {
         paste::paste! {
             fn [< extract_ $field >](&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
                 let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
-                if let Some($field) = ev.content.$field() {
-                    Ok(CString::new($field).unwrap())
-                } else {
-                    anyhow::bail!(concat!("Unknown ", stringify!($field), " field"));
-                }
+                ev.content.$field().ok_or(anyhow::anyhow!(concat!("Unknown ", stringify!($field), " field")))
             }
         }
     };
@@ -591,7 +586,7 @@ impl KrsiPlugin {
     gen_extract_int_impl!(iou_ret);
     gen_extract_int_impl!(client_port);
     gen_extract_int_impl!(server_port);
-    gen_extract_int_impl!(type_);
+    gen_extract_int_impl!(r#type);
     gen_extract_cstr_impl!(name);
     gen_extract_cstr_impl!(linkpath);
     gen_extract_cstr_impl!(oldpath);
@@ -642,7 +637,7 @@ Per-event descriptions:
 "Availability: `krsi_socket`.
 Per-event descriptions:
 - `krsi_socket`: socket domain"),
-        field("krsi.type", &Self::extract_type_).with_description(
+        field("krsi.type", &Self::extract_type).with_description(
 "Availability: `krsi_socket`.
 Per-event descriptions:
 - `krsi_socket`: socket type"),

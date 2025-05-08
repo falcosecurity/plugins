@@ -16,12 +16,13 @@ limitations under the License.
 */
 
 use std::{
-    ffi::CString,
+    ffi::{CStr, CString},
     fmt,
     net::{IpAddr, Ipv4Addr, Ipv6Addr},
 };
 
-use krsi_common::{scap, EventHeader};
+use byteorder::{BigEndian, NativeEndian, ReadBytesExt};
+use krsi_common::{scap, EventHeader, EventType};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -36,7 +37,7 @@ pub enum KrsiEventContent {
     Open {
         fd: Option<i64>,
         file_index: Option<i32>,
-        name: Option<String>,
+        name: Option<CString>,
         flags: Option<u32>,
         mode: Option<u32>,
         dev: Option<u32>,
@@ -59,31 +60,31 @@ pub enum KrsiEventContent {
         iou_ret: Option<i64>,
     },
     Symlinkat {
-        target: Option<String>,
+        target: Option<CString>,
         linkdirfd: Option<i64>,
-        linkpath: Option<String>,
+        linkpath: Option<CString>,
         res: Option<i64>,
         iou_ret: Option<i64>,
     },
     Linkat {
         olddirfd: Option<i64>,
-        oldpath: Option<String>,
+        oldpath: Option<CString>,
         newdirfd: Option<i64>,
-        newpath: Option<String>,
+        newpath: Option<CString>,
         flags: Option<u32>,
         res: Option<i64>,
         iou_ret: Option<i64>,
     },
     Unlinkat {
         dirfd: Option<i64>,
-        path: Option<String>,
+        path: Option<CString>,
         flags: Option<u32>,
         res: Option<i64>,
         iou_ret: Option<i64>,
     },
     Mkdirat {
         dirfd: Option<i64>,
-        path: Option<String>,
+        path: Option<CString>,
         mode: Option<u32>,
         res: Option<i64>,
         iou_ret: Option<i64>,
@@ -93,15 +94,15 @@ pub enum KrsiEventContent {
 #[derive(PartialEq, Debug, Serialize, Deserialize)]
 pub enum Connection {
     Inet {
-        server_addr: std::net::IpAddr,
+        server_addr: IpAddr,
         server_port: u16,
-        client_addr: std::net::IpAddr,
+        client_addr: IpAddr,
         client_port: u16,
     },
     Unix {
         src_ptr: u64,
         dst_ptr: u64,
-        addr: CString,
+        path: CString,
     },
 }
 
@@ -120,10 +121,10 @@ impl fmt::Display for Connection {
             Self::Unix {
                 src_ptr,
                 dst_ptr,
-                addr,
+                path,
             } => {
-                let s_addr = addr.to_str().unwrap();
-                let s = format!("{src_ptr:#x}->{dst_ptr:#x} {s_addr}");
+                let s_path = path.to_str().unwrap();
+                let s = format!("{src_ptr:#x}->{dst_ptr:#x} {s_path}");
                 f.write_str(&s)
             }
         }
@@ -158,12 +159,12 @@ impl KrsiEventContent {
         }
     }
 
-    pub fn name(&self) -> Option<String> {
+    pub fn name(&self) -> Option<CString> {
         match &self {
             KrsiEventContent::Open { name, .. } => name.clone(),
-            KrsiEventContent::Connect { connection, .. } => {
-                connection.as_ref().map(|c| c.to_string())
-            }
+            KrsiEventContent::Connect { connection, .. } => connection
+                .as_ref()
+                .map(|c| CString::new(c.to_string()).unwrap()),
             _ => None,
         }
     }
@@ -209,7 +210,7 @@ impl KrsiEventContent {
         }
     }
 
-    pub fn type_(&self) -> Option<u32> {
+    pub fn r#type(&self) -> Option<u32> {
         match &self {
             KrsiEventContent::Socket { type_, .. } => *type_,
             _ => None,
@@ -263,14 +264,14 @@ impl KrsiEventContent {
         }
     }
 
-    pub fn linkpath(&self) -> Option<String> {
+    pub fn linkpath(&self) -> Option<CString> {
         match &self {
             KrsiEventContent::Symlinkat { linkpath, .. } => linkpath.clone(),
             _ => None,
         }
     }
 
-    pub fn path(&self) -> Option<String> {
+    pub fn path(&self) -> Option<CString> {
         match &self {
             KrsiEventContent::Unlinkat { path, .. } => path.clone(),
             KrsiEventContent::Mkdirat { path, .. } => path.clone(),
@@ -278,21 +279,21 @@ impl KrsiEventContent {
         }
     }
 
-    pub fn oldpath(&self) -> Option<String> {
+    pub fn oldpath(&self) -> Option<CString> {
         match &self {
             KrsiEventContent::Linkat { oldpath, .. } => oldpath.clone(),
             _ => None,
         }
     }
 
-    pub fn newpath(&self) -> Option<String> {
+    pub fn newpath(&self) -> Option<CString> {
         match &self {
             KrsiEventContent::Linkat { newpath, .. } => newpath.clone(),
             _ => None,
         }
     }
 
-    pub fn target(&self) -> Option<String> {
+    pub fn target(&self) -> Option<CString> {
         match &self {
             KrsiEventContent::Symlinkat { target, .. } => target.clone(),
             _ => None,
@@ -364,431 +365,303 @@ impl KrsiEventContent {
     }
 }
 
-unsafe fn read_and_move<T>(ptr: &mut *const u8) -> T {
-    let v = (*ptr).cast::<T>().read_unaligned();
-    *ptr = (*ptr).byte_add(size_of::<T>());
-    v
+#[derive(thiserror::Error, Debug)]
+pub enum RingbufParseError {
+    #[error("Truncated event")]
+    TruncatedEvent,
+    #[error("Unexpected null terminator")]
+    UnexpectedNulTerminator,
+    #[error("Missing null terminator")]
+    MissingNulTerminator,
+    #[error("Invalid event type {0}")]
+    InvalidType(u16),
+    #[error("I/O error")]
+    IoError(#[from] std::io::Error),
+    #[error("Not yet implemented")]
+    NotYetImplemented,
 }
 
-unsafe fn read_str_and_move(ptr: &mut *const u8, len: usize) -> &'static str {
-    let real_len = len - 1;
-    let s = if real_len == 0 {
-        ""
-    } else {
-        unsafe { std::str::from_utf8_unchecked(std::slice::from_raw_parts(*ptr, real_len)) }
-    };
-    *ptr = (*ptr).byte_add(len);
-    s
+trait FromBytes<'a>: Sized {
+    fn from_bytes(buf: &mut &'a [u8]) -> Result<Self, RingbufParseError>;
 }
 
-unsafe fn read_u8_slice_and_move(ptr: &mut *const u8, len: usize) -> &'static [u8] {
-    let s = unsafe { std::slice::from_raw_parts(*ptr, len) };
-    *ptr = (*ptr).byte_add(len);
-    s
-}
-
-pub fn parse_ringbuf_event(buf: &[u8]) -> Result<KrsiEvent, String> {
-    let mut ptr = buf.as_ptr();
-    let ptr_mut = &mut ptr;
-    let ev = unsafe { read_and_move::<EventHeader>(ptr_mut) };
-    match ev.evt_type.try_into() {
-        Ok(krsi_common::EventType::Open) => parse_ringbuf_open_event(&ev, ptr_mut),
-        Ok(krsi_common::EventType::Connect) => parse_ringbuf_connect_event(&ev, ptr_mut),
-        Ok(krsi_common::EventType::Socket) => parse_socket_event(&ev, ptr_mut),
-        Ok(krsi_common::EventType::Symlinkat) => parse_symlinkat_event(&ev, ptr_mut),
-        Ok(krsi_common::EventType::Linkat) => parse_linkat_event(&ev, ptr_mut),
-        Ok(krsi_common::EventType::Unlinkat) => parse_unlinkat_event(&ev, ptr_mut),
-        Ok(krsi_common::EventType::Mkdirat) => parse_mkdirat_event(&ev, ptr_mut),
-        _ => Err("event type not implemented".into()),
-    }
-}
-
-fn parse_ringbuf_open_event(ev: &EventHeader, ptr: &mut *const u8) -> Result<KrsiEvent, String> {
-    let lengths = unsafe { read_and_move::<[u16; 8]>(ptr) };
-    let mut fd: Option<i64> = None;
-    let mut file_index: Option<i32> = None;
-    let mut flags: Option<u32> = None;
-    let mut mode: Option<u32> = None;
-    let mut dev: Option<u32> = None;
-    let mut ino: Option<u64> = None;
-    let mut iou_ret: Option<i64> = None;
-    let name: Option<String> = if lengths[0] != 0 {
-        Some(unsafe { read_str_and_move(ptr, lengths[0] as usize) }.into())
-    } else {
-        None
-    };
-    if lengths[1] != 0 {
-        fd = Some(unsafe { read_and_move::<i64>(ptr) });
-    }
-    if lengths[2] != 0 {
-        file_index = Some(unsafe { read_and_move::<i32>(ptr) });
-    }
-    if lengths[3] != 0 {
-        flags = Some(unsafe { read_and_move::<u32>(ptr) });
-    }
-    if lengths[4] != 0 {
-        mode = Some(unsafe { read_and_move::<u32>(ptr) });
-    }
-    if lengths[5] != 0 {
-        dev = Some(unsafe { read_and_move::<u32>(ptr) });
-    }
-    if lengths[6] != 0 {
-        ino = Some(unsafe { read_and_move::<u64>(ptr) });
-    }
-    if lengths[7] != 0 {
-        iou_ret = Some(unsafe { read_and_move::<i64>(ptr) });
-    }
-    let pid = (ev.tgid_pid >> 32) as u32;
-    let tid = (ev.tgid_pid & 0xffffffff) as u32;
-    Ok(KrsiEvent {
-        tid,
-        pid,
-        content: KrsiEventContent::Open {
-            fd,
-            file_index,
-            name,
-            flags,
-            mode,
-            dev,
-            ino,
-            iou_ret,
-        },
-    })
-}
-
-fn socktuple_to_connection(socktuple: &[u8]) -> Result<Connection, String> {
-    let family = socktuple[0];
-    match family {
-        scap::PPM_AF_INET => {
-            let socktuple: &[u8; 13] =
-                socktuple.try_into().or(Err("socktuple buffer too small"))?;
-            let cb = &socktuple[1..5];
-            let client_port = u16::from_le_bytes(socktuple[5..7].try_into().unwrap());
-            let sb = &socktuple[7..11];
-            let server_port = u16::from_le_bytes(socktuple[11..13].try_into().unwrap());
-            let server_addr = IpAddr::V4(Ipv4Addr::new(sb[0], sb[1], sb[2], sb[3]));
-            let client_addr = IpAddr::V4(Ipv4Addr::new(cb[0], cb[1], cb[2], cb[3]));
-            Ok(Connection::Inet {
-                server_addr,
-                server_port,
-                client_addr,
-                client_port,
-            })
+macro_rules! gen_from_bytes_int_impl {
+    ($typ:ident) => {
+        paste::paste! {
+            impl FromBytes<'_> for $typ {
+                fn from_bytes(buf: &mut &[u8]) -> Result<Self, RingbufParseError> {
+                    Ok(buf.[< read_ $typ >]::<NativeEndian>()?)
+                }
+            }
         }
-        scap::PPM_AF_INET6 => {
-            let socktuple: &[u8; 37] =
-                socktuple.try_into().or(Err("socktuple buffer too small"))?;
-            let cb: &[u8; 16] = &socktuple[1..17].try_into().unwrap();
-            let client_port = u16::from_le_bytes(socktuple[17..19].try_into().unwrap());
-            let sb: &[u8; 16] = &socktuple[19..35].try_into().unwrap();
-            let server_port = u16::from_le_bytes(socktuple[35..37].try_into().unwrap());
-            let server_addr = IpAddr::V6(Ipv6Addr::new(
-                u16::from_be_bytes(sb[0..2].try_into().unwrap()),
-                u16::from_be_bytes(sb[2..4].try_into().unwrap()),
-                u16::from_be_bytes(sb[4..6].try_into().unwrap()),
-                u16::from_be_bytes(sb[6..8].try_into().unwrap()),
-                u16::from_be_bytes(sb[8..10].try_into().unwrap()),
-                u16::from_be_bytes(sb[10..12].try_into().unwrap()),
-                u16::from_be_bytes(sb[12..14].try_into().unwrap()),
-                u16::from_be_bytes(sb[14..16].try_into().unwrap()),
-            ));
-            let client_addr = IpAddr::V6(Ipv6Addr::new(
-                u16::from_be_bytes(cb[0..2].try_into().unwrap()),
-                u16::from_be_bytes(cb[2..4].try_into().unwrap()),
-                u16::from_be_bytes(cb[4..6].try_into().unwrap()),
-                u16::from_be_bytes(cb[6..8].try_into().unwrap()),
-                u16::from_be_bytes(cb[8..10].try_into().unwrap()),
-                u16::from_be_bytes(cb[10..12].try_into().unwrap()),
-                u16::from_be_bytes(cb[12..14].try_into().unwrap()),
-                u16::from_be_bytes(cb[14..16].try_into().unwrap()),
-            ));
-            Ok(Connection::Inet {
-                server_addr,
-                server_port,
-                client_addr,
-                client_port,
-            })
+    };
+}
+
+gen_from_bytes_int_impl!(i64);
+gen_from_bytes_int_impl!(u64);
+gen_from_bytes_int_impl!(i32);
+gen_from_bytes_int_impl!(u32);
+
+impl<'a> FromBytes<'a> for &'a CStr {
+    fn from_bytes(buf: &mut &'a [u8]) -> Result<Self, RingbufParseError> {
+        CStr::from_bytes_until_nul(buf).map_err(|_| RingbufParseError::MissingNulTerminator)
+    }
+}
+
+impl<'a> FromBytes<'a> for Connection {
+    fn from_bytes(buf: &mut &'a [u8]) -> Result<Self, RingbufParseError> {
+        let family = buf.read_u8().map_err(RingbufParseError::IoError)?;
+        match family {
+            scap::PPM_AF_INET => parse_inet_connection(buf).map_err(RingbufParseError::IoError),
+            scap::PPM_AF_INET6 => parse_inet6_connection(buf).map_err(RingbufParseError::IoError),
+            scap::PPM_AF_UNIX => parse_unix_connection(buf),
+            _ => Err(RingbufParseError::NotYetImplemented),
         }
-        scap::PPM_AF_UNIX => {
-            let src_ptr = u64::from_le_bytes(
-                socktuple[1..9]
-                    .try_into()
-                    .or(Err("socktuple buffer too small"))?,
-            );
-            let dst_ptr = u64::from_le_bytes(
-                socktuple[9..17]
-                    .try_into()
-                    .or(Err("socktuple buffer too small"))?,
-            );
-            let addr_buf = &socktuple[17..];
-            let addr: CString = if addr_buf.is_empty() {
-                c"".into()
-            } else {
-                let nul_pos = addr_buf
-                    .iter()
-                    .position(|&b| b == 0)
-                    .unwrap_or(addr_buf.len());
-                let without_null = &addr_buf[..nul_pos];
-                CString::new(without_null).or(Err("could not convert unix addr string"))?
-            };
+    }
+}
 
-            Ok(Connection::Unix {
-                src_ptr,
-                dst_ptr,
-                addr,
-            })
+fn parse_inet_connection(buf: &mut &[u8]) -> Result<Connection, std::io::Error> {
+    let client_addr = IpAddr::V4(Ipv4Addr::from(buf.read_u32::<BigEndian>()?));
+    let client_port = buf.read_u16::<NativeEndian>()?;
+    let server_addr = IpAddr::V4(Ipv4Addr::from(buf.read_u32::<BigEndian>()?));
+    let server_port = buf.read_u16::<NativeEndian>()?;
+    Ok(Connection::Inet {
+        server_addr,
+        server_port,
+        client_addr,
+        client_port,
+    })
+}
+
+fn parse_inet6_connection(buf: &mut &[u8]) -> Result<Connection, std::io::Error> {
+    let client_addr = IpAddr::V6(Ipv6Addr::from(buf.read_u128::<BigEndian>()?));
+    let client_port = buf.read_u16::<NativeEndian>()?;
+    let server_addr = IpAddr::V6(Ipv6Addr::from(buf.read_u128::<BigEndian>()?));
+    let server_port = buf.read_u16::<NativeEndian>()?;
+    Ok(Connection::Inet {
+        server_addr,
+        server_port,
+        client_addr,
+        client_port,
+    })
+}
+
+fn parse_unix_connection(buf: &mut &[u8]) -> Result<Connection, RingbufParseError> {
+    let src_ptr = buf.read_u64::<NativeEndian>()?;
+    let dst_ptr = buf.read_u64::<NativeEndian>()?;
+    let path = if buf.is_empty() {
+        c"".into()
+    } else {
+        // Use CString::new because buf must not contain any internal null byte.
+        CString::new(*buf).map_err(|_| RingbufParseError::UnexpectedNulTerminator)?
+    };
+    Ok(Connection::Unix {
+        src_ptr,
+        dst_ptr,
+        path,
+    })
+}
+
+/// Reads the next value from the provided `values` slice, taking its length from the provided
+/// `lengths` slice. Returns None if the value length is determined to be 0. Updates the provided
+/// `lengths` and `values` slices by removing the read bytes.
+fn read_next_field<'a, T>(
+    lengths: &mut &[u8],
+    values: &mut &'a [u8],
+) -> Result<Option<T>, RingbufParseError>
+where
+    T: FromBytes<'a>,
+{
+    let len = match lengths.read_u16::<NativeEndian>() {
+        Ok(len) => len as usize,
+        Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
+            return Err(RingbufParseError::TruncatedEvent)
         }
-        _ => Err("invalid or not implemented".into()),
+        Err(e) => return Err(RingbufParseError::IoError(e)),
+    };
+    if len == 0 {
+        return Ok(None);
     }
+    let (mut buf, tail) = Option::ok_or(
+        values.split_at_checked(len),
+        RingbufParseError::TruncatedEvent,
+    )?;
+    *values = tail;
+    Ok(Some(T::from_bytes(&mut buf)?))
 }
 
-fn parse_ringbuf_connect_event(ev: &EventHeader, ptr: &mut *const u8) -> Result<KrsiEvent, String> {
-    let lengths = unsafe { read_and_move::<[u16; 5]>(ptr) };
-    let mut socktuple: Option<&[u8]> = None;
-    let mut iou_ret: Option<i64> = None;
-    let mut res: Option<i64> = None;
-    let mut fd: Option<i64> = None;
-    let mut file_index: Option<i32> = None;
-    if lengths[0] != 0 {
-        socktuple = Some(unsafe { read_u8_slice_and_move(ptr, lengths[0] as usize) })
-    }
-    if lengths[1] != 0 {
-        iou_ret = Some(unsafe { read_and_move::<i64>(ptr) })
-    }
-    if lengths[2] != 0 {
-        res = Some(unsafe { read_and_move::<i64>(ptr) })
-    }
-    if lengths[3] != 0 {
-        fd = Some(unsafe { read_and_move::<i64>(ptr) })
-    }
-    if lengths[4] != 0 {
-        file_index = Some(unsafe { read_and_move::<i32>(ptr) })
-    }
-    let pid = (ev.tgid_pid >> 32) as u32;
-    let tid = (ev.tgid_pid & 0xffffffff) as u32;
-    Ok(KrsiEvent {
-        tid,
-        pid,
-        content: KrsiEventContent::Connect {
-            fd,
-            file_index,
-            res,
-            iou_ret,
-            connection: socktuple.and_then(|s| socktuple_to_connection(s).ok()),
-        },
+pub fn parse_ringbuf_event(mut buf: &[u8]) -> Result<KrsiEvent, RingbufParseError> {
+    let evt_hdr = read_event_header(&mut buf)?;
+    let (mut lengths, mut values) = buf
+        .split_at_checked(evt_hdr.nparams as usize * size_of::<u16>())
+        .ok_or(RingbufParseError::TruncatedEvent)?;
+    let content = match evt_hdr.evt_type.try_into() {
+        Ok(EventType::Open) => parse_rb_open_event_content(&mut lengths, &mut values),
+        Ok(EventType::Connect) => parse_rb_connect_event_content(&mut lengths, &mut values),
+        Ok(EventType::Socket) => parse_rb_socket_event_content(&mut lengths, &mut values),
+        Ok(EventType::Symlinkat) => parse_rb_symlinkat_event_content(&mut lengths, &mut values),
+        Ok(EventType::Linkat) => parse_rb_linkat_event_content(&mut lengths, &mut values),
+        Ok(EventType::Unlinkat) => parse_rb_unlinkat_event_content(&mut lengths, &mut values),
+        Ok(EventType::Mkdirat) => parse_rb_mkdirat_event_content(&mut lengths, &mut values),
+        _ => Err(RingbufParseError::NotYetImplemented),
+    }?;
+    let pid = (evt_hdr.tgid_pid >> 32) as u32;
+    let tid = (evt_hdr.tgid_pid & 0xffffffff) as u32;
+    Ok(KrsiEvent { pid, tid, content })
+}
+
+fn read_event_header(buf: &mut &[u8]) -> Result<EventHeader, RingbufParseError> {
+    let ts = buf.read_u64::<NativeEndian>()?;
+    let tgid_pid = buf.read_u64::<NativeEndian>()?;
+    let len = buf.read_u32::<NativeEndian>()?;
+    let evt_type = buf.read_u16::<NativeEndian>()?;
+    let evt_type =
+        EventType::try_from(evt_type).map_err(|_| RingbufParseError::InvalidType(evt_type))?;
+    let nparams = buf.read_u32::<NativeEndian>()?;
+    Ok(EventHeader {
+        ts,
+        tgid_pid,
+        len,
+        evt_type,
+        nparams,
     })
 }
 
-fn parse_socket_event(ev: &EventHeader, ptr: &mut *const u8) -> Result<KrsiEvent, String> {
-    let lengths = unsafe { read_and_move::<[u16; 6]>(ptr) };
-    let mut iou_ret: Option<i64> = None;
-    let mut fd: Option<i64> = None;
-    let mut file_index: Option<i32> = None;
-    let mut domain: Option<u32> = None;
-    let mut type_: Option<u32> = None;
-    let mut protocol: Option<u32> = None;
-
-    if lengths[0] != 0 {
-        iou_ret = Some(unsafe { read_and_move::<i64>(ptr) })
-    }
-    if lengths[1] != 0 {
-        fd = Some(unsafe { read_and_move::<i64>(ptr) })
-    }
-    if lengths[2] != 0 {
-        file_index = Some(unsafe { read_and_move::<i32>(ptr) })
-    }
-    if lengths[3] != 0 {
-        domain = Some(unsafe { read_and_move::<u32>(ptr) })
-    }
-    if lengths[4] != 0 {
-        type_ = Some(unsafe { read_and_move::<u32>(ptr) })
-    }
-    if lengths[5] != 0 {
-        protocol = Some(unsafe { read_and_move::<u32>(ptr) })
-    }
-
-    let pid = (ev.tgid_pid >> 32) as u32;
-    let tid = (ev.tgid_pid & 0xffffffff) as u32;
-    Ok(KrsiEvent {
-        pid,
-        tid,
-        content: KrsiEventContent::Socket {
-            iou_ret,
-            fd,
-            file_index,
-            domain,
-            type_,
-            protocol,
-        },
+fn parse_rb_open_event_content(
+    lengths: &mut &[u8],
+    values: &mut &[u8],
+) -> Result<KrsiEventContent, RingbufParseError> {
+    let name = read_next_field::<&CStr>(lengths, values)?.map(CString::from);
+    let fd = read_next_field(lengths, values)?;
+    let file_index = read_next_field(lengths, values)?;
+    let flags = read_next_field(lengths, values)?;
+    let mode = read_next_field(lengths, values)?;
+    let dev = read_next_field(lengths, values)?;
+    let ino = read_next_field(lengths, values)?;
+    let iou_ret = read_next_field(lengths, values)?;
+    Ok(KrsiEventContent::Open {
+        fd,
+        file_index,
+        name,
+        flags,
+        mode,
+        dev,
+        ino,
+        iou_ret,
     })
 }
 
-fn parse_symlinkat_event(ev: &EventHeader, ptr: &mut *const u8) -> Result<KrsiEvent, String> {
-    let lengths = unsafe { read_and_move::<[u16; 5]>(ptr) };
-    let mut linkdirfd: Option<i64> = None;
-    let mut res: Option<i64> = None;
-    let mut iou_ret: Option<i64> = None;
-    let target: Option<String> = if lengths[0] != 0 {
-        Some(unsafe { read_str_and_move(ptr, lengths[0] as usize) }.into())
-    } else {
-        None
-    };
-    if lengths[1] != 0 {
-        linkdirfd = Some(unsafe { read_and_move::<i64>(ptr) });
-    }
-    let linkpath: Option<String> = if lengths[2] != 0 {
-        Some(unsafe { read_str_and_move(ptr, lengths[2] as usize) }.into())
-    } else {
-        None
-    };
-    if lengths[3] != 0 {
-        res = Some(unsafe { read_and_move::<i64>(ptr) });
-    }
-    if lengths[4] != 0 {
-        iou_ret = Some(unsafe { read_and_move::<i64>(ptr) });
-    }
-
-    let pid: u32 = (ev.tgid_pid >> 32) as u32;
-    let tid = (ev.tgid_pid & 0xffffffff) as u32;
-    Ok(KrsiEvent {
-        pid,
-        tid,
-        content: KrsiEventContent::Symlinkat {
-            target,
-            linkdirfd,
-            linkpath: linkpath,
-            res,
-            iou_ret,
-        },
+fn parse_rb_connect_event_content(
+    lengths: &mut &[u8],
+    values: &mut &[u8],
+) -> Result<KrsiEventContent, RingbufParseError> {
+    let connection = read_next_field(lengths, values)?;
+    let iou_ret = read_next_field(lengths, values)?;
+    let res = read_next_field(lengths, values)?;
+    let fd = read_next_field(lengths, values)?;
+    let file_index = read_next_field(lengths, values)?;
+    Ok(KrsiEventContent::Connect {
+        fd,
+        file_index,
+        res,
+        iou_ret,
+        connection,
     })
 }
 
-fn parse_linkat_event(ev: &EventHeader, ptr: &mut *const u8) -> Result<KrsiEvent, String> {
-    let lengths = unsafe { read_and_move::<[u16; 7]>(ptr) };
-    let mut olddirfd: Option<i64> = None;
-    let mut newdirfd: Option<i64> = None;
-    let mut flags: Option<u32> = None;
-    let mut res: Option<i64> = None;
-    let mut iou_ret: Option<i64> = None;
-    if lengths[0] != 0 {
-        olddirfd = Some(unsafe { read_and_move::<i64>(ptr) });
-    }
-    let oldpath: Option<String> = if lengths[1] != 0 {
-        Some(unsafe { read_str_and_move(ptr, lengths[1] as usize) }.into())
-    } else {
-        None
-    };
-    if lengths[2] != 0 {
-        newdirfd = Some(unsafe { read_and_move::<i64>(ptr) });
-    }
-    let newpath: Option<String> = if lengths[3] != 0 {
-        Some(unsafe { read_str_and_move(ptr, lengths[3] as usize).into() })
-    } else {
-        None
-    };
-    if lengths[4] != 0 {
-        flags = Some(unsafe { read_and_move::<u32>(ptr) })
-    }
-    if lengths[5] != 0 {
-        res = Some(unsafe { read_and_move::<i64>(ptr) })
-    }
-    if lengths[6] != 0 {
-        iou_ret = Some(unsafe { read_and_move::<i64>(ptr) })
-    }
-    let pid: u32 = (ev.tgid_pid >> 32) as u32;
-    let tid = (ev.tgid_pid & 0xffffffff) as u32;
-    Ok(KrsiEvent {
-        pid,
-        tid,
-        content: KrsiEventContent::Linkat {
-            olddirfd,
-            oldpath,
-            newdirfd,
-            newpath,
-            flags,
-            res,
-            iou_ret,
-        },
+fn parse_rb_socket_event_content(
+    lengths: &mut &[u8],
+    values: &mut &[u8],
+) -> Result<KrsiEventContent, RingbufParseError> {
+    let iou_ret = read_next_field(lengths, values)?;
+    let fd = read_next_field(lengths, values)?;
+    let file_index = read_next_field(lengths, values)?;
+    let domain = read_next_field(lengths, values)?;
+    let type_ = read_next_field(lengths, values)?;
+    let protocol = read_next_field(lengths, values)?;
+    Ok(KrsiEventContent::Socket {
+        iou_ret,
+        fd,
+        file_index,
+        domain,
+        type_,
+        protocol,
     })
 }
 
-fn parse_unlinkat_event(ev: &EventHeader, ptr: &mut *const u8) -> Result<KrsiEvent, String> {
-    let lengths = unsafe { read_and_move::<[u16; 5]>(ptr) };
-    let mut dirfd: Option<i64> = None;
-    let mut flags: Option<u32> = None;
-    let mut res: Option<i64> = None;
-    let mut iou_ret: Option<i64> = None;
-
-    if lengths[0] != 0 {
-        dirfd = Some(unsafe { read_and_move::<i64>(ptr) });
-    }
-    let path: Option<String> = if lengths[1] != 0 {
-        Some(unsafe { read_str_and_move(ptr, lengths[1] as usize).into() })
-    } else {
-        None
-    };
-    if lengths[2] != 0 {
-        flags = Some(unsafe { read_and_move::<u32>(ptr) })
-    }
-    if lengths[3] != 0 {
-        res = Some(unsafe { read_and_move::<i64>(ptr) })
-    }
-    if lengths[4] != 0 {
-        iou_ret = Some(unsafe { read_and_move::<i64>(ptr) })
-    }
-
-    let pid: u32 = (ev.tgid_pid >> 32) as u32;
-    let tid = (ev.tgid_pid & 0xffffffff) as u32;
-    Ok(KrsiEvent {
-        pid,
-        tid,
-        content: KrsiEventContent::Unlinkat {
-            dirfd,
-            path,
-            flags,
-            res,
-            iou_ret,
-        },
+fn parse_rb_symlinkat_event_content(
+    lengths: &mut &[u8],
+    values: &mut &[u8],
+) -> Result<KrsiEventContent, RingbufParseError> {
+    let target = read_next_field::<&CStr>(lengths, values)?.map(CString::from);
+    let linkdirfd = read_next_field(lengths, values)?;
+    let linkpath = read_next_field::<&CStr>(lengths, values)?.map(CString::from);
+    let res = read_next_field(lengths, values)?;
+    let iou_ret = read_next_field(lengths, values)?;
+    Ok(KrsiEventContent::Symlinkat {
+        target,
+        linkdirfd,
+        linkpath,
+        res,
+        iou_ret,
     })
 }
 
-fn parse_mkdirat_event(ev: &EventHeader, ptr: &mut *const u8) -> Result<KrsiEvent, String> {
-    let lengths = unsafe { read_and_move::<[u16; 5]>(ptr) };
-    let mut dirfd: Option<i64> = None;
-    let mut mode: Option<u32> = None;
-    let mut res: Option<i64> = None;
-    let mut iou_ret: Option<i64> = None;
+fn parse_rb_linkat_event_content(
+    lengths: &mut &[u8],
+    values: &mut &[u8],
+) -> Result<KrsiEventContent, RingbufParseError> {
+    let olddirfd = read_next_field(lengths, values)?;
+    let oldpath = read_next_field::<&CStr>(lengths, values)?.map(CString::from);
+    let newdirfd = read_next_field(lengths, values)?;
+    let newpath = read_next_field::<&CStr>(lengths, values)?.map(CString::from);
+    let flags = read_next_field(lengths, values)?;
+    let res = read_next_field(lengths, values)?;
+    let iou_ret = read_next_field(lengths, values)?;
+    Ok(KrsiEventContent::Linkat {
+        olddirfd,
+        oldpath,
+        newdirfd,
+        newpath,
+        flags,
+        res,
+        iou_ret,
+    })
+}
 
-    if lengths[0] != 0 {
-        dirfd = Some(unsafe { read_and_move::<i64>(ptr) });
-    }
-    let path: Option<String> = if lengths[1] != 0 {
-        Some(unsafe { read_str_and_move(ptr, lengths[1] as usize).into() })
-    } else {
-        None
-    };
-    if lengths[2] != 0 {
-        mode = Some(unsafe { read_and_move::<u32>(ptr) })
-    }
-    if lengths[3] != 0 {
-        res = Some(unsafe { read_and_move::<i64>(ptr) })
-    }
-    if lengths[4] != 0 {
-        iou_ret = Some(unsafe { read_and_move::<i64>(ptr) })
-    }
+fn parse_rb_unlinkat_event_content(
+    lengths: &mut &[u8],
+    values: &mut &[u8],
+) -> Result<KrsiEventContent, RingbufParseError> {
+    let dirfd = read_next_field(lengths, values)?;
+    let path = read_next_field::<&CStr>(lengths, values)?.map(CString::from);
+    let flags = read_next_field(lengths, values)?;
+    let res = read_next_field(lengths, values)?;
+    let iou_ret = read_next_field(lengths, values)?;
+    Ok(KrsiEventContent::Unlinkat {
+        dirfd,
+        path,
+        flags,
+        res,
+        iou_ret,
+    })
+}
 
-    let pid: u32 = (ev.tgid_pid >> 32) as u32;
-    let tid = (ev.tgid_pid & 0xffffffff) as u32;
-    Ok(KrsiEvent {
-        pid,
-        tid,
-        content: KrsiEventContent::Mkdirat {
-            dirfd,
-            path,
-            mode,
-            res,
-            iou_ret,
-        },
+fn parse_rb_mkdirat_event_content(
+    lengths: &mut &[u8],
+    values: &mut &[u8],
+) -> Result<KrsiEventContent, RingbufParseError> {
+    let dirfd = read_next_field(lengths, values)?;
+    let path = read_next_field::<&CStr>(lengths, values)?.map(CString::from);
+    let mode = read_next_field(lengths, values)?;
+    let res = read_next_field(lengths, values)?;
+    let iou_ret = read_next_field(lengths, values)?;
+    Ok(KrsiEventContent::Mkdirat {
+        dirfd,
+        path,
+        mode,
+        res,
+        iou_ret,
     })
 }
 
@@ -797,11 +670,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_socktuple_to_connection_ipv4() {
-        let socktuple: &[u8] = &[
+    fn test_sock_tuple_to_connection_ipv4() {
+        let mut sock_tuple: &[u8] = &[
             0x02, 0xac, 0x28, 0x6f, 0xde, 0x31, 0xd4, 0x8e, 0xfb, 0x6f, 0x93, 0xbb, 0x01,
         ];
-        let conn = socktuple_to_connection(&socktuple).unwrap();
+        let conn = Connection::from_bytes(&mut sock_tuple).unwrap();
         let expected = Connection::Inet {
             server_addr: "142.251.111.147".parse().unwrap(),
             server_port: 443,
@@ -816,13 +689,13 @@ mod tests {
     }
 
     #[test]
-    fn test_socktuple_to_connection_ipv6() {
-        let socktuple: &[u8] = &[
+    fn test_sock_tuple_to_connection_ipv6() {
+        let mut sock_tuple: &[u8] = &[
             0x0a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x01, 0x31, 0xd4, 0x20, 0x01, 0x48, 0x60, 0x48, 0x60, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x88, 0x88, 0xbb, 0x01,
         ];
-        let conn = socktuple_to_connection(&socktuple).unwrap();
+        let conn = Connection::from_bytes(&mut sock_tuple).unwrap();
         let expected = Connection::Inet {
             server_addr: "2001:4860:4860::8888".parse().unwrap(),
             server_port: 443,
@@ -834,17 +707,17 @@ mod tests {
     }
 
     #[test]
-    fn test_socktuple_to_connection_unix() {
-        let socktuple: &[u8] = &[
+    fn test_sock_tuple_to_connection_unix() {
+        let mut sock_tuple: &[u8] = &[
             0x01, 0x0f, 0x8d, 0x75, 0x9c, 0x00, 0x00, 0x00, 0x00, 0x0a, 0x8d, 0x75, 0x9c, 0x00,
             0x00, 0x00, 0x00, 0x2f, 0x74, 0x6d, 0x70, 0x2f, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d,
             0x2e, 0x73, 0x6f, 0x63, 0x6b,
         ];
-        let conn = socktuple_to_connection(&socktuple).unwrap();
+        let conn = Connection::from_bytes(&mut sock_tuple).unwrap();
         let expected = Connection::Unix {
             src_ptr: 0x9c758d0f,
             dst_ptr: 0x9c758d0a,
-            addr: c"/tmp/stream.sock".into(),
+            path: c"/tmp/stream.sock".into(),
         };
         assert_eq!(conn, expected);
     }
