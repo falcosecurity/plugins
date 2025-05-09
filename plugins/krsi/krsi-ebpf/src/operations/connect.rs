@@ -101,8 +101,8 @@ fn try___sys_connect_file_x(ctx: FExitContext) -> Result<u32, i64> {
         return Ok(0);
     };
 
-    let auxmap = shared_state::auxiliary_map().ok_or(1)?;
-    auxmap.preload_event_header(EventType::Connect);
+    let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
+    auxbuf.preload_event_header(EventType::Connect);
 
     let ret: c_int = unsafe { ctx.arg(4) };
 
@@ -111,9 +111,9 @@ fn try___sys_connect_file_x(ctx: FExitContext) -> Result<u32, i64> {
         let file: File = wrap_arg(unsafe { ctx.arg(0) });
         let sock = Socket::wrap(file.private_data().unwrap_or(null_mut()).cast());
         let sockaddr: Sockaddr = wrap_arg(unsafe { ctx.arg(1) });
-        auxmap.store_sock_tuple_param(&sock, true, &sockaddr, true)
+        auxbuf.store_sock_tuple_param(&sock, true, &sockaddr, true)
     } else {
-        auxmap.store_empty_param();
+        auxbuf.store_empty_param();
         0
     };
 
@@ -123,17 +123,17 @@ fn try___sys_connect_file_x(ctx: FExitContext) -> Result<u32, i64> {
     }
 
     // Parameter 2: iou_ret.
-    auxmap.store_empty_param();
+    auxbuf.store_empty_param();
 
     // Parameter 3: res.
-    auxmap.store_param(ret as i64);
+    auxbuf.store_param(ret as i64);
 
     // Parameter 4: fd.
     // Parameter 5: file_index.
-    auxmap.store_file_descriptor_param(op_data.file_descriptor);
+    auxbuf.store_file_descriptor_param(op_data.file_descriptor);
 
-    auxmap.finalize_event_header();
-    auxmap.submit_event();
+    auxbuf.finalize_event_header();
+    auxbuf.submit_event();
     Ok(0)
 }
 
@@ -150,29 +150,29 @@ fn try_io_connect_x(ctx: FExitContext) -> Result<u32, i64> {
 
     let _ = shared_state::op_info::remove(pid);
 
-    let auxmap = shared_state::auxiliary_map().ok_or(1)?;
-    auxmap.preload_event_header(EventType::Connect);
+    let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
+    auxbuf.preload_event_header(EventType::Connect);
 
     // Parameter 1: tuple. (Already populated on fexit:__sys_connect_file)
-    auxmap.skip_param(op_data.socktuple_len);
+    auxbuf.skip_param(op_data.socktuple_len);
 
     // Parameter 2: iou_ret.
     let iou_ret: i64 = unsafe { ctx.arg(2) };
-    auxmap.store_param(iou_ret);
+    auxbuf.store_param(iou_ret);
 
     // Parameter 3: res.
     let req: IoKiocb = wrap_arg(unsafe { ctx.arg(0) });
     match iouring::io_kiocb_cqe_res(&req, iou_ret) {
-        Ok(Some(cqe_res)) => auxmap.store_param(cqe_res as i64),
-        _ => auxmap.store_empty_param(),
+        Ok(Some(cqe_res)) => auxbuf.store_param(cqe_res as i64),
+        _ => auxbuf.store_empty_param(),
     }
 
     // Parameter 4: fd.
     // Parameter 5: file_index.
-    auxmap.store_file_descriptor_param(op_data.file_descriptor);
+    auxbuf.store_file_descriptor_param(op_data.file_descriptor);
 
-    auxmap.finalize_event_header();
-    auxmap.submit_event();
+    auxbuf.finalize_event_header();
+    auxbuf.submit_event();
     Ok(0)
 }
 

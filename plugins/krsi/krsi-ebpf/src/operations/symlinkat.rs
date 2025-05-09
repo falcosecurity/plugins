@@ -85,30 +85,30 @@ fn try_do_symlinkat_x(ctx: FExitContext) -> Result<u32, i64> {
         return Ok(0);
     }
 
-    let auxmap = shared_state::auxiliary_map().ok_or(1)?;
-    auxmap.preload_event_header(EventType::Symlinkat);
+    let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
+    auxbuf.preload_event_header(EventType::Symlinkat);
 
     // Parameter 1: target.
     let target: Filename = wrap_arg(unsafe { ctx.arg(0) });
-    auxmap.store_filename_param(&target, defs::MAX_PATH, true);
+    auxbuf.store_filename_param(&target, defs::MAX_PATH, true);
 
     // Parameter 2: linkdirfd.
     let linkdirfd: i32 = unsafe { ctx.arg(1) };
-    auxmap.store_param(scap::encode_dirfd(linkdirfd) as i64);
+    auxbuf.store_param(scap::encode_dirfd(linkdirfd) as i64);
 
     // Parameter 3: linkpath.
     let linkpath: Filename = wrap_arg(unsafe { ctx.arg(2) });
-    auxmap.store_filename_param(&linkpath, defs::MAX_PATH, true);
+    auxbuf.store_filename_param(&linkpath, defs::MAX_PATH, true);
 
     // Parameter 4: res.
     let res: i64 = unsafe { ctx.arg(3) };
-    auxmap.store_param(res);
+    auxbuf.store_param(res);
 
     if !is_iou {
         // Parameter 5: iou_ret.
-        auxmap.store_empty_param();
-        auxmap.finalize_event_header();
-        auxmap.submit_event();
+        auxbuf.store_empty_param();
+        auxbuf.finalize_event_header();
+        auxbuf.submit_event();
     }
 
     Ok(0)
@@ -123,15 +123,15 @@ fn try_io_symlinkat_x(ctx: FExitContext) -> Result<u32, i64> {
     let pid = ctx.pid();
     let _ = shared_state::op_info::remove(pid);
 
-    let auxmap = shared_state::auxiliary_map().ok_or(1)?;
-    // Don't call auxmap.preload_event_header, because we want to continue to append to the work
+    let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
+    // Don't call auxbuf.preload_event_header, because we want to continue to append to the work
     // already done on `fexit:do_symlinkat`.
 
     // Parameter 5: iou_ret.
     let iou_ret: i64 = unsafe { ctx.arg(2) };
-    auxmap.store_param(iou_ret);
+    auxbuf.store_param(iou_ret);
 
-    auxmap.finalize_event_header();
-    auxmap.submit_event();
+    auxbuf.finalize_event_header();
+    auxbuf.submit_event();
     Ok(0)
 }

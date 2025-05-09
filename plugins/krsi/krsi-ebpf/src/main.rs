@@ -23,7 +23,7 @@ use krsi_common::EventType;
 use krsi_ebpf_core::{wrap_arg, File};
 use operations::*;
 
-mod auxmap;
+mod auxbuf;
 mod defs;
 mod files;
 mod iouring;
