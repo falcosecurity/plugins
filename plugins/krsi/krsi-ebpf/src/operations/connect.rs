@@ -50,7 +50,7 @@ use krsi_ebpf_core::{wrap_arg, File, IoKiocb, Sockaddr, Socket, Wrap};
 use crate::{
     defs, iouring, shared_state,
     shared_state::op_info::{ConnectData, OpInfo},
-    FileDescriptor,
+    submit_event, FileDescriptor,
 };
 
 #[fentry]
@@ -133,7 +133,7 @@ fn try___sys_connect_file_x(ctx: FExitContext) -> Result<u32, i64> {
     auxbuf.store_file_descriptor_param(op_data.file_descriptor);
 
     auxbuf.finalize_event_header();
-    auxbuf.submit_event();
+    submit_event(auxbuf.as_bytes()?);
     Ok(0)
 }
 
@@ -172,7 +172,7 @@ fn try_io_connect_x(ctx: FExitContext) -> Result<u32, i64> {
     auxbuf.store_file_descriptor_param(op_data.file_descriptor);
 
     auxbuf.finalize_event_header();
-    auxbuf.submit_event();
+    submit_event(auxbuf.as_bytes()?);
     Ok(0)
 }
 

@@ -54,6 +54,7 @@ use krsi_ebpf_core::{wrap_arg, Filename};
 use crate::{
     defs, scap, shared_state,
     shared_state::op_info::{MkdiratData, OpInfo},
+    submit_event,
 };
 
 #[fentry]
@@ -107,7 +108,7 @@ fn try_do_mkdirat_x(ctx: FExitContext) -> Result<u32, i64> {
         // Parameter 5: iou_ret.
         auxbuf.store_empty_param();
         auxbuf.finalize_event_header();
-        auxbuf.submit_event();
+        submit_event(auxbuf.as_bytes()?);
     }
 
     Ok(0)
@@ -131,6 +132,6 @@ fn try_io_mkdirat_x(ctx: FExitContext) -> Result<u32, i64> {
     auxbuf.store_param(iou_ret);
 
     auxbuf.finalize_event_header();
-    auxbuf.submit_event();
+    submit_event(auxbuf.as_bytes()?);
     Ok(0)
 }

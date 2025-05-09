@@ -43,7 +43,7 @@ use aya_ebpf::{cty::c_int, macros::fexit, programs::FExitContext};
 use krsi_common::EventType;
 use krsi_ebpf_core::{wrap_arg, IoKiocb, IoSocket};
 
-use crate::{defs, shared_state, FileDescriptor};
+use crate::{defs, shared_state, submit_event, FileDescriptor};
 
 #[fexit]
 fn io_socket_x(ctx: FExitContext) -> u32 {
@@ -91,7 +91,7 @@ fn try_io_socket_x(ctx: FExitContext) -> Result<u32, i64> {
     };
 
     auxbuf.finalize_event_header();
-    auxbuf.submit_event();
+    submit_event(auxbuf.as_bytes()?);
     Ok(0)
 }
 
@@ -149,6 +149,6 @@ fn try___sys_socket_x(ctx: FExitContext) -> Result<u32, i64> {
     auxbuf.store_param(sock_proto as u32);
 
     auxbuf.finalize_event_header();
-    auxbuf.submit_event();
+    submit_event(auxbuf.as_bytes()?);
     Ok(0)
 }

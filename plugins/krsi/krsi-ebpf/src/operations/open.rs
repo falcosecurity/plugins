@@ -75,7 +75,7 @@ use krsi_ebpf_core::{wrap_arg, File};
 use crate::{
     defs, files, scap, shared_state,
     shared_state::op_info::{OpInfo, OpenData},
-    FileDescriptor,
+    submit_event, FileDescriptor,
 };
 
 #[fentry]
@@ -201,7 +201,7 @@ fn try_openat2_x(ctx: FExitContext) -> Result<u32, i64> {
     auxbuf.store_param(iou_ret);
 
     auxbuf.finalize_event_header();
-    auxbuf.submit_event();
+    submit_event(auxbuf.as_bytes()?);
     Ok(0)
 }
 
@@ -231,6 +231,6 @@ fn try_do_sys_openat2_x(ctx: FExitContext) -> Result<u32, i64> {
     auxbuf.store_empty_param();
 
     auxbuf.finalize_event_header();
-    auxbuf.submit_event();
+    submit_event(auxbuf.as_bytes()?);
     Ok(0)
 }
