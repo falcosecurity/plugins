@@ -38,11 +38,11 @@ const MAX_EVENT_SIZE: u64 = 8 * 1024;
 // Parameter maximum size.
 const MAX_PARAM_SIZE: u64 = MAX_EVENT_SIZE - 1;
 
-const AUXILIARY_MAP_SIZE: usize = 16 * 1024;
+const AUXILIARY_BUFFER_SIZE: usize = 16 * 1024;
 
-pub struct AuxiliaryMap {
+pub struct AuxiliaryBuffer {
     // raw space to save our variable-size event.
-    pub data: [u8; AUXILIARY_MAP_SIZE],
+    pub data: [u8; AUXILIARY_BUFFER_SIZE],
     // position of the first empty byte in the `data` buffer.
     pub payload_pos: u64,
     // position of the first empty slot into the lengths array of the event.
@@ -51,7 +51,7 @@ pub struct AuxiliaryMap {
     pub event_type: u16,
 }
 
-impl AuxiliaryMap {
+impl AuxiliaryBuffer {
     fn event_header_mut(&mut self) -> &mut EventHeader {
         unsafe { &mut *self.data.as_mut_ptr().cast::<EventHeader>() }
     }
@@ -84,10 +84,10 @@ impl AuxiliaryMap {
         self.push_param_len(0);
     }
 
-    /// This helper stores the charbuf pointed by `charbuf` into the auxmap. We read until we find
+    /// This helper stores the charbuf pointed by `charbuf` into the auxbuf. We read until we find
     /// a `\0`, if the charbuf length is greater than `max_len_to_read`, we read up to
     /// `max_len_to_read-1` bytes and add the `\0`. `is_kern_mem` allows to specify if the `charbuf`
-    /// points to kernel or userspace memory. In case of error, the auxmap is left untouched.
+    /// points to kernel or userspace memory. In case of error, the auxbuf is left untouched.
     pub unsafe fn store_charbuf_param(
         &mut self,
         charbuf: *const c_uchar,
@@ -102,7 +102,7 @@ impl AuxiliaryMap {
         Ok(charbuf_len)
     }
 
-    /// This helper stores the path pointed by `path` into the auxmap. We read until we find a `\0`,
+    /// This helper stores the path pointed by `path` into the auxbuf. We read until we find a `\0`,
     /// if the path length is greater than `max_len_to_read`, we read up to `max_len_to_read-1`
     /// bytes and add the `\0`.
     pub unsafe fn store_path_param(

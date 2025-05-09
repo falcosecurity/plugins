@@ -112,16 +112,16 @@ fn try_security_file_open_x(ctx: FExitContext) -> Result<u32, i64> {
         return shared_state::op_info::remove(pid);
     }
 
-    let Some(auxmap) = shared_state::auxiliary_map() else {
+    let Some(auxbuf) = shared_state::auxiliary_buffer() else {
         return shared_state::op_info::remove(pid);
     };
 
-    auxmap.preload_event_header(EventType::Open);
+    auxbuf.preload_event_header(EventType::Open);
 
     // Parameter 1: name.
     let file: File = wrap_arg(unsafe { ctx.arg(0) });
     let path = file.f_path();
-    match unsafe { auxmap.store_path_param(&path, defs::MAX_PATH) } {
+    match unsafe { auxbuf.store_path_param(&path, defs::MAX_PATH) } {
         Ok(_) => Ok(0),
         Err(_) => shared_state::op_info::remove(pid),
     }
@@ -137,13 +137,13 @@ pub fn try_fd_install_x(
         return Ok(0);
     };
 
-    let auxmap = shared_state::auxiliary_map().ok_or(1)?;
-    // Don't call auxmap.preload_event_header, because we want to continue to append to the work
+    let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
+    // Don't call auxbuf.preload_event_header, because we want to continue to append to the work
     // already done on `fexit:security_file_open`.
 
     // Parameter 2: fd.
     // Parameter 3: file_index.
-    auxmap.store_file_descriptor_param(file_descriptor);
+    auxbuf.store_file_descriptor_param(file_descriptor);
 
     let (dev, ino, overlay) = files::dev_ino_overlay(file).unwrap_or((0, 0, files::Overlay::None));
 
@@ -158,16 +158,16 @@ pub fn try_fd_install_x(
     let mode: c_uint = file.f_mode().unwrap_or(0);
     scap_flags |= scap::encode_fmode_created(mode);
 
-    auxmap.store_param(scap_flags);
+    auxbuf.store_param(scap_flags);
 
     // Parameter 5: mode.
-    auxmap.store_param(scap::encode_open_mode(flags, mode));
+    auxbuf.store_param(scap::encode_open_mode(flags, mode));
 
     // Parameter 6: dev.
-    auxmap.store_param(dev as u32);
+    auxbuf.store_param(dev as u32);
 
     // Parameter 7: ino.
-    auxmap.store_param(ino);
+    auxbuf.store_param(ino);
 
     op_data.fd_installed = true;
 
@@ -192,16 +192,16 @@ fn try_openat2_x(ctx: FExitContext) -> Result<u32, i64> {
         return Ok(0);
     }
 
-    let auxmap = shared_state::auxiliary_map().ok_or(1)?;
-    // Don't call auxmap.preload_event_header, because we want to continue to append to the work
+    let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
+    // Don't call auxbuf.preload_event_header, because we want to continue to append to the work
     // already done on `fexit:fd_install` or `fexit:io_fixed_fd_install`.
 
     // Parameter 8: iou_ret.
     let iou_ret: i64 = unsafe { ctx.arg(2) };
-    auxmap.store_param(iou_ret);
+    auxbuf.store_param(iou_ret);
 
-    auxmap.finalize_event_header();
-    auxmap.submit_event();
+    auxbuf.finalize_event_header();
+    auxbuf.submit_event();
     Ok(0)
 }
 
@@ -223,14 +223,14 @@ fn try_do_sys_openat2_x(ctx: FExitContext) -> Result<u32, i64> {
         return Ok(0);
     }
 
-    let auxmap = shared_state::auxiliary_map().ok_or(1)?;
-    // Don't call auxmap.preload_event_header, because we want to continue to append to the work
+    let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
+    // Don't call auxbuf.preload_event_header, because we want to continue to append to the work
     // already done on `fexit:fd_install`.
 
     // Parameter 8: iou_ret.
-    auxmap.store_empty_param();
+    auxbuf.store_empty_param();
 
-    auxmap.finalize_event_header();
-    auxmap.submit_event();
+    auxbuf.finalize_event_header();
+    auxbuf.submit_event();
     Ok(0)
 }

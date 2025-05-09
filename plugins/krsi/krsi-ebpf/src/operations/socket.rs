@@ -51,8 +51,8 @@ fn io_socket_x(ctx: FExitContext) -> u32 {
 }
 
 fn try_io_socket_x(ctx: FExitContext) -> Result<u32, i64> {
-    let auxmap = shared_state::auxiliary_map().ok_or(1)?;
-    auxmap.preload_event_header(EventType::Socket);
+    let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
+    auxbuf.preload_event_header(EventType::Socket);
 
     let req: IoKiocb = wrap_arg(unsafe { ctx.arg(0) });
     let sock = req.cmd_as::<IoSocket>();
@@ -60,38 +60,38 @@ fn try_io_socket_x(ctx: FExitContext) -> Result<u32, i64> {
     let iou_ret: i64 = unsafe { ctx.arg(2) };
 
     // Parameter 1: iou_ret.
-    auxmap.store_param(iou_ret);
+    auxbuf.store_param(iou_ret);
 
     // Parameter 2: fd.
     // Parameter 3: file_index.
     match extract_file_descriptor(&req, &sock, iou_ret) {
-        Ok(Some(file_descriptor)) => auxmap.store_file_descriptor_param(file_descriptor),
+        Ok(Some(file_descriptor)) => auxbuf.store_file_descriptor_param(file_descriptor),
         _ => {
-            auxmap.store_empty_param();
-            auxmap.store_empty_param();
+            auxbuf.store_empty_param();
+            auxbuf.store_empty_param();
         }
     }
 
     // Parameter 4: domain.
     match sock.domain() {
-        Ok(sock_domain) => auxmap.store_param(sock_domain as u32),
-        Err(_) => auxmap.store_empty_param(),
+        Ok(sock_domain) => auxbuf.store_param(sock_domain as u32),
+        Err(_) => auxbuf.store_empty_param(),
     };
 
     // Parameter 5: type.
     match sock.r#type() {
-        Ok(sock_type) => auxmap.store_param(sock_type as u32),
-        Err(_) => auxmap.store_empty_param(),
+        Ok(sock_type) => auxbuf.store_param(sock_type as u32),
+        Err(_) => auxbuf.store_empty_param(),
     };
 
     // Parameter 6: proto.
     match sock.protocol() {
-        Ok(sock_proto) => auxmap.store_param(sock_proto as u32),
-        Err(_) => auxmap.store_empty_param(),
+        Ok(sock_proto) => auxbuf.store_param(sock_proto as u32),
+        Err(_) => auxbuf.store_empty_param(),
     };
 
-    auxmap.finalize_event_header();
-    auxmap.submit_event();
+    auxbuf.finalize_event_header();
+    auxbuf.submit_event();
     Ok(0)
 }
 
@@ -123,32 +123,32 @@ fn __sys_socket_x(ctx: FExitContext) -> u32 {
 
 #[allow(non_snake_case)]
 fn try___sys_socket_x(ctx: FExitContext) -> Result<u32, i64> {
-    let auxmap = shared_state::auxiliary_map().ok_or(1)?;
-    auxmap.preload_event_header(EventType::Socket);
+    let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
+    auxbuf.preload_event_header(EventType::Socket);
 
     // Parameter 1: iou_ret.
-    auxmap.store_empty_param();
+    auxbuf.store_empty_param();
 
     // Parameter 2: fd.
     let ret: c_int = unsafe { ctx.arg(3) };
-    auxmap.store_param(ret as i64);
+    auxbuf.store_param(ret as i64);
 
     // Parameter 3: file_index.
-    auxmap.store_empty_param();
+    auxbuf.store_empty_param();
 
     // Parameter 4: domain.
     let sock_domain: c_int = unsafe { ctx.arg(0) };
-    auxmap.store_param(sock_domain as u32);
+    auxbuf.store_param(sock_domain as u32);
 
     // Parameter 5: type.
     let sock_type: c_int = unsafe { ctx.arg(1) };
-    auxmap.store_param(sock_type as u32);
+    auxbuf.store_param(sock_type as u32);
 
     // Parameter 6: proto.
     let sock_proto: c_int = unsafe { ctx.arg(2) };
-    auxmap.store_param(sock_proto as u32);
+    auxbuf.store_param(sock_proto as u32);
 
-    auxmap.finalize_event_header();
-    auxmap.submit_event();
+    auxbuf.finalize_event_header();
+    auxbuf.submit_event();
     Ok(0)
 }

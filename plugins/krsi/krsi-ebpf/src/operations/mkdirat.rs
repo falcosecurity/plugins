@@ -84,30 +84,30 @@ fn try_do_mkdirat_x(ctx: FExitContext) -> Result<u32, i64> {
         return Ok(0);
     }
 
-    let auxmap = shared_state::auxiliary_map().ok_or(1)?;
-    auxmap.preload_event_header(EventType::Mkdirat);
+    let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
+    auxbuf.preload_event_header(EventType::Mkdirat);
 
     // Parameter 1: dirfd.
     let dirfd: i32 = unsafe { ctx.arg(0) };
-    auxmap.store_param(scap::encode_dirfd(dirfd) as i64);
+    auxbuf.store_param(scap::encode_dirfd(dirfd) as i64);
 
     // Parameter 2: path.
     let path: Filename = wrap_arg(unsafe { ctx.arg(1) });
-    auxmap.store_filename_param(&path, defs::MAX_PATH, true);
+    auxbuf.store_filename_param(&path, defs::MAX_PATH, true);
 
     // Parameter 3: mode.
     let mode: u32 = unsafe { ctx.arg(2) };
-    auxmap.store_param(mode);
+    auxbuf.store_param(mode);
 
     // Parameter 4: res.
     let res: i64 = unsafe { ctx.arg(3) };
-    auxmap.store_param(res);
+    auxbuf.store_param(res);
 
     if !is_iou {
         // Parameter 5: iou_ret.
-        auxmap.store_empty_param();
-        auxmap.finalize_event_header();
-        auxmap.submit_event();
+        auxbuf.store_empty_param();
+        auxbuf.finalize_event_header();
+        auxbuf.submit_event();
     }
 
     Ok(0)
@@ -122,15 +122,15 @@ fn try_io_mkdirat_x(ctx: FExitContext) -> Result<u32, i64> {
     let pid = ctx.pid();
     let _ = shared_state::op_info::remove(pid);
 
-    let auxmap = shared_state::auxiliary_map().ok_or(1)?;
-    // Don't call auxmap.preload_event_header, because we want to continue to append to the work
+    let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
+    // Don't call auxbuf.preload_event_header, because we want to continue to append to the work
     // already done on `fexit:do_mkdirat`.
 
     // Parameter 5: iou_ret.
     let iou_ret: i64 = unsafe { ctx.arg(2) };
-    auxmap.store_param(iou_ret);
+    auxbuf.store_param(iou_ret);
 
-    auxmap.finalize_event_header();
-    auxmap.submit_event();
+    auxbuf.finalize_event_header();
+    auxbuf.submit_event();
     Ok(0)
 }

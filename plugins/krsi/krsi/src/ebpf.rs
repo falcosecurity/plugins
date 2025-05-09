@@ -380,7 +380,7 @@ impl Ebpf {
         let feature_flags_bits = feature_flags.bits();
         let op_flags_bits = op_flags.bits();
         let mut ebpf = EbpfLoader::new()
-            .set_max_entries("AUXILIARY_MAPS", cpus as u32)
+            .set_max_entries("AUXILIARY_BUFFERS", cpus as u32)
             .set_global("BOOT_TIME", &boot_time, true)
             .set_global("FEATURE_FLAGS", &feature_flags_bits, true)
             .set_global("OP_FLAGS", &op_flags_bits, true)
