@@ -76,12 +76,12 @@ impl AuxiliaryBuffer {
     }
 
     pub fn store_param<T: Copy>(&mut self, param: T) {
-        self.push(param);
-        self.push_param_len(size_of::<T>() as u16);
+        self.write_value(param);
+        self.write_len(size_of::<T>() as u16);
     }
 
     pub fn store_empty_param(&mut self) {
-        self.push_param_len(0);
+        self.write_len(0);
     }
 
     /// This helper stores the charbuf pointed by `charbuf` into the auxbuf. We read until we find
@@ -96,9 +96,9 @@ impl AuxiliaryBuffer {
     ) -> Result<u16, i64> {
         let mut charbuf_len = 0_u16;
         if !charbuf.is_null() {
-            charbuf_len = self.push_charbuf(charbuf, max_len_to_read as usize, is_kern_mem)?;
+            charbuf_len = self.write_charbuf(charbuf, max_len_to_read as usize, is_kern_mem)?;
         }
-        self.push_param_len(charbuf_len);
+        self.write_len(charbuf_len);
         Ok(charbuf_len)
     }
 
@@ -112,9 +112,9 @@ impl AuxiliaryBuffer {
     ) -> Result<u16, i64> {
         let mut path_len = 0_u16;
         if !path.is_null() {
-            path_len = self.push_path(&path, max_len_to_read as usize)?;
+            path_len = self.write_path(&path, max_len_to_read as usize)?;
         }
-        self.push_param_len(path_len);
+        self.write_len(path_len);
         Ok(path_len)
     }
 
@@ -126,42 +126,42 @@ impl AuxiliaryBuffer {
         };
 
         let final_parameter_len = match sa_family {
-            defs::AF_INET => self.push_inet_sockaddr(&sockaddr.as_sockaddr_in(), is_kern_sockaddr),
+            defs::AF_INET => self.write_inet_sockaddr(&sockaddr.as_sockaddr_in(), is_kern_sockaddr),
             defs::AF_INET6 => {
-                self.push_inet6_sockaddr(&sockaddr.as_sockaddr_in6(), is_kern_sockaddr)
+                self.write_inet6_sockaddr(&sockaddr.as_sockaddr_in6(), is_kern_sockaddr)
             }
-            defs::AF_UNIX => self.push_unix_sockaddr(&sockaddr.as_sockaddr_un(), is_kern_sockaddr),
+            defs::AF_UNIX => self.write_unix_sockaddr(&sockaddr.as_sockaddr_un(), is_kern_sockaddr),
             _ => 0,
         } as u16;
 
-        self.push_param_len(final_parameter_len);
+        self.write_len(final_parameter_len);
     }
 
-    fn push_inet_sockaddr(&mut self, sockaddr: &SockaddrIn, is_kern_sockaddr: bool) -> usize {
+    fn write_inet_sockaddr(&mut self, sockaddr: &SockaddrIn, is_kern_sockaddr: bool) -> usize {
         let addr = sockaddr.sin_addr();
         let ipv4_addr = read_field!(addr => s_addr, is_kern_sockaddr).unwrap_or(0);
         let port = read_field!(sockaddr => sin_port, is_kern_sockaddr).unwrap_or(0);
-        self.push(scap::encode_socket_family(defs::AF_INET));
-        self.push(ipv4_addr);
-        self.push(u16::from_be(port));
+        self.write_value(scap::encode_socket_family(defs::AF_INET));
+        self.write_value(ipv4_addr);
+        self.write_value(u16::from_be(port));
         defs::FAMILY_SIZE + defs::IPV4_SIZE + defs::PORT_SIZE
     }
 
-    fn push_inet6_sockaddr(&mut self, sockaddr: &SockaddrIn6, is_kern_sockaddr: bool) -> usize {
+    fn write_inet6_sockaddr(&mut self, sockaddr: &SockaddrIn6, is_kern_sockaddr: bool) -> usize {
         let addr = sockaddr.sin6_addr();
         let ipv6_addr = read_field!(addr => in6_u, is_kern_sockaddr).unwrap_or([0, 0, 0, 0]);
         let port = read_field!(sockaddr => sin6_port, is_kern_sockaddr).unwrap_or(0);
-        self.push(scap::encode_socket_family(defs::AF_INET6));
-        self.push(ipv6_addr);
-        self.push(u16::from_be(port));
+        self.write_value(scap::encode_socket_family(defs::AF_INET6));
+        self.write_value(ipv6_addr);
+        self.write_value(u16::from_be(port));
         defs::FAMILY_SIZE + defs::IPV6_SIZE + defs::PORT_SIZE
     }
 
-    fn push_unix_sockaddr(&mut self, sockaddr: &SockaddrUn, is_kern_sockaddr: bool) -> usize {
+    fn write_unix_sockaddr(&mut self, sockaddr: &SockaddrUn, is_kern_sockaddr: bool) -> usize {
         let mut path: [c_uchar; defs::UNIX_PATH_MAX] = [0; defs::UNIX_PATH_MAX];
         let _ = sockets::sockaddr_un_path_into(&sockaddr, is_kern_sockaddr, &mut path);
-        self.push(scap::encode_socket_family(defs::AF_UNIX));
-        let written_bytes = self.push_sockaddr_path(&mut path).unwrap_or(0);
+        self.write_value(scap::encode_socket_family(defs::AF_UNIX));
+        let written_bytes = self.write_sockaddr_path(&mut path).unwrap_or(0);
         defs::FAMILY_SIZE + written_bytes as usize
     }
 
@@ -191,22 +191,22 @@ impl AuxiliaryBuffer {
 
         let final_parameter_len = match sk_family {
             defs::AF_INET => {
-                self.push_inet_sock_tuple(&sk, is_outbound, sockaddr, is_kern_sockaddr)
+                self.write_inet_sock_tuple(&sk, is_outbound, sockaddr, is_kern_sockaddr)
             }
             defs::AF_INET6 => {
-                self.push_inet6_sock_tuple(&sk, is_outbound, sockaddr, is_kern_sockaddr)
+                self.write_inet6_sock_tuple(&sk, is_outbound, sockaddr, is_kern_sockaddr)
             }
             defs::AF_UNIX => {
-                self.push_unix_sock_tuple(&sk, is_outbound, sockaddr, is_kern_sockaddr)
+                self.write_unix_sock_tuple(&sk, is_outbound, sockaddr, is_kern_sockaddr)
             }
             _ => 0,
         } as u16;
 
-        self.push_param_len(final_parameter_len);
+        self.write_len(final_parameter_len);
         final_parameter_len
     }
 
-    fn push_inet_sock_tuple(
+    fn write_inet_sock_tuple(
         &mut self,
         sk: &Sock,
         is_outbound: bool,
@@ -234,23 +234,23 @@ impl AuxiliaryBuffer {
         }
 
         // Pack the tuple info: (sock_family, local_ipv4, local_port, remote_ipv4, remote_port)
-        self.push(scap::encode_socket_family(defs::AF_INET));
+        self.write_value(scap::encode_socket_family(defs::AF_INET));
         if is_outbound {
-            self.push(ipv4_local);
-            self.push(u16::from_be(port_local));
-            self.push(ipv4_remote);
-            self.push(u16::from_be(port_remote));
+            self.write_value(ipv4_local);
+            self.write_value(u16::from_be(port_local));
+            self.write_value(ipv4_remote);
+            self.write_value(u16::from_be(port_remote));
         } else {
-            self.push(ipv4_remote);
-            self.push(u16::from_be(port_remote));
-            self.push(ipv4_local);
-            self.push(u16::from_be(port_local));
+            self.write_value(ipv4_remote);
+            self.write_value(u16::from_be(port_remote));
+            self.write_value(ipv4_local);
+            self.write_value(u16::from_be(port_local));
         }
 
         defs::FAMILY_SIZE + defs::IPV4_SIZE + defs::PORT_SIZE + defs::IPV4_SIZE + defs::PORT_SIZE
     }
 
-    fn push_inet6_sock_tuple(
+    fn write_inet6_sock_tuple(
         &mut self,
         sk: &Sock,
         is_outbound: bool,
@@ -285,23 +285,23 @@ impl AuxiliaryBuffer {
         }
 
         // Pack the tuple info: (sock_family, local_ipv6, local_port, remote_ipv6, remote_port)
-        self.push(scap::encode_socket_family(defs::AF_INET6));
+        self.write_value(scap::encode_socket_family(defs::AF_INET6));
         if is_outbound {
-            self.push(ipv6_local);
-            self.push(u16::from_be(port_local));
-            self.push(ipv6_remote);
-            self.push(u16::from_be(port_remote));
+            self.write_value(ipv6_local);
+            self.write_value(u16::from_be(port_local));
+            self.write_value(ipv6_remote);
+            self.write_value(u16::from_be(port_remote));
         } else {
-            self.push(ipv6_remote);
-            self.push(u16::from_be(port_remote));
-            self.push(ipv6_local);
-            self.push(u16::from_be(port_local));
+            self.write_value(ipv6_remote);
+            self.write_value(u16::from_be(port_remote));
+            self.write_value(ipv6_local);
+            self.write_value(u16::from_be(port_local));
         }
 
         defs::FAMILY_SIZE + defs::IPV6_SIZE + defs::PORT_SIZE + defs::IPV6_SIZE + defs::PORT_SIZE
     }
 
-    fn push_unix_sock_tuple(
+    fn write_unix_sock_tuple(
         &mut self,
         sk: &Sock,
         is_outbound: bool,
@@ -317,10 +317,10 @@ impl AuxiliaryBuffer {
         let path_mut = &mut path;
 
         // Pack the tuple info: (sock_family, dest_os_ptr, src_os_ptr, dest_unix_path)
-        self.push(scap::encode_socket_family(defs::AF_UNIX));
+        self.write_value(scap::encode_socket_family(defs::AF_UNIX));
         if is_outbound {
-            self.push(sk_peer.serialize_ptr() as u64);
-            self.push(sk_local.serialize_ptr() as u64);
+            self.write_value(sk_peer.serialize_ptr() as u64);
+            self.write_value(sk_local.serialize_ptr() as u64);
             if sk_peer.is_null() && !sockaddr.is_null() {
                 let sockaddr = sockaddr.as_sockaddr_un();
                 let _ = sockets::sockaddr_un_path_into(&sockaddr, is_kern_sockaddr, path_mut);
@@ -328,17 +328,17 @@ impl AuxiliaryBuffer {
                 let _ = sockets::unix_sock_addr_path_into(&sk_peer, path_mut);
             }
         } else {
-            self.push(sk_local.serialize_ptr() as u64);
-            self.push(sk_peer.serialize_ptr() as u64);
+            self.write_value(sk_local.serialize_ptr() as u64);
+            self.write_value(sk_peer.serialize_ptr() as u64);
             let _ = sockets::unix_sock_addr_path_into(&sk_local, path_mut);
         }
 
-        let written_bytes = self.push_sockaddr_path(&path).unwrap_or(0);
+        let written_bytes = self.write_sockaddr_path(&path).unwrap_or(0);
 
         defs::FAMILY_SIZE + defs::KERNEL_POINTER + defs::KERNEL_POINTER + written_bytes as usize
     }
 
-    fn push_sockaddr_path(&mut self, path: &[c_uchar; defs::UNIX_PATH_MAX]) -> Result<u16, i64> {
+    fn write_sockaddr_path(&mut self, path: &[c_uchar; defs::UNIX_PATH_MAX]) -> Result<u16, i64> {
         // Notice an exception in `sun_path` (https://man7.org/linux/man-pages/man7/unix.7.html):
         // an `abstract socket address` is distinguished (from a pathname socket) by the fact that
         // sun_path[0] is a null byte (`\0`). So in this case, we need to skip the initial `\0`.
@@ -348,10 +348,10 @@ impl AuxiliaryBuffer {
         // let path_ref = if path[0] == 0 {&path[1..]} else {&path[..]};
         if path[0] == 0 {
             let path_ref = &path[1..];
-            self.push_charbuf(path_ref.as_ptr().cast(), path.len(), true)
+            self.write_charbuf(path_ref.as_ptr().cast(), path.len(), true)
         } else {
             let path_ref = &path[..];
-            self.push_charbuf(path_ref.as_ptr().cast(), path.len(), true)
+            self.write_charbuf(path_ref.as_ptr().cast(), path.len(), true)
         }
     }
 
@@ -378,7 +378,7 @@ impl AuxiliaryBuffer {
         (x & MAX_PARAM_SIZE) as usize
     }
 
-    fn push<T>(&mut self, value: T)
+    fn write_value<T>(&mut self, value: T)
     where
         T: Copy,
     {
@@ -393,7 +393,7 @@ impl AuxiliaryBuffer {
         self.payload_pos += size_of::<T>() as u64;
     }
 
-    fn push_param_len(&mut self, value: u16) {
+    fn write_len(&mut self, value: u16) {
         let pos = Self::data_safe_access(self.lengths_pos as u64);
         unsafe {
             self.data
@@ -411,7 +411,7 @@ impl AuxiliaryBuffer {
     /// points to an empty C string), and this is accounted in the returned number of written bytes:
     /// this means that in case of success, a strictly positive integer is returned. `is_kern_mem`
     /// allows to specify if the `charbuf` points to kernel or userspace memory.
-    fn push_charbuf(
+    fn write_charbuf(
         &mut self,
         charbuf: *const c_uchar,
         max_len_to_read: usize,
@@ -429,13 +429,13 @@ impl AuxiliaryBuffer {
         Ok(written_bytes as u16)
     }
 
-    fn push_path(&mut self, path: &Path, max_len_to_read: usize) -> Result<u16, i64> {
+    fn write_path(&mut self, path: &Path, max_len_to_read: usize) -> Result<u16, i64> {
         let data_pos = Self::data_safe_access(self.payload_pos);
         let data = &mut self.data[data_pos..];
         let written_bytes = unsafe { path.read_into(data, max_len_to_read as u32)? };
         if written_bytes == 0 {
             // Push '\0' (empty string) and returns 1 as number of written bytes.
-            self.push(0_u8);
+            self.write_value(0_u8);
             return Ok(1);
         }
         self.payload_pos += written_bytes as u64;
