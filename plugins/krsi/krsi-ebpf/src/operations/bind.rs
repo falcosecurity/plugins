@@ -54,7 +54,7 @@ use krsi_ebpf_core::{wrap_arg, IoAsyncMsghdr, IoKiocb, Sockaddr};
 use crate::{
     iouring, shared_state,
     shared_state::op_info::{BindData, OpInfo},
-    FileDescriptor,
+    submit_event, FileDescriptor,
 };
 
 #[fentry]
@@ -110,7 +110,7 @@ fn try_io_bind_x(ctx: FExitContext) -> Result<u32, i64> {
     auxbuf.store_file_descriptor_param(*file_descriptor);
 
     auxbuf.finalize_event_header();
-    auxbuf.submit_event();
+    submit_event(auxbuf.as_bytes()?);
     Ok(0)
 }
 
@@ -143,6 +143,6 @@ fn try___sys_bind_x(ctx: FExitContext) -> Result<u32, i64> {
     auxbuf.store_file_descriptor_param(file_descriptor);
 
     auxbuf.finalize_event_header();
-    auxbuf.submit_event();
+    submit_event(auxbuf.as_bytes()?);
     Ok(0)
 }

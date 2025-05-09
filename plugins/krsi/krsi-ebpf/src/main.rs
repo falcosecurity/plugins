@@ -18,7 +18,7 @@ limitations under the License.
 #![no_std]
 #![no_main]
 
-use aya_ebpf::{macros::fexit, programs::FExitContext};
+use aya_ebpf::{bindings::BPF_RB_FORCE_WAKEUP, macros::fexit, programs::FExitContext};
 use krsi_common::EventType;
 use krsi_ebpf_core::{wrap_arg, File};
 use operations::*;
@@ -96,4 +96,14 @@ pub fn get_event_num_params(event_type: EventType) -> u8 {
         Ok(EventType::Bind) => 5,
         _ => 0,
     }
+}
+
+/// Event maximum length. This must be a power of 2.
+pub const MAX_EVENT_LEN: usize = 8 * 1024;
+
+pub fn submit_event(event: &[u8]) {
+    if event.len() > MAX_EVENT_LEN {
+        return;
+    }
+    let _ = shared_state::events_ringbuf().output(event, BPF_RB_FORCE_WAKEUP as u64);
 }

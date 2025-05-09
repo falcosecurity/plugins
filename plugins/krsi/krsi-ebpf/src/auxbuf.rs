@@ -18,7 +18,6 @@ limitations under the License.
 use core::ptr::null_mut;
 
 use aya_ebpf::{
-    bindings::BPF_RB_FORCE_WAKEUP,
     cty::c_uchar,
     helpers::{
         bpf_get_current_pid_tgid, bpf_ktime_get_boot_ns, bpf_probe_read_kernel_str_bytes,
@@ -32,17 +31,19 @@ use krsi_ebpf_core::{
 
 use crate::{defs, get_event_num_params, scap, shared_state, sockets, FileDescriptor};
 
-// Event maximum size.
-const MAX_EVENT_SIZE: u64 = 8 * 1024;
+/// Parameter maximum length. Since [MAX_EVENT_LEN](crate::MAX_EVENT_LEN) must be a power of 2, this
+/// can be used as a mask to check that the accesses to the auxiliary map are always in bound and
+/// please, in this way, the verifier.
+const MAX_PARAM_VALUE_LEN: usize = crate::MAX_EVENT_LEN - 1;
 
-// Parameter maximum size.
-const MAX_PARAM_SIZE: u64 = MAX_EVENT_SIZE - 1;
-
-const AUXILIARY_BUFFER_SIZE: usize = 16 * 1024;
+/// Auxiliary buffer length. It must be able to contain an event of
+/// [MAX_EVENT_LEN](crate::MAX_EVENT_LEN), but it is set to its double in order to please the
+/// verifier.
+const AUXILIARY_BUFFER_LEN: usize = crate::MAX_EVENT_LEN * 2;
 
 pub struct AuxiliaryBuffer {
     // raw space to save our variable-size event.
-    pub data: [u8; AUXILIARY_BUFFER_SIZE],
+    pub data: [u8; AUXILIARY_BUFFER_LEN],
     // position of the first empty byte in the `data` buffer.
     pub payload_pos: u64,
     // position of the first empty slot into the lengths array of the event.
@@ -52,6 +53,9 @@ pub struct AuxiliaryBuffer {
 }
 
 impl AuxiliaryBuffer {
+    fn event_header(&mut self) -> &EventHeader {
+        unsafe { &*self.data.as_ptr().cast::<EventHeader>() }
+    }
     fn event_header_mut(&mut self) -> &mut EventHeader {
         unsafe { &mut *self.data.as_mut_ptr().cast::<EventHeader>() }
     }
@@ -375,7 +379,7 @@ impl AuxiliaryBuffer {
 
     // Helper used to please the verifier during reading operations like `bpf_probe_read_str()`.
     fn data_safe_access(x: u64) -> usize {
-        (x & MAX_PARAM_SIZE) as usize
+        (x & MAX_PARAM_VALUE_LEN as u64) as usize
     }
 
     fn write_value<T>(&mut self, value: T)
@@ -455,13 +459,11 @@ impl AuxiliaryBuffer {
         }
     }
 
-    pub fn submit_event(&self) {
-        if self.payload_pos > MAX_EVENT_SIZE {
-            // TODO: account for drop.
-            return;
+    pub fn as_bytes(&mut self) -> Result<&[u8], i64> {
+        let len = self.event_header().len as usize;
+        if len > self.data.len() {
+            return Err(1);
         }
-
-        let evt = &self.data.as_ref()[..self.payload_pos as usize];
-        let _ = shared_state::events_ringbuf().output(evt, BPF_RB_FORCE_WAKEUP as u64);
+        Ok(&self.data[..len])
     }
 }
