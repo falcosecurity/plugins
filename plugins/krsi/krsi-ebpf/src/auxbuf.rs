@@ -103,9 +103,48 @@ impl<'a> Writer<'a> {
         evt_hdr.len = payload_pos;
     }
 
+    pub fn skip_param(&mut self, len: u16) {
+        self.auxbuf.payload_pos += len as u64;
+        self.auxbuf.lengths_pos = self.auxbuf.lengths_pos + size_of::<u16>() as u8;
+    }
+
     pub fn store_param<T: Copy>(&mut self, param: T) {
         self.write_value(param);
         self.write_len(size_of::<T>() as u16);
+    }
+
+    fn write_value<T>(&mut self, value: T)
+    where
+        T: Copy,
+    {
+        let pos = Self::data_safe_access(self.auxbuf.payload_pos);
+        unsafe {
+            self.auxbuf
+                .data
+                .as_mut_ptr()
+                .byte_add(pos)
+                .cast::<T>()
+                .write_unaligned(value);
+        }
+        self.auxbuf.payload_pos += size_of::<T>() as u64;
+    }
+
+    // Helper used to please the verifier during reading operations like `bpf_probe_read_str()`.
+    fn data_safe_access(x: u64) -> usize {
+        (x & MAX_PARAM_VALUE_LEN as u64) as usize
+    }
+
+    fn write_len(&mut self, value: u16) {
+        let pos = Self::data_safe_access(self.auxbuf.lengths_pos as u64);
+        unsafe {
+            self.auxbuf
+                .data
+                .as_mut_ptr()
+                .byte_add(pos)
+                .cast::<u16>()
+                .write_unaligned(value);
+        }
+        self.auxbuf.lengths_pos = self.auxbuf.lengths_pos + size_of::<u16>() as u8;
     }
 
     pub fn store_empty_param(&mut self) {
@@ -130,6 +169,30 @@ impl<'a> Writer<'a> {
         Ok(charbuf_len)
     }
 
+    /// Try to push the char buffer pointed by `charbuf` into the underlying buffer. The maximum
+    /// length of the char buffer can be at most `max_len_to_read`. In case of success, returns the
+    /// number of written bytes. The written buffer always includes the `\0` character (even if it
+    /// points to an empty C string), and this is accounted in the returned number of written bytes:
+    /// this means that in case of success, a strictly positive integer is returned. `is_kern_mem`
+    /// allows to specify if the `charbuf` points to kernel or userspace memory.
+    fn write_charbuf(
+        &mut self,
+        charbuf: *const c_uchar,
+        max_len_to_read: usize,
+        is_kern_mem: bool,
+    ) -> Result<u16, i64> {
+        let pos = Self::data_safe_access(self.auxbuf.payload_pos);
+        let limit = pos + max_len_to_read;
+        let written_str = if is_kern_mem {
+            unsafe { bpf_probe_read_kernel_str_bytes(charbuf, &mut self.auxbuf.data[pos..limit]) }?
+        } else {
+            unsafe { bpf_probe_read_user_str_bytes(charbuf, &mut self.auxbuf.data[pos..limit]) }?
+        };
+        let written_bytes = written_str.len() + 1; // + 1 accounts for `\0`
+        self.auxbuf.payload_pos += written_bytes as u64;
+        Ok(written_bytes as u16)
+    }
+
     /// This helper stores the path pointed by `path` into the auxbuf. We read until we find a `\0`,
     /// if the path length is greater than `max_len_to_read`, we read up to `max_len_to_read-1`
     /// bytes and add the `\0`.
@@ -144,6 +207,19 @@ impl<'a> Writer<'a> {
         }
         self.write_len(path_len);
         Ok(path_len)
+    }
+
+    fn write_path(&mut self, path: &Path, max_len_to_read: usize) -> Result<u16, i64> {
+        let data_pos = Self::data_safe_access(self.auxbuf.payload_pos);
+        let data = &mut self.auxbuf.data[data_pos..];
+        let written_bytes = unsafe { path.read_into(data, max_len_to_read as u32)? };
+        if written_bytes == 0 {
+            // Push '\0' (empty string) and returns 1 as number of written bytes.
+            self.write_value(0_u8);
+            return Ok(1);
+        }
+        self.auxbuf.payload_pos += written_bytes as u64;
+        Ok(written_bytes as u16)
     }
 
     pub fn store_sockaddr_param(&mut self, sockaddr: &Sockaddr, is_kern_sockaddr: bool) {
@@ -191,6 +267,23 @@ impl<'a> Writer<'a> {
         self.write_value(scap::encode_socket_family(defs::AF_UNIX));
         let written_bytes = self.write_sockaddr_path(&mut path).unwrap_or(0);
         defs::FAMILY_SIZE + written_bytes as usize
+    }
+
+    fn write_sockaddr_path(&mut self, path: &[c_uchar; defs::UNIX_PATH_MAX]) -> Result<u16, i64> {
+        // Notice an exception in `sun_path` (https://man7.org/linux/man-pages/man7/unix.7.html):
+        // an `abstract socket address` is distinguished (from a pathname socket) by the fact that
+        // sun_path[0] is a null byte (`\0`). So in this case, we need to skip the initial `\0`.
+        //
+        // Warning: if you try to extract the path slice in a separate statement as follows, the
+        // verifier will complain (maybe because it would lose information about slice length):
+        // let path_ref = if path[0] == 0 {&path[1..]} else {&path[..]};
+        if path[0] == 0 {
+            let path_ref = &path[1..];
+            self.write_charbuf(path_ref.as_ptr().cast(), path.len(), true)
+        } else {
+            let path_ref = &path[..];
+            self.write_charbuf(path_ref.as_ptr().cast(), path.len(), true)
+        }
     }
 
     /// Store the socktuple obtained by extracting information from the provided socket and the
@@ -366,23 +459,6 @@ impl<'a> Writer<'a> {
         defs::FAMILY_SIZE + defs::KERNEL_POINTER + defs::KERNEL_POINTER + written_bytes as usize
     }
 
-    fn write_sockaddr_path(&mut self, path: &[c_uchar; defs::UNIX_PATH_MAX]) -> Result<u16, i64> {
-        // Notice an exception in `sun_path` (https://man7.org/linux/man-pages/man7/unix.7.html):
-        // an `abstract socket address` is distinguished (from a pathname socket) by the fact that
-        // sun_path[0] is a null byte (`\0`). So in this case, we need to skip the initial `\0`.
-        //
-        // Warning: if you try to extract the path slice in a separate statement as follows, the
-        // verifier will complain (maybe because it would lose information about slice length):
-        // let path_ref = if path[0] == 0 {&path[1..]} else {&path[..]};
-        if path[0] == 0 {
-            let path_ref = &path[1..];
-            self.write_charbuf(path_ref.as_ptr().cast(), path.len(), true)
-        } else {
-            let path_ref = &path[..];
-            self.write_charbuf(path_ref.as_ptr().cast(), path.len(), true)
-        }
-    }
-
     pub fn store_file_descriptor_param(&mut self, file_descriptor: FileDescriptor) {
         match file_descriptor.try_into() {
             Ok(FileDescriptor::Fd(fd)) => {
@@ -394,82 +470,6 @@ impl<'a> Writer<'a> {
                 self.store_param(file_index);
             }
         }
-    }
-
-    pub fn skip_param(&mut self, len: u16) {
-        self.auxbuf.payload_pos += len as u64;
-        self.auxbuf.lengths_pos = self.auxbuf.lengths_pos + size_of::<u16>() as u8;
-    }
-
-    // Helper used to please the verifier during reading operations like `bpf_probe_read_str()`.
-    fn data_safe_access(x: u64) -> usize {
-        (x & MAX_PARAM_VALUE_LEN as u64) as usize
-    }
-
-    fn write_value<T>(&mut self, value: T)
-    where
-        T: Copy,
-    {
-        let pos = Self::data_safe_access(self.auxbuf.payload_pos);
-        unsafe {
-            self.auxbuf
-                .data
-                .as_mut_ptr()
-                .byte_add(pos)
-                .cast::<T>()
-                .write_unaligned(value);
-        }
-        self.auxbuf.payload_pos += size_of::<T>() as u64;
-    }
-
-    fn write_len(&mut self, value: u16) {
-        let pos = Self::data_safe_access(self.auxbuf.lengths_pos as u64);
-        unsafe {
-            self.auxbuf
-                .data
-                .as_mut_ptr()
-                .byte_add(pos)
-                .cast::<u16>()
-                .write_unaligned(value);
-        }
-        self.auxbuf.lengths_pos = self.auxbuf.lengths_pos + size_of::<u16>() as u8;
-    }
-
-    /// Try to push the char buffer pointed by `charbuf` into the underlying buffer. The maximum
-    /// length of the char buffer can be at most `max_len_to_read`. In case of success, returns the
-    /// number of written bytes. The written buffer always includes the `\0` character (even if it
-    /// points to an empty C string), and this is accounted in the returned number of written bytes:
-    /// this means that in case of success, a strictly positive integer is returned. `is_kern_mem`
-    /// allows to specify if the `charbuf` points to kernel or userspace memory.
-    fn write_charbuf(
-        &mut self,
-        charbuf: *const c_uchar,
-        max_len_to_read: usize,
-        is_kern_mem: bool,
-    ) -> Result<u16, i64> {
-        let pos = Self::data_safe_access(self.auxbuf.payload_pos);
-        let limit = pos + max_len_to_read;
-        let written_str = if is_kern_mem {
-            unsafe { bpf_probe_read_kernel_str_bytes(charbuf, &mut self.auxbuf.data[pos..limit]) }?
-        } else {
-            unsafe { bpf_probe_read_user_str_bytes(charbuf, &mut self.auxbuf.data[pos..limit]) }?
-        };
-        let written_bytes = written_str.len() + 1; // + 1 accounts for `\0`
-        self.auxbuf.payload_pos += written_bytes as u64;
-        Ok(written_bytes as u16)
-    }
-
-    fn write_path(&mut self, path: &Path, max_len_to_read: usize) -> Result<u16, i64> {
-        let data_pos = Self::data_safe_access(self.auxbuf.payload_pos);
-        let data = &mut self.auxbuf.data[data_pos..];
-        let written_bytes = unsafe { path.read_into(data, max_len_to_read as u32)? };
-        if written_bytes == 0 {
-            // Push '\0' (empty string) and returns 1 as number of written bytes.
-            self.write_value(0_u8);
-            return Ok(1);
-        }
-        self.auxbuf.payload_pos += written_bytes as u64;
-        Ok(written_bytes as u16)
     }
 
     pub fn store_filename_param(
