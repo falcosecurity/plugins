@@ -86,30 +86,31 @@ fn try_io_bind_x(ctx: FExitContext) -> Result<u32, i64> {
     let _ = shared_state::op_info::remove(pid);
 
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
-    auxbuf.preload_event_header(EventType::Bind);
+    let mut writer = auxbuf.writer();
+    writer.preload_event_header(EventType::Bind);
 
     // Parameter 1: iou_ret.
     let iou_ret: i64 = unsafe { ctx.arg(2) };
-    auxbuf.store_param(iou_ret);
+    writer.store_param(iou_ret);
 
     // Parameter 2: res.
     let req: IoKiocb = wrap_arg(unsafe { ctx.arg(0) });
     match iouring::io_kiocb_cqe_res(&req, iou_ret) {
-        Ok(Some(cqe_res)) => auxbuf.store_param(cqe_res as i64),
-        _ => auxbuf.store_empty_param(),
+        Ok(Some(cqe_res)) => writer.store_param(cqe_res as i64),
+        _ => writer.store_empty_param(),
     }
 
     // Parameter 3: addr.
     match req.async_data_as::<IoAsyncMsghdr>() {
-        Ok(io) => auxbuf.store_sockaddr_param(&io.addr(), true),
-        Err(_) => auxbuf.store_empty_param(),
+        Ok(io) => writer.store_sockaddr_param(&io.addr(), true),
+        Err(_) => writer.store_empty_param(),
     };
 
     // Parameter 4: fd.
     // Parameter 5: file_index.
-    auxbuf.store_file_descriptor_param(*file_descriptor);
+    writer.store_file_descriptor_param(*file_descriptor);
 
-    auxbuf.finalize_event_header();
+    writer.finalize_event_header();
     submit_event(auxbuf.as_bytes()?);
     Ok(0)
 }
@@ -123,26 +124,27 @@ fn __sys_bind_x(ctx: FExitContext) -> u32 {
 #[allow(non_snake_case)]
 fn try___sys_bind_x(ctx: FExitContext) -> Result<u32, i64> {
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
-    auxbuf.preload_event_header(EventType::Bind);
+    let mut writer = auxbuf.writer();
+    writer.preload_event_header(EventType::Bind);
 
     // Parameter 1: iou_ret.
-    auxbuf.store_empty_param();
+    writer.store_empty_param();
 
     // Parameter 2: res.
     let res: i64 = unsafe { ctx.arg(3) };
-    auxbuf.store_param(res);
+    writer.store_param(res);
 
     // Parameter 3: addr.
     let sockaddr: Sockaddr = wrap_arg(unsafe { ctx.arg(1) });
-    auxbuf.store_sockaddr_param(&sockaddr, false);
+    writer.store_sockaddr_param(&sockaddr, false);
 
     // Parameter 4: fd.
     // Parameter 5: file_index.
     let fd = unsafe { ctx.arg(0) };
     let file_descriptor = FileDescriptor::Fd(fd);
-    auxbuf.store_file_descriptor_param(file_descriptor);
+    writer.store_file_descriptor_param(file_descriptor);
 
-    auxbuf.finalize_event_header();
+    writer.finalize_event_header();
     submit_event(auxbuf.as_bytes()?);
     Ok(0)
 }

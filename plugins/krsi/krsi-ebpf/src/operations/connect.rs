@@ -102,7 +102,8 @@ fn try___sys_connect_file_x(ctx: FExitContext) -> Result<u32, i64> {
     };
 
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
-    auxbuf.preload_event_header(EventType::Connect);
+    let mut writer = auxbuf.writer();
+    writer.preload_event_header(EventType::Connect);
 
     let ret: c_int = unsafe { ctx.arg(4) };
 
@@ -111,9 +112,9 @@ fn try___sys_connect_file_x(ctx: FExitContext) -> Result<u32, i64> {
         let file: File = wrap_arg(unsafe { ctx.arg(0) });
         let sock = Socket::wrap(file.private_data().unwrap_or(null_mut()).cast());
         let sockaddr: Sockaddr = wrap_arg(unsafe { ctx.arg(1) });
-        auxbuf.store_sock_tuple_param(&sock, true, &sockaddr, true)
+        writer.store_sock_tuple_param(&sock, true, &sockaddr, true)
     } else {
-        auxbuf.store_empty_param();
+        writer.store_empty_param();
         0
     };
 
@@ -123,16 +124,16 @@ fn try___sys_connect_file_x(ctx: FExitContext) -> Result<u32, i64> {
     }
 
     // Parameter 2: iou_ret.
-    auxbuf.store_empty_param();
+    writer.store_empty_param();
 
     // Parameter 3: res.
-    auxbuf.store_param(ret as i64);
+    writer.store_param(ret as i64);
 
     // Parameter 4: fd.
     // Parameter 5: file_index.
-    auxbuf.store_file_descriptor_param(op_data.file_descriptor);
+    writer.store_file_descriptor_param(op_data.file_descriptor);
 
-    auxbuf.finalize_event_header();
+    writer.finalize_event_header();
     submit_event(auxbuf.as_bytes()?);
     Ok(0)
 }
@@ -151,27 +152,28 @@ fn try_io_connect_x(ctx: FExitContext) -> Result<u32, i64> {
     let _ = shared_state::op_info::remove(pid);
 
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
-    auxbuf.preload_event_header(EventType::Connect);
+    let mut writer = auxbuf.writer();
+    writer.preload_event_header(EventType::Connect);
 
     // Parameter 1: tuple. (Already populated on fexit:__sys_connect_file)
-    auxbuf.skip_param(op_data.socktuple_len);
+    writer.skip_param(op_data.socktuple_len);
 
     // Parameter 2: iou_ret.
     let iou_ret: i64 = unsafe { ctx.arg(2) };
-    auxbuf.store_param(iou_ret);
+    writer.store_param(iou_ret);
 
     // Parameter 3: res.
     let req: IoKiocb = wrap_arg(unsafe { ctx.arg(0) });
     match iouring::io_kiocb_cqe_res(&req, iou_ret) {
-        Ok(Some(cqe_res)) => auxbuf.store_param(cqe_res as i64),
-        _ => auxbuf.store_empty_param(),
+        Ok(Some(cqe_res)) => writer.store_param(cqe_res as i64),
+        _ => writer.store_empty_param(),
     }
 
     // Parameter 4: fd.
     // Parameter 5: file_index.
-    auxbuf.store_file_descriptor_param(op_data.file_descriptor);
+    writer.store_file_descriptor_param(op_data.file_descriptor);
 
-    auxbuf.finalize_event_header();
+    writer.finalize_event_header();
     submit_event(auxbuf.as_bytes()?);
     Ok(0)
 }
