@@ -98,37 +98,38 @@ fn try_do_renameat2_x(ctx: FExitContext) -> Result<u32, i64> {
     }
 
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
-    auxbuf.preload_event_header(EventType::Renameat);
+    let mut writer = auxbuf.writer();
+    writer.preload_event_header(EventType::Renameat);
 
     // Parameter 1: olddirfd.
     let olddirfd: i32 = unsafe { ctx.arg(0) };
-    auxbuf.store_param(scap::encode_dirfd(olddirfd) as i64);
+    writer.store_param(scap::encode_dirfd(olddirfd) as i64);
 
     // Parameter 2: oldpath.
     let oldpath: Filename = wrap_arg(unsafe { ctx.arg(1) });
-    auxbuf.store_filename_param(&oldpath, defs::MAX_PATH, true);
+    writer.store_filename_param(&oldpath, defs::MAX_PATH, true);
 
     // Parameter 3: newdirfd.
     let newdirfd: i32 = unsafe { ctx.arg(2) };
-    auxbuf.store_param(scap::encode_dirfd(newdirfd) as i64);
+    writer.store_param(scap::encode_dirfd(newdirfd) as i64);
 
     // Parameter 4: newpath.
     let newpath: Filename = wrap_arg(unsafe { ctx.arg(3) });
-    auxbuf.store_filename_param(&newpath, defs::MAX_PATH, true);
+    writer.store_filename_param(&newpath, defs::MAX_PATH, true);
 
     // Parameter 5: flags.
     let flags: u32 = unsafe { ctx.arg(4) };
     // TODO(ekoops): we have to create an helper method to convert these flags to the scap format.
-    auxbuf.store_param(flags);
+    writer.store_param(flags);
 
     // Parameter 6: res.
     let res: i64 = unsafe { ctx.arg(5) };
-    auxbuf.store_param(res);
+    writer.store_param(res);
 
     if !is_iou {
         // Parameter 7: iou_ret.
-        auxbuf.store_empty_param();
-        auxbuf.finalize_event_header();
+        writer.store_empty_param();
+        writer.finalize_event_header();
         submit_event(auxbuf.as_bytes()?);
     }
 
@@ -145,14 +146,15 @@ fn try_io_renameat_x(ctx: FExitContext) -> Result<u32, i64> {
     let _ = shared_state::op_info::remove(pid);
 
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
-    // Don't call auxbuf.preload_event_header, because we want to continue to append to the work
+    let mut writer = auxbuf.writer();
+    // Don't call writer.preload_event_header, because we want to continue to append to the work
     // already done on `fexit:do_renameat2`.
 
     // Parameter 7: iou_ret.
     let iou_ret: i64 = unsafe { ctx.arg(2) };
-    auxbuf.store_param(iou_ret);
+    writer.store_param(iou_ret);
 
-    auxbuf.finalize_event_header();
+    writer.finalize_event_header();
     submit_event(auxbuf.as_bytes()?);
     Ok(0)
 }
