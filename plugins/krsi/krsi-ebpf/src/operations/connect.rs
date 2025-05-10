@@ -48,9 +48,11 @@ use krsi_common::EventType;
 use krsi_ebpf_core::{wrap_arg, File, IoKiocb, Sockaddr, Socket, Wrap};
 
 use crate::{
-    defs, iouring, shared_state,
+    defs, iouring,
+    operations::helpers,
+    shared_state,
     shared_state::op_info::{ConnectData, OpInfo},
-    submit_event, FileDescriptor,
+    FileDescriptor,
 };
 
 #[fentry]
@@ -103,7 +105,7 @@ fn try___sys_connect_file_x(ctx: FExitContext) -> Result<u32, i64> {
 
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
     let mut writer = auxbuf.writer();
-    writer.preload_event_header(EventType::Connect);
+    helpers::preload_event_header(&mut writer, EventType::Connect);
 
     let ret: c_int = unsafe { ctx.arg(4) };
 
@@ -134,7 +136,7 @@ fn try___sys_connect_file_x(ctx: FExitContext) -> Result<u32, i64> {
     writer.store_file_descriptor_param(op_data.file_descriptor);
 
     writer.finalize_event_header();
-    submit_event(auxbuf.as_bytes()?);
+    helpers::submit_event(auxbuf.as_bytes()?);
     Ok(0)
 }
 
@@ -153,7 +155,7 @@ fn try_io_connect_x(ctx: FExitContext) -> Result<u32, i64> {
 
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
     let mut writer = auxbuf.writer();
-    writer.preload_event_header(EventType::Connect);
+    helpers::preload_event_header(&mut writer, EventType::Connect);
 
     // Parameter 1: tuple. (Already populated on fexit:__sys_connect_file)
     writer.skip_param(op_data.socktuple_len);
@@ -174,7 +176,7 @@ fn try_io_connect_x(ctx: FExitContext) -> Result<u32, i64> {
     writer.store_file_descriptor_param(op_data.file_descriptor);
 
     writer.finalize_event_header();
-    submit_event(auxbuf.as_bytes()?);
+    helpers::submit_event(auxbuf.as_bytes()?);
     Ok(0)
 }
 

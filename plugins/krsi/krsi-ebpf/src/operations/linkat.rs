@@ -53,9 +53,10 @@ use krsi_common::{
 use krsi_ebpf_core::{wrap_arg, Filename};
 
 use crate::{
-    defs, scap, shared_state,
+    defs,
+    operations::helpers,
+    scap, shared_state,
     shared_state::op_info::{LinkatData, OpInfo},
-    submit_event,
 };
 
 #[fentry]
@@ -88,7 +89,7 @@ fn try_do_linkat_x(ctx: FExitContext) -> Result<u32, i64> {
 
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
     let mut writer = auxbuf.writer();
-    writer.preload_event_header(EventType::Linkat);
+    helpers::preload_event_header(&mut writer, EventType::Linkat);
 
     // Parameter 1: olddirfd.
     let olddirfd: i32 = unsafe { ctx.arg(0) };
@@ -118,7 +119,7 @@ fn try_do_linkat_x(ctx: FExitContext) -> Result<u32, i64> {
         // Parameter 7: iou_ret.
         writer.store_empty_param();
         writer.finalize_event_header();
-        submit_event(auxbuf.as_bytes()?);
+        helpers::submit_event(auxbuf.as_bytes()?);
     }
 
     Ok(0)
@@ -143,6 +144,6 @@ fn try_io_linkat_x(ctx: FExitContext) -> Result<u32, i64> {
     writer.store_param(iou_ret);
 
     writer.finalize_event_header();
-    submit_event(auxbuf.as_bytes()?);
+    helpers::submit_event(auxbuf.as_bytes()?);
     Ok(0)
 }

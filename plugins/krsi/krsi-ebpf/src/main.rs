@@ -18,8 +18,7 @@ limitations under the License.
 #![no_std]
 #![no_main]
 
-use aya_ebpf::{bindings::BPF_RB_FORCE_WAKEUP, macros::fexit, programs::FExitContext};
-use krsi_common::EventType;
+use aya_ebpf::{macros::fexit, programs::FExitContext};
 use krsi_ebpf_core::{wrap_arg, File};
 use operations::*;
 
@@ -81,29 +80,5 @@ fn io_fixed_fd_install_x(ctx: FExitContext) -> u32 {
     res
 }
 
-// TODO(ekoops): move this function elsewhere.
-pub fn get_event_num_params(event_type: EventType) -> u8 {
-    match event_type.try_into() {
-        // TODO(ekoops): try to generate the following numbers automatically.
-        Ok(EventType::Open) => 8,
-        Ok(EventType::Connect) => 5,
-        Ok(EventType::Socket) => 6,
-        Ok(EventType::Symlinkat) => 5,
-        Ok(EventType::Linkat) => 7,
-        Ok(EventType::Unlinkat) => 5,
-        Ok(EventType::Mkdirat) => 5,
-        Ok(EventType::Renameat) => 7,
-        Ok(EventType::Bind) => 5,
-        _ => 0,
-    }
-}
-
 /// Event maximum length. This must be a power of 2.
 pub const MAX_EVENT_LEN: usize = 8 * 1024;
-
-pub fn submit_event(event: &[u8]) {
-    if event.len() > MAX_EVENT_LEN {
-        return;
-    }
-    let _ = shared_state::events_ringbuf().output(event, BPF_RB_FORCE_WAKEUP as u64);
-}

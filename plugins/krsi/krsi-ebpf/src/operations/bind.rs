@@ -52,9 +52,11 @@ use krsi_common::EventType;
 use krsi_ebpf_core::{wrap_arg, IoAsyncMsghdr, IoKiocb, Sockaddr};
 
 use crate::{
-    iouring, shared_state,
+    iouring,
+    operations::helpers,
+    shared_state,
     shared_state::op_info::{BindData, OpInfo},
-    submit_event, FileDescriptor,
+    FileDescriptor,
 };
 
 #[fentry]
@@ -87,7 +89,7 @@ fn try_io_bind_x(ctx: FExitContext) -> Result<u32, i64> {
 
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
     let mut writer = auxbuf.writer();
-    writer.preload_event_header(EventType::Bind);
+    helpers::preload_event_header(&mut writer, EventType::Bind);
 
     // Parameter 1: iou_ret.
     let iou_ret: i64 = unsafe { ctx.arg(2) };
@@ -111,7 +113,7 @@ fn try_io_bind_x(ctx: FExitContext) -> Result<u32, i64> {
     writer.store_file_descriptor_param(*file_descriptor);
 
     writer.finalize_event_header();
-    submit_event(auxbuf.as_bytes()?);
+    helpers::submit_event(auxbuf.as_bytes()?);
     Ok(0)
 }
 
@@ -125,7 +127,7 @@ fn __sys_bind_x(ctx: FExitContext) -> u32 {
 fn try___sys_bind_x(ctx: FExitContext) -> Result<u32, i64> {
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
     let mut writer = auxbuf.writer();
-    writer.preload_event_header(EventType::Bind);
+    helpers::preload_event_header(&mut writer, EventType::Bind);
 
     // Parameter 1: iou_ret.
     writer.store_empty_param();
@@ -145,6 +147,6 @@ fn try___sys_bind_x(ctx: FExitContext) -> Result<u32, i64> {
     writer.store_file_descriptor_param(file_descriptor);
 
     writer.finalize_event_header();
-    submit_event(auxbuf.as_bytes()?);
+    helpers::submit_event(auxbuf.as_bytes()?);
     Ok(0)
 }
