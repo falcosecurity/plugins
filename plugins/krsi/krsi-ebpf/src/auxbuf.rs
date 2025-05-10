@@ -42,40 +42,62 @@ const MAX_PARAM_VALUE_LEN: usize = crate::MAX_EVENT_LEN - 1;
 const AUXILIARY_BUFFER_LEN: usize = crate::MAX_EVENT_LEN * 2;
 
 pub struct AuxiliaryBuffer {
-    // raw space to save our variable-size event.
-    pub data: [u8; AUXILIARY_BUFFER_LEN],
-    // position of the first empty byte in the `data` buffer.
-    pub payload_pos: u64,
-    // position of the first empty slot into the lengths array of the event.
-    pub lengths_pos: u8,
-    // event type we want to send to userspace.
-    pub event_type: u16,
+    /// Raw space to save our variable-size event.
+    data: [u8; AUXILIARY_BUFFER_LEN],
+    /// Position of the first empty byte in the `data` buffer.
+    payload_pos: u64,
+    /// Position of the first empty slot into the lengths array of the event.
+    lengths_pos: u8,
+    /// Event type we want to send to userspace.
+    event_type: u16,
 }
 
 impl AuxiliaryBuffer {
-    fn event_header(&mut self) -> &EventHeader {
+    fn event_header(&self) -> &EventHeader {
         unsafe { &*self.data.as_ptr().cast::<EventHeader>() }
     }
+
     fn event_header_mut(&mut self) -> &mut EventHeader {
         unsafe { &mut *self.data.as_mut_ptr().cast::<EventHeader>() }
     }
 
+    /// Return a [Writer] instance associated with the current buffer.
+    pub fn writer(&mut self) -> Writer {
+        Writer { auxbuf: self }
+    }
+
+    /// Return a slice to the underlying data.
+    pub fn as_bytes(&self) -> Result<&[u8], i64> {
+        let len = self.event_header().len as usize;
+        if len > self.data.len() {
+            return Err(1);
+        }
+        Ok(&self.data[..len])
+    }
+}
+
+/// Utility allowing to push data on an auxiliary buffer.
+pub struct Writer<'a> {
+    auxbuf: &'a mut AuxiliaryBuffer,
+}
+
+impl<'a> Writer<'a> {
     pub fn preload_event_header(&mut self, event_type: EventType) {
-        let evt_hdr = self.event_header_mut();
+        let evt_hdr = self.auxbuf.event_header_mut();
         let nparams = get_event_num_params(event_type);
         evt_hdr.nparams = nparams as u32;
         evt_hdr.ts = shared_state::boot_time() + unsafe { bpf_ktime_get_boot_ns() };
         evt_hdr.tgid_pid = bpf_get_current_pid_tgid();
         evt_hdr.evt_type = event_type;
-        self.payload_pos =
+        self.auxbuf.payload_pos =
             (size_of::<EventHeader>() + (nparams as usize) * size_of::<u16>()) as u64;
-        self.lengths_pos = size_of::<EventHeader>() as u8;
-        self.event_type = event_type as u16;
+        self.auxbuf.lengths_pos = size_of::<EventHeader>() as u8;
+        self.auxbuf.event_type = event_type as u16;
     }
 
     pub fn finalize_event_header(&mut self) {
-        let payload_pos = self.payload_pos as u32;
-        let evt_hdr = self.event_header_mut();
+        let payload_pos = self.auxbuf.payload_pos as u32;
+        let evt_hdr = self.auxbuf.event_header_mut();
         evt_hdr.len = payload_pos;
     }
 
@@ -373,8 +395,8 @@ impl AuxiliaryBuffer {
     }
 
     pub fn skip_param(&mut self, len: u16) {
-        self.payload_pos += len as u64;
-        self.lengths_pos = self.lengths_pos + size_of::<u16>() as u8;
+        self.auxbuf.payload_pos += len as u64;
+        self.auxbuf.lengths_pos = self.auxbuf.lengths_pos + size_of::<u16>() as u8;
     }
 
     // Helper used to please the verifier during reading operations like `bpf_probe_read_str()`.
@@ -386,27 +408,29 @@ impl AuxiliaryBuffer {
     where
         T: Copy,
     {
-        let pos = Self::data_safe_access(self.payload_pos);
+        let pos = Self::data_safe_access(self.auxbuf.payload_pos);
         unsafe {
-            self.data
+            self.auxbuf
+                .data
                 .as_mut_ptr()
                 .byte_add(pos)
                 .cast::<T>()
                 .write_unaligned(value);
         }
-        self.payload_pos += size_of::<T>() as u64;
+        self.auxbuf.payload_pos += size_of::<T>() as u64;
     }
 
     fn write_len(&mut self, value: u16) {
-        let pos = Self::data_safe_access(self.lengths_pos as u64);
+        let pos = Self::data_safe_access(self.auxbuf.lengths_pos as u64);
         unsafe {
-            self.data
+            self.auxbuf
+                .data
                 .as_mut_ptr()
                 .byte_add(pos)
                 .cast::<u16>()
                 .write_unaligned(value);
         }
-        self.lengths_pos = self.lengths_pos + size_of::<u16>() as u8;
+        self.auxbuf.lengths_pos = self.auxbuf.lengths_pos + size_of::<u16>() as u8;
     }
 
     /// Try to push the char buffer pointed by `charbuf` into the underlying buffer. The maximum
@@ -421,28 +445,28 @@ impl AuxiliaryBuffer {
         max_len_to_read: usize,
         is_kern_mem: bool,
     ) -> Result<u16, i64> {
-        let pos = Self::data_safe_access(self.payload_pos);
+        let pos = Self::data_safe_access(self.auxbuf.payload_pos);
         let limit = pos + max_len_to_read;
         let written_str = if is_kern_mem {
-            unsafe { bpf_probe_read_kernel_str_bytes(charbuf, &mut self.data[pos..limit]) }?
+            unsafe { bpf_probe_read_kernel_str_bytes(charbuf, &mut self.auxbuf.data[pos..limit]) }?
         } else {
-            unsafe { bpf_probe_read_user_str_bytes(charbuf, &mut self.data[pos..limit]) }?
+            unsafe { bpf_probe_read_user_str_bytes(charbuf, &mut self.auxbuf.data[pos..limit]) }?
         };
         let written_bytes = written_str.len() + 1; // + 1 accounts for `\0`
-        self.payload_pos += written_bytes as u64;
+        self.auxbuf.payload_pos += written_bytes as u64;
         Ok(written_bytes as u16)
     }
 
     fn write_path(&mut self, path: &Path, max_len_to_read: usize) -> Result<u16, i64> {
-        let data_pos = Self::data_safe_access(self.payload_pos);
-        let data = &mut self.data[data_pos..];
+        let data_pos = Self::data_safe_access(self.auxbuf.payload_pos);
+        let data = &mut self.auxbuf.data[data_pos..];
         let written_bytes = unsafe { path.read_into(data, max_len_to_read as u32)? };
         if written_bytes == 0 {
             // Push '\0' (empty string) and returns 1 as number of written bytes.
             self.write_value(0_u8);
             return Ok(1);
         }
-        self.payload_pos += written_bytes as u64;
+        self.auxbuf.payload_pos += written_bytes as u64;
         Ok(written_bytes as u16)
     }
 
@@ -457,13 +481,5 @@ impl AuxiliaryBuffer {
         }) {
             self.store_empty_param();
         }
-    }
-
-    pub fn as_bytes(&mut self) -> Result<&[u8], i64> {
-        let len = self.event_header().len as usize;
-        if len > self.data.len() {
-            return Err(1);
-        }
-        Ok(&self.data[..len])
     }
 }

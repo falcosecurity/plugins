@@ -116,12 +116,13 @@ fn try_security_file_open_x(ctx: FExitContext) -> Result<u32, i64> {
         return shared_state::op_info::remove(pid);
     };
 
-    auxbuf.preload_event_header(EventType::Open);
+    let mut writer = auxbuf.writer();
+    writer.preload_event_header(EventType::Open);
 
     // Parameter 1: name.
     let file: File = wrap_arg(unsafe { ctx.arg(0) });
     let path = file.f_path();
-    match unsafe { auxbuf.store_path_param(&path, defs::MAX_PATH) } {
+    match unsafe { writer.store_path_param(&path, defs::MAX_PATH) } {
         Ok(_) => Ok(0),
         Err(_) => shared_state::op_info::remove(pid),
     }
@@ -138,12 +139,13 @@ pub fn try_fd_install_x(
     };
 
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
-    // Don't call auxbuf.preload_event_header, because we want to continue to append to the work
+    let mut writer = auxbuf.writer();
+    // Don't call writer.preload_event_header, because we want to continue to append to the work
     // already done on `fexit:security_file_open`.
 
     // Parameter 2: fd.
     // Parameter 3: file_index.
-    auxbuf.store_file_descriptor_param(file_descriptor);
+    writer.store_file_descriptor_param(file_descriptor);
 
     let (dev, ino, overlay) = files::dev_ino_overlay(file).unwrap_or((0, 0, files::Overlay::None));
 
@@ -158,16 +160,16 @@ pub fn try_fd_install_x(
     let mode: c_uint = file.f_mode().unwrap_or(0);
     scap_flags |= scap::encode_fmode_created(mode);
 
-    auxbuf.store_param(scap_flags);
+    writer.store_param(scap_flags);
 
     // Parameter 5: mode.
-    auxbuf.store_param(scap::encode_open_mode(flags, mode));
+    writer.store_param(scap::encode_open_mode(flags, mode));
 
     // Parameter 6: dev.
-    auxbuf.store_param(dev as u32);
+    writer.store_param(dev as u32);
 
     // Parameter 7: ino.
-    auxbuf.store_param(ino);
+    writer.store_param(ino);
 
     op_data.fd_installed = true;
 
@@ -193,14 +195,15 @@ fn try_openat2_x(ctx: FExitContext) -> Result<u32, i64> {
     }
 
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
-    // Don't call auxbuf.preload_event_header, because we want to continue to append to the work
+    let mut writer = auxbuf.writer();
+    // Don't call writer.preload_event_header, because we want to continue to append to the work
     // already done on `fexit:fd_install` or `fexit:io_fixed_fd_install`.
 
     // Parameter 8: iou_ret.
     let iou_ret: i64 = unsafe { ctx.arg(2) };
-    auxbuf.store_param(iou_ret);
+    writer.store_param(iou_ret);
 
-    auxbuf.finalize_event_header();
+    writer.finalize_event_header();
     submit_event(auxbuf.as_bytes()?);
     Ok(0)
 }
@@ -224,13 +227,14 @@ fn try_do_sys_openat2_x(ctx: FExitContext) -> Result<u32, i64> {
     }
 
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
-    // Don't call auxbuf.preload_event_header, because we want to continue to append to the work
+    let mut writer = auxbuf.writer();
+    // Don't call writer.preload_event_header, because we want to continue to append to the work
     // already done on `fexit:fd_install`.
 
     // Parameter 8: iou_ret.
-    auxbuf.store_empty_param();
+    writer.store_empty_param();
 
-    auxbuf.finalize_event_header();
+    writer.finalize_event_header();
     submit_event(auxbuf.as_bytes()?);
     Ok(0)
 }
