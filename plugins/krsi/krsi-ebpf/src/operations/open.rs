@@ -73,9 +73,11 @@ use krsi_common::{scap as scap_shared, EventType};
 use krsi_ebpf_core::{wrap_arg, File};
 
 use crate::{
-    defs, files, scap, shared_state,
+    defs, files,
+    operations::helpers,
+    scap, shared_state,
     shared_state::op_info::{OpInfo, OpenData},
-    submit_event, FileDescriptor,
+    FileDescriptor,
 };
 
 #[fentry]
@@ -117,7 +119,7 @@ fn try_security_file_open_x(ctx: FExitContext) -> Result<u32, i64> {
     };
 
     let mut writer = auxbuf.writer();
-    writer.preload_event_header(EventType::Open);
+    helpers::preload_event_header(&mut writer, EventType::Open);
 
     // Parameter 1: name.
     let file: File = wrap_arg(unsafe { ctx.arg(0) });
@@ -204,7 +206,7 @@ fn try_openat2_x(ctx: FExitContext) -> Result<u32, i64> {
     writer.store_param(iou_ret);
 
     writer.finalize_event_header();
-    submit_event(auxbuf.as_bytes()?);
+    helpers::submit_event(auxbuf.as_bytes()?);
     Ok(0)
 }
 
@@ -235,6 +237,6 @@ fn try_do_sys_openat2_x(ctx: FExitContext) -> Result<u32, i64> {
     writer.store_empty_param();
 
     writer.finalize_event_header();
-    submit_event(auxbuf.as_bytes()?);
+    helpers::submit_event(auxbuf.as_bytes()?);
     Ok(0)
 }

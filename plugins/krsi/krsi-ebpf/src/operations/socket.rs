@@ -43,7 +43,7 @@ use aya_ebpf::{cty::c_int, macros::fexit, programs::FExitContext};
 use krsi_common::EventType;
 use krsi_ebpf_core::{wrap_arg, IoKiocb, IoSocket};
 
-use crate::{defs, shared_state, submit_event, FileDescriptor};
+use crate::{defs, operations::helpers, shared_state, FileDescriptor};
 
 #[fexit]
 fn io_socket_x(ctx: FExitContext) -> u32 {
@@ -53,7 +53,7 @@ fn io_socket_x(ctx: FExitContext) -> u32 {
 fn try_io_socket_x(ctx: FExitContext) -> Result<u32, i64> {
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
     let mut writer = auxbuf.writer();
-    writer.preload_event_header(EventType::Socket);
+    helpers::preload_event_header(&mut writer, EventType::Socket);
 
     let req: IoKiocb = wrap_arg(unsafe { ctx.arg(0) });
     let sock = req.cmd_as::<IoSocket>();
@@ -92,7 +92,7 @@ fn try_io_socket_x(ctx: FExitContext) -> Result<u32, i64> {
     };
 
     writer.finalize_event_header();
-    submit_event(auxbuf.as_bytes()?);
+    helpers::submit_event(auxbuf.as_bytes()?);
     Ok(0)
 }
 
@@ -126,7 +126,7 @@ fn __sys_socket_x(ctx: FExitContext) -> u32 {
 fn try___sys_socket_x(ctx: FExitContext) -> Result<u32, i64> {
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
     let mut writer = auxbuf.writer();
-    writer.preload_event_header(EventType::Socket);
+    helpers::preload_event_header(&mut writer, EventType::Socket);
 
     // Parameter 1: iou_ret.
     writer.store_empty_param();
@@ -151,6 +151,6 @@ fn try___sys_socket_x(ctx: FExitContext) -> Result<u32, i64> {
     writer.store_param(sock_proto as u32);
 
     writer.finalize_event_header();
-    submit_event(auxbuf.as_bytes()?);
+    helpers::submit_event(auxbuf.as_bytes()?);
     Ok(0)
 }

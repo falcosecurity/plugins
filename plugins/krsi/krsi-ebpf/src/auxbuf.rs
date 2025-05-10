@@ -19,17 +19,14 @@ use core::ptr::null_mut;
 
 use aya_ebpf::{
     cty::c_uchar,
-    helpers::{
-        bpf_get_current_pid_tgid, bpf_ktime_get_boot_ns, bpf_probe_read_kernel_str_bytes,
-        bpf_probe_read_user_str_bytes,
-    },
+    helpers::{bpf_probe_read_kernel_str_bytes, bpf_probe_read_user_str_bytes},
 };
 use krsi_common::{EventHeader, EventType};
 use krsi_ebpf_core::{
     read_field, Filename, Path, Sock, Sockaddr, SockaddrIn, SockaddrIn6, SockaddrUn, Socket, Wrap,
 };
 
-use crate::{defs, get_event_num_params, scap, shared_state, sockets, FileDescriptor};
+use crate::{defs, scap, sockets, FileDescriptor};
 
 /// Parameter maximum length. Since [MAX_EVENT_LEN](crate::MAX_EVENT_LEN) must be a power of 2, this
 /// can be used as a mask to check that the accesses to the auxiliary map are always in bound and
@@ -82,13 +79,18 @@ pub struct Writer<'a> {
 }
 
 impl<'a> Writer<'a> {
-    pub fn preload_event_header(&mut self, event_type: EventType) {
+    pub fn preload_event_header(
+        &mut self,
+        ts: u64,
+        tgid_pid: u64,
+        event_type: EventType,
+        nparams: u32,
+    ) {
         let evt_hdr = self.auxbuf.event_header_mut();
-        let nparams = get_event_num_params(event_type);
-        evt_hdr.nparams = nparams as u32;
-        evt_hdr.ts = shared_state::boot_time() + unsafe { bpf_ktime_get_boot_ns() };
-        evt_hdr.tgid_pid = bpf_get_current_pid_tgid();
+        evt_hdr.ts = ts;
+        evt_hdr.tgid_pid = tgid_pid;
         evt_hdr.evt_type = event_type;
+        evt_hdr.nparams = nparams;
         self.auxbuf.payload_pos =
             (size_of::<EventHeader>() + (nparams as usize) * size_of::<u16>()) as u64;
         self.auxbuf.lengths_pos = size_of::<EventHeader>() as u8;
