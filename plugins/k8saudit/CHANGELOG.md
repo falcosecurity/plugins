@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.13.0
+
+* [`f9d1eef`](https://github.com/falcosecurity/plugins/commit/f9d1eef7) chore(plugins/k8saudit): bump to v0.13.0
+
 ## v0.12.0
 
 * [`1da1fc0`](https://github.com/falcosecurity/plugins/commit/1da1fc0d) update(plugins/k8saudit): bump to v0.12.0
