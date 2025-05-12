@@ -27,11 +27,10 @@ github.com/coder/websocket v1.8.13/go.mod h1:LNVeNrXQZfe5qhS9ALED3uA+l5pPqvwXg3C
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/falcosecurity/plugin-sdk-go v0.7.4/go.mod h1:NP+y22DYOS+G3GDXIXNmzf0CBL3nfPPMoQuHvAzfitQ=
 github.com/falcosecurity/plugin-sdk-go v0.7.5 h1:ke/+kTt0PwedM8+IGTKcW3LrUI/xiJNDCSzqTSW+CvI=
 github.com/falcosecurity/plugin-sdk-go v0.7.5/go.mod h1:NP+y22DYOS+G3GDXIXNmzf0CBL3nfPPMoQuHvAzfitQ=
-github.com/falcosecurity/plugins/plugins/k8saudit v0.12.0 h1:Ffr5LnFPOc8UP4qch4XUB0Iki45qY8xFZxR53wtqSVg=
-github.com/falcosecurity/plugins/plugins/k8saudit v0.12.0/go.mod h1:RmSc1za6asI52w3uVhZGb/p6RoQr2OWmp/Zc8+kiMWw=
+github.com/falcosecurity/plugins/plugins/k8saudit v0.13.0 h1:7vQz8khopV0vGU+2McH1vHHxSZYT5OE8DfPzUFzTvcA=
+github.com/falcosecurity/plugins/plugins/k8saudit v0.13.0/go.mod h1:gLUJrRjtEUYMcmTzIj4gnQqNnShWB4YGIDv/nE6n1vA=
 github.com/fortytw2/leaktest v1.3.0 h1:u8491cBMTQ8ft8aeV+adlcytMZylmA5nnwwkRZjI8vw=
 github.com/fortytw2/leaktest v1.3.0/go.mod h1:jDsjWgpAGjm2CA7WthBh/CdZYEPF31XHquHwclZch5g=
 github.com/golang-jwt/jwt/v5 v5.2.2 h1:Rl4B7itRWVtYIHFrSNd7vhTiz9UpLdi6gZhZ3wEeDy8=
