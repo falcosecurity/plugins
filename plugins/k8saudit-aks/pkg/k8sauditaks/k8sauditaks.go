@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /*
-Copyright (C) 2024 The Falco Authors.
+Copyright (C) 2025 The Falco Authors.
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -60,7 +60,7 @@ func (p *Plugin) Info() *plugins.Info {
 		Name:        pluginName,
 		Description: "Read Kubernetes Audit Events for AKS from EventHub and use blob storage as checkpoint store",
 		Contact:     "github.com/falcosecurity/plugins",
-		Version:     "0.1.0",
+		Version:     "0.2.0",
 		EventSource: "k8s_audit",
 	}
 }
