@@ -16,6 +16,14 @@
 # limitations under the License.
 #
 
+# This nonce is used to force a CI job to re-run when no other meaningful changes are made.
+# For example, this can be used to update the artifact index: https://github.com/falcosecurity/falcoctl/blob/gh-pages/index.yaml
+# To trigger the job manually, update the number below (e.g., by replacing it with the current Unix timestamp).
+# It does not need to be secure or unique beyond being different from the previous value.
+# Example: `date +%s` on Unix-like systems will generate a suitable value.
+# 
+# nonce: 1747055710
+
 # This list of data sources is not allowed in plugins since they are already
 # used in Falco.
 reserved_sources: ["syscall", "internal", "plugins"]
