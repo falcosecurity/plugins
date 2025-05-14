@@ -49,7 +49,7 @@ use krsi_ebpf_core::{wrap_arg, File, IoKiocb, Sockaddr, Socket, Wrap};
 
 use crate::{
     defs, iouring,
-    operations::helpers,
+    operations::{helpers, writer_helpers},
     shared_state,
     shared_state::op_info::{ConnectData, OpInfo},
     FileDescriptor,
@@ -105,7 +105,7 @@ fn try___sys_connect_file_x(ctx: FExitContext) -> Result<u32, i64> {
 
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
     let mut writer = auxbuf.writer();
-    helpers::preload_event_header(&mut writer, EventType::Connect);
+    writer_helpers::preload_event_header(&mut writer, EventType::Connect);
 
     let ret: c_int = unsafe { ctx.arg(4) };
 
@@ -114,7 +114,7 @@ fn try___sys_connect_file_x(ctx: FExitContext) -> Result<u32, i64> {
         let file: File = wrap_arg(unsafe { ctx.arg(0) });
         let sock = Socket::wrap(file.private_data().unwrap_or(null_mut()).cast());
         let sockaddr: Sockaddr = wrap_arg(unsafe { ctx.arg(1) });
-        writer.store_sock_tuple_param(&sock, true, &sockaddr, true)
+        writer_helpers::store_sock_tuple_param(&mut writer, &sock, true, &sockaddr, true)
     } else {
         writer.store_empty_param();
         0
@@ -133,7 +133,7 @@ fn try___sys_connect_file_x(ctx: FExitContext) -> Result<u32, i64> {
 
     // Parameter 4: fd.
     // Parameter 5: file_index.
-    writer.store_file_descriptor_param(op_data.file_descriptor);
+    writer_helpers::store_file_descriptor_param(&mut writer, op_data.file_descriptor);
 
     writer.finalize_event_header();
     helpers::submit_event(auxbuf.as_bytes()?);
@@ -155,7 +155,7 @@ fn try_io_connect_x(ctx: FExitContext) -> Result<u32, i64> {
 
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
     let mut writer = auxbuf.writer();
-    helpers::preload_event_header(&mut writer, EventType::Connect);
+    writer_helpers::preload_event_header(&mut writer, EventType::Connect);
 
     // Parameter 1: tuple. (Already populated on fexit:__sys_connect_file)
     writer.skip_param(op_data.socktuple_len);
@@ -173,7 +173,7 @@ fn try_io_connect_x(ctx: FExitContext) -> Result<u32, i64> {
 
     // Parameter 4: fd.
     // Parameter 5: file_index.
-    writer.store_file_descriptor_param(op_data.file_descriptor);
+    writer_helpers::store_file_descriptor_param(&mut writer, op_data.file_descriptor);
 
     writer.finalize_event_header();
     helpers::submit_event(auxbuf.as_bytes()?);

@@ -73,8 +73,8 @@ use krsi_common::{scap as scap_shared, EventType};
 use krsi_ebpf_core::{wrap_arg, File};
 
 use crate::{
-    defs, files,
-    operations::helpers,
+    files,
+    operations::{helpers, writer_helpers},
     scap, shared_state,
     shared_state::op_info::{OpInfo, OpenData},
     FileDescriptor,
@@ -119,12 +119,12 @@ fn try_security_file_open_x(ctx: FExitContext) -> Result<u32, i64> {
     };
 
     let mut writer = auxbuf.writer();
-    helpers::preload_event_header(&mut writer, EventType::Open);
+    writer_helpers::preload_event_header(&mut writer, EventType::Open);
 
     // Parameter 1: name.
     let file: File = wrap_arg(unsafe { ctx.arg(0) });
     let path = file.f_path();
-    match unsafe { writer.store_path_param(&path, defs::MAX_PATH) } {
+    match writer_helpers::store_path_param(&mut writer, &path) {
         Ok(_) => Ok(0),
         Err(_) => shared_state::op_info::remove(pid),
     }
@@ -147,7 +147,7 @@ pub fn try_fd_install_x(
 
     // Parameter 2: fd.
     // Parameter 3: file_index.
-    writer.store_file_descriptor_param(file_descriptor);
+    writer_helpers::store_file_descriptor_param(&mut writer, file_descriptor);
 
     let (dev, ino, overlay) = files::dev_ino_overlay(file).unwrap_or((0, 0, files::Overlay::None));
 

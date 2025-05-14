@@ -52,8 +52,7 @@ use krsi_common::{
 use krsi_ebpf_core::{wrap_arg, Filename};
 
 use crate::{
-    defs,
-    operations::helpers,
+    operations::{helpers, writer_helpers},
     scap, shared_state,
     shared_state::op_info::{MkdiratData, OpInfo},
 };
@@ -88,7 +87,7 @@ fn try_do_mkdirat_x(ctx: FExitContext) -> Result<u32, i64> {
 
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
     let mut writer = auxbuf.writer();
-    helpers::preload_event_header(&mut writer, EventType::Mkdirat);
+    writer_helpers::preload_event_header(&mut writer, EventType::Mkdirat);
 
     // Parameter 1: dirfd.
     let dirfd: i32 = unsafe { ctx.arg(0) };
@@ -96,7 +95,7 @@ fn try_do_mkdirat_x(ctx: FExitContext) -> Result<u32, i64> {
 
     // Parameter 2: path.
     let path: Filename = wrap_arg(unsafe { ctx.arg(1) });
-    writer.store_filename_param(&path, defs::MAX_PATH, true);
+    writer_helpers::store_filename_param(&mut writer, &path, true);
 
     // Parameter 3: mode.
     let mode: u32 = unsafe { ctx.arg(2) };

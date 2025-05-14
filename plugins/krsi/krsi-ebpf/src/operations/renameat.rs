@@ -64,8 +64,7 @@ use krsi_common::{
 use krsi_ebpf_core::{wrap_arg, Filename};
 
 use crate::{
-    defs,
-    operations::helpers,
+    operations::{helpers, writer_helpers},
     scap, shared_state,
     shared_state::op_info::{OpInfo, RenameatData},
 };
@@ -100,7 +99,7 @@ fn try_do_renameat2_x(ctx: FExitContext) -> Result<u32, i64> {
 
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
     let mut writer = auxbuf.writer();
-    helpers::preload_event_header(&mut writer, EventType::Renameat);
+    writer_helpers::preload_event_header(&mut writer, EventType::Renameat);
 
     // Parameter 1: olddirfd.
     let olddirfd: i32 = unsafe { ctx.arg(0) };
@@ -108,7 +107,7 @@ fn try_do_renameat2_x(ctx: FExitContext) -> Result<u32, i64> {
 
     // Parameter 2: oldpath.
     let oldpath: Filename = wrap_arg(unsafe { ctx.arg(1) });
-    writer.store_filename_param(&oldpath, defs::MAX_PATH, true);
+    writer_helpers::store_filename_param(&mut writer, &oldpath, true);
 
     // Parameter 3: newdirfd.
     let newdirfd: i32 = unsafe { ctx.arg(2) };
@@ -116,7 +115,7 @@ fn try_do_renameat2_x(ctx: FExitContext) -> Result<u32, i64> {
 
     // Parameter 4: newpath.
     let newpath: Filename = wrap_arg(unsafe { ctx.arg(3) });
-    writer.store_filename_param(&newpath, defs::MAX_PATH, true);
+    writer_helpers::store_filename_param(&mut writer, &newpath, true);
 
     // Parameter 5: flags.
     let flags: u32 = unsafe { ctx.arg(4) };
