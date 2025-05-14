@@ -53,8 +53,7 @@ use krsi_common::{
 use krsi_ebpf_core::{wrap_arg, Filename};
 
 use crate::{
-    defs,
-    operations::helpers,
+    operations::{helpers, writer_helpers},
     scap, shared_state,
     shared_state::op_info::{OpInfo, SymlinkatData},
 };
@@ -89,11 +88,11 @@ fn try_do_symlinkat_x(ctx: FExitContext) -> Result<u32, i64> {
 
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
     let mut writer = auxbuf.writer();
-    helpers::preload_event_header(&mut writer, EventType::Symlinkat);
+    writer_helpers::preload_event_header(&mut writer, EventType::Symlinkat);
 
     // Parameter 1: target.
     let target: Filename = wrap_arg(unsafe { ctx.arg(0) });
-    writer.store_filename_param(&target, defs::MAX_PATH, true);
+    writer_helpers::store_filename_param(&mut writer, &target, true);
 
     // Parameter 2: linkdirfd.
     let linkdirfd: i32 = unsafe { ctx.arg(1) };
@@ -101,7 +100,7 @@ fn try_do_symlinkat_x(ctx: FExitContext) -> Result<u32, i64> {
 
     // Parameter 3: linkpath.
     let linkpath: Filename = wrap_arg(unsafe { ctx.arg(2) });
-    writer.store_filename_param(&linkpath, defs::MAX_PATH, true);
+    writer_helpers::store_filename_param(&mut writer, &linkpath, true);
 
     // Parameter 4: res.
     let res: i64 = unsafe { ctx.arg(3) };

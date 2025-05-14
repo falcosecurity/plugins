@@ -15,18 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-use core::ptr::null_mut;
-
-use aya_ebpf::{
-    cty::c_uchar,
-    helpers::{bpf_probe_read_kernel_str_bytes, bpf_probe_read_user_str_bytes},
-};
 use krsi_common::{EventHeader, EventType};
-use krsi_ebpf_core::{
-    read_field, Filename, Path, Sock, Sockaddr, SockaddrIn, SockaddrIn6, SockaddrUn, Socket, Wrap,
-};
-
-use crate::{defs, scap, sockets, FileDescriptor};
 
 /// Parameter maximum length. Since [MAX_EVENT_LEN](crate::MAX_EVENT_LEN) must be a power of 2, this
 /// can be used as a mask to check that the accesses to the auxiliary map are always in bound and
@@ -41,8 +30,8 @@ const AUXILIARY_BUFFER_LEN: usize = crate::MAX_EVENT_LEN * 2;
 pub struct AuxiliaryBuffer {
     /// Raw space to save our variable-size event.
     data: [u8; AUXILIARY_BUFFER_LEN],
-    /// Position of the first empty byte in the `data` buffer.
-    payload_pos: u64,
+    /// Position of the first empty slot into the values array of the event.
+    values_pos: u64,
     /// Position of the first empty slot into the lengths array of the event.
     lengths_pos: u8,
     /// Event type we want to send to userspace.
@@ -50,14 +39,6 @@ pub struct AuxiliaryBuffer {
 }
 
 impl AuxiliaryBuffer {
-    fn event_header(&self) -> &EventHeader {
-        unsafe { &*self.data.as_ptr().cast::<EventHeader>() }
-    }
-
-    fn event_header_mut(&mut self) -> &mut EventHeader {
-        unsafe { &mut *self.data.as_mut_ptr().cast::<EventHeader>() }
-    }
-
     /// Return a [Writer] instance associated with the current buffer.
     pub fn writer(&mut self) -> Writer {
         Writer { auxbuf: self }
@@ -70,6 +51,14 @@ impl AuxiliaryBuffer {
             return Err(1);
         }
         Ok(&self.data[..len])
+    }
+
+    fn event_header(&self) -> &EventHeader {
+        unsafe { &*self.data.as_ptr().cast::<EventHeader>() }
+    }
+
+    fn event_header_mut(&mut self) -> &mut EventHeader {
+        unsafe { &mut *self.data.as_mut_ptr().cast::<EventHeader>() }
     }
 }
 
@@ -91,20 +80,20 @@ impl<'a> Writer<'a> {
         evt_hdr.tgid_pid = tgid_pid;
         evt_hdr.evt_type = event_type;
         evt_hdr.nparams = nparams;
-        self.auxbuf.payload_pos =
+        self.auxbuf.values_pos =
             (size_of::<EventHeader>() + (nparams as usize) * size_of::<u16>()) as u64;
         self.auxbuf.lengths_pos = size_of::<EventHeader>() as u8;
         self.auxbuf.event_type = event_type as u16;
     }
 
     pub fn finalize_event_header(&mut self) {
-        let payload_pos = self.auxbuf.payload_pos as u32;
+        let payload_pos = self.auxbuf.values_pos as u32;
         let evt_hdr = self.auxbuf.event_header_mut();
         evt_hdr.len = payload_pos;
     }
 
     pub fn skip_param(&mut self, len: u16) {
-        self.auxbuf.payload_pos += len as u64;
+        self.auxbuf.values_pos += len as u64;
         self.auxbuf.lengths_pos = self.auxbuf.lengths_pos + size_of::<u16>() as u8;
     }
 
@@ -113,20 +102,11 @@ impl<'a> Writer<'a> {
         self.write_len(size_of::<T>() as u16);
     }
 
-    fn write_value<T>(&mut self, value: T)
-    where
-        T: Copy,
-    {
-        let pos = Self::data_safe_access(self.auxbuf.payload_pos);
-        unsafe {
-            self.auxbuf
-                .data
-                .as_mut_ptr()
-                .byte_add(pos)
-                .cast::<T>()
-                .write_unaligned(value);
-        }
-        self.auxbuf.payload_pos += size_of::<T>() as u64;
+    fn write_value<T: Copy /* TODO(ekoops): refine trait bound */>(&mut self, value: T) {
+        let lower_offset = Self::data_safe_access(self.auxbuf.values_pos);
+        let mut data = &mut self.auxbuf.data[lower_offset..];
+        write(&mut data, value);
+        self.auxbuf.values_pos += size_of::<T>() as u64;
     }
 
     // Helper used to please the verifier during reading operations like `bpf_probe_read_str()`.
@@ -135,353 +115,142 @@ impl<'a> Writer<'a> {
     }
 
     fn write_len(&mut self, value: u16) {
-        let pos = Self::data_safe_access(self.auxbuf.lengths_pos as u64);
-        unsafe {
-            self.auxbuf
-                .data
-                .as_mut_ptr()
-                .byte_add(pos)
-                .cast::<u16>()
-                .write_unaligned(value);
-        }
-        self.auxbuf.lengths_pos = self.auxbuf.lengths_pos + size_of::<u16>() as u8;
+        let lower_offset = Self::data_safe_access(self.auxbuf.lengths_pos as u64);
+        let mut data = &mut self.auxbuf.data[lower_offset..];
+        write(&mut data, value);
+        self.auxbuf.lengths_pos += size_of::<u16>() as u8;
     }
 
+    /// Store an empty parameter.
     pub fn store_empty_param(&mut self) {
         self.write_len(0);
     }
 
-    /// This helper stores the charbuf pointed by `charbuf` into the auxbuf. We read until we find
-    /// a `\0`, if the charbuf length is greater than `max_len_to_read`, we read up to
-    /// `max_len_to_read-1` bytes and add the `\0`. `is_kern_mem` allows to specify if the `charbuf`
-    /// points to kernel or userspace memory. In case of error, the auxbuf is left untouched.
-    pub unsafe fn store_charbuf_param(
+    /// Provide a generic way to write a parameter whose size is not known at compile time.
+    ///
+    /// The user must provide the maximal expected parameter length (`max_len_to_read`) and decides
+    /// (by setting `force_max_len` accordingly) if the use case can use an eventually smaller
+    /// amount of bytes (in case the underlying buffer doesn't have enough space to accommodate
+    /// `max_len_to_read` bytes of data).
+    ///
+    /// After reserving the requested amount of bytes (or less, if the amount of free space is less
+    /// than the requested one and `force_max_len` is set to `false`), the provided `write_fn` is
+    /// executed, receiving a [ParamWriter] allowing to write chunks of data on the reserved buffer.
+    /// `write_fn` must return the amount of written bytes or an error, to abort the operation.
+    pub fn store_var_len_param<F>(
         &mut self,
-        charbuf: *const c_uchar,
         max_len_to_read: u16,
-        is_kern_mem: bool,
-    ) -> Result<u16, i64> {
-        let mut charbuf_len = 0_u16;
-        if !charbuf.is_null() {
-            charbuf_len = self.write_charbuf(charbuf, max_len_to_read as usize, is_kern_mem)?;
-        }
-        self.write_len(charbuf_len);
-        Ok(charbuf_len)
-    }
-
-    /// Try to push the char buffer pointed by `charbuf` into the underlying buffer. The maximum
-    /// length of the char buffer can be at most `max_len_to_read`. In case of success, returns the
-    /// number of written bytes. The written buffer always includes the `\0` character (even if it
-    /// points to an empty C string), and this is accounted in the returned number of written bytes:
-    /// this means that in case of success, a strictly positive integer is returned. `is_kern_mem`
-    /// allows to specify if the `charbuf` points to kernel or userspace memory.
-    fn write_charbuf(
-        &mut self,
-        charbuf: *const c_uchar,
-        max_len_to_read: usize,
-        is_kern_mem: bool,
-    ) -> Result<u16, i64> {
-        let pos = Self::data_safe_access(self.auxbuf.payload_pos);
-        let limit = pos + max_len_to_read;
-        let written_str = if is_kern_mem {
-            unsafe { bpf_probe_read_kernel_str_bytes(charbuf, &mut self.auxbuf.data[pos..limit]) }?
-        } else {
-            unsafe { bpf_probe_read_user_str_bytes(charbuf, &mut self.auxbuf.data[pos..limit]) }?
+        force_max_len: bool,
+        write_fn: F,
+    ) -> Result<u16, i64>
+    where
+        F: FnOnce(ParamWriter) -> Result<u16, i64>,
+    {
+        let (lower_offset, upper_offset) = self.values_offsets(max_len_to_read, force_max_len)?;
+        let param_writer = ParamWriter {
+            data: &mut self.auxbuf.data[lower_offset..upper_offset],
         };
-        let written_bytes = written_str.len() + 1; // + 1 accounts for `\0`
-        self.auxbuf.payload_pos += written_bytes as u64;
-        Ok(written_bytes as u16)
+        let written_bytes = write_fn(param_writer)?;
+        self.auxbuf.values_pos += written_bytes as u64;
+        self.write_len(written_bytes);
+        Ok(written_bytes)
     }
 
-    /// This helper stores the path pointed by `path` into the auxbuf. We read until we find a `\0`,
-    /// if the path length is greater than `max_len_to_read`, we read up to `max_len_to_read-1`
-    /// bytes and add the `\0`.
-    pub unsafe fn store_path_param(
+    fn values_offsets(
         &mut self,
-        path: &Path,
         max_len_to_read: u16,
-    ) -> Result<u16, i64> {
-        let mut path_len = 0_u16;
-        if !path.is_null() {
-            path_len = self.write_path(&path, max_len_to_read as usize)?;
+        force_max_len: bool,
+    ) -> Result<(usize, usize), i64> {
+        let lower_offset = self.auxbuf.values_pos as usize;
+        // Check to please the verifier.
+        if lower_offset > crate::MAX_EVENT_LEN {
+            return Err(1);
         }
-        self.write_len(path_len);
-        Ok(path_len)
+
+        let mut read_buffer_len = max_len_to_read;
+        if max_len_to_read as u64 > MAX_PARAM_VALUE_LEN as u64 {
+            if force_max_len {
+                return Err(1);
+            }
+            read_buffer_len = MAX_PARAM_VALUE_LEN as u16;
+        }
+
+        let mut upper_offset = lower_offset + read_buffer_len as usize;
+        if upper_offset > crate::MAX_EVENT_LEN {
+            if force_max_len {
+                return Err(1);
+            }
+            upper_offset = crate::MAX_EVENT_LEN - lower_offset;
+        }
+        Ok((lower_offset, upper_offset))
     }
 
-    fn write_path(&mut self, path: &Path, max_len_to_read: usize) -> Result<u16, i64> {
-        let data_pos = Self::data_safe_access(self.auxbuf.payload_pos);
-        let data = &mut self.auxbuf.data[data_pos..];
-        let written_bytes = unsafe { path.read_into(data, max_len_to_read as u32)? };
-        if written_bytes == 0 {
-            // Push '\0' (empty string) and returns 1 as number of written bytes.
-            self.write_value(0_u8);
-            return Ok(1);
-        }
-        self.auxbuf.payload_pos += written_bytes as u64;
-        Ok(written_bytes as u16)
-    }
-
-    pub fn store_sockaddr_param(&mut self, sockaddr: &Sockaddr, is_kern_sockaddr: bool) {
-        let sa_family = read_field!(sockaddr => sa_family, is_kern_sockaddr);
-        let Ok(sa_family) = sa_family else {
-            self.store_empty_param();
-            return;
+    /// Provide a generic way to write a parameter whose size is known at compile time.
+    ///
+    /// The user must provide the expected parameter length (`len_to_read`). If the underlying
+    /// buffer doesn't have enough space, the operation is aborted. After reserving the requested
+    /// amount of bytes, the provided `write_fn` is invoked, receiving as a [ParamWriter] allowing
+    /// to write chunks of data on the reserved buffer. In order to abort the operation, `write_fn`
+    /// must return an error.
+    pub fn store_fixed_len_param<F>(&mut self, len_to_read: u16, write_fn: F) -> Result<(), i64>
+    where
+        F: FnOnce(ParamWriter) -> Result<(), i64>,
+    {
+        let (lower_offset, upper_offset) = self.values_offsets(len_to_read, true)?;
+        let param_writer = ParamWriter {
+            data: &mut self.auxbuf.data[lower_offset..upper_offset],
         };
+        write_fn(param_writer)?;
+        self.auxbuf.values_pos += len_to_read as u64;
+        self.write_len(len_to_read);
+        Ok(())
+    }
+}
 
-        let final_parameter_len = match sa_family {
-            defs::AF_INET => self.write_inet_sockaddr(&sockaddr.as_sockaddr_in(), is_kern_sockaddr),
-            defs::AF_INET6 => {
-                self.write_inet6_sockaddr(&sockaddr.as_sockaddr_in6(), is_kern_sockaddr)
-            }
-            defs::AF_UNIX => self.write_unix_sockaddr(&sockaddr.as_sockaddr_un(), is_kern_sockaddr),
-            _ => 0,
-        } as u16;
+/// Helper struct allowing to build a parameter value by exposing a series of method for writing
+/// chunk of data over the data buffer reserved for hosting its content.
+pub struct ParamWriter<'a> {
+    data: &'a mut [u8],
+}
 
-        self.write_len(final_parameter_len);
+impl<'a> ParamWriter<'a> {
+    pub fn write_value<T: Copy /* TODO(ekoops): refine trait bound */>(&mut self, value: T) {
+        write(&mut self.data, value)
     }
 
-    fn write_inet_sockaddr(&mut self, sockaddr: &SockaddrIn, is_kern_sockaddr: bool) -> usize {
-        let addr = sockaddr.sin_addr();
-        let ipv4_addr = read_field!(addr => s_addr, is_kern_sockaddr).unwrap_or(0);
-        let port = read_field!(sockaddr => sin_port, is_kern_sockaddr).unwrap_or(0);
-        self.write_value(scap::encode_socket_family(defs::AF_INET));
-        self.write_value(ipv4_addr);
-        self.write_value(u16::from_be(port));
-        defs::FAMILY_SIZE + defs::IPV4_SIZE + defs::PORT_SIZE
+    pub fn as_bytes(&mut self) -> &mut [u8] {
+        self.data
+    }
+}
+
+struct NoBufSpace;
+
+/// Reserve a chunk of bytes of size `value_size` from the buffer pointed by `buf`, returning the
+/// reserved chunk and updating `buf` by making it point to the next byte after the reserved chunk.
+fn reserve_space<'a, 'b: 'a>(
+    buf: &'a mut &'b mut [u8],
+    value_size: usize,
+) -> Result<&'b mut [u8], NoBufSpace> {
+    if buf.len() < value_size {
+        return Err(NoBufSpace);
     }
 
-    fn write_inet6_sockaddr(&mut self, sockaddr: &SockaddrIn6, is_kern_sockaddr: bool) -> usize {
-        let addr = sockaddr.sin6_addr();
-        let ipv6_addr = read_field!(addr => in6_u, is_kern_sockaddr).unwrap_or([0, 0, 0, 0]);
-        let port = read_field!(sockaddr => sin6_port, is_kern_sockaddr).unwrap_or(0);
-        self.write_value(scap::encode_socket_family(defs::AF_INET6));
-        self.write_value(ipv6_addr);
-        self.write_value(u16::from_be(port));
-        defs::FAMILY_SIZE + defs::IPV6_SIZE + defs::PORT_SIZE
-    }
+    let (head, tail) = core::mem::take(buf).split_at_mut(value_size);
+    *buf = tail;
+    Ok(head)
+}
 
-    fn write_unix_sockaddr(&mut self, sockaddr: &SockaddrUn, is_kern_sockaddr: bool) -> usize {
-        let mut path: [c_uchar; defs::UNIX_PATH_MAX] = [0; defs::UNIX_PATH_MAX];
-        let _ = sockets::sockaddr_un_path_into(&sockaddr, is_kern_sockaddr, &mut path);
-        self.write_value(scap::encode_socket_family(defs::AF_UNIX));
-        let written_bytes = self.write_sockaddr_path(&mut path).unwrap_or(0);
-        defs::FAMILY_SIZE + written_bytes as usize
-    }
-
-    fn write_sockaddr_path(&mut self, path: &[c_uchar; defs::UNIX_PATH_MAX]) -> Result<u16, i64> {
-        // Notice an exception in `sun_path` (https://man7.org/linux/man-pages/man7/unix.7.html):
-        // an `abstract socket address` is distinguished (from a pathname socket) by the fact that
-        // sun_path[0] is a null byte (`\0`). So in this case, we need to skip the initial `\0`.
-        //
-        // Warning: if you try to extract the path slice in a separate statement as follows, the
-        // verifier will complain (maybe because it would lose information about slice length):
-        // let path_ref = if path[0] == 0 {&path[1..]} else {&path[..]};
-        if path[0] == 0 {
-            let path_ref = &path[1..];
-            self.write_charbuf(path_ref.as_ptr().cast(), path.len(), true)
-        } else {
-            let path_ref = &path[..];
-            self.write_charbuf(path_ref.as_ptr().cast(), path.len(), true)
-        }
-    }
-
-    /// Store the socktuple obtained by extracting information from the provided socket and the
-    /// provided sockaddr. Returns the stored lengths.
-    pub fn store_sock_tuple_param(
-        &mut self,
-        sock: &Socket,
-        is_outbound: bool,
-        sockaddr: &Sockaddr,
-        is_kern_sockaddr: bool,
-    ) -> u16 {
-        if sock.is_null() {
-            self.store_empty_param();
-            return 0;
-        }
-
-        let Ok(sk) = sock.sk() else {
-            self.store_empty_param();
-            return 0;
-        };
-
-        let Ok(sk_family) = sk.__sk_common().skc_family() else {
-            self.store_empty_param();
-            return 0;
-        };
-
-        let final_parameter_len = match sk_family {
-            defs::AF_INET => {
-                self.write_inet_sock_tuple(&sk, is_outbound, sockaddr, is_kern_sockaddr)
-            }
-            defs::AF_INET6 => {
-                self.write_inet6_sock_tuple(&sk, is_outbound, sockaddr, is_kern_sockaddr)
-            }
-            defs::AF_UNIX => {
-                self.write_unix_sock_tuple(&sk, is_outbound, sockaddr, is_kern_sockaddr)
-            }
-            _ => 0,
-        } as u16;
-
-        self.write_len(final_parameter_len);
-        final_parameter_len
-    }
-
-    fn write_inet_sock_tuple(
-        &mut self,
-        sk: &Sock,
-        is_outbound: bool,
-        sockaddr: &Sockaddr,
-        is_kern_sockaddr: bool,
-    ) -> usize {
-        let inet_sk = sk.as_inet_sock();
-        let ipv4_local = inet_sk.inet_saddr().unwrap_or(0);
-        let port_local = inet_sk.inet_sport().unwrap_or(0);
-        let mut ipv4_remote = sk.__sk_common().skc_daddr().unwrap_or(0);
-        let mut port_remote = sk.__sk_common().skc_dport().unwrap_or(0);
-
-        // Kernel doesn't always fill sk->__sk_common in sendto and sendmsg syscalls (as in the case
-        // of a UDP connection). We fall back to the address from userspace when the kernel-provided
-        // address is NULL.
-        if port_remote == 0 && !sockaddr.is_null() {
-            let sockaddr = sockaddr.as_sockaddr_in();
-            if is_kern_sockaddr {
-                ipv4_remote = sockaddr.sin_addr().s_addr().unwrap_or(0);
-                port_remote = sockaddr.sin_port().unwrap_or(0);
-            } else {
-                ipv4_remote = sockaddr.sin_addr().s_addr_user().unwrap_or(0);
-                port_remote = sockaddr.sin_port_user().unwrap_or(0);
-            }
-        }
-
-        // Pack the tuple info: (sock_family, local_ipv4, local_port, remote_ipv4, remote_port)
-        self.write_value(scap::encode_socket_family(defs::AF_INET));
-        if is_outbound {
-            self.write_value(ipv4_local);
-            self.write_value(u16::from_be(port_local));
-            self.write_value(ipv4_remote);
-            self.write_value(u16::from_be(port_remote));
-        } else {
-            self.write_value(ipv4_remote);
-            self.write_value(u16::from_be(port_remote));
-            self.write_value(ipv4_local);
-            self.write_value(u16::from_be(port_local));
-        }
-
-        defs::FAMILY_SIZE + defs::IPV4_SIZE + defs::PORT_SIZE + defs::IPV4_SIZE + defs::PORT_SIZE
-    }
-
-    fn write_inet6_sock_tuple(
-        &mut self,
-        sk: &Sock,
-        is_outbound: bool,
-        sockaddr: &Sockaddr,
-        is_kern_sockaddr: bool,
-    ) -> usize {
-        let inet6_sk = sk.as_inet_sock();
-        let ipv6_local = inet6_sk
-            .pinet6()
-            .and_then(|pinet6| pinet6.saddr().in6_u())
-            .unwrap_or([0, 0, 0, 0]);
-        let port_local = inet6_sk.inet_sport().unwrap_or(0);
-        let mut ipv6_remote = sk
-            .__sk_common()
-            .skc_v6_daddr()
-            .in6_u()
-            .unwrap_or([0, 0, 0, 0]);
-        let mut port_remote = sk.__sk_common().skc_dport().unwrap_or(0);
-
-        // Kernel doesn't always fill sk->__sk_common in sendto and sendmsg syscalls (as in
-        // the case of a UDP connection). We fall back to the address from userspace when
-        // the kernel-provided address is NULL.
-        if port_remote == 0 && !sockaddr.is_null() {
-            let sockaddr = sockaddr.as_sockaddr_in6();
-            if is_kern_sockaddr {
-                ipv6_remote = sockaddr.sin6_addr().in6_u().unwrap_or([0, 0, 0, 0]);
-                port_remote = sockaddr.sin6_port().unwrap_or(0);
-            } else {
-                ipv6_remote = sockaddr.sin6_addr().in6_u_user().unwrap_or([0, 0, 0, 0]);
-                port_remote = sockaddr.sin6_port_user().unwrap_or(0);
-            }
-        }
-
-        // Pack the tuple info: (sock_family, local_ipv6, local_port, remote_ipv6, remote_port)
-        self.write_value(scap::encode_socket_family(defs::AF_INET6));
-        if is_outbound {
-            self.write_value(ipv6_local);
-            self.write_value(u16::from_be(port_local));
-            self.write_value(ipv6_remote);
-            self.write_value(u16::from_be(port_remote));
-        } else {
-            self.write_value(ipv6_remote);
-            self.write_value(u16::from_be(port_remote));
-            self.write_value(ipv6_local);
-            self.write_value(u16::from_be(port_local));
-        }
-
-        defs::FAMILY_SIZE + defs::IPV6_SIZE + defs::PORT_SIZE + defs::IPV6_SIZE + defs::PORT_SIZE
-    }
-
-    fn write_unix_sock_tuple(
-        &mut self,
-        sk: &Sock,
-        is_outbound: bool,
-        sockaddr: &Sockaddr,
-        is_kern_sockaddr: bool,
-    ) -> usize {
-        let sk_local = sk.as_unix_sock();
-
-        let sk_peer = sk_local.peer().unwrap_or(Sock::wrap(null_mut()));
-        let sk_peer = sk_peer.as_unix_sock();
-
-        let mut path: [c_uchar; defs::UNIX_PATH_MAX] = [0; defs::UNIX_PATH_MAX];
-        let path_mut = &mut path;
-
-        // Pack the tuple info: (sock_family, dest_os_ptr, src_os_ptr, dest_unix_path)
-        self.write_value(scap::encode_socket_family(defs::AF_UNIX));
-        if is_outbound {
-            self.write_value(sk_peer.serialize_ptr() as u64);
-            self.write_value(sk_local.serialize_ptr() as u64);
-            if sk_peer.is_null() && !sockaddr.is_null() {
-                let sockaddr = sockaddr.as_sockaddr_un();
-                let _ = sockets::sockaddr_un_path_into(&sockaddr, is_kern_sockaddr, path_mut);
-            } else if !sk_peer.is_null() {
-                let _ = sockets::unix_sock_addr_path_into(&sk_peer, path_mut);
-            }
-        } else {
-            self.write_value(sk_local.serialize_ptr() as u64);
-            self.write_value(sk_peer.serialize_ptr() as u64);
-            let _ = sockets::unix_sock_addr_path_into(&sk_local, path_mut);
-        }
-
-        let written_bytes = self.write_sockaddr_path(&path).unwrap_or(0);
-
-        defs::FAMILY_SIZE + defs::KERNEL_POINTER + defs::KERNEL_POINTER + written_bytes as usize
-    }
-
-    pub fn store_file_descriptor_param(&mut self, file_descriptor: FileDescriptor) {
-        match file_descriptor.try_into() {
-            Ok(FileDescriptor::Fd(fd)) => {
-                self.store_param(fd as i64);
-                self.store_empty_param();
-            }
-            Ok(FileDescriptor::FileIndex(file_index)) => {
-                self.store_empty_param();
-                self.store_param(file_index);
-            }
-        }
-    }
-
-    pub fn store_filename_param(
-        &mut self,
-        filename: &Filename,
-        max_len_to_read: u16,
-        is_kern_mem: bool,
-    ) {
-        if let Err(_) = filename.name().and_then(|name| unsafe {
-            self.store_charbuf_param(name.cast(), max_len_to_read, is_kern_mem)
-        }) {
-            self.store_empty_param();
-        }
+/// Write the provided `value` in the buffer pointed by `buf`, and update `buf` to make it point to
+/// the next byte after the written value.
+fn write<T: Copy /* TODO(ekoops): refine trait bound */>(buf: &mut &mut [u8], value: T) {
+    let Ok(reserved_space) = reserve_space(buf, size_of::<T>()) else {
+        // TODO(ekoops): handle this error.
+        return;
+    };
+    unsafe {
+        reserved_space
+            .as_mut_ptr()
+            .cast::<T>()
+            .write_unaligned(value);
     }
 }

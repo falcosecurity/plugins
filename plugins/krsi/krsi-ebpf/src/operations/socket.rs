@@ -43,7 +43,11 @@ use aya_ebpf::{cty::c_int, macros::fexit, programs::FExitContext};
 use krsi_common::EventType;
 use krsi_ebpf_core::{wrap_arg, IoKiocb, IoSocket};
 
-use crate::{defs, operations::helpers, shared_state, FileDescriptor};
+use crate::{
+    defs,
+    operations::{helpers, writer_helpers},
+    shared_state, FileDescriptor,
+};
 
 #[fexit]
 fn io_socket_x(ctx: FExitContext) -> u32 {
@@ -53,7 +57,7 @@ fn io_socket_x(ctx: FExitContext) -> u32 {
 fn try_io_socket_x(ctx: FExitContext) -> Result<u32, i64> {
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
     let mut writer = auxbuf.writer();
-    helpers::preload_event_header(&mut writer, EventType::Socket);
+    writer_helpers::preload_event_header(&mut writer, EventType::Socket);
 
     let req: IoKiocb = wrap_arg(unsafe { ctx.arg(0) });
     let sock = req.cmd_as::<IoSocket>();
@@ -66,7 +70,9 @@ fn try_io_socket_x(ctx: FExitContext) -> Result<u32, i64> {
     // Parameter 2: fd.
     // Parameter 3: file_index.
     match extract_file_descriptor(&req, &sock, iou_ret) {
-        Ok(Some(file_descriptor)) => writer.store_file_descriptor_param(file_descriptor),
+        Ok(Some(file_descriptor)) => {
+            writer_helpers::store_file_descriptor_param(&mut writer, file_descriptor)
+        }
         _ => {
             writer.store_empty_param();
             writer.store_empty_param();
@@ -126,7 +132,7 @@ fn __sys_socket_x(ctx: FExitContext) -> u32 {
 fn try___sys_socket_x(ctx: FExitContext) -> Result<u32, i64> {
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
     let mut writer = auxbuf.writer();
-    helpers::preload_event_header(&mut writer, EventType::Socket);
+    writer_helpers::preload_event_header(&mut writer, EventType::Socket);
 
     // Parameter 1: iou_ret.
     writer.store_empty_param();

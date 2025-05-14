@@ -53,7 +53,7 @@ use krsi_ebpf_core::{wrap_arg, IoAsyncMsghdr, IoKiocb, Sockaddr};
 
 use crate::{
     iouring,
-    operations::helpers,
+    operations::{helpers, writer_helpers},
     shared_state,
     shared_state::op_info::{BindData, OpInfo},
     FileDescriptor,
@@ -89,7 +89,7 @@ fn try_io_bind_x(ctx: FExitContext) -> Result<u32, i64> {
 
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
     let mut writer = auxbuf.writer();
-    helpers::preload_event_header(&mut writer, EventType::Bind);
+    writer_helpers::preload_event_header(&mut writer, EventType::Bind);
 
     // Parameter 1: iou_ret.
     let iou_ret: i64 = unsafe { ctx.arg(2) };
@@ -104,13 +104,13 @@ fn try_io_bind_x(ctx: FExitContext) -> Result<u32, i64> {
 
     // Parameter 3: addr.
     match req.async_data_as::<IoAsyncMsghdr>() {
-        Ok(io) => writer.store_sockaddr_param(&io.addr(), true),
+        Ok(io) => writer_helpers::store_sockaddr_param(&mut writer, &io.addr(), true),
         Err(_) => writer.store_empty_param(),
     };
 
     // Parameter 4: fd.
     // Parameter 5: file_index.
-    writer.store_file_descriptor_param(*file_descriptor);
+    writer_helpers::store_file_descriptor_param(&mut writer, *file_descriptor);
 
     writer.finalize_event_header();
     helpers::submit_event(auxbuf.as_bytes()?);
@@ -127,7 +127,7 @@ fn __sys_bind_x(ctx: FExitContext) -> u32 {
 fn try___sys_bind_x(ctx: FExitContext) -> Result<u32, i64> {
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
     let mut writer = auxbuf.writer();
-    helpers::preload_event_header(&mut writer, EventType::Bind);
+    writer_helpers::preload_event_header(&mut writer, EventType::Bind);
 
     // Parameter 1: iou_ret.
     writer.store_empty_param();
@@ -138,13 +138,13 @@ fn try___sys_bind_x(ctx: FExitContext) -> Result<u32, i64> {
 
     // Parameter 3: addr.
     let sockaddr: Sockaddr = wrap_arg(unsafe { ctx.arg(1) });
-    writer.store_sockaddr_param(&sockaddr, false);
+    writer_helpers::store_sockaddr_param(&mut writer, &sockaddr, false);
 
     // Parameter 4: fd.
     // Parameter 5: file_index.
     let fd = unsafe { ctx.arg(0) };
     let file_descriptor = FileDescriptor::Fd(fd);
-    writer.store_file_descriptor_param(file_descriptor);
+    writer_helpers::store_file_descriptor_param(&mut writer, file_descriptor);
 
     writer.finalize_event_header();
     helpers::submit_event(auxbuf.as_bytes()?);

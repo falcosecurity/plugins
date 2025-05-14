@@ -24,41 +24,14 @@ pub mod renameat;
 pub mod socket;
 pub mod symlinkat;
 pub mod unlinkat;
+pub mod writer_helpers;
+pub mod helpers {
+    use aya_ebpf::bindings::BPF_RB_FORCE_WAKEUP;
 
-mod helpers {
-    use aya_ebpf::{
-        bindings::BPF_RB_FORCE_WAKEUP,
-        helpers::{bpf_get_current_pid_tgid, bpf_ktime_get_boot_ns},
-    };
-    use krsi_common::EventType;
-
-    use crate::{auxbuf::Writer, shared_state, MAX_EVENT_LEN};
-
-    pub fn preload_event_header(writer: &mut Writer, event_type: EventType) {
-        let ts = shared_state::boot_time() + unsafe { bpf_ktime_get_boot_ns() };
-        let tgid_pid = bpf_get_current_pid_tgid();
-        let nparams = get_event_num_params(event_type) as u32;
-        writer.preload_event_header(ts, tgid_pid, event_type, nparams);
-    }
-
-    fn get_event_num_params(event_type: EventType) -> u8 {
-        match event_type.try_into() {
-            // TODO(ekoops): try to generate the following numbers automatically.
-            Ok(EventType::Open) => 8,
-            Ok(EventType::Connect) => 5,
-            Ok(EventType::Socket) => 6,
-            Ok(EventType::Symlinkat) => 5,
-            Ok(EventType::Linkat) => 7,
-            Ok(EventType::Unlinkat) => 5,
-            Ok(EventType::Mkdirat) => 5,
-            Ok(EventType::Renameat) => 7,
-            Ok(EventType::Bind) => 5,
-            _ => 0,
-        }
-    }
+    use crate::shared_state;
 
     pub fn submit_event(event: &[u8]) {
-        if event.len() > MAX_EVENT_LEN {
+        if event.len() > crate::MAX_EVENT_LEN {
             return;
         }
         let _ = shared_state::events_ringbuf().output(event, BPF_RB_FORCE_WAKEUP as u64);
