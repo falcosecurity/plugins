@@ -243,9 +243,12 @@ gen_accessors!(path => {
 });
 
 impl Path {
-    pub unsafe fn read_into(&self, buf: &mut [u8], max_len_to_read: u32) -> Result<usize, i64> {
+    /// Reads up to `max_Len_to_read - 1` bytes of the path into the provided buffer and returns, on
+    /// success, the strictly positive length of the written string, including the trailing NULL
+    /// character.
+    pub unsafe fn read_into(&self, buf: &mut [u8], max_len_to_read: usize) -> Result<usize, i64> {
         let buf = buf.as_mut_ptr().cast();
-        let written_bytes = bpf_d_path(self.inner.cast(), buf, max_len_to_read);
+        let written_bytes = bpf_d_path(self.inner.cast(), buf, max_len_to_read as u32);
         if written_bytes < 0 {
             Err(written_bytes)
         } else {

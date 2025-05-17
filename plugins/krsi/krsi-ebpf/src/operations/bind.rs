@@ -93,24 +93,24 @@ fn try_io_bind_x(ctx: FExitContext) -> Result<u32, i64> {
 
     // Parameter 1: iou_ret.
     let iou_ret: i64 = unsafe { ctx.arg(2) };
-    writer.store_param(iou_ret);
+    writer.store_param(iou_ret)?;
 
     // Parameter 2: res.
     let req: IoKiocb = wrap_arg(unsafe { ctx.arg(0) });
     match iouring::io_kiocb_cqe_res(&req, iou_ret) {
-        Ok(Some(cqe_res)) => writer.store_param(cqe_res as i64),
-        _ => writer.store_empty_param(),
+        Ok(Some(cqe_res)) => writer.store_param(cqe_res as i64)?,
+        _ => writer.store_empty_param()?,
     }
 
     // Parameter 3: addr.
     match req.async_data_as::<IoAsyncMsghdr>() {
         Ok(io) => writer_helpers::store_sockaddr_param(&mut writer, &io.addr(), true),
         Err(_) => writer.store_empty_param(),
-    };
+    }?;
 
     // Parameter 4: fd.
     // Parameter 5: file_index.
-    writer_helpers::store_file_descriptor_param(&mut writer, *file_descriptor);
+    writer_helpers::store_file_descriptor_param(&mut writer, *file_descriptor)?;
 
     writer.finalize_event_header();
     helpers::submit_event(auxbuf.as_bytes()?);
@@ -130,21 +130,21 @@ fn try___sys_bind_x(ctx: FExitContext) -> Result<u32, i64> {
     writer_helpers::preload_event_header(&mut writer, EventType::Bind);
 
     // Parameter 1: iou_ret.
-    writer.store_empty_param();
+    writer.store_empty_param()?;
 
     // Parameter 2: res.
     let res: i64 = unsafe { ctx.arg(3) };
-    writer.store_param(res);
+    writer.store_param(res)?;
 
     // Parameter 3: addr.
     let sockaddr: Sockaddr = wrap_arg(unsafe { ctx.arg(1) });
-    writer_helpers::store_sockaddr_param(&mut writer, &sockaddr, false);
+    writer_helpers::store_sockaddr_param(&mut writer, &sockaddr, false)?;
 
     // Parameter 4: fd.
     // Parameter 5: file_index.
     let fd = unsafe { ctx.arg(0) };
     let file_descriptor = FileDescriptor::Fd(fd);
-    writer_helpers::store_file_descriptor_param(&mut writer, file_descriptor);
+    writer_helpers::store_file_descriptor_param(&mut writer, file_descriptor)?;
 
     writer.finalize_event_header();
     helpers::submit_event(auxbuf.as_bytes()?);

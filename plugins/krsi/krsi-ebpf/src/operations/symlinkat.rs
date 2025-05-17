@@ -92,23 +92,23 @@ fn try_do_symlinkat_x(ctx: FExitContext) -> Result<u32, i64> {
 
     // Parameter 1: target.
     let target: Filename = wrap_arg(unsafe { ctx.arg(0) });
-    writer_helpers::store_filename_param(&mut writer, &target, true);
+    writer_helpers::store_filename_param(&mut writer, &target, true)?;
 
     // Parameter 2: linkdirfd.
     let linkdirfd: i32 = unsafe { ctx.arg(1) };
-    writer.store_param(scap::encode_dirfd(linkdirfd) as i64);
+    writer.store_param(scap::encode_dirfd(linkdirfd) as i64)?;
 
     // Parameter 3: linkpath.
     let linkpath: Filename = wrap_arg(unsafe { ctx.arg(2) });
-    writer_helpers::store_filename_param(&mut writer, &linkpath, true);
+    writer_helpers::store_filename_param(&mut writer, &linkpath, true)?;
 
     // Parameter 4: res.
     let res: i64 = unsafe { ctx.arg(3) };
-    writer.store_param(res);
+    writer.store_param(res)?;
 
     if !is_iou {
         // Parameter 5: iou_ret.
-        writer.store_empty_param();
+        writer.store_empty_param()?;
         writer.finalize_event_header();
         helpers::submit_event(auxbuf.as_bytes()?);
     }
@@ -132,7 +132,7 @@ fn try_io_symlinkat_x(ctx: FExitContext) -> Result<u32, i64> {
 
     // Parameter 5: iou_ret.
     let iou_ret: i64 = unsafe { ctx.arg(2) };
-    writer.store_param(iou_ret);
+    writer.store_param(iou_ret)?;
 
     writer.finalize_event_header();
     helpers::submit_event(auxbuf.as_bytes()?);

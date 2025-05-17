@@ -123,25 +123,25 @@ fn try_do_unlinkat_x(ctx: FExitContext) -> Result<u32, i64> {
 
     // Parameter 1: dirfd.
     let dirfd: i32 = unsafe { ctx.arg(0) };
-    writer.store_param(scap::encode_dirfd(dirfd) as i64);
+    writer.store_param(scap::encode_dirfd(dirfd) as i64)?;
 
     // Parameter 2: path.
     let path: Filename = wrap_arg(unsafe { ctx.arg(1) });
-    writer_helpers::store_filename_param(&mut writer, &path, true);
+    writer_helpers::store_filename_param(&mut writer, &path, true)?;
 
     // Parameter 3: flags.
     match op_data.flags {
         Some(flags) => writer.store_param(scap::encode_unlinkat_flags(flags)),
         None => writer.store_empty_param(),
-    }
+    }?;
 
     // parameter 4: res.
     let res: i64 = unsafe { ctx.arg(2) };
-    writer.store_param(res);
+    writer.store_param(res)?;
 
     if !op_data.is_iou {
         // Parameter 5: iou_ret.
-        writer.store_empty_param();
+        writer.store_empty_param()?;
         writer.finalize_event_header();
         helpers::submit_event(auxbuf.as_bytes()?);
     }
@@ -190,7 +190,7 @@ fn try_io_unlinkat_x(ctx: FExitContext) -> Result<u32, i64> {
 
     // Parameter 5: iou_ret.
     let iou_ret: i64 = unsafe { ctx.arg(2) };
-    writer.store_param(iou_ret);
+    writer.store_param(iou_ret)?;
 
     writer.finalize_event_header();
     helpers::submit_event(auxbuf.as_bytes()?);
