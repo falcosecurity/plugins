@@ -56,6 +56,11 @@ func (k *Plugin) Fields() []sdk.FieldEntry {
 		},
 		{
 			Type: "string",
+			Name: "ka.security.pod.violations",
+			Desc: "The violation reason for pod security policy ",
+		},
+		{
+			Type: "string",
 			Name: "ka.auth.openshift.username",
 			Desc: "The user name performing the openshift authentication operation. Only available on openshift clusters",
 		},
