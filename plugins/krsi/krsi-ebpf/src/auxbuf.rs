@@ -16,6 +16,7 @@ limitations under the License.
 */
 
 use krsi_common::{EventHeader, EventType};
+use zerocopy::{FromBytes, Immutable, IntoBytes};
 
 /// Parameter maximum length. Since [MAX_EVENT_LEN](crate::MAX_EVENT_LEN) must be a power of 2, this
 /// can be used as a mask to check that the accesses to the auxiliary map are always in bound and
@@ -46,19 +47,31 @@ impl AuxiliaryBuffer {
 
     /// Return a slice to the underlying data.
     pub fn as_bytes(&self) -> Result<&[u8], i64> {
-        let len = self.event_header().len as usize;
+        // Notice: `event_header_mut()` can never return an error (see
+        // `AuxiliaryBuffer::event_header()` for more details).
+        let len = self.event_header()?.len.get() as usize;
         if len > self.data.len() {
             return Err(1);
         }
         Ok(&self.data[..len])
     }
 
-    fn event_header(&self) -> &EventHeader {
-        unsafe { &*self.data.as_ptr().cast::<EventHeader>() }
+    /// Return an immutable reference to the event header.
+    ///
+    /// Notice: this call actually cannot return an error, but it internally uses
+    /// [FromBytes::ref_from_bytes] which can returns an error, and sadly tqhere is no other
+    /// conversion helper performing this infallible conversion in an unchecked way.
+    fn event_header(&self) -> Result<&EventHeader, i64> {
+        EventHeader::ref_from_bytes(&self.data[..size_of::<EventHeader>()]).map_err(|_| 1)
     }
 
-    fn event_header_mut(&mut self) -> &mut EventHeader {
-        unsafe { &mut *self.data.as_mut_ptr().cast::<EventHeader>() }
+    /// Returns a mutable reference to the event header.
+    ///
+    /// Notice: this call actually cannot return an error, but it internally uses
+    /// [FromBytes::mut_from_bytes] which can returns an error, and sadly there is no other
+    /// conversion helper performing this infallible conversion in an unchecked way.
+    pub fn event_header_mut(&mut self) -> Result<&mut EventHeader, i64> {
+        EventHeader::mut_from_bytes(&mut self.data[..size_of::<EventHeader>()]).map_err(|_| 1)
     }
 }
 
@@ -75,21 +88,29 @@ impl<'a> Writer<'a> {
         event_type: EventType,
         nparams: u32,
     ) {
-        let evt_hdr = self.auxbuf.event_header_mut();
-        evt_hdr.ts = ts;
-        evt_hdr.tgid_pid = tgid_pid;
-        evt_hdr.evt_type = event_type;
-        evt_hdr.nparams = nparams;
+        // Notice: `event_header_mut()` can never return an error (see
+        // `AuxiliaryBuffer::event_header_mut() for more details).
+        let Ok(evt_hdr) = self.auxbuf.event_header_mut() else {
+            return;
+        };
+        evt_hdr.ts = ts.into();
+        evt_hdr.tgid_pid = tgid_pid.into();
+        evt_hdr.evt_type = (event_type as u16).into();
+        evt_hdr.nparams = nparams.into();
         self.auxbuf.values_pos =
             (size_of::<EventHeader>() + (nparams as usize) * size_of::<u16>()) as u64;
         self.auxbuf.lengths_pos = size_of::<EventHeader>() as u8;
-        self.auxbuf.event_type = event_type as u16;
+        self.auxbuf.event_type = (event_type as u16).into();
     }
 
     pub fn finalize_event_header(&mut self) {
         let payload_pos = self.auxbuf.values_pos as u32;
-        let evt_hdr = self.auxbuf.event_header_mut();
-        evt_hdr.len = payload_pos;
+        // Notice: `event_header_mut()` can never return an error (see
+        // `AuxiliaryBuffer::event_header_mut() for more details).
+        let Ok(evt_hdr) = self.auxbuf.event_header_mut() else {
+            return;
+        };
+        evt_hdr.len = payload_pos.into();
     }
 
     pub fn skip_param(&mut self, len: u16) {
@@ -97,12 +118,12 @@ impl<'a> Writer<'a> {
         self.auxbuf.lengths_pos = self.auxbuf.lengths_pos + size_of::<u16>() as u8;
     }
 
-    pub fn store_param<T: Copy>(&mut self, param: T) {
+    pub fn store_param<T: IntoBytes + Immutable>(&mut self, param: T) {
         self.write_value(param);
         self.write_len(size_of::<T>() as u16);
     }
 
-    fn write_value<T: Copy /* TODO(ekoops): refine trait bound */>(&mut self, value: T) {
+    fn write_value<T: IntoBytes + Immutable>(&mut self, value: T) {
         let lower_offset = Self::data_safe_access(self.auxbuf.values_pos);
         let mut data = &mut self.auxbuf.data[lower_offset..];
         write(&mut data, value);
@@ -214,7 +235,7 @@ pub struct ParamWriter<'a> {
 }
 
 impl<'a> ParamWriter<'a> {
-    pub fn write_value<T: Copy /* TODO(ekoops): refine trait bound */>(&mut self, value: T) {
+    pub fn write_value<T: IntoBytes + Immutable>(&mut self, value: T) {
         write(&mut self.data, value)
     }
 
@@ -242,15 +263,14 @@ fn reserve_space<'a, 'b: 'a>(
 
 /// Write the provided `value` in the buffer pointed by `buf`, and update `buf` to make it point to
 /// the next byte after the written value.
-fn write<T: Copy /* TODO(ekoops): refine trait bound */>(buf: &mut &mut [u8], value: T) {
+fn write<T: IntoBytes + Immutable>(buf: &mut &mut [u8], value: T) {
     let Ok(reserved_space) = reserve_space(buf, size_of::<T>()) else {
         // TODO(ekoops): handle this error.
         return;
     };
-    unsafe {
-        reserved_space
-            .as_mut_ptr()
-            .cast::<T>()
-            .write_unaligned(value);
-    }
+
+    // Don't use `value.as_bytes().write_to(reserved_space)` here as it would return a Result.
+    // In case of mismatching lengths, `copy_from_slice` would panic, but since we have reserved the
+    // exact required amount of space, we are sure it will never panic.
+    reserved_space.copy_from_slice(value.as_bytes());
 }

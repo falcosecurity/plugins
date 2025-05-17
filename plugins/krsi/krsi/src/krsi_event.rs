@@ -24,6 +24,7 @@ use std::{
 use byteorder::{BigEndian, NativeEndian, ReadBytesExt};
 use krsi_common::{scap, EventHeader, EventType};
 use serde::{Deserialize, Serialize};
+use zerocopy::FromBytes as ZcFromBytes;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct KrsiEvent {
@@ -492,39 +493,37 @@ where
 
 pub fn parse_ringbuf_event(mut buf: &[u8]) -> Result<KrsiEvent, RingbufParseError> {
     let evt_hdr = read_event_header(&mut buf)?;
+    let evt_type = evt_hdr.evt_type.get();
+    let evt_type =
+        EventType::try_from(evt_type).map_err(|_| RingbufParseError::InvalidType(evt_type))?;
     let (mut lengths, mut values) = buf
-        .split_at_checked(evt_hdr.nparams as usize * size_of::<u16>())
+        .split_at_checked(evt_hdr.nparams.get() as usize * size_of::<u16>())
         .ok_or(RingbufParseError::TruncatedEvent)?;
-    let content = match evt_hdr.evt_type.try_into() {
-        Ok(EventType::Open) => parse_rb_open_event_content(&mut lengths, &mut values),
-        Ok(EventType::Connect) => parse_rb_connect_event_content(&mut lengths, &mut values),
-        Ok(EventType::Socket) => parse_rb_socket_event_content(&mut lengths, &mut values),
-        Ok(EventType::Symlinkat) => parse_rb_symlinkat_event_content(&mut lengths, &mut values),
-        Ok(EventType::Linkat) => parse_rb_linkat_event_content(&mut lengths, &mut values),
-        Ok(EventType::Unlinkat) => parse_rb_unlinkat_event_content(&mut lengths, &mut values),
-        Ok(EventType::Mkdirat) => parse_rb_mkdirat_event_content(&mut lengths, &mut values),
+    let content = match evt_type {
+        EventType::Open => parse_rb_open_event_content(&mut lengths, &mut values),
+        EventType::Connect => parse_rb_connect_event_content(&mut lengths, &mut values),
+        EventType::Socket => parse_rb_socket_event_content(&mut lengths, &mut values),
+        EventType::Symlinkat => parse_rb_symlinkat_event_content(&mut lengths, &mut values),
+        EventType::Linkat => parse_rb_linkat_event_content(&mut lengths, &mut values),
+        EventType::Unlinkat => parse_rb_unlinkat_event_content(&mut lengths, &mut values),
+        EventType::Mkdirat => parse_rb_mkdirat_event_content(&mut lengths, &mut values),
         _ => Err(RingbufParseError::NotYetImplemented),
     }?;
-    let pid = (evt_hdr.tgid_pid >> 32) as u32;
-    let tid = (evt_hdr.tgid_pid & 0xffffffff) as u32;
+    let tgid_pid = evt_hdr.tgid_pid.get();
+    let pid = (tgid_pid >> 32) as u32;
+    let tid = (tgid_pid & 0xffffffff) as u32;
     Ok(KrsiEvent { pid, tid, content })
 }
 
 fn read_event_header(buf: &mut &[u8]) -> Result<EventHeader, RingbufParseError> {
-    let ts = buf.read_u64::<NativeEndian>()?;
-    let tgid_pid = buf.read_u64::<NativeEndian>()?;
-    let len = buf.read_u32::<NativeEndian>()?;
-    let evt_type = buf.read_u16::<NativeEndian>()?;
-    let evt_type =
-        EventType::try_from(evt_type).map_err(|_| RingbufParseError::InvalidType(evt_type))?;
-    let nparams = buf.read_u32::<NativeEndian>()?;
-    Ok(EventHeader {
-        ts,
-        tgid_pid,
-        len,
-        evt_type,
-        nparams,
-    })
+    if buf.len() < size_of::<EventHeader>() {
+        return Err(RingbufParseError::TruncatedEvent);
+    }
+    // The following cannot fail as we are providing a slice with the exact same size of an
+    // EventHeader.
+    let evt_hdr = EventHeader::read_from_bytes(&buf[..size_of::<EventHeader>()]).unwrap();
+    *buf = &buf[size_of::<EventHeader>()..];
+    Ok(evt_hdr)
 }
 
 fn parse_rb_open_event_content(

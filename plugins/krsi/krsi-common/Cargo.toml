@@ -24,8 +24,9 @@ user = ["aya"]
 
 [dependencies]
 aya = { workspace = true, optional = true }
-cfg-if = "1.0.0"
 bitflags = "2.9.0"
+zerocopy = { workspace = true }
+zerocopy-derive = { workspace = true }
 
 [lib]
 path = "src/lib.rs"
