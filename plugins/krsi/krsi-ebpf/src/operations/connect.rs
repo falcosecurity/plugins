@@ -116,9 +116,8 @@ fn try___sys_connect_file_x(ctx: FExitContext) -> Result<u32, i64> {
         let sockaddr: Sockaddr = wrap_arg(unsafe { ctx.arg(1) });
         writer_helpers::store_sock_tuple_param(&mut writer, &sock, true, &sockaddr, true)
     } else {
-        writer.store_empty_param();
-        0
-    };
+        writer.store_empty_param().map(|_| 0)
+    }?;
 
     if op_data.is_iou {
         op_data.socktuple_len = socktuple_len;
@@ -126,14 +125,14 @@ fn try___sys_connect_file_x(ctx: FExitContext) -> Result<u32, i64> {
     }
 
     // Parameter 2: iou_ret.
-    writer.store_empty_param();
+    writer.store_empty_param()?;
 
     // Parameter 3: res.
-    writer.store_param(ret as i64);
+    writer.store_param(ret as i64)?;
 
     // Parameter 4: fd.
     // Parameter 5: file_index.
-    writer_helpers::store_file_descriptor_param(&mut writer, op_data.file_descriptor);
+    writer_helpers::store_file_descriptor_param(&mut writer, op_data.file_descriptor)?;
 
     writer.finalize_event_header();
     helpers::submit_event(auxbuf.as_bytes()?);
@@ -162,18 +161,18 @@ fn try_io_connect_x(ctx: FExitContext) -> Result<u32, i64> {
 
     // Parameter 2: iou_ret.
     let iou_ret: i64 = unsafe { ctx.arg(2) };
-    writer.store_param(iou_ret);
+    writer.store_param(iou_ret)?;
 
     // Parameter 3: res.
     let req: IoKiocb = wrap_arg(unsafe { ctx.arg(0) });
     match iouring::io_kiocb_cqe_res(&req, iou_ret) {
-        Ok(Some(cqe_res)) => writer.store_param(cqe_res as i64),
-        _ => writer.store_empty_param(),
+        Ok(Some(cqe_res)) => writer.store_param(cqe_res as i64)?,
+        _ => writer.store_empty_param()?,
     }
 
     // Parameter 4: fd.
     // Parameter 5: file_index.
-    writer_helpers::store_file_descriptor_param(&mut writer, op_data.file_descriptor);
+    writer_helpers::store_file_descriptor_param(&mut writer, op_data.file_descriptor)?;
 
     writer.finalize_event_header();
     helpers::submit_event(auxbuf.as_bytes()?);

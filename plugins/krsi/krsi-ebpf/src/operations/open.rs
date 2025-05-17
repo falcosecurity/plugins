@@ -147,7 +147,7 @@ pub fn try_fd_install_x(
 
     // Parameter 2: fd.
     // Parameter 3: file_index.
-    writer_helpers::store_file_descriptor_param(&mut writer, file_descriptor);
+    writer_helpers::store_file_descriptor_param(&mut writer, file_descriptor)?;
 
     let (dev, ino, overlay) = files::dev_ino_overlay(file).unwrap_or((0, 0, files::Overlay::None));
 
@@ -162,16 +162,16 @@ pub fn try_fd_install_x(
     let mode: c_uint = file.f_mode().unwrap_or(0);
     scap_flags |= scap::encode_fmode_created(mode);
 
-    writer.store_param(scap_flags);
+    writer.store_param(scap_flags)?;
 
     // Parameter 5: mode.
-    writer.store_param(scap::encode_open_mode(flags, mode));
+    writer.store_param(scap::encode_open_mode(flags, mode))?;
 
     // Parameter 6: dev.
-    writer.store_param(dev as u32);
+    writer.store_param(dev as u32)?;
 
     // Parameter 7: ino.
-    writer.store_param(ino);
+    writer.store_param(ino)?;
 
     op_data.fd_installed = true;
 
@@ -203,7 +203,7 @@ fn try_openat2_x(ctx: FExitContext) -> Result<u32, i64> {
 
     // Parameter 8: iou_ret.
     let iou_ret: i64 = unsafe { ctx.arg(2) };
-    writer.store_param(iou_ret);
+    writer.store_param(iou_ret)?;
 
     writer.finalize_event_header();
     helpers::submit_event(auxbuf.as_bytes()?);
@@ -234,7 +234,7 @@ fn try_do_sys_openat2_x(ctx: FExitContext) -> Result<u32, i64> {
     // already done on `fexit:fd_install`.
 
     // Parameter 8: iou_ret.
-    writer.store_empty_param();
+    writer.store_empty_param()?;
 
     writer.finalize_event_header();
     helpers::submit_event(auxbuf.as_bytes()?);

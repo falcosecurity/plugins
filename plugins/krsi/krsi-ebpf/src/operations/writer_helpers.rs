@@ -41,15 +41,18 @@ fn get_event_num_params(event_type: EventType) -> u8 {
 
 /// Stores the provided `file_descriptor` in the auxiliary buffer using the provided auxiliary
 /// buffer `writer`.
-pub fn store_file_descriptor_param(writer: &mut auxbuf::Writer, file_descriptor: FileDescriptor) {
+pub fn store_file_descriptor_param(
+    writer: &mut auxbuf::Writer,
+    file_descriptor: FileDescriptor,
+) -> Result<(), i64> {
     match file_descriptor.try_into() {
         Ok(FileDescriptor::Fd(fd)) => {
-            writer.store_param(fd as i64);
-            writer.store_empty_param();
+            writer.store_param(fd as i64)?;
+            writer.store_empty_param()
         }
         Ok(FileDescriptor::FileIndex(file_index)) => {
-            writer.store_empty_param();
-            writer.store_param(file_index);
+            writer.store_empty_param()?;
+            writer.store_param(file_index)
         }
     }
 }
@@ -63,13 +66,16 @@ pub fn store_file_descriptor_param(writer: &mut auxbuf::Writer, file_descriptor:
 /// This helper stores at maximum [MAX_PATH](defs::MAX_PATH) bytes of data: if the `filename` length
 /// is bigger, it is capped to this amount. If the auxiliary buffer cannot accommodate at least
 /// [MAX_PATH](defs::MAX_PATH) bytes, the operation is aborted.
-pub fn store_filename_param(writer: &mut auxbuf::Writer, filename: &Filename, is_kern_mem: bool) {
-    if let Err(_) = filename
+pub fn store_filename_param(
+    writer: &mut auxbuf::Writer,
+    filename: &Filename,
+    is_kern_mem: bool,
+) -> Result<(), i64> {
+    filename
         .name()
         .and_then(|name| store_charbuf_param(writer, name.cast(), is_kern_mem))
-    {
-        writer.store_empty_param();
-    }
+        .map(|_| ())
+        .or_else(|_| writer.store_empty_param())
 }
 
 /// Stores the provided `path` in the auxiliary buffer by using the provided auxiliary buffer
@@ -81,13 +87,7 @@ pub fn store_filename_param(writer: &mut auxbuf::Writer, filename: &Filename, is
 pub fn store_path_param(writer: &mut auxbuf::Writer, path: &Path) -> Result<u16, i64> {
     writer.store_var_len_param(defs::MAX_PATH, true, |mut param_writer| {
         let buf = param_writer.as_bytes();
-        let written_bytes = unsafe { path.read_into(buf, buf.len() as u32)? };
-        if written_bytes == 0 {
-            // Push '\0' (empty string) and returns 1 as number of written bytes.
-            param_writer.write_value::<u8>(0);
-            return Ok(1);
-        }
-        return Ok(written_bytes as u16);
+        unsafe { path.read_into(buf, buf.len()) }.map(|written_bytes| written_bytes as u16)
     })
 }
 
@@ -119,10 +119,10 @@ fn write_charbuf(
         return Ok(0);
     }
     let written_str = if is_kern_mem {
-        unsafe { bpf_probe_read_kernel_str_bytes(charbuf, param_writer.as_bytes()) }?
+        unsafe { bpf_probe_read_kernel_str_bytes(charbuf, param_writer.as_bytes()) }
     } else {
-        unsafe { bpf_probe_read_user_str_bytes(charbuf, param_writer.as_bytes()) }?
-    };
+        unsafe { bpf_probe_read_user_str_bytes(charbuf, param_writer.as_bytes()) }
+    }?;
     // Note: the written buffer always includes the `\0` character.
     let written_bytes = written_str.len() + 1; // + 1 accounts for `\0`
     Ok(written_bytes as u16)
@@ -140,11 +140,14 @@ fn write_charbuf(
 /// - in case of variable length, this helper stores at maximum [MAX_PATH](defs::MAX_PATH) bytes of
 ///   data; if the length is bigger, it is capped to this amount; if the auxiliary buffer cannot
 ///   accommodate at least [MAX_PATH](defs::MAX_PATH) bytes, the operation is aborted.
-pub fn store_sockaddr_param(writer: &mut auxbuf::Writer, sockaddr: &Sockaddr, is_kern_mem: bool) {
+pub fn store_sockaddr_param(
+    writer: &mut auxbuf::Writer,
+    sockaddr: &Sockaddr,
+    is_kern_mem: bool,
+) -> Result<(), i64> {
     let sa_family = read_field!(sockaddr => sa_family, is_kern_mem);
     let Ok(sa_family) = sa_family else {
-        writer.store_empty_param();
-        return;
+        return writer.store_empty_param();
     };
 
     let result = match sa_family {
@@ -153,11 +156,10 @@ pub fn store_sockaddr_param(writer: &mut auxbuf::Writer, sockaddr: &Sockaddr, is
             store_inet6_sockaddr_param(writer, &sockaddr.as_sockaddr_in6(), is_kern_mem)
         }
         defs::AF_UNIX => store_unix_sockaddr_param(writer, &sockaddr.as_sockaddr_un(), is_kern_mem),
-        _ => Err(1),
+        _ => return writer.store_empty_param(),
     };
-    if result.is_err() {
-        writer.store_empty_param();
-    }
+
+    result.or_else(|_| writer.store_empty_param())
 }
 
 fn store_inet_sockaddr_param(
@@ -170,10 +172,9 @@ fn store_inet_sockaddr_param(
         let addr = sockaddr.sin_addr();
         let ipv4_addr = read_field!(addr => s_addr, is_kern_mem).unwrap_or(0);
         let port = read_field!(sockaddr => sin_port, is_kern_mem).unwrap_or(0);
-        param_writer.write_value(scap::encode_socket_family(defs::AF_INET));
-        param_writer.write_value(ipv4_addr);
-        param_writer.write_value(u16::from_be(port));
-        Ok(())
+        param_writer.write_value(scap::encode_socket_family(defs::AF_INET))?;
+        param_writer.write_value(ipv4_addr)?;
+        param_writer.write_value(u16::from_be(port))
     })
 }
 
@@ -187,10 +188,9 @@ fn store_inet6_sockaddr_param(
         let addr = sockaddr.sin6_addr();
         let ipv6_addr = read_field!(addr => in6_u, is_kern_mem).unwrap_or([0, 0, 0, 0]);
         let port = read_field!(sockaddr => sin6_port, is_kern_mem).unwrap_or(0);
-        param_writer.write_value(scap::encode_socket_family(defs::AF_INET6));
-        param_writer.write_value(ipv6_addr);
-        param_writer.write_value(u16::from_be(port));
-        Ok(())
+        param_writer.write_value(scap::encode_socket_family(defs::AF_INET6))?;
+        param_writer.write_value(ipv6_addr)?;
+        param_writer.write_value(u16::from_be(port))
     })
 }
 
@@ -204,7 +204,7 @@ fn store_unix_sockaddr_param(
     let _ = sockets::sockaddr_un_path_into(&sockaddr, is_kern_mem, &mut path);
     writer
         .store_var_len_param(max_param_len, true, |mut param_writer| {
-            param_writer.write_value(scap::encode_socket_family(defs::AF_UNIX));
+            param_writer.write_value(scap::encode_socket_family(defs::AF_UNIX))?;
             let written_bytes = write_sockaddr_path(&mut param_writer, &mut path)?;
             Ok(defs::FAMILY_SIZE as u16 + written_bytes)
         })
@@ -251,20 +251,17 @@ pub fn store_sock_tuple_param(
     is_outbound: bool,
     sockaddr: &Sockaddr,
     is_kern_sockaddr: bool,
-) -> u16 {
+) -> Result<u16, i64> {
     if sock.is_null() {
-        writer.store_empty_param();
-        return 0;
+        return writer.store_empty_param().map(|_| 0);
     }
 
     let Ok(sk) = sock.sk() else {
-        writer.store_empty_param();
-        return 0;
+        return writer.store_empty_param().map(|_| 0);
     };
 
     let Ok(sk_family) = sk.__sk_common().skc_family() else {
-        writer.store_empty_param();
-        return 0;
+        return writer.store_empty_param().map(|_| 0);
     };
 
     let result = match sk_family {
@@ -277,18 +274,10 @@ pub fn store_sock_tuple_param(
         defs::AF_UNIX => {
             store_unix_sock_tuple_param(writer, &sk, is_outbound, sockaddr, is_kern_sockaddr)
         }
-        _ => {
-            writer.store_empty_param();
-            return 0;
-        }
+        _ => return writer.store_empty_param().map(|_| 0),
     };
-    match result {
-        Ok(written_bytes) => written_bytes,
-        Err(_) => {
-            writer.store_empty_param();
-            0
-        }
-    }
+
+    result.or_else(|_| writer.store_empty_param().map(|_| 0))
 }
 
 fn store_inet_sock_tuple_param(
@@ -323,19 +312,18 @@ fn store_inet_sock_tuple_param(
             as u16;
     writer.store_fixed_len_param(param_len, |mut param_writer| {
         // Pack the tuple info: (sock_family, local_ipv4, local_port, remote_ipv4, remote_port)
-        param_writer.write_value(scap::encode_socket_family(defs::AF_INET));
+        param_writer.write_value(scap::encode_socket_family(defs::AF_INET))?;
         if is_outbound {
-            param_writer.write_value(ipv4_local);
-            param_writer.write_value(u16::from_be(port_local));
-            param_writer.write_value(ipv4_remote);
-            param_writer.write_value(u16::from_be(port_remote));
+            param_writer.write_value(ipv4_local)?;
+            param_writer.write_value(u16::from_be(port_local))?;
+            param_writer.write_value(ipv4_remote)?;
+            param_writer.write_value(u16::from_be(port_remote))
         } else {
-            param_writer.write_value(ipv4_remote);
-            param_writer.write_value(u16::from_be(port_remote));
-            param_writer.write_value(ipv4_local);
-            param_writer.write_value(u16::from_be(port_local));
+            param_writer.write_value(ipv4_remote)?;
+            param_writer.write_value(u16::from_be(port_remote))?;
+            param_writer.write_value(ipv4_local)?;
+            param_writer.write_value(u16::from_be(port_local))
         }
-        Ok(())
     })?;
     Ok(param_len)
 }
@@ -374,26 +362,25 @@ fn store_inet6_sock_tuple_param(
         }
     }
 
-    let len =
+    let param_len =
         (defs::FAMILY_SIZE + defs::IPV6_SIZE + defs::PORT_SIZE + defs::IPV6_SIZE + defs::PORT_SIZE)
             as u16;
-    writer.store_fixed_len_param(len, |mut param_writer| {
+    writer.store_fixed_len_param(param_len, |mut param_writer| {
         // Pack the tuple info: (sock_family, local_ipv6, local_port, remote_ipv6, remote_port)
-        param_writer.write_value(scap::encode_socket_family(defs::AF_INET6));
+        param_writer.write_value(scap::encode_socket_family(defs::AF_INET6))?;
         if is_outbound {
-            param_writer.write_value(ipv6_local);
-            param_writer.write_value(u16::from_be(port_local));
-            param_writer.write_value(ipv6_remote);
-            param_writer.write_value(u16::from_be(port_remote));
+            param_writer.write_value(ipv6_local)?;
+            param_writer.write_value(u16::from_be(port_local))?;
+            param_writer.write_value(ipv6_remote)?;
+            param_writer.write_value(u16::from_be(port_remote))
         } else {
-            param_writer.write_value(ipv6_remote);
-            param_writer.write_value(u16::from_be(port_remote));
-            param_writer.write_value(ipv6_local);
-            param_writer.write_value(u16::from_be(port_local));
+            param_writer.write_value(ipv6_remote)?;
+            param_writer.write_value(u16::from_be(port_remote))?;
+            param_writer.write_value(ipv6_local)?;
+            param_writer.write_value(u16::from_be(port_local))
         }
-        Ok(())
     })?;
-    Ok(len)
+    Ok(param_len)
 }
 
 fn store_unix_sock_tuple_param(
@@ -417,10 +404,10 @@ fn store_unix_sock_tuple_param(
         let path_mut = &mut path;
 
         // Pack the tuple info: (sock_family, dest_os_ptr, src_os_ptr, dest_unix_path)
-        param_writer.write_value(scap::encode_socket_family(defs::AF_UNIX));
+        param_writer.write_value(scap::encode_socket_family(defs::AF_UNIX))?;
         if is_outbound {
-            param_writer.write_value(sk_peer.serialize_ptr() as u64);
-            param_writer.write_value(sk_local.serialize_ptr() as u64);
+            param_writer.write_value(sk_peer.serialize_ptr() as u64)?;
+            param_writer.write_value(sk_local.serialize_ptr() as u64)?;
             if sk_peer.is_null() && !sockaddr.is_null() {
                 let sockaddr = sockaddr.as_sockaddr_un();
                 let _ = sockets::sockaddr_un_path_into(&sockaddr, is_kern_sockaddr, path_mut);
@@ -428,8 +415,8 @@ fn store_unix_sock_tuple_param(
                 let _ = sockets::unix_sock_addr_path_into(&sk_peer, path_mut);
             }
         } else {
-            param_writer.write_value(sk_local.serialize_ptr() as u64);
-            param_writer.write_value(sk_peer.serialize_ptr() as u64);
+            param_writer.write_value(sk_local.serialize_ptr() as u64)?;
+            param_writer.write_value(sk_peer.serialize_ptr() as u64)?;
             let _ = sockets::unix_sock_addr_path_into(&sk_local, path_mut);
         }
 

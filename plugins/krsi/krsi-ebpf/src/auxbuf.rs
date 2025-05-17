@@ -118,16 +118,17 @@ impl<'a> Writer<'a> {
         self.auxbuf.lengths_pos = self.auxbuf.lengths_pos + size_of::<u16>() as u8;
     }
 
-    pub fn store_param<T: IntoBytes + Immutable>(&mut self, param: T) {
-        self.write_value(param);
-        self.write_len(size_of::<T>() as u16);
+    pub fn store_param<T: IntoBytes + Immutable>(&mut self, param: T) -> Result<(), i64> {
+        self.write_value(param)?;
+        self.write_len(size_of::<T>() as u16)
     }
 
-    fn write_value<T: IntoBytes + Immutable>(&mut self, value: T) {
+    fn write_value<T: IntoBytes + Immutable>(&mut self, value: T) -> Result<(), i64> {
         let lower_offset = Self::data_safe_access(self.auxbuf.values_pos);
         let mut data = &mut self.auxbuf.data[lower_offset..];
-        write(&mut data, value);
+        write(&mut data, value)?;
         self.auxbuf.values_pos += size_of::<T>() as u64;
+        Ok(())
     }
 
     // Helper used to please the verifier during reading operations like `bpf_probe_read_str()`.
@@ -135,16 +136,17 @@ impl<'a> Writer<'a> {
         (x & MAX_PARAM_VALUE_LEN as u64) as usize
     }
 
-    fn write_len(&mut self, value: u16) {
+    fn write_len(&mut self, value: u16) -> Result<(), i64> {
         let lower_offset = Self::data_safe_access(self.auxbuf.lengths_pos as u64);
         let mut data = &mut self.auxbuf.data[lower_offset..];
-        write(&mut data, value);
+        write(&mut data, value)?;
         self.auxbuf.lengths_pos += size_of::<u16>() as u8;
+        Ok(())
     }
 
     /// Store an empty parameter.
-    pub fn store_empty_param(&mut self) {
-        self.write_len(0);
+    pub fn store_empty_param(&mut self) -> Result<(), i64> {
+        self.write_len(0)
     }
 
     /// Provide a generic way to write a parameter whose size is not known at compile time.
@@ -157,7 +159,9 @@ impl<'a> Writer<'a> {
     /// After reserving the requested amount of bytes (or less, if the amount of free space is less
     /// than the requested one and `force_max_len` is set to `false`), the provided `write_fn` is
     /// executed, receiving a [ParamWriter] allowing to write chunks of data on the reserved buffer.
-    /// `write_fn` must return the amount of written bytes or an error, to abort the operation.
+    /// `write_fn` must return the amount of written bytes or an error, to abort the operation. The
+    /// operation can still fail, after running `write_fn`, if the implementation is not able to
+    /// write the returned amount of written bytes in the auxiliary buffer's lengths array.
     pub fn store_var_len_param<F>(
         &mut self,
         max_len_to_read: u16,
@@ -173,7 +177,7 @@ impl<'a> Writer<'a> {
         };
         let written_bytes = write_fn(param_writer)?;
         self.auxbuf.values_pos += written_bytes as u64;
-        self.write_len(written_bytes);
+        self.write_len(written_bytes)?;
         Ok(written_bytes)
     }
 
@@ -212,7 +216,9 @@ impl<'a> Writer<'a> {
     /// buffer doesn't have enough space, the operation is aborted. After reserving the requested
     /// amount of bytes, the provided `write_fn` is invoked, receiving as a [ParamWriter] allowing
     /// to write chunks of data on the reserved buffer. In order to abort the operation, `write_fn`
-    /// must return an error.
+    /// must return an error. The operation can still fail, after running `write_fn`, if the
+    /// implementation is not able to write the returned amount of written bytes in the auxiliary
+    /// buffer's lengths array.
     pub fn store_fixed_len_param<F>(&mut self, len_to_read: u16, write_fn: F) -> Result<(), i64>
     where
         F: FnOnce(ParamWriter) -> Result<(), i64>,
@@ -223,7 +229,7 @@ impl<'a> Writer<'a> {
         };
         write_fn(param_writer)?;
         self.auxbuf.values_pos += len_to_read as u64;
-        self.write_len(len_to_read);
+        self.write_len(len_to_read)?;
         Ok(())
     }
 }
@@ -235,7 +241,7 @@ pub struct ParamWriter<'a> {
 }
 
 impl<'a> ParamWriter<'a> {
-    pub fn write_value<T: IntoBytes + Immutable>(&mut self, value: T) {
+    pub fn write_value<T: IntoBytes + Immutable>(&mut self, value: T) -> Result<(), i64> {
         write(&mut self.data, value)
     }
 
@@ -263,14 +269,15 @@ fn reserve_space<'a, 'b: 'a>(
 
 /// Write the provided `value` in the buffer pointed by `buf`, and update `buf` to make it point to
 /// the next byte after the written value.
-fn write<T: IntoBytes + Immutable>(buf: &mut &mut [u8], value: T) {
-    let Ok(reserved_space) = reserve_space(buf, size_of::<T>()) else {
-        // TODO(ekoops): handle this error.
-        return;
-    };
+fn write<T: IntoBytes + Immutable>(buf: &mut &mut [u8], value: T) -> Result<(), i64> {
+    // Keep the API ergonomic by returning an i64 in case of error, which is what the other eBPF
+    // code expects in most of the places.
+    let reserved_space = reserve_space(buf, size_of::<T>()).map_err(|_| 1)?;
+    debug_assert_eq!(reserved_space.len(), size_of::<T>());
 
     // Don't use `value.as_bytes().write_to(reserved_space)` here as it would return a Result.
     // In case of mismatching lengths, `copy_from_slice` would panic, but since we have reserved the
     // exact required amount of space, we are sure it will never panic.
     reserved_space.copy_from_slice(value.as_bytes());
+    Ok(())
 }

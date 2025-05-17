@@ -65,7 +65,7 @@ fn try_io_socket_x(ctx: FExitContext) -> Result<u32, i64> {
     let iou_ret: i64 = unsafe { ctx.arg(2) };
 
     // Parameter 1: iou_ret.
-    writer.store_param(iou_ret);
+    writer.store_param(iou_ret)?;
 
     // Parameter 2: fd.
     // Parameter 3: file_index.
@@ -74,28 +74,28 @@ fn try_io_socket_x(ctx: FExitContext) -> Result<u32, i64> {
             writer_helpers::store_file_descriptor_param(&mut writer, file_descriptor)
         }
         _ => {
-            writer.store_empty_param();
-            writer.store_empty_param();
+            writer.store_empty_param()?;
+            writer.store_empty_param()
         }
-    }
+    }?;
 
     // Parameter 4: domain.
     match sock.domain() {
         Ok(sock_domain) => writer.store_param(sock_domain as u32),
         Err(_) => writer.store_empty_param(),
-    };
+    }?;
 
     // Parameter 5: type.
     match sock.r#type() {
         Ok(sock_type) => writer.store_param(sock_type as u32),
         Err(_) => writer.store_empty_param(),
-    };
+    }?;
 
     // Parameter 6: proto.
     match sock.protocol() {
         Ok(sock_proto) => writer.store_param(sock_proto as u32),
         Err(_) => writer.store_empty_param(),
-    };
+    }?;
 
     writer.finalize_event_header();
     helpers::submit_event(auxbuf.as_bytes()?);
@@ -135,26 +135,26 @@ fn try___sys_socket_x(ctx: FExitContext) -> Result<u32, i64> {
     writer_helpers::preload_event_header(&mut writer, EventType::Socket);
 
     // Parameter 1: iou_ret.
-    writer.store_empty_param();
+    writer.store_empty_param()?;
 
     // Parameter 2: fd.
     let ret: c_int = unsafe { ctx.arg(3) };
-    writer.store_param(ret as i64);
+    writer.store_param(ret as i64)?;
 
     // Parameter 3: file_index.
-    writer.store_empty_param();
+    writer.store_empty_param()?;
 
     // Parameter 4: domain.
     let sock_domain: c_int = unsafe { ctx.arg(0) };
-    writer.store_param(sock_domain as u32);
+    writer.store_param(sock_domain as u32)?;
 
     // Parameter 5: type.
     let sock_type: c_int = unsafe { ctx.arg(1) };
-    writer.store_param(sock_type as u32);
+    writer.store_param(sock_type as u32)?;
 
     // Parameter 6: proto.
     let sock_proto: c_int = unsafe { ctx.arg(2) };
-    writer.store_param(sock_proto as u32);
+    writer.store_param(sock_proto as u32)?;
 
     writer.finalize_event_header();
     helpers::submit_event(auxbuf.as_bytes()?);
