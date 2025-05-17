@@ -27,6 +27,7 @@ cfg-if = "1.0.0"
 aya-ebpf = { workspace = true }
 aya-log-ebpf = { workspace = true }
 paste = { workspace = true }
+zerocopy = { workspace = true }
 
 [build-dependencies]
 which = { workspace = true }

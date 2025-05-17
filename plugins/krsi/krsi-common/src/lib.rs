@@ -17,6 +17,9 @@ limitations under the License.
 
 #![no_std]
 
+use zerocopy::native_endian::{U16, U32, U64};
+use zerocopy_derive::*;
+
 pub mod flags;
 pub mod scap;
 
@@ -60,12 +63,12 @@ impl TryFrom<u16> for EventType {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, KnownLayout, Immutable, Unaligned, FromBytes, IntoBytes)]
 #[repr(C, packed)]
 pub struct EventHeader {
-    pub ts: u64,
-    pub tgid_pid: u64,
-    pub len: u32,
-    pub evt_type: EventType,
-    pub nparams: u32,
+    pub ts: U64,
+    pub tgid_pid: U64,
+    pub len: U32,
+    pub evt_type: U16,
+    pub nparams: U32,
 }
