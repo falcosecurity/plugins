@@ -34,7 +34,7 @@ use falco_plugin::{
     base::{Json, Plugin},
     event::{
         events::{
-            types::{EventType, PPME_SYSCALL_CLONE_20_X},
+            types::{EventType, PPME_ASYNCEVENT_E, PPME_SYSCALL_CLONE_20_X},
             Event, EventMetadata,
         },
         fields::types::PT_PID,
@@ -56,7 +56,10 @@ use serde::Deserialize;
 mod ebpf;
 mod krsi_event;
 
-use crate::krsi_event::{KrsiEvent, KrsiEventContent};
+use crate::krsi_event::{
+    ConnectData, KrsiEvent, KrsiEventContent, LinkatData, MkdiratData, OpenData, SocketData,
+    SymlinkatData, UnlinkatData,
+};
 
 #[derive(TableMetadata)]
 #[entry_type(ImportedFileDescriptor)]
@@ -111,7 +114,7 @@ pub struct KrsiPlugin {
     ebpf: ebpf::Ebpf,
     threads: ImportedThreadTable,
     async_handler: Option<Arc<AsyncHandler>>,
-    missing_events: Cache<i64, Vec<krsi_event::KrsiEvent>>,
+    missing_events: Cache<i64, Vec<KrsiEvent>>,
 
     bt_thread: Option<JoinHandle<Result<(), Error>>>,
     bt_stop: Arc<AtomicBool>,
@@ -205,164 +208,14 @@ impl ParsePlugin for KrsiPlugin {
     const EVENT_SOURCES: &'static [&'static str] = &["syscall"];
 
     fn parse_event(&mut self, event: &EventInput, parse_input: &ParseInput) -> Result<(), Error> {
-        let r = &parse_input.reader;
-        let w = &parse_input.writer;
         let event = event.event()?;
 
-        if let Ok(mut event) = event.load::<AsyncEvent>() {
-            if event.params.name != Some(c"krsi") {
-                return Ok(());
-            }
+        if let Ok(event) = event.load::<AsyncEvent>() {
+            return self.parse_krsi_event(event, parse_input);
+        }
 
-            let Some(buf) = event.params.data else {
-                println!("missing event data");
-                anyhow::bail!("Missing event data");
-            };
-
-            let ev: KrsiEvent =
-                bincode::serde::decode_from_slice(buf, bincode::config::legacy())?.0;
-            let tid = ev.tid as i64;
-            let pid = ev.pid as i64;
-
-            let mut thread_exists = self.threads.get_entry(r, &tid).is_ok();
-
-            if !thread_exists && self.threads.get_entry(r, &pid).is_ok() {
-                // PID exists, but TID does not.
-                // This can happen because the kernel might have created an async thread for that
-                // specific operation; we can still create a new thread and emit the event
-                self.create_child_thread(r, w, tid, pid)?;
-                thread_exists = true;
-            }
-
-            if thread_exists {
-                // There is a thread, update the fd table and create the event
-                match ev.content {
-                    KrsiEventContent::Open {
-                        fd,
-                        file_index: _,
-                        name,
-                        flags,
-                        mode: _,
-                        dev,
-                        ino,
-                        iou_ret: _,
-                    } => {
-                        if let Some(fd) = fd {
-                            let thread = self.threads.get_entry(r, &tid)?;
-                            let fds = thread.get_file_descriptors(r)?;
-                            let fd_entry = if let Ok(existing_fd) = fds.get_entry(r, &fd) {
-                                existing_fd
-                            } else {
-                                let new_fd = fds.create_entry(w)?;
-                                fds.insert(r, w, &fd, new_fd)?;
-                                fds.get_entry(r, &fd)?
-                            };
-
-                            fd_entry.set_fd(w, &fd)?;
-                            if let Some(name) = name {
-                                fd_entry.set_name(w, &name)?;
-                            }
-
-                            if let Some(dev) = dev {
-                                fd_entry.set_dev(w, &dev)?;
-                            }
-
-                            if let Some(ino) = ino {
-                                fd_entry.set_ino(w, &ino)?;
-                            }
-
-                            if let Some(flags) = flags {
-                                // keep flags added by the syscall exit probe if present
-                                let mask: u32 = !(krsi_common::scap::PPM_O_F_CREATED - 1);
-                                let added_flags: u32 = flags & mask;
-                                let flags = flags | added_flags;
-                                fd_entry.set_flags(w, &flags)?;
-                            }
-                        }
-
-                        event.params.name = Some(c"krsi_open");
-                        if let Some(handler) = self.async_handler.as_ref() {
-                            handler.emit(event)?;
-                        }
-                    }
-                    KrsiEventContent::Connect { fd, .. } => {
-                        if let Some(fd) = fd {
-                            let thread = self.threads.get_entry(r, &tid)?;
-                            let fds = thread.get_file_descriptors(r)?;
-                            let fd_entry = if let Ok(existing_fd) = fds.get_entry(r, &fd) {
-                                existing_fd
-                            } else {
-                                let new_fd = fds.create_entry(w)?;
-                                fds.insert(r, w, &fd, new_fd)?;
-                                fds.get_entry(r, &fd)?
-                            };
-                            fd_entry.set_fd(w, &fd)?;
-                        }
-
-                        event.params.name = Some(c"krsi_connect");
-                        if let Some(handler) = self.async_handler.as_ref() {
-                            handler.emit(event)?;
-                        }
-                    }
-                    KrsiEventContent::Socket { .. } => {
-                        // TODO this
-                        event.params.name = Some(c"krsi_socket");
-                        if let Some(handler) = self.async_handler.as_ref() {
-                            handler.emit(event)?;
-                        }
-                    }
-                    KrsiEventContent::Symlinkat { .. } => {
-                        event.params.name = Some(c"krsi_symlinkat");
-                        if let Some(handler) = self.async_handler.as_ref() {
-                            handler.emit(event)?;
-                        }
-                    }
-                    KrsiEventContent::Linkat { .. } => {
-                        event.params.name = Some(c"krsi_linkat");
-                        if let Some(handler) = self.async_handler.as_ref() {
-                            handler.emit(event)?;
-                        }
-                    }
-                    KrsiEventContent::Unlinkat { .. } => {
-                        event.params.name = Some(c"krsi_unlinkat");
-                        if let Some(handler) = self.async_handler.as_ref() {
-                            handler.emit(event)?;
-                        }
-                    }
-                    KrsiEventContent::Mkdirat { .. } => {
-                        event.params.name = Some(c"krsi_mkdirat");
-                        if let Some(handler) = self.async_handler.as_ref() {
-                            handler.emit(event)?;
-                        }
-                    }
-                }
-            } else {
-                // No thread available, wait for it to be created
-                let entry = if let Some(entry) = self.missing_events.get_mut(&tid) {
-                    entry
-                } else {
-                    self.missing_events.insert(tid, Vec::new());
-                    self.missing_events.get_mut(&tid).unwrap()
-                };
-
-                entry.push(ev);
-            }
-        } else if let Ok(event) = event.load::<PPME_SYSCALL_CLONE_20_X>() {
-            let Some(PT_PID(child_tid)) = event.params.res else {
-                return Ok(());
-            };
-
-            let Some(missing_events) = self.missing_events.remove(&child_tid) else {
-                return Ok(());
-            };
-
-            let Some(handler) = self.async_handler.as_ref() else {
-                return Ok(());
-            };
-
-            for missing_event in missing_events {
-                emit_async_event(handler, &missing_event, c"krsi")?;
-            }
+        if let Ok(event) = event.load::<PPME_SYSCALL_CLONE_20_X>() {
+            return self.parse_clone_event(event);
         }
 
         Ok(())
@@ -373,7 +226,7 @@ macro_rules! gen_extract_int_impl {
     ($field:ident) => {
         paste::paste! {
             fn [< extract_ $field >](&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
-                let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
+                let ev: &KrsiEvent = self.extract_krsi_event(req.context, req.event)?;
                 ev.content
                     .$field()
                     .map(|$field| $field as u64)
@@ -387,7 +240,7 @@ macro_rules! gen_extract_cstr_impl {
     ($field:ident) => {
         paste::paste! {
             fn [< extract_ $field >](&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
-                let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
+                let ev: &KrsiEvent = self.extract_krsi_event(req.context, req.event)?;
                 ev.content.$field().ok_or(anyhow::anyhow!(concat!("Unknown ", stringify!($field), " field")))
             }
         }
@@ -398,7 +251,7 @@ macro_rules! gen_extract_addr_impl {
     ($field:ident) => {
         paste::paste! {
             fn [< extract_ $field >](&mut self, req: ExtractRequest<Self>) -> Result<IpAddr, Error> {
-                let ev: &KrsiEvent = self.parse_krsi_event(req.context, req.event)?;
+                let ev: &KrsiEvent = self.extract_krsi_event(req.context, req.event)?;
                 ev.content.$field().ok_or(anyhow::anyhow!(concat!("Unknown ", stringify!($field), " field")))
             }
         }
@@ -421,10 +274,7 @@ impl AsyncEventPlugin for KrsiPlugin {
     ];
     const EVENT_SOURCES: &'static [&'static str] = &["syscall"];
 
-    fn start_async(
-        &mut self,
-        handler: falco_plugin::async_event::AsyncHandler,
-    ) -> Result<(), anyhow::Error> {
+    fn start_async(&mut self, handler: AsyncHandler) -> Result<(), Error> {
         // stop the thread if it was already running
         if self.bt_thread.is_some() {
             self.stop_async()?;
@@ -459,7 +309,7 @@ impl AsyncEventPlugin for KrsiPlugin {
         Ok(())
     }
 
-    fn stop_async(&mut self) -> Result<(), anyhow::Error> {
+    fn stop_async(&mut self) -> Result<(), Error> {
         self.bt_stop.store(true, Ordering::Relaxed);
         if let Some(thread) = self.bt_thread.take() {
             thread.join().unwrap()?;
@@ -546,7 +396,237 @@ impl KrsiPlugin {
         Ok(())
     }
 
-    fn parse_krsi_event<'a>(
+    fn parse_krsi_event(
+        &mut self,
+        event: Event<PPME_ASYNCEVENT_E>,
+        parse_input: &ParseInput,
+    ) -> Result<(), Error> {
+        if event.params.name != Some(c"krsi") {
+            return Ok(());
+        }
+
+        let Some(buf) = event.params.data else {
+            println!("missing event data");
+            anyhow::bail!("Missing event data");
+        };
+
+        let ev: KrsiEvent = bincode::serde::decode_from_slice(buf, bincode::config::legacy())?.0;
+        let tid = ev.tid as i64;
+        let pid = ev.pid as i64;
+
+        let r = &parse_input.reader;
+        let w = &parse_input.writer;
+
+        let mut thread_exists = self.threads.get_entry(r, &tid).is_ok();
+
+        if !thread_exists && self.threads.get_entry(r, &pid).is_ok() {
+            // PID exists, but TID does not.
+            // This can happen because the kernel might have created an async thread for that
+            // specific operation; we can still create a new thread and emit the event
+            self.create_child_thread(r, w, tid, pid)?;
+            thread_exists = true;
+        }
+
+        if !thread_exists {
+            // No thread available, wait for it to be created.
+            let entry = if let Some(entry) = self.missing_events.get_mut(&tid) {
+                entry
+            } else {
+                self.missing_events.insert(tid, Vec::new());
+                self.missing_events.get_mut(&tid).unwrap()
+            };
+
+            entry.push(ev);
+            return Ok(());
+        }
+
+        // There is a thread, update the fd table and create the event.
+        match ev.content {
+            KrsiEventContent::Open(ref data) => {
+                self.parse_krsi_open_event(&parse_input, pid, tid, event, data)
+            }
+            KrsiEventContent::Connect(ref data) => {
+                self.parse_krsi_connect_event(&parse_input, pid, tid, event, data)
+            }
+            KrsiEventContent::Socket(ref data) => self.parse_krsi_socket_event(event, data),
+            KrsiEventContent::Symlinkat(ref data) => self.parse_krsi_symlinkat_event(event, data),
+            KrsiEventContent::Linkat(ref data) => self.parse_krsi_linkat_event(event, data),
+            KrsiEventContent::Unlinkat(ref data) => self.parse_krsi_unlinkat_event(event, data),
+            KrsiEventContent::Mkdirat(ref data) => self.parse_krsi_mkdirat_event(event, data),
+        }
+    }
+
+    fn parse_krsi_open_event(
+        &self,
+        parse_input: &ParseInput,
+        _pid: i64,
+        tid: i64,
+        mut event: Event<PPME_ASYNCEVENT_E>,
+        data: &OpenData,
+    ) -> Result<(), Error> {
+        let OpenData {
+            fd,
+            file_index: _,
+            name,
+            flags,
+            mode: _,
+            dev,
+            ino,
+            iou_ret: _,
+        } = data;
+        let r = &parse_input.reader;
+        let w = &parse_input.writer;
+
+        if let Some(fd) = fd {
+            let thread = self.threads.get_entry(r, &tid)?;
+            let fds = thread.get_file_descriptors(r)?;
+            let fd_entry = if let Ok(existing_fd) = fds.get_entry(r, &fd) {
+                existing_fd
+            } else {
+                let new_fd = fds.create_entry(w)?;
+                fds.insert(r, w, &fd, new_fd)?;
+                fds.get_entry(r, &fd)?
+            };
+
+            fd_entry.set_fd(w, &fd)?;
+            if let Some(name) = name {
+                fd_entry.set_name(w, &name)?;
+            }
+
+            if let Some(dev) = dev {
+                fd_entry.set_dev(w, &dev)?;
+            }
+
+            if let Some(ino) = ino {
+                fd_entry.set_ino(w, &ino)?;
+            }
+
+            if let Some(flags) = flags {
+                // keep flags added by the syscall exit probe if present
+                let mask: u32 = !(krsi_common::scap::PPM_O_F_CREATED - 1);
+                let added_flags: u32 = flags & mask;
+                let flags = flags | added_flags;
+                fd_entry.set_flags(w, &flags)?;
+            }
+        }
+
+        event.params.name = Some(c"krsi_open");
+        if let Some(handler) = self.async_handler.as_ref() {
+            handler.emit(event)?;
+        }
+        Ok(())
+    }
+
+    fn parse_krsi_connect_event(
+        &self,
+        parse_input: &ParseInput,
+        _pid: i64,
+        tid: i64,
+        mut event: Event<PPME_ASYNCEVENT_E>,
+        data: &ConnectData,
+    ) -> Result<(), Error> {
+        let r = &parse_input.reader;
+        let w = &parse_input.writer;
+        if let Some(fd) = data.fd {
+            let thread = self.threads.get_entry(r, &tid)?;
+            let fds = thread.get_file_descriptors(r)?;
+            let fd_entry = if let Ok(existing_fd) = fds.get_entry(r, &fd) {
+                existing_fd
+            } else {
+                let new_fd = fds.create_entry(w)?;
+                fds.insert(r, w, &fd, new_fd)?;
+                fds.get_entry(r, &fd)?
+            };
+            fd_entry.set_fd(w, &fd)?;
+        }
+
+        event.params.name = Some(c"krsi_connect");
+        if let Some(handler) = self.async_handler.as_ref() {
+            handler.emit(event)?;
+        }
+        Ok(())
+    }
+
+    fn parse_krsi_mkdirat_event(
+        &self,
+        mut event: Event<PPME_ASYNCEVENT_E>,
+        _data: &MkdiratData,
+    ) -> Result<(), Error> {
+        event.params.name = Some(c"krsi_mkdirat");
+        if let Some(handler) = self.async_handler.as_ref() {
+            handler.emit(event)?;
+        }
+        Ok(())
+    }
+
+    fn parse_krsi_socket_event(
+        &self,
+        mut event: Event<PPME_ASYNCEVENT_E>,
+        _data: &SocketData,
+    ) -> Result<(), Error> {
+        event.params.name = Some(c"krsi_socket");
+        if let Some(handler) = self.async_handler.as_ref() {
+            handler.emit(event)?;
+        }
+        Ok(())
+    }
+
+    fn parse_krsi_symlinkat_event(
+        &self,
+        mut event: Event<PPME_ASYNCEVENT_E>,
+        _data: &SymlinkatData,
+    ) -> Result<(), Error> {
+        event.params.name = Some(c"krsi_symlinkat");
+        if let Some(handler) = self.async_handler.as_ref() {
+            handler.emit(event)?;
+        }
+        Ok(())
+    }
+
+    fn parse_krsi_linkat_event(
+        &self,
+        mut event: Event<PPME_ASYNCEVENT_E>,
+        _data: &LinkatData,
+    ) -> Result<(), Error> {
+        event.params.name = Some(c"krsi_linkat");
+        if let Some(handler) = self.async_handler.as_ref() {
+            handler.emit(event)?;
+        }
+        Ok(())
+    }
+
+    fn parse_krsi_unlinkat_event(
+        &self,
+        mut event: Event<PPME_ASYNCEVENT_E>,
+        _data: &UnlinkatData,
+    ) -> Result<(), Error> {
+        event.params.name = Some(c"krsi_unlinkat");
+        if let Some(handler) = self.async_handler.as_ref() {
+            handler.emit(event)?;
+        }
+        Ok(())
+    }
+
+    fn parse_clone_event(&mut self, event: Event<PPME_SYSCALL_CLONE_20_X>) -> Result<(), Error> {
+        let Some(PT_PID(child_tid)) = event.params.res else {
+            return Ok(());
+        };
+
+        let Some(missing_events) = self.missing_events.remove(&child_tid) else {
+            return Ok(());
+        };
+
+        let Some(handler) = self.async_handler.as_ref() else {
+            return Ok(());
+        };
+
+        for missing_event in missing_events {
+            emit_async_event(handler, &missing_event, c"krsi")?;
+        }
+        Ok(())
+    }
+
+    fn extract_krsi_event<'a>(
         &self,
         context: &'a mut Option<KrsiEvent>,
         event: &EventInput,
