@@ -13,17 +13,17 @@ use krsi_ebpf_core::{
 };
 
 use crate::{
-    auxbuf::{ParamWriter, Writer},
+    auxbuf::{AuxiliaryBuffer, ParamWriter, Writer},
     defs, scap, shared_state, sockets, FileDescriptor,
 };
 
-/// Wrapper around [Writer::preload_event_header] just collecting some additional
-/// information before calling it.
-pub fn preload_event_header(writer: &mut Writer, event_type: EventType) {
+/// Wrapper around [AuxiliaryBuffer::writer] just collecting some additional information before
+/// calling it.
+pub fn writer(auxbuf: &mut AuxiliaryBuffer, event_type: EventType) -> Result<Writer, i64> {
     let ts = shared_state::boot_time() + unsafe { bpf_ktime_get_boot_ns() };
     let tgid_pid = bpf_get_current_pid_tgid();
     let nparams = get_event_num_params(event_type) as u32;
-    writer.preload_event_header(ts, tgid_pid, event_type, nparams);
+    auxbuf.writer(ts, tgid_pid, event_type, nparams)
 }
 
 fn get_event_num_params(event_type: EventType) -> u8 {

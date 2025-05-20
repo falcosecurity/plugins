@@ -118,14 +118,17 @@ fn try_security_file_open_x(ctx: FExitContext) -> Result<u32, i64> {
         return shared_state::op_info::remove(pid);
     };
 
-    let mut writer = auxbuf.writer();
-    writer_helpers::preload_event_header(&mut writer, EventType::Open);
+    let mut writer = writer_helpers::writer(auxbuf, EventType::Open)?;
 
     // Parameter 1: name.
     let file: File = wrap_arg(unsafe { ctx.arg(0) });
     let path = file.f_path();
     match writer_helpers::store_path_param(&mut writer, &path) {
-        Ok(_) => Ok(0),
+        Ok(_) => {
+            let writer_state = writer.save();
+            auxbuf.save_writer_state(writer_state);
+            Ok(0)
+        }
         Err(_) => shared_state::op_info::remove(pid),
     }
 }
@@ -141,9 +144,9 @@ pub fn try_fd_install_x(
     };
 
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
-    let mut writer = auxbuf.writer();
-    // Don't call writer.preload_event_header, because we want to continue to append to the work
-    // already done on `fexit:security_file_open`.
+    // Don't call auxbuf.writer(), because we want to continue to append to the work already done on
+    // `fexit:security_file_open`.
+    let mut writer = auxbuf.resume_writer()?;
 
     // Parameter 2: fd.
     // Parameter 3: file_index.
@@ -175,6 +178,9 @@ pub fn try_fd_install_x(
 
     op_data.fd_installed = true;
 
+    let writer_state = writer.save();
+    auxbuf.save_writer_state(writer_state);
+
     Ok(0)
 }
 
@@ -197,9 +203,9 @@ fn try_openat2_x(ctx: FExitContext) -> Result<u32, i64> {
     }
 
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
-    let mut writer = auxbuf.writer();
-    // Don't call writer.preload_event_header, because we want to continue to append to the work
-    // already done on `fexit:fd_install` or `fexit:io_fixed_fd_install`.
+    // Don't call auxbuf.writer(), because we want to continue to append to the work already done on
+    // `fexit:fd_install` or `fexit:io_fixed_fd_install`.
+    let mut writer = auxbuf.resume_writer()?;
 
     // Parameter 8: iou_ret.
     let iou_ret: i64 = unsafe { ctx.arg(2) };
@@ -229,9 +235,9 @@ fn try_do_sys_openat2_x(ctx: FExitContext) -> Result<u32, i64> {
     }
 
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
-    let mut writer = auxbuf.writer();
-    // Don't call writer.preload_event_header, because we want to continue to append to the work
-    // already done on `fexit:fd_install`.
+    // Don't call auxbuf.writer(), because we want to continue to append to the work already done on
+    // `fexit:fd_install`.
+    let mut writer = auxbuf.resume_writer()?;
 
     // Parameter 8: iou_ret.
     writer.store_empty_param()?;

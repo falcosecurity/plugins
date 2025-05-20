@@ -88,8 +88,7 @@ fn try_io_bind_x(ctx: FExitContext) -> Result<u32, i64> {
     let _ = shared_state::op_info::remove(pid);
 
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
-    let mut writer = auxbuf.writer();
-    writer_helpers::preload_event_header(&mut writer, EventType::Bind);
+    let mut writer = writer_helpers::writer(auxbuf, EventType::Bind)?;
 
     // Parameter 1: iou_ret.
     let iou_ret: i64 = unsafe { ctx.arg(2) };
@@ -126,8 +125,7 @@ fn __sys_bind_x(ctx: FExitContext) -> u32 {
 #[allow(non_snake_case)]
 fn try___sys_bind_x(ctx: FExitContext) -> Result<u32, i64> {
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
-    let mut writer = auxbuf.writer();
-    writer_helpers::preload_event_header(&mut writer, EventType::Bind);
+    let mut writer = writer_helpers::writer(auxbuf, EventType::Bind)?;
 
     // Parameter 1: iou_ret.
     writer.store_empty_param()?;

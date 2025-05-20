@@ -56,8 +56,7 @@ fn io_socket_x(ctx: FExitContext) -> u32 {
 
 fn try_io_socket_x(ctx: FExitContext) -> Result<u32, i64> {
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
-    let mut writer = auxbuf.writer();
-    writer_helpers::preload_event_header(&mut writer, EventType::Socket);
+    let mut writer = writer_helpers::writer(auxbuf, EventType::Socket)?;
 
     let req: IoKiocb = wrap_arg(unsafe { ctx.arg(0) });
     let sock = req.cmd_as::<IoSocket>();
@@ -131,8 +130,7 @@ fn __sys_socket_x(ctx: FExitContext) -> u32 {
 #[allow(non_snake_case)]
 fn try___sys_socket_x(ctx: FExitContext) -> Result<u32, i64> {
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
-    let mut writer = auxbuf.writer();
-    writer_helpers::preload_event_header(&mut writer, EventType::Socket);
+    let mut writer = writer_helpers::writer(auxbuf, EventType::Socket)?;
 
     // Parameter 1: iou_ret.
     writer.store_empty_param()?;
