@@ -18,104 +18,175 @@ limitations under the License.
 use krsi_common::{EventHeader, EventType};
 use zerocopy::{FromBytes, Immutable, IntoBytes};
 
-/// Parameter maximum length. Since [MAX_EVENT_LEN](crate::MAX_EVENT_LEN) must be a power of 2, this
-/// can be used as a mask to check that the accesses to the auxiliary map are always in bound and
-/// please, in this way, the verifier.
-const MAX_PARAM_VALUE_LEN: usize = crate::MAX_EVENT_LEN - 1;
+use crate::MAX_EVENT_LEN;
 
-/// Auxiliary buffer length. It must be able to contain an event of
-/// [MAX_EVENT_LEN](crate::MAX_EVENT_LEN), but it is set to its double in order to please the
-/// verifier.
-const AUXILIARY_BUFFER_LEN: usize = crate::MAX_EVENT_LEN * 2;
+/// Auxiliary buffer length.
+///
+/// It must be able to contain an event of [MAX_EVENT_LEN], but it is set to its double in order to
+/// please the verifier.
+const AUXILIARY_BUFFER_LEN: usize = MAX_EVENT_LEN * 2;
+
+/// The maximum number of parameters that can be stored in an auxiliary buffer.
+///
+/// # Formula explanation
+/// Calling `X` the maximum number of parameters, and being a parameter length expressed as `u16`
+/// (2 bytes), the amount of bytes to store their lengths is `2 * X` bytes.
+/// Assuming an occupation of just 1 byte for each of the `X` parameters, the total amount of
+/// required bytes, occupied by both lengths and values, would be `3 * X`.
+/// By taking into account this, and the fact that the buffer must also accommodate the event
+/// header, the following equation can be written:
+/// `3 * X = MAX_EVENT_LEN - size_of::<EventHeader>()`. The final formula is obtained by dividing
+/// both sides of the equation by 3.
+const MAX_PARAMS_NUM: usize = (MAX_EVENT_LEN - size_of::<EventHeader>()) / 3;
+
+/// Store the configuration of a [Writer] instance. See [Writer::save],
+/// [AuxiliaryBuffer::save_writer_state] and [AuxiliaryBuffer::resume_writer] for more details.
+pub struct WriterState {
+    /// The amount of bytes not yet filled in the auxiliary buffer's lengths vector.
+    remaining_lengths_room: usize,
+    /// The amount of bytes not yet filled in the auxiliary buffer's values list.
+    remaining_values_room: usize,
+}
 
 pub struct AuxiliaryBuffer {
-    /// Raw space to save our variable-size event.
+    /// Raw space to save the variable-size event. See [AUXILIARY_BUFFER_LEN] for more details on
+    /// the effective available space.
     data: [u8; AUXILIARY_BUFFER_LEN],
-    /// Position of the first empty slot into the values array of the event.
-    values_pos: u64,
-    /// Position of the first empty slot into the lengths array of the event.
-    lengths_pos: u8,
-    /// Event type we want to send to userspace.
-    event_type: u16,
+    /// Saved writer state. See [WriterState] for more details.
+    saved_writer_state: Option<WriterState>,
 }
 
 impl AuxiliaryBuffer {
-    /// Return a [Writer] instance associated with the current buffer.
-    pub fn writer(&mut self) -> Writer {
-        Writer { auxbuf: self }
+    /// Create a new [Writer] instance associated with the buffer.
+    pub fn writer(
+        &mut self,
+        ts: u64,
+        tgid_pid: u64,
+        event_type: EventType,
+        nparams: u32,
+    ) -> Result<Writer, i64> {
+        if nparams > MAX_PARAMS_NUM as u32 {
+            return Err(1);
+        }
+
+        let (header, bufs) = self.data[..MAX_EVENT_LEN].split_at_mut(size_of::<EventHeader>());
+        let lengths_len = (nparams as usize) * size_of::<u16>();
+
+        // Notice: `event_header_mut_from_bytes()` can never return an error (see
+        // `AuxiliaryBuffer::event_header_mut_from_bytes()` for more details).
+        let header = Self::event_header_mut_from_bytes(header)?;
+        header.ts = ts.into();
+        header.tgid_pid = tgid_pid.into();
+        header.len = ((size_of::<EventHeader>() + lengths_len) as u32).into();
+        header.evt_type = (event_type as u16).into();
+        header.nparams = nparams.into();
+
+        let (lengths, values) = bufs.split_at_mut(lengths_len);
+
+        self.saved_writer_state = None;
+
+        Ok(Writer {
+            header,
+            lengths,
+            values,
+        })
     }
 
-    /// Return a slice to the underlying data.
+    /// Create a new [Writer] instance, associated with the buffer, using the saved writer state.
+    /// For the call to be successful, the user must have first saved a writer state via a previous
+    /// call to [AuxiliaryBuffer::saved_writer_state].
+    pub fn resume_writer(&mut self) -> Result<Writer, i64> {
+        // While verifying if there is any saved state, set it to None if any.
+        let Some(WriterState {
+            remaining_lengths_room,
+            remaining_values_room,
+        }) = self.saved_writer_state.take()
+        else {
+            return Err(1);
+        };
+
+        let (header, bufs) = self.data[..MAX_EVENT_LEN].split_at_mut(size_of::<EventHeader>());
+        let header = Self::event_header_mut_from_bytes(header)?;
+        let nparams = header.nparams.get();
+        // Check to please the verifier: as long as nparams is set by `writer()`, its value cannot
+        // be greater than `MAX_PARAMS_NUM`.
+        if nparams > MAX_PARAMS_NUM as u32 {
+            return Err(1);
+        }
+
+        let lengths_len = (nparams as usize) * size_of::<u16>();
+        let (mut lengths, mut values) = bufs.as_mut().split_at_mut(lengths_len);
+        let values_len = values.len();
+        // Use saturating_sub to please the verifier, but actually remaining_lengths_room and
+        // remaining_values_room cannot be greater than lengths_len and values_len.
+        let lengths_bytes_to_skip = lengths_len.saturating_sub(remaining_lengths_room);
+        let values_bytes_to_skip = values_len.saturating_sub(remaining_values_room);
+        skip_u8_slice_bytes(&mut lengths, lengths_bytes_to_skip);
+        skip_u8_slice_bytes(&mut values, values_bytes_to_skip);
+        Ok(Writer {
+            header,
+            lengths,
+            values,
+        })
+    }
+
+    /// Save the writer state to enable resuming it later via [Self::resume_writer].
+    pub fn save_writer_state(&mut self, state: WriterState) {
+        self.saved_writer_state = Some(state);
+    }
+
+    /// Return a slice to the underlying data. The slice length can never exceed [MAX_EVENT_LEN].
     pub fn as_bytes(&self) -> Result<&[u8], i64> {
-        // Notice: `event_header_mut()` can never return an error (see
-        // `AuxiliaryBuffer::event_header()` for more details).
-        let len = self.event_header()?.len.get() as usize;
+        let header_bytes = &self.data[..size_of::<EventHeader>()];
+        // Notice: `event_header_ref_from_bytes()` can never return an error (see
+        // `AuxiliaryBuffer::event_header_ref_from_bytes()` for more details).
+        let len = Self::event_header_ref_from_bytes(header_bytes)?.len.get() as usize;
+        // Actually, header.len value can never be greater than `MAX_EVENT_LEN` because the code
+        // prevent the data in the buffer to grow above this limit, but here we only check for
+        // out-of-bound values.
         if len > self.data.len() {
             return Err(1);
         }
         Ok(&self.data[..len])
     }
 
-    /// Return an immutable reference to the event header.
+    /// Interpret the provided bytes as an immutable reference to [EventHeader].
     ///
     /// Notice: this call actually cannot return an error, but it internally uses
-    /// [FromBytes::ref_from_bytes] which can returns an error, and sadly tqhere is no other
+    /// [FromBytes::ref_from_bytes] which can returns an error, and sadly there is no other
     /// conversion helper performing this infallible conversion in an unchecked way.
-    fn event_header(&self) -> Result<&EventHeader, i64> {
-        EventHeader::ref_from_bytes(&self.data[..size_of::<EventHeader>()]).map_err(|_| 1)
+    fn event_header_ref_from_bytes(header_bytes: &[u8]) -> Result<&EventHeader, i64> {
+        debug_assert_eq!(header_bytes.len(), size_of::<EventHeader>());
+        EventHeader::ref_from_bytes(header_bytes).map_err(|_| 1)
     }
 
-    /// Returns a mutable reference to the event header.
+    /// Interpret the provided bytes as a mutable reference to [EventHeader].
     ///
     /// Notice: this call actually cannot return an error, but it internally uses
     /// [FromBytes::mut_from_bytes] which can returns an error, and sadly there is no other
     /// conversion helper performing this infallible conversion in an unchecked way.
-    pub fn event_header_mut(&mut self) -> Result<&mut EventHeader, i64> {
-        EventHeader::mut_from_bytes(&mut self.data[..size_of::<EventHeader>()]).map_err(|_| 1)
+    fn event_header_mut_from_bytes(header_bytes: &mut [u8]) -> Result<&mut EventHeader, i64> {
+        debug_assert_eq!(header_bytes.len(), size_of::<EventHeader>());
+        EventHeader::mut_from_bytes(header_bytes).map_err(|_| 1)
     }
 }
 
-/// Utility allowing to push data on an auxiliary buffer.
+/// Utility allowing to push data on an [AuxiliaryBuffer].
 pub struct Writer<'a> {
-    auxbuf: &'a mut AuxiliaryBuffer,
+    header: &'a mut EventHeader,
+    lengths: &'a mut [u8],
+    values: &'a mut [u8],
 }
 
 impl<'a> Writer<'a> {
-    pub fn preload_event_header(
-        &mut self,
-        ts: u64,
-        tgid_pid: u64,
-        event_type: EventType,
-        nparams: u32,
-    ) {
-        // Notice: `event_header_mut()` can never return an error (see
-        // `AuxiliaryBuffer::event_header_mut() for more details).
-        let Ok(evt_hdr) = self.auxbuf.event_header_mut() else {
-            return;
-        };
-        evt_hdr.ts = ts.into();
-        evt_hdr.tgid_pid = tgid_pid.into();
-        evt_hdr.evt_type = (event_type as u16).into();
-        evt_hdr.nparams = nparams.into();
-        self.auxbuf.values_pos =
-            (size_of::<EventHeader>() + (nparams as usize) * size_of::<u16>()) as u64;
-        self.auxbuf.lengths_pos = size_of::<EventHeader>() as u8;
-        self.auxbuf.event_type = (event_type as u16).into();
-    }
-
     pub fn finalize_event_header(&mut self) {
-        let payload_pos = self.auxbuf.values_pos as u32;
-        // Notice: `event_header_mut()` can never return an error (see
-        // `AuxiliaryBuffer::event_header_mut() for more details).
-        let Ok(evt_hdr) = self.auxbuf.event_header_mut() else {
-            return;
-        };
-        evt_hdr.len = payload_pos.into();
-    }
-
-    pub fn skip_param(&mut self, len: u16) {
-        self.auxbuf.values_pos += len as u64;
-        self.auxbuf.lengths_pos = self.auxbuf.lengths_pos + size_of::<u16>() as u8;
+        // Notice: `self.header.len` value is set to
+        // `size_of::<EventHeader>() + self.header.nparams * size_of::<u16>()` upon writer
+        // instantiation. Update its value to include also the written values bytes.
+        let len = self.header.len.get() as usize;
+        let total_values_bytes = MAX_EVENT_LEN - len;
+        let written_values_bytes = total_values_bytes - self.values.len();
+        self.header.len = ((len + written_values_bytes) as u32).into();
     }
 
     pub fn store_param<T: IntoBytes + Immutable>(&mut self, param: T) -> Result<(), i64> {
@@ -124,24 +195,11 @@ impl<'a> Writer<'a> {
     }
 
     fn write_value<T: IntoBytes + Immutable>(&mut self, value: T) -> Result<(), i64> {
-        let lower_offset = Self::data_safe_access(self.auxbuf.values_pos);
-        let mut data = &mut self.auxbuf.data[lower_offset..];
-        write(&mut data, value)?;
-        self.auxbuf.values_pos += size_of::<T>() as u64;
-        Ok(())
-    }
-
-    // Helper used to please the verifier during reading operations like `bpf_probe_read_str()`.
-    fn data_safe_access(x: u64) -> usize {
-        (x & MAX_PARAM_VALUE_LEN as u64) as usize
+        write(&mut self.values, value)
     }
 
     fn write_len(&mut self, value: u16) -> Result<(), i64> {
-        let lower_offset = Self::data_safe_access(self.auxbuf.lengths_pos as u64);
-        let mut data = &mut self.auxbuf.data[lower_offset..];
-        write(&mut data, value)?;
-        self.auxbuf.lengths_pos += size_of::<u16>() as u8;
-        Ok(())
+        write(&mut self.lengths, value)
     }
 
     /// Store an empty parameter.
@@ -171,43 +229,35 @@ impl<'a> Writer<'a> {
     where
         F: FnOnce(ParamWriter) -> Result<u16, i64>,
     {
-        let (lower_offset, upper_offset) = self.values_offsets(max_len_to_read, force_max_len)?;
+        let len_to_reserve = self.len_to_reserve(max_len_to_read as usize, force_max_len)?;
         let param_writer = ParamWriter {
-            data: &mut self.auxbuf.data[lower_offset..upper_offset],
+            data: &mut self.values[..len_to_reserve],
         };
         let written_bytes = write_fn(param_writer)?;
-        self.auxbuf.values_pos += written_bytes as u64;
+        // FIXME(ekoops): this check must be written_bytes > len_to_reserve, but changing it would
+        //   result in `Verifier output: last insn is not an exit or jmp.`.
+        if written_bytes >= len_to_reserve as u16 {
+            return Err(1);
+        }
+
+        skip_u8_slice_bytes(&mut self.values, written_bytes as usize);
         self.write_len(written_bytes)?;
         Ok(written_bytes)
     }
 
-    fn values_offsets(
+    fn len_to_reserve(
         &mut self,
-        max_len_to_read: u16,
+        max_len_to_read: usize,
         force_max_len: bool,
-    ) -> Result<(usize, usize), i64> {
-        let lower_offset = self.auxbuf.values_pos as usize;
-        // Check to please the verifier.
-        if lower_offset > crate::MAX_EVENT_LEN {
-            return Err(1);
+    ) -> Result<usize, i64> {
+        let values_len = self.values.len();
+        if max_len_to_read <= values_len {
+            Ok(max_len_to_read)
+        } else if !force_max_len {
+            Ok(values_len)
+        } else {
+            Err(1)
         }
-
-        let mut read_buffer_len = max_len_to_read;
-        if max_len_to_read as u64 > MAX_PARAM_VALUE_LEN as u64 {
-            if force_max_len {
-                return Err(1);
-            }
-            read_buffer_len = MAX_PARAM_VALUE_LEN as u16;
-        }
-
-        let mut upper_offset = lower_offset + read_buffer_len as usize;
-        if upper_offset > crate::MAX_EVENT_LEN {
-            if force_max_len {
-                return Err(1);
-            }
-            upper_offset = crate::MAX_EVENT_LEN - lower_offset;
-        }
-        Ok((lower_offset, upper_offset))
     }
 
     /// Provide a generic way to write a parameter whose size is known at compile time.
@@ -223,14 +273,22 @@ impl<'a> Writer<'a> {
     where
         F: FnOnce(ParamWriter) -> Result<(), i64>,
     {
-        let (lower_offset, upper_offset) = self.values_offsets(len_to_read, true)?;
+        let len_to_reserve = self.len_to_reserve(len_to_read as usize, true)?;
         let param_writer = ParamWriter {
-            data: &mut self.auxbuf.data[lower_offset..upper_offset],
+            data: &mut self.values[..len_to_reserve],
         };
         write_fn(param_writer)?;
-        self.auxbuf.values_pos += len_to_read as u64;
+        skip_u8_slice_bytes(&mut self.values, len_to_reserve);
         self.write_len(len_to_read)?;
         Ok(())
+    }
+
+    /// Save the current state in an object that can be used to restore the writer instance later.
+    pub fn save(self) -> WriterState {
+        WriterState {
+            remaining_lengths_room: self.lengths.len(),
+            remaining_values_room: self.values.len(),
+        }
     }
 }
 
@@ -250,6 +308,27 @@ impl<'a> ParamWriter<'a> {
     }
 }
 
+/// Shrink the byte buffer pointed by `slice` by removing `bytes_to_skip` bytes from its beginning.
+fn skip_u8_slice_bytes(slice: &mut &mut [u8], bytes_to_skip: usize) {
+    let old_slice = core::mem::take(slice);
+    *slice = &mut old_slice[bytes_to_skip..];
+}
+
+/// Write the provided `value` in the buffer pointed by `buf`, and update `buf` to make it point to
+/// the next byte after the written value.
+fn write<T: IntoBytes + Immutable>(buf: &mut &mut [u8], value: T) -> Result<(), i64> {
+    // Keep the API ergonomic by returning an i64 in case of error, which is what the other eBPF
+    // code expects in most of the places.
+    let reserved_space = reserve_space(buf, size_of::<T>()).map_err(|_| 1)?;
+
+    // Don't use `value.as_bytes().write_to(reserved_space)` here as it would return a Result.
+    // In case of mismatching lengths, `copy_from_slice` would panic, but since we have reserved the
+    // exact required amount of space, we are sure it will never panic.
+    debug_assert_eq!(reserved_space.len(), size_of::<T>());
+    reserved_space.copy_from_slice(value.as_bytes());
+    Ok(())
+}
+
 struct NoBufSpace;
 
 /// Reserve a chunk of bytes of size `value_size` from the buffer pointed by `buf`, returning the
@@ -265,19 +344,4 @@ fn reserve_space<'a, 'b: 'a>(
     let (head, tail) = core::mem::take(buf).split_at_mut(value_size);
     *buf = tail;
     Ok(head)
-}
-
-/// Write the provided `value` in the buffer pointed by `buf`, and update `buf` to make it point to
-/// the next byte after the written value.
-fn write<T: IntoBytes + Immutable>(buf: &mut &mut [u8], value: T) -> Result<(), i64> {
-    // Keep the API ergonomic by returning an i64 in case of error, which is what the other eBPF
-    // code expects in most of the places.
-    let reserved_space = reserve_space(buf, size_of::<T>()).map_err(|_| 1)?;
-    debug_assert_eq!(reserved_space.len(), size_of::<T>());
-
-    // Don't use `value.as_bytes().write_to(reserved_space)` here as it would return a Result.
-    // In case of mismatching lengths, `copy_from_slice` would panic, but since we have reserved the
-    // exact required amount of space, we are sure it will never panic.
-    reserved_space.copy_from_slice(value.as_bytes());
-    Ok(())
 }

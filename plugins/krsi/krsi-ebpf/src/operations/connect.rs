@@ -104,8 +104,7 @@ fn try___sys_connect_file_x(ctx: FExitContext) -> Result<u32, i64> {
     };
 
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
-    let mut writer = auxbuf.writer();
-    writer_helpers::preload_event_header(&mut writer, EventType::Connect);
+    let mut writer = writer_helpers::writer(auxbuf, EventType::Connect)?;
 
     let ret: c_int = unsafe { ctx.arg(4) };
 
@@ -121,6 +120,8 @@ fn try___sys_connect_file_x(ctx: FExitContext) -> Result<u32, i64> {
 
     if op_data.is_iou {
         op_data.socktuple_len = socktuple_len;
+        let writer_state = writer.save();
+        auxbuf.save_writer_state(writer_state);
         return Ok(0);
     }
 
@@ -153,11 +154,9 @@ fn try_io_connect_x(ctx: FExitContext) -> Result<u32, i64> {
     let _ = shared_state::op_info::remove(pid);
 
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
-    let mut writer = auxbuf.writer();
-    writer_helpers::preload_event_header(&mut writer, EventType::Connect);
-
-    // Parameter 1: tuple. (Already populated on fexit:__sys_connect_file)
-    writer.skip_param(op_data.socktuple_len);
+    // Don't call auxbuf.writer(), because we want to continue to append to the work already done on
+    // `fexit:__sys_connect_file`.
+    let mut writer = auxbuf.resume_writer()?;
 
     // Parameter 2: iou_ret.
     let iou_ret: i64 = unsafe { ctx.arg(2) };

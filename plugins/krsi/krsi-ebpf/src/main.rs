@@ -19,6 +19,7 @@ limitations under the License.
 #![no_main]
 
 use aya_ebpf::{macros::fexit, programs::FExitContext};
+use krsi_common::EventHeader;
 use krsi_ebpf_core::{wrap_arg, File};
 use operations::*;
 
@@ -80,5 +81,10 @@ fn io_fixed_fd_install_x(ctx: FExitContext) -> u32 {
     res
 }
 
-/// Event maximum length. This must be a power of 2.
+/// Event maximum length.
+///
+/// Its lengths must be at least equal to the event header length.
 pub const MAX_EVENT_LEN: usize = 8 * 1024;
+
+// Enforce `MAX_EVENT_LEN` constraints.
+const _: () = assert!(MAX_EVENT_LEN >= size_of::<EventHeader>());

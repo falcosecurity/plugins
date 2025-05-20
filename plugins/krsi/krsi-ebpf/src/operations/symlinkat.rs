@@ -87,8 +87,7 @@ fn try_do_symlinkat_x(ctx: FExitContext) -> Result<u32, i64> {
     }
 
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
-    let mut writer = auxbuf.writer();
-    writer_helpers::preload_event_header(&mut writer, EventType::Symlinkat);
+    let mut writer = writer_helpers::writer(auxbuf, EventType::Symlinkat)?;
 
     // Parameter 1: target.
     let target: Filename = wrap_arg(unsafe { ctx.arg(0) });
@@ -111,6 +110,9 @@ fn try_do_symlinkat_x(ctx: FExitContext) -> Result<u32, i64> {
         writer.store_empty_param()?;
         writer.finalize_event_header();
         helpers::submit_event(auxbuf.as_bytes()?);
+    } else {
+        let writer_state = writer.save();
+        auxbuf.save_writer_state(writer_state);
     }
 
     Ok(0)
@@ -126,9 +128,9 @@ fn try_io_symlinkat_x(ctx: FExitContext) -> Result<u32, i64> {
     let _ = shared_state::op_info::remove(pid);
 
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
-    let mut writer = auxbuf.writer();
-    // Don't call writer.preload_event_header, because we want to continue to append to the work
-    // already done on `fexit:do_symlinkat`.
+    // Don't call auxbuf.writer(), because we want to continue to append to the work already done on
+    // `fexit:do_symlinkat`.
+    let mut writer = auxbuf.resume_writer()?;
 
     // Parameter 5: iou_ret.
     let iou_ret: i64 = unsafe { ctx.arg(2) };
