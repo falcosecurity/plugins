@@ -12,11 +12,14 @@ use krsi_ebpf_core::{
     read_field, Filename, Path, Sock, Sockaddr, SockaddrIn, SockaddrIn6, SockaddrUn, Socket, Wrap,
 };
 
-use crate::{auxbuf, defs, scap, shared_state, sockets, FileDescriptor};
+use crate::{
+    auxbuf::{ParamWriter, Writer},
+    defs, scap, shared_state, sockets, FileDescriptor,
+};
 
-/// Wrapper around [auxbuf::Writer::preload_event_header] just collecting some additional
+/// Wrapper around [Writer::preload_event_header] just collecting some additional
 /// information before calling it.
-pub fn preload_event_header(writer: &mut auxbuf::Writer, event_type: EventType) {
+pub fn preload_event_header(writer: &mut Writer, event_type: EventType) {
     let ts = shared_state::boot_time() + unsafe { bpf_ktime_get_boot_ns() };
     let tgid_pid = bpf_get_current_pid_tgid();
     let nparams = get_event_num_params(event_type) as u32;
@@ -42,7 +45,7 @@ fn get_event_num_params(event_type: EventType) -> u8 {
 /// Stores the provided `file_descriptor` in the auxiliary buffer using the provided auxiliary
 /// buffer `writer`.
 pub fn store_file_descriptor_param(
-    writer: &mut auxbuf::Writer,
+    writer: &mut Writer,
     file_descriptor: FileDescriptor,
 ) -> Result<(), i64> {
     match file_descriptor.try_into() {
@@ -67,7 +70,7 @@ pub fn store_file_descriptor_param(
 /// is bigger, it is capped to this amount. If the auxiliary buffer cannot accommodate at least
 /// [MAX_PATH](defs::MAX_PATH) bytes, the operation is aborted.
 pub fn store_filename_param(
-    writer: &mut auxbuf::Writer,
+    writer: &mut Writer,
     filename: &Filename,
     is_kern_mem: bool,
 ) -> Result<(), i64> {
@@ -84,7 +87,7 @@ pub fn store_filename_param(
 /// This helper stores at maximum [MAX_PATH](defs::MAX_PATH) bytes of data: if the `path` length is
 /// bigger, it is capped to this amount. If the auxiliary buffer cannot accommodate at least
 /// [MAX_PATH](defs::MAX_PATH) bytes, the operation is aborted.
-pub fn store_path_param(writer: &mut auxbuf::Writer, path: &Path) -> Result<u16, i64> {
+pub fn store_path_param(writer: &mut Writer, path: &Path) -> Result<u16, i64> {
     writer.store_var_len_param(defs::MAX_PATH, true, |mut param_writer| {
         let buf = param_writer.as_bytes();
         unsafe { path.read_into(buf, buf.len()) }.map(|written_bytes| written_bytes as u16)
@@ -101,7 +104,7 @@ pub fn store_path_param(writer: &mut auxbuf::Writer, path: &Path) -> Result<u16,
 /// is bigger, it is capped to this amount. If the auxiliary buffer cannot accommodate at least
 /// [MAX_PATH](defs::MAX_PATH) bytes, the operation is aborted.
 pub fn store_charbuf_param(
-    writer: &mut auxbuf::Writer,
+    writer: &mut Writer,
     charbuf: *const u8,
     is_kern_mem: bool,
 ) -> Result<u16, i64> {
@@ -111,7 +114,7 @@ pub fn store_charbuf_param(
 }
 
 fn write_charbuf(
-    param_writer: &mut auxbuf::ParamWriter,
+    param_writer: &mut ParamWriter,
     charbuf: *const u8,
     is_kern_mem: bool,
 ) -> Result<u16, i64> {
@@ -141,7 +144,7 @@ fn write_charbuf(
 ///   data; if the length is bigger, it is capped to this amount; if the auxiliary buffer cannot
 ///   accommodate at least [MAX_PATH](defs::MAX_PATH) bytes, the operation is aborted.
 pub fn store_sockaddr_param(
-    writer: &mut auxbuf::Writer,
+    writer: &mut Writer,
     sockaddr: &Sockaddr,
     is_kern_mem: bool,
 ) -> Result<(), i64> {
@@ -163,7 +166,7 @@ pub fn store_sockaddr_param(
 }
 
 fn store_inet_sockaddr_param(
-    writer: &mut auxbuf::Writer,
+    writer: &mut Writer,
     sockaddr: &SockaddrIn,
     is_kern_mem: bool,
 ) -> Result<(), i64> {
@@ -179,7 +182,7 @@ fn store_inet_sockaddr_param(
 }
 
 fn store_inet6_sockaddr_param(
-    writer: &mut auxbuf::Writer,
+    writer: &mut Writer,
     sockaddr: &SockaddrIn6,
     is_kern_mem: bool,
 ) -> Result<(), i64> {
@@ -195,7 +198,7 @@ fn store_inet6_sockaddr_param(
 }
 
 fn store_unix_sockaddr_param(
-    writer: &mut auxbuf::Writer,
+    writer: &mut Writer,
     sockaddr: &SockaddrUn,
     is_kern_mem: bool,
 ) -> Result<(), i64> {
@@ -212,7 +215,7 @@ fn store_unix_sockaddr_param(
 }
 
 fn write_sockaddr_path(
-    param_writer: &mut auxbuf::ParamWriter,
+    param_writer: &mut ParamWriter,
     path: &[c_uchar; defs::UNIX_PATH_MAX],
 ) -> Result<u16, i64> {
     // Notice an exception in `sun_path` (https://man7.org/linux/man-pages/man7/unix.7.html):
@@ -246,7 +249,7 @@ fn write_sockaddr_path(
 ///   data; if the length is bigger, it is capped to this amount; if the auxiliary buffer cannot
 ///   accommodate at least [MAX_PATH](defs::MAX_PATH) bytes, the operation is aborted.
 pub fn store_sock_tuple_param(
-    writer: &mut auxbuf::Writer,
+    writer: &mut Writer,
     sock: &Socket,
     is_outbound: bool,
     sockaddr: &Sockaddr,
@@ -281,7 +284,7 @@ pub fn store_sock_tuple_param(
 }
 
 fn store_inet_sock_tuple_param(
-    writer: &mut auxbuf::Writer,
+    writer: &mut Writer,
     sk: &Sock,
     is_outbound: bool,
     sockaddr: &Sockaddr,
@@ -329,7 +332,7 @@ fn store_inet_sock_tuple_param(
 }
 
 fn store_inet6_sock_tuple_param(
-    writer: &mut auxbuf::Writer,
+    writer: &mut Writer,
     sk: &Sock,
     is_outbound: bool,
     sockaddr: &Sockaddr,
@@ -384,7 +387,7 @@ fn store_inet6_sock_tuple_param(
 }
 
 fn store_unix_sock_tuple_param(
-    writer: &mut auxbuf::Writer,
+    writer: &mut Writer,
     sk: &Sock,
     is_outbound: bool,
     sockaddr: &Sockaddr,
