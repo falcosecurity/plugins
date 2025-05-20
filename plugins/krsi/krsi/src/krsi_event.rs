@@ -34,62 +34,83 @@ pub struct KrsiEvent {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct OpenData {
+    pub fd: Option<i64>,
+    pub file_index: Option<i32>,
+    pub name: Option<CString>,
+    pub flags: Option<u32>,
+    pub mode: Option<u32>,
+    pub dev: Option<u32>,
+    pub ino: Option<u64>,
+    pub iou_ret: Option<i64>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SocketData {
+    pub iou_ret: Option<i64>,
+    pub fd: Option<i64>,
+    pub file_index: Option<i32>,
+    pub domain: Option<u32>,
+    pub type_: Option<u32>,
+    pub protocol: Option<u32>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ConnectData {
+    pub fd: Option<i64>,
+    pub file_index: Option<i32>,
+    pub connection: Option<Connection>,
+    pub res: Option<i64>,
+    pub iou_ret: Option<i64>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SymlinkatData {
+    pub target: Option<CString>,
+    pub linkdirfd: Option<i64>,
+    pub linkpath: Option<CString>,
+    pub res: Option<i64>,
+    pub iou_ret: Option<i64>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct LinkatData {
+    pub olddirfd: Option<i64>,
+    pub oldpath: Option<CString>,
+    pub newdirfd: Option<i64>,
+    pub newpath: Option<CString>,
+    pub flags: Option<u32>,
+    pub res: Option<i64>,
+    pub iou_ret: Option<i64>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct UnlinkatData {
+    pub dirfd: Option<i64>,
+    pub path: Option<CString>,
+    pub flags: Option<u32>,
+    pub res: Option<i64>,
+    pub iou_ret: Option<i64>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct MkdiratData {
+    dirfd: Option<i64>,
+    path: Option<CString>,
+    mode: Option<u32>,
+    res: Option<i64>,
+    iou_ret: Option<i64>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub enum KrsiEventContent {
-    Open {
-        fd: Option<i64>,
-        file_index: Option<i32>,
-        name: Option<CString>,
-        flags: Option<u32>,
-        mode: Option<u32>,
-        dev: Option<u32>,
-        ino: Option<u64>,
-        iou_ret: Option<i64>,
-    },
-    Socket {
-        iou_ret: Option<i64>,
-        fd: Option<i64>,
-        file_index: Option<i32>,
-        domain: Option<u32>,
-        type_: Option<u32>,
-        protocol: Option<u32>,
-    },
-    Connect {
-        fd: Option<i64>,
-        file_index: Option<i32>,
-        connection: Option<Connection>,
-        res: Option<i64>,
-        iou_ret: Option<i64>,
-    },
-    Symlinkat {
-        target: Option<CString>,
-        linkdirfd: Option<i64>,
-        linkpath: Option<CString>,
-        res: Option<i64>,
-        iou_ret: Option<i64>,
-    },
-    Linkat {
-        olddirfd: Option<i64>,
-        oldpath: Option<CString>,
-        newdirfd: Option<i64>,
-        newpath: Option<CString>,
-        flags: Option<u32>,
-        res: Option<i64>,
-        iou_ret: Option<i64>,
-    },
-    Unlinkat {
-        dirfd: Option<i64>,
-        path: Option<CString>,
-        flags: Option<u32>,
-        res: Option<i64>,
-        iou_ret: Option<i64>,
-    },
-    Mkdirat {
-        dirfd: Option<i64>,
-        path: Option<CString>,
-        mode: Option<u32>,
-        res: Option<i64>,
-        iou_ret: Option<i64>,
-    },
+    Open(OpenData),
+    Socket(SocketData),
+    Connect(ConnectData),
+    Symlinkat(SymlinkatData),
+    Linkat(LinkatData),
+    Unlinkat(UnlinkatData),
+    Mkdirat(MkdiratData),
 }
 
 #[derive(PartialEq, Debug, Serialize, Deserialize)]
@@ -135,35 +156,35 @@ impl fmt::Display for Connection {
 impl KrsiEventContent {
     pub fn fd(&self) -> Option<i64> {
         match &self {
-            KrsiEventContent::Open { fd, .. } => *fd,
-            KrsiEventContent::Connect { fd, .. } => *fd,
-            KrsiEventContent::Socket { fd, .. } => *fd,
+            KrsiEventContent::Open(OpenData { fd, .. }) => *fd,
+            KrsiEventContent::Connect(ConnectData { fd, .. }) => *fd,
+            KrsiEventContent::Socket(SocketData { fd, .. }) => *fd,
             _ => None,
         }
     }
 
     pub fn file_index(&self) -> Option<i32> {
         match &self {
-            KrsiEventContent::Open { file_index, .. } => *file_index,
-            KrsiEventContent::Connect { file_index, .. } => *file_index,
-            KrsiEventContent::Socket { file_index, .. } => *file_index,
+            KrsiEventContent::Open(OpenData { file_index, .. }) => *file_index,
+            KrsiEventContent::Connect(ConnectData { file_index, .. }) => *file_index,
+            KrsiEventContent::Socket(SocketData { file_index, .. }) => *file_index,
             _ => None,
         }
     }
 
     pub fn flags(&self) -> Option<u32> {
         match &self {
-            KrsiEventContent::Open { flags, .. } => *flags,
-            KrsiEventContent::Linkat { flags, .. } => *flags,
-            KrsiEventContent::Unlinkat { flags, .. } => *flags,
+            KrsiEventContent::Open(OpenData { flags, .. }) => *flags,
+            KrsiEventContent::Linkat(LinkatData { flags, .. }) => *flags,
+            KrsiEventContent::Unlinkat(UnlinkatData { flags, .. }) => *flags,
             _ => None,
         }
     }
 
     pub fn name(&self) -> Option<CString> {
         match &self {
-            KrsiEventContent::Open { name, .. } => name.clone(),
-            KrsiEventContent::Connect { connection, .. } => connection
+            KrsiEventContent::Open(OpenData { name, .. }) => name.clone(),
+            KrsiEventContent::Connect(ConnectData { connection, .. }) => connection
                 .as_ref()
                 .map(|c| CString::new(c.to_string()).unwrap()),
             _ => None,
@@ -172,138 +193,138 @@ impl KrsiEventContent {
 
     pub fn mode(&self) -> Option<u32> {
         match &self {
-            KrsiEventContent::Open { mode, .. } => *mode,
-            KrsiEventContent::Mkdirat { mode, .. } => *mode,
+            KrsiEventContent::Open(OpenData { mode, .. }) => *mode,
+            KrsiEventContent::Mkdirat(MkdiratData { mode, .. }) => *mode,
             _ => None,
         }
     }
 
     pub fn dev(&self) -> Option<u32> {
         match &self {
-            KrsiEventContent::Open { dev, .. } => *dev,
+            KrsiEventContent::Open(OpenData { dev, .. }) => *dev,
             _ => None,
         }
     }
 
     pub fn ino(&self) -> Option<u64> {
         match &self {
-            KrsiEventContent::Open { ino, .. } => *ino,
+            KrsiEventContent::Open(OpenData { ino, .. }) => *ino,
             _ => None,
         }
     }
 
     pub fn iou_ret(&self) -> Option<i64> {
         match &self {
-            KrsiEventContent::Socket { iou_ret, .. } => *iou_ret,
-            KrsiEventContent::Connect { iou_ret, .. } => *iou_ret,
-            KrsiEventContent::Symlinkat { iou_ret, .. } => *iou_ret,
-            KrsiEventContent::Linkat { iou_ret, .. } => *iou_ret,
-            KrsiEventContent::Unlinkat { iou_ret, .. } => *iou_ret,
-            KrsiEventContent::Mkdirat { iou_ret, .. } => *iou_ret,
+            KrsiEventContent::Socket(SocketData { iou_ret, .. }) => *iou_ret,
+            KrsiEventContent::Connect(ConnectData { iou_ret, .. }) => *iou_ret,
+            KrsiEventContent::Symlinkat(SymlinkatData { iou_ret, .. }) => *iou_ret,
+            KrsiEventContent::Linkat(LinkatData { iou_ret, .. }) => *iou_ret,
+            KrsiEventContent::Unlinkat(UnlinkatData { iou_ret, .. }) => *iou_ret,
+            KrsiEventContent::Mkdirat(MkdiratData { iou_ret, .. }) => *iou_ret,
             _ => None,
         }
     }
 
     pub fn domain(&self) -> Option<u32> {
         match &self {
-            KrsiEventContent::Socket { domain, .. } => *domain,
+            KrsiEventContent::Socket(SocketData { domain, .. }) => *domain,
             _ => None,
         }
     }
 
     pub fn r#type(&self) -> Option<u32> {
         match &self {
-            KrsiEventContent::Socket { type_, .. } => *type_,
+            KrsiEventContent::Socket(SocketData { type_, .. }) => *type_,
             _ => None,
         }
     }
 
     pub fn protocol(&self) -> Option<u32> {
         match &self {
-            KrsiEventContent::Socket { protocol, .. } => *protocol,
+            KrsiEventContent::Socket(SocketData { protocol, .. }) => *protocol,
             _ => None,
         }
     }
 
     pub fn res(&self) -> Option<i64> {
         match &self {
-            KrsiEventContent::Connect { res, .. } => *res,
-            KrsiEventContent::Symlinkat { res, .. } => *res,
-            KrsiEventContent::Linkat { res, .. } => *res,
-            KrsiEventContent::Unlinkat { res, .. } => *res,
-            KrsiEventContent::Mkdirat { res, .. } => *res,
+            KrsiEventContent::Connect(ConnectData { res, .. }) => *res,
+            KrsiEventContent::Symlinkat(SymlinkatData { res, .. }) => *res,
+            KrsiEventContent::Linkat(LinkatData { res, .. }) => *res,
+            KrsiEventContent::Unlinkat(UnlinkatData { res, .. }) => *res,
+            KrsiEventContent::Mkdirat(MkdiratData { res, .. }) => *res,
             _ => None,
         }
     }
 
     pub fn linkdirfd(&self) -> Option<i64> {
         match &self {
-            KrsiEventContent::Symlinkat { linkdirfd, .. } => *linkdirfd,
+            KrsiEventContent::Symlinkat(SymlinkatData { linkdirfd, .. }) => *linkdirfd,
             _ => None,
         }
     }
 
     pub fn olddirfd(&self) -> Option<i64> {
         match &self {
-            KrsiEventContent::Linkat { olddirfd, .. } => *olddirfd,
+            KrsiEventContent::Linkat(LinkatData { olddirfd, .. }) => *olddirfd,
             _ => None,
         }
     }
 
     pub fn dirfd(&self) -> Option<i64> {
         match &self {
-            KrsiEventContent::Unlinkat { dirfd, .. } => *dirfd,
-            KrsiEventContent::Mkdirat { dirfd, .. } => *dirfd,
+            KrsiEventContent::Unlinkat(UnlinkatData { dirfd, .. }) => *dirfd,
+            KrsiEventContent::Mkdirat(MkdiratData { dirfd, .. }) => *dirfd,
             _ => None,
         }
     }
 
     pub fn newdirfd(&self) -> Option<i64> {
         match &self {
-            KrsiEventContent::Linkat { newdirfd, .. } => *newdirfd,
+            KrsiEventContent::Linkat(LinkatData { newdirfd, .. }) => *newdirfd,
             _ => None,
         }
     }
 
     pub fn linkpath(&self) -> Option<CString> {
         match &self {
-            KrsiEventContent::Symlinkat { linkpath, .. } => linkpath.clone(),
+            KrsiEventContent::Symlinkat(SymlinkatData { linkpath, .. }) => linkpath.clone(),
             _ => None,
         }
     }
 
     pub fn path(&self) -> Option<CString> {
         match &self {
-            KrsiEventContent::Unlinkat { path, .. } => path.clone(),
-            KrsiEventContent::Mkdirat { path, .. } => path.clone(),
+            KrsiEventContent::Unlinkat(UnlinkatData { path, .. }) => path.clone(),
+            KrsiEventContent::Mkdirat(MkdiratData { path, .. }) => path.clone(),
             _ => None,
         }
     }
 
     pub fn oldpath(&self) -> Option<CString> {
         match &self {
-            KrsiEventContent::Linkat { oldpath, .. } => oldpath.clone(),
+            KrsiEventContent::Linkat(LinkatData { oldpath, .. }) => oldpath.clone(),
             _ => None,
         }
     }
 
     pub fn newpath(&self) -> Option<CString> {
         match &self {
-            KrsiEventContent::Linkat { newpath, .. } => newpath.clone(),
+            KrsiEventContent::Linkat(LinkatData { newpath, .. }) => newpath.clone(),
             _ => None,
         }
     }
 
     pub fn target(&self) -> Option<CString> {
         match &self {
-            KrsiEventContent::Symlinkat { target, .. } => target.clone(),
+            KrsiEventContent::Symlinkat(SymlinkatData { target, .. }) => target.clone(),
             _ => None,
         }
     }
 
     pub fn server_port(&self) -> Option<u16> {
         match &self {
-            KrsiEventContent::Connect { connection, .. } => {
+            KrsiEventContent::Connect(ConnectData { connection, .. }) => {
                 if let Some(connection) = connection.as_ref() {
                     match connection {
                         Connection::Inet { server_port, .. } => Some(*server_port),
@@ -319,7 +340,7 @@ impl KrsiEventContent {
 
     pub fn client_port(&self) -> Option<u16> {
         match &self {
-            KrsiEventContent::Connect { connection, .. } => {
+            KrsiEventContent::Connect(ConnectData { connection, .. }) => {
                 if let Some(connection) = connection.as_ref() {
                     match connection {
                         Connection::Inet { client_port, .. } => Some(*client_port),
@@ -335,7 +356,7 @@ impl KrsiEventContent {
 
     pub fn server_addr(&self) -> Option<IpAddr> {
         match &self {
-            KrsiEventContent::Connect { connection, .. } => {
+            KrsiEventContent::Connect(ConnectData { connection, .. }) => {
                 if let Some(connection) = connection.as_ref() {
                     match connection {
                         Connection::Inet { server_addr, .. } => Some(*server_addr),
@@ -351,7 +372,7 @@ impl KrsiEventContent {
 
     pub fn client_addr(&self) -> Option<IpAddr> {
         match &self {
-            KrsiEventContent::Connect { connection, .. } => {
+            KrsiEventContent::Connect(ConnectData { connection, .. }) => {
                 if let Some(connection) = connection.as_ref() {
                     match connection {
                         Connection::Inet { client_addr, .. } => Some(*client_addr),
@@ -538,7 +559,7 @@ fn parse_rb_open_event_content(
     let dev = read_next_field(lengths, values)?;
     let ino = read_next_field(lengths, values)?;
     let iou_ret = read_next_field(lengths, values)?;
-    Ok(KrsiEventContent::Open {
+    Ok(KrsiEventContent::Open(OpenData {
         fd,
         file_index,
         name,
@@ -547,7 +568,7 @@ fn parse_rb_open_event_content(
         dev,
         ino,
         iou_ret,
-    })
+    }))
 }
 
 fn parse_rb_connect_event_content(
@@ -559,13 +580,13 @@ fn parse_rb_connect_event_content(
     let res = read_next_field(lengths, values)?;
     let fd = read_next_field(lengths, values)?;
     let file_index = read_next_field(lengths, values)?;
-    Ok(KrsiEventContent::Connect {
+    Ok(KrsiEventContent::Connect(ConnectData {
         fd,
         file_index,
         res,
         iou_ret,
         connection,
-    })
+    }))
 }
 
 fn parse_rb_socket_event_content(
@@ -578,14 +599,14 @@ fn parse_rb_socket_event_content(
     let domain = read_next_field(lengths, values)?;
     let type_ = read_next_field(lengths, values)?;
     let protocol = read_next_field(lengths, values)?;
-    Ok(KrsiEventContent::Socket {
+    Ok(KrsiEventContent::Socket(SocketData {
         iou_ret,
         fd,
         file_index,
         domain,
         type_,
         protocol,
-    })
+    }))
 }
 
 fn parse_rb_symlinkat_event_content(
@@ -597,13 +618,13 @@ fn parse_rb_symlinkat_event_content(
     let linkpath = read_next_field::<&CStr>(lengths, values)?.map(CString::from);
     let res = read_next_field(lengths, values)?;
     let iou_ret = read_next_field(lengths, values)?;
-    Ok(KrsiEventContent::Symlinkat {
+    Ok(KrsiEventContent::Symlinkat(SymlinkatData {
         target,
         linkdirfd,
         linkpath,
         res,
         iou_ret,
-    })
+    }))
 }
 
 fn parse_rb_linkat_event_content(
@@ -617,7 +638,7 @@ fn parse_rb_linkat_event_content(
     let flags = read_next_field(lengths, values)?;
     let res = read_next_field(lengths, values)?;
     let iou_ret = read_next_field(lengths, values)?;
-    Ok(KrsiEventContent::Linkat {
+    Ok(KrsiEventContent::Linkat(LinkatData {
         olddirfd,
         oldpath,
         newdirfd,
@@ -625,7 +646,7 @@ fn parse_rb_linkat_event_content(
         flags,
         res,
         iou_ret,
-    })
+    }))
 }
 
 fn parse_rb_unlinkat_event_content(
@@ -637,13 +658,13 @@ fn parse_rb_unlinkat_event_content(
     let flags = read_next_field(lengths, values)?;
     let res = read_next_field(lengths, values)?;
     let iou_ret = read_next_field(lengths, values)?;
-    Ok(KrsiEventContent::Unlinkat {
+    Ok(KrsiEventContent::Unlinkat(UnlinkatData {
         dirfd,
         path,
         flags,
         res,
         iou_ret,
-    })
+    }))
 }
 
 fn parse_rb_mkdirat_event_content(
@@ -655,13 +676,13 @@ fn parse_rb_mkdirat_event_content(
     let mode = read_next_field(lengths, values)?;
     let res = read_next_field(lengths, values)?;
     let iou_ret = read_next_field(lengths, values)?;
-    Ok(KrsiEventContent::Mkdirat {
+    Ok(KrsiEventContent::Mkdirat(MkdiratData {
         dirfd,
         path,
         mode,
         res,
         iou_ret,
-    })
+    }))
 }
 
 #[cfg(test)]
