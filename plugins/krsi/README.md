@@ -39,15 +39,21 @@ The main difference between these operations and regular Falco events is that:
 | `krsi.sport`      | `uint64` | None | Availability: `krsi_connect`.<br/>Per-event descriptions:<br/>- `krsi_connect`: server port                                                                                                                                             |
 <!-- /README-PLUGIN-FIELDS -->
 
+## Build
+
+To build the plugin, simply run the `make`. This will place the resulting shared object in the current plugin directory.
+
 ## Running and configuring the plugin
 
-Run Falco with:
+The following is the minimal configuration to run falco with the built plugin, and enable `io_uring` events collection:
 
 ```bash
 sudo /path/to/falco -o 'plugins[]={"name":"krsi","library_path":"/path/to/libkrsi.so","init_config":{"io_uring":true}}' -o load_plugins[]=krsi
 ```
 
-To enable `io_uring` collection. Change the configuration to `{"io_uring":true,"syscall":true}` to collect both io_uring and syscall activity. You can then load rule files that use these events.
+`io_uring: true` is the piece of configuration that enables `io_uring`. Change the configuration to
+`{"io_uring":true,"syscall":true}` to collect both io_uring and syscall activity. You can then load rule files that use
+these events.
 
 ## Example rule
 
@@ -71,33 +77,6 @@ See the [example_rules](example_rules.yaml) file for more information.
 1. (if cross-compiling) LLVM: (e.g.) `brew install llvm` (on macOS)
 1. (if cross-compiling) C toolchain: (e.g.) [`brew install filosottile/musl-cross/musl-cross`](https://github.com/FiloSottile/homebrew-musl-cross) (on macOS)
 1. bpf-linker: `cargo install bpf-linker` (`--no-default-features` on macOS)
-
-## Build & Run
-
-To build the plugin, run
-
-```shell
-cargo build
-```
-
-To load the plugin in Falco, run:
-
-```shell
-sudo /path/to/falco -o 'plugins[]={"name":"krsi","library_path":"/path/to/libkrsi.so","init_config":{"io_uring":true}}' -o load_plugins[]=krsi
-```
-
-## Example rule
-
-```yaml
-- rule: KRSI open
-  desc: KRSI open
-  condition: evt.type = krsi_open
-  output: "[KRSI OPEN] iouring-poc %proc.pid:%thread.tid (name: %proc.name) %krsi.filename"
-  priority: INFO
-```
-
-The cross-compiled program `target/${ARCH}-unknown-linux-musl/release/krsi` can be
-copied to a Linux server or VM and run there.
 
 ## How to contribute
 
