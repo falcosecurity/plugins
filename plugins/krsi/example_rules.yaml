@@ -13,6 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+- rule: KRSI open
+  desc: KRSI open received
+  condition: evt.type = krsi_open
+  output: "[KRSI OPEN] %proc.pid:%thread.tid (name: %proc.name) : %krsi.name"
+  priority: INFO
+
 - rule: KRSI socket
   desc: KRSI socket
   condition: evt.type = krsi_socket
@@ -49,10 +55,10 @@
   output: "[KRSI MKDIRAT] %proc.pid:%thread.tid (name: %proc.name) : path=%krsi.path dirfd=%krsi.dirfd mode=%krsi.mode res=%krsi.res iou_ret=%krsi.iou_ret"
   priority: INFO
 
-- rule: KRSI open
-  desc: KRSI open received
-  condition: evt.type = krsi_open
-  output: "[KRSI OPEN] %proc.pid:%thread.tid (name: %proc.name) : %krsi.name"
+- rule: KRSI renameat
+  desc: KRSI renameat
+  condition: evt.type = krsi_renameat
+  output: "[KRSI RENAMEAT] %proc.pid:%thread.tid (name: %proc.name) : olddirfd=%krsi.olddirfd oldpath=%krsi.oldpath newdirfd=%krsi.newdirfd newpath=%krsi.newpath flags=%krsi.flags res=%krsi.res iou_ret=%krsi.iou_ret"
   priority: INFO
 
 # - rule: krsi generic
