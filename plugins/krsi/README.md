@@ -59,7 +59,7 @@ To enable `io_uring` collection. Change the configuration to `{"io_uring":true,"
   priority: INFO
 ```
 
-See the [example_rule](example_rule.yaml) file for more information.
+See the [example_rules](example_rules.yaml) file for more information.
 
 ## How to build and run the plugin
 
