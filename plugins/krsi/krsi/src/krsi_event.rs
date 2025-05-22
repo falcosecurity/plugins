@@ -103,6 +103,17 @@ pub struct MkdiratData {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct RenameatData {
+    pub olddirfd: Option<i64>,
+    pub oldpath: Option<CString>,
+    pub newdirfd: Option<i64>,
+    pub newpath: Option<CString>,
+    pub flags: Option<u32>,
+    pub res: Option<i64>,
+    pub iou_ret: Option<i64>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub enum KrsiEventContent {
     Open(OpenData),
     Socket(SocketData),
@@ -111,6 +122,7 @@ pub enum KrsiEventContent {
     Linkat(LinkatData),
     Unlinkat(UnlinkatData),
     Mkdirat(MkdiratData),
+    Renameat(RenameatData),
 }
 
 #[derive(PartialEq, Debug, Serialize, Deserialize)]
@@ -177,6 +189,7 @@ impl KrsiEventContent {
             KrsiEventContent::Open(OpenData { flags, .. }) => *flags,
             KrsiEventContent::Linkat(LinkatData { flags, .. }) => *flags,
             KrsiEventContent::Unlinkat(UnlinkatData { flags, .. }) => *flags,
+            KrsiEventContent::Renameat(RenameatData { flags, .. }) => *flags,
             _ => None,
         }
     }
@@ -221,6 +234,7 @@ impl KrsiEventContent {
             KrsiEventContent::Linkat(LinkatData { iou_ret, .. }) => *iou_ret,
             KrsiEventContent::Unlinkat(UnlinkatData { iou_ret, .. }) => *iou_ret,
             KrsiEventContent::Mkdirat(MkdiratData { iou_ret, .. }) => *iou_ret,
+            KrsiEventContent::Renameat(RenameatData { iou_ret, .. }) => *iou_ret,
             _ => None,
         }
     }
@@ -253,6 +267,7 @@ impl KrsiEventContent {
             KrsiEventContent::Linkat(LinkatData { res, .. }) => *res,
             KrsiEventContent::Unlinkat(UnlinkatData { res, .. }) => *res,
             KrsiEventContent::Mkdirat(MkdiratData { res, .. }) => *res,
+            KrsiEventContent::Renameat(RenameatData { res, .. }) => *res,
             _ => None,
         }
     }
@@ -267,6 +282,7 @@ impl KrsiEventContent {
     pub fn olddirfd(&self) -> Option<i64> {
         match &self {
             KrsiEventContent::Linkat(LinkatData { olddirfd, .. }) => *olddirfd,
+            KrsiEventContent::Renameat(RenameatData { olddirfd, .. }) => *olddirfd,
             _ => None,
         }
     }
@@ -282,6 +298,7 @@ impl KrsiEventContent {
     pub fn newdirfd(&self) -> Option<i64> {
         match &self {
             KrsiEventContent::Linkat(LinkatData { newdirfd, .. }) => *newdirfd,
+            KrsiEventContent::Renameat(RenameatData { newdirfd, .. }) => *newdirfd,
             _ => None,
         }
     }
@@ -304,6 +321,7 @@ impl KrsiEventContent {
     pub fn oldpath(&self) -> Option<CString> {
         match &self {
             KrsiEventContent::Linkat(LinkatData { oldpath, .. }) => oldpath.clone(),
+            KrsiEventContent::Renameat(RenameatData { oldpath, .. }) => oldpath.clone(),
             _ => None,
         }
     }
@@ -311,6 +329,7 @@ impl KrsiEventContent {
     pub fn newpath(&self) -> Option<CString> {
         match &self {
             KrsiEventContent::Linkat(LinkatData { newpath, .. }) => newpath.clone(),
+            KrsiEventContent::Renameat(RenameatData { newpath, .. }) => newpath.clone(),
             _ => None,
         }
     }
@@ -528,6 +547,7 @@ pub fn parse_ringbuf_event(mut buf: &[u8]) -> Result<KrsiEvent, RingbufParseErro
         EventType::Linkat => parse_rb_linkat_event_content(&mut lengths, &mut values),
         EventType::Unlinkat => parse_rb_unlinkat_event_content(&mut lengths, &mut values),
         EventType::Mkdirat => parse_rb_mkdirat_event_content(&mut lengths, &mut values),
+        EventType::Renameat => parse_rb_renameat_event_content(&mut lengths, &mut values),
         _ => Err(RingbufParseError::NotYetImplemented),
     }?;
     let tgid_pid = evt_hdr.tgid_pid.get();
@@ -680,6 +700,28 @@ fn parse_rb_mkdirat_event_content(
         dirfd,
         path,
         mode,
+        res,
+        iou_ret,
+    }))
+}
+
+fn parse_rb_renameat_event_content(
+    lengths: &mut &[u8],
+    values: &mut &[u8],
+) -> Result<KrsiEventContent, RingbufParseError> {
+    let olddirfd = read_next_field(lengths, values)?;
+    let oldpath = read_next_field::<&CStr>(lengths, values)?.map(CString::from);
+    let newdirfd = read_next_field(lengths, values)?;
+    let newpath = read_next_field::<&CStr>(lengths, values)?.map(CString::from);
+    let flags = read_next_field(lengths, values)?;
+    let res = read_next_field(lengths, values)?;
+    let iou_ret = read_next_field(lengths, values)?;
+    Ok(KrsiEventContent::Renameat(RenameatData {
+        olddirfd,
+        oldpath,
+        newdirfd,
+        newpath,
+        flags,
         res,
         iou_ret,
     }))

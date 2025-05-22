@@ -18,7 +18,6 @@ limitations under the License.
 use std::{
     ffi::{CStr, CString},
     net::IpAddr,
-    str::FromStr,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -57,8 +56,8 @@ mod ebpf;
 mod krsi_event;
 
 use crate::krsi_event::{
-    ConnectData, KrsiEvent, KrsiEventContent, LinkatData, MkdiratData, OpenData, SocketData,
-    SymlinkatData, UnlinkatData,
+    ConnectData, KrsiEvent, KrsiEventContent, LinkatData, MkdiratData, OpenData, RenameatData,
+    SocketData, SymlinkatData, UnlinkatData,
 };
 
 #[derive(TableMetadata)]
@@ -270,6 +269,7 @@ impl AsyncEventPlugin for KrsiPlugin {
         "krsi_linkat",
         "krsi_unlinkat",
         "krsi_mkdirat",
+        "krsi_renameat",
         "krsi",
     ];
     const EVENT_SOURCES: &'static [&'static str] = &["syscall"];
@@ -453,6 +453,7 @@ impl KrsiPlugin {
             KrsiEventContent::Linkat(ref data) => self.parse_krsi_linkat_event(event, data),
             KrsiEventContent::Unlinkat(ref data) => self.parse_krsi_unlinkat_event(event, data),
             KrsiEventContent::Mkdirat(ref data) => self.parse_krsi_mkdirat_event(event, data),
+            KrsiEventContent::Renameat(ref data) => self.parse_krsi_renameat_event(event, data),
         }
     }
 
@@ -607,6 +608,18 @@ impl KrsiPlugin {
         Ok(())
     }
 
+    fn parse_krsi_renameat_event(
+        &self,
+        mut event: Event<PPME_ASYNCEVENT_E>,
+        _data: &RenameatData,
+    ) -> Result<(), Error> {
+        event.params.name = Some(c"krsi_renameat");
+        if let Some(handler) = self.async_handler.as_ref() {
+            handler.emit(event)?;
+        }
+        Ok(())
+    }
+
     fn parse_clone_event(&mut self, event: Event<PPME_SYSCALL_CLONE_20_X>) -> Result<(), Error> {
         let Some(PT_PID(child_tid)) = event.params.res else {
             return Ok(());
@@ -697,11 +710,12 @@ impl ExtractPlugin for KrsiPlugin {
             Description: file index number (if available)",
         ),
         field("krsi.flags", &Self::extract_flags).with_description(
-            "Availability: `krsi_open`, `krsi_linkat`, `krsi_unlinkat`.
+            "Availability: `krsi_open`, `krsi_linkat`, `krsi_unlinkat`, `krsi_renameat`.
             Per-event descriptions:
             - `krsi_open`: open* flags, equivalent to open* syscall family flags
             - `krsi_linkat`: linkat flags
-            - `krsi_unlinkat`: unlinkat flags",
+            - `krsi_unlinkat`: unlinkat flags
+            - `krsi_renameat`: renameat flags",
         ),
         field("krsi.mode", &Self::extract_mode).with_description(
             "Availability: `krsi_open`, `krsi_mkdirat`.
@@ -736,12 +750,12 @@ impl ExtractPlugin for KrsiPlugin {
         ),
         field("krsi.iou_ret", &Self::extract_iou_ret).with_description(
             "Availability: `krsi_open`, `krsi_socket`, `krsi_connect`, `krsi_symlinkat`, \
-            `krsi_linkat`, `krsi_unlinkat`, `krsi_mkdirat`.
+            `krsi_linkat`, `krsi_unlinkat`, `krsi_mkdirat`, `krsi_renameat`.
             Description: io_uring internal return value (if available)",
         ),
         field("krsi.res", &Self::extract_res).with_description(
             "Availability: `krsi_connect`, `krsi_symlinkat`, `krsi_linkat`, `krsi_unlinkat`, \
-            `krsi_mkdirat`.
+            `krsi_mkdirat`, `krsi_renameat`.
             Description: `operation return value (if available)",
         ),
         field("krsi.target", &Self::extract_target).with_description(
@@ -760,14 +774,16 @@ impl ExtractPlugin for KrsiPlugin {
             - `krsi_symlinkat`: symbolic link path",
         ),
         field("krsi.olddirfd", &Self::extract_olddirfd).with_description(
-            "Availability: `krsi_linkat`.
+            "Availability: `krsi_linkat`, `krsi_renameat`.
             Per-event descriptions:
-            - `krsi_linkat`: dir fd for the target path",
+            - `krsi_linkat`: dir fd for the target path
+            - `krsi_renameat`: dir fd for the old path",
         ),
         field("krsi.newdirfd", &Self::extract_newdirfd).with_description(
-            "Availability: `krsi_linkat`.
+            "Availability: `krsi_linkat`, `krsi_renameat`.
             Per-event descriptions:
-            - `krsi_linkat`: dir fd for the link path",
+            - `krsi_linkat`: dir fd for the link path
+            - `krsi_renameat`: dir fd for the new path",
         ),
         field("krsi.dirfd", &Self::extract_dirfd).with_description(
             "Availability: `krsi_unlinkat`, `krsi_mkdirat`.
@@ -780,14 +796,16 @@ impl ExtractPlugin for KrsiPlugin {
             - `krsi_mkdirat`: path to the directory to be created",
         ),
         field("krsi.oldpath", &Self::extract_oldpath).with_description(
-            "Availability: `krsi_linkat`.
+            "Availability: `krsi_linkat`, `krsi_renameat`.
             Per-event descriptions:
-            - `krsi_linkat`: target path",
+            - `krsi_linkat`: target path
+            - `krsi_renameat`: old path",
         ),
         field("krsi.newpath", &Self::extract_newpath).with_description(
-            "Availability: `krsi_linkat`.
+            "Availability: `krsi_linkat`, `krsi_renameat`.
             Per-event descriptions:
-            - `krsi_linkat`: link path",
+            - `krsi_linkat`: link path
+            - `krsi_renameat`: new path",
         ),
         field("krsi.cip", &Self::extract_client_addr).with_description(
             "Availability: `krsi_connect`.
