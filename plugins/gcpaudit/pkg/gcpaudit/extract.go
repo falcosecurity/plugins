@@ -50,6 +50,7 @@ func (p *Plugin) Fields() []sdk.FieldEntry {
 		{Type: "string", Name: "gcp.resourceType", Display: "Resource Type", Desc: "GCP resource type"},
 		{Type: "string", Name: "gcp.resourceLabels", Display: "Resource Labels", Desc: "GCP resource labels"},
 		{Type: "string", Name: "gcp.storage.bucket", Display: "Bucket Name", Desc: "GCP bucket name"},
+		{Type: "string", Name: "gcp.time", Display: "Timestamp of the event", Desc: "Timestamp of the event in RFC3339 format"},
 	}
 }
 
@@ -238,6 +239,11 @@ func (p *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 			req.SetValue(string(bucket))
 		}
 
+	case "gcp.time":
+		timestamp := p.jdata.GetStringBytes("timestamp")
+		if timestamp != nil {
+			req.SetValue(string(timestamp))
+		}
 	default:
 		return fmt.Errorf("unknown field: %s", req.Field())
 	}
