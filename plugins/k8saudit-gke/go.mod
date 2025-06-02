@@ -10,7 +10,7 @@ require (
 	github.com/falcosecurity/plugin-sdk-go v0.7.5
 	github.com/falcosecurity/plugins/plugins/k8saudit v0.13.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
-	google.golang.org/api v0.234.0
+	google.golang.org/api v0.235.0
 	k8s.io/api v0.32.3
 	k8s.io/apimachinery v0.32.3
 )
