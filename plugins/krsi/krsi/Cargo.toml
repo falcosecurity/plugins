@@ -32,7 +32,7 @@ log = { workspace = true }
 serde = "1.0.219"
 tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread", "net", "signal"] }
 hashlru = "0.11.1"
-num_cpus = "1.13.0"
+num_cpus = "1.17.0"
 byteorder = "1.5.0"
 thiserror = "2.0.12"
 paste = {workspace = true}
@@ -55,7 +55,7 @@ krsi-ebpf = { path = "../krsi-ebpf" }
 
 anyhow = { workspace = true }
 aya-build = { workspace = true }
-cargo_metadata = { version = "0.19.2" , default-features = false}
+cargo_metadata = { version = "0.20.0" , default-features = false}
 
 [lib]
 crate-type = ["cdylib"]
