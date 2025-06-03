@@ -139,9 +139,19 @@ func (dc *dockerEngine) ctrToInfo(ctx context.Context, ctr types.ContainerJSON) 
 		}
 		containerPort := port.Int()
 		for _, portBinding := range portBindings {
+			hostIP, err := parsePortBindingHostIP(portBinding.HostIP)
+			if err != nil {
+				continue
+			}
+
+			hostPort, err := parsePortBindingHostPort(portBinding.HostPort)
+			if err != nil {
+				continue
+			}
+
 			portMappings = append(portMappings, event.PortMapping{
-				HostIp:        portBinding.HostIP,
-				HostPort:      portBinding.HostPort,
+				HostIP:        hostIP,
+				HostPort:      hostPort,
 				ContainerPort: containerPort,
 			})
 		}
@@ -301,9 +311,10 @@ func (dc *dockerEngine) get(ctx context.Context, containerId string) (*event.Eve
 	if err != nil {
 		return nil, err
 	}
+
 	return &event.Event{
-		IsCreate: true,
 		Info:     dc.ctrToInfo(ctx, ctrJson),
+		IsCreate: true,
 	}, nil
 }
 
@@ -341,8 +352,8 @@ func (dc *dockerEngine) List(ctx context.Context) ([]event.Event, error) {
 			}
 		}
 		evts[idx] = event.Event{
-			IsCreate: true,
 			Info:     dc.ctrToInfo(ctx, ctrJson),
+			IsCreate: true,
 		}
 	}
 	return evts, nil
