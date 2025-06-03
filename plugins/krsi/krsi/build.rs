@@ -33,7 +33,7 @@ fn main() {
     let Metadata { packages, .. } = MetadataCommand::new().no_deps().exec().unwrap();
     let ebpf_package = packages
         .into_iter()
-        .find(|Package { name, .. }| name == "krsi-ebpf")
+        .find(|Package { name, .. }| name.as_str() == "krsi-ebpf")
         .unwrap();
     let Package { manifest_path, .. } = ebpf_package;
     let ebpf_dir = manifest_path.parent().unwrap();
