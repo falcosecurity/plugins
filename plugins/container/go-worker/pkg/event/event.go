@@ -3,8 +3,8 @@ package event
 import "encoding/json"
 
 type PortMapping struct {
-	HostIp        string `json:"HostIp"`
-	HostPort      string `json:"HostPort"`
+	HostIP        uint32 `json:"HostIp"`
+	HostPort      uint16 `json:"HostPort"`
 	ContainerPort int    `json:"ContainerPort"`
 }
 

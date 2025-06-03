@@ -2,8 +2,11 @@ package container
 
 import (
 	"context"
+	"encoding/binary"
+	"fmt"
 	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/config"
 	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
+	"net/netip"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -149,4 +152,31 @@ func shortContainerID(id string) string {
 		return id[:shortIDLength]
 	}
 	return id
+}
+
+// parsePortBindingHostIP parses the provided address string and returns a numerical representation of it.
+// TODO(ekoops): add IPv6 addresses support.
+func parsePortBindingHostIP(hostIP string) (uint32, error) {
+	addr, err := netip.ParseAddr(hostIP)
+	if err != nil {
+		return 0, err
+	}
+
+	if addr.Is6() {
+		// TODO(ekoops): handle IPv6 addresses.
+		return 0, fmt.Errorf("ipv6 addresses are not supported")
+	}
+
+	ipv4Addr := addr.As4()
+	return binary.BigEndian.Uint32(ipv4Addr[:]), nil
+}
+
+// parsePortBindingHostPort parses the provided port string and returns a numerical representation of it.
+func parsePortBindingHostPort(port string) (uint16, error) {
+	convertedPort, err := strconv.ParseUint(port, 10, 16)
+	if err != nil {
+		return 0, err
+	}
+
+	return uint16(convertedPort), nil
 }

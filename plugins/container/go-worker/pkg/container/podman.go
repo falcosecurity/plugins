@@ -80,9 +80,19 @@ func (pc *podmanEngine) ctrToInfo(ctr *define.InspectContainerData) event.Info {
 			continue
 		}
 		for _, portBinding := range portBindings {
+			hostIP, err := parsePortBindingHostIP(portBinding.HostIP)
+			if err != nil {
+				continue
+			}
+
+			hostPort, err := parsePortBindingHostPort(portBinding.HostPort)
+			if err != nil {
+				continue
+			}
+
 			portMappings = append(portMappings, event.PortMapping{
-				HostIp:        portBinding.HostIP,
-				HostPort:      portBinding.HostPort,
+				HostIP:        hostIP,
+				HostPort:      hostPort,
 				ContainerPort: containerPort,
 			})
 		}
@@ -192,6 +202,7 @@ func (pc *podmanEngine) get(_ context.Context, containerId string) (*event.Event
 	if err != nil {
 		return nil, err
 	}
+
 	return &event.Event{
 		Info:     pc.ctrToInfo(ctrInfo),
 		IsCreate: true,
