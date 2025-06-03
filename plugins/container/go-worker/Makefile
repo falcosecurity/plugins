@@ -8,7 +8,7 @@ lib:
 
 .PHONY: exe
 exe:
-	CGO_ENABLED=1 go build -tags containers_image_openpgp -ldflags="-s -w" -tags exe -v -o worker  .
+	CGO_ENABLED=1 go build -ldflags="-s -w" -tags exe,containers_image_openpgp -v -o worker  .
 
 clean:
 	rm -rf worker libworker.a libworker.h
