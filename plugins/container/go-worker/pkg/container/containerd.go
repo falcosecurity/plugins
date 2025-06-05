@@ -301,6 +301,10 @@ func (c *containerdEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-ch
 			case <-ctx.Done():
 				return
 			case ev := <-eventsCh:
+				if ev == nil {
+					// Nothing to do for null event
+					break
+				}
 				var (
 					id       string
 					isCreate bool

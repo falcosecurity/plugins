@@ -462,6 +462,10 @@ func (c *criEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan even
 			case <-ctx.Done():
 				return
 			case evt := <-containerEventsCh:
+				if evt == nil {
+					// Nothing to do for nil event
+					break
+				}
 				switch evt.ContainerEventType {
 				case v1.ContainerEventType_CONTAINER_CREATED_EVENT:
 					if !config.IsHookEnabled(config.HookCreate) {
