@@ -221,6 +221,13 @@ func (e *Plugin) ExtractFromJSON(req sdk.ExtractRequest, jsonValue *fastjson.Val
 		return e.extractFromKeys(req, jsonValue, "objectRef", "name")
 	case "ka.req.configmap.obj":
 		return e.extractFromKeys(req, jsonValue, "requestObject", "data")
+	case "ka.req.pod.containers.name":
+		indexFilter := e.argIndexFilter(req)
+		images, err := e.readContainerNames(jsonValue, indexFilter)
+		if err != nil {
+			return err
+		}
+		req.SetValue(images)
 	case "ka.req.pod.containers.image":
 		indexFilter := e.argIndexFilter(req)
 		images, err := e.readContainerImages(jsonValue, indexFilter)
@@ -549,6 +556,14 @@ func (e *Plugin) readSubjectNamesByKind(jsonValue *fastjson.Value, kind string) 
 }
 
 // note: this returns an error on nil values
+func (e *Plugin) readContainerNames(jsonValue *fastjson.Value, indexFilter int) ([]string, error) {
+	arr, err := e.getValuesRecursive(jsonValue, indexFilter, "requestObject", "spec", "containers", "name")
+	if err != nil {
+		return nil, err
+	}
+	return e.arrayAsStrings(arr)
+}
+
 func (e *Plugin) readContainerImages(jsonValue *fastjson.Value, indexFilter int) ([]string, error) {
 	arr, err := e.getValuesRecursive(jsonValue, indexFilter, "requestObject", "spec", "containers", "image")
 	if err != nil {

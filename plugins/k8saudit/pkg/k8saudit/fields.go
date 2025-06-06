@@ -180,6 +180,16 @@ func (k *Plugin) Fields() []sdk.FieldEntry {
 		},
 		{
 			Type:   "string",
+			Name:   "ka.req.pod.containers.name",
+			Desc:   "When the request object refers to a pod, the container's names.",
+			IsList: true,
+			Arg: sdk.FieldEntryArg{
+				IsRequired: false,
+				IsIndex:    true,
+			},
+		},
+		{
+			Type:   "string",
 			Name:   "ka.req.pod.containers.image",
 			Desc:   "When the request object refers to a pod, the container's images.",
 			IsList: true,
