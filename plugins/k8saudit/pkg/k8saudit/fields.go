@@ -180,6 +180,26 @@ func (k *Plugin) Fields() []sdk.FieldEntry {
 		},
 		{
 			Type:   "string",
+			Name:   "ka.req.pod.containers.args",
+			Desc:   "When the request object refers to a pod, the container's args.",
+			IsList: true,
+			Arg: sdk.FieldEntryArg{
+				IsRequired: false,
+				IsIndex:    true,
+			},
+		},
+		{
+			Type:   "string",
+			Name:   "ka.req.pod.containers.command",
+			Desc:   "When the request object refers to a pod, the container's command.",
+			IsList: true,
+			Arg: sdk.FieldEntryArg{
+				IsRequired: false,
+				IsIndex:    true,
+			},
+		},
+		{
+			Type:   "string",
 			Name:   "ka.req.pod.containers.name",
 			Desc:   "When the request object refers to a pod, the container's names.",
 			IsList: true,
