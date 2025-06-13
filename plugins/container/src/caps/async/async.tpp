@@ -27,7 +27,7 @@ template<async_handler_id id>
 void generate_async_event(const char *json, bool added, bool initial_state)
 {
     falcosecurity::events::asyncevent_e_encoder enc;
-    enc.set_tid(1);
+    enc.set_tid(0); // not-existent tid
     std::string msg = json;
     if(added)
     {
