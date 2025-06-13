@@ -221,6 +221,20 @@ func (e *Plugin) ExtractFromJSON(req sdk.ExtractRequest, jsonValue *fastjson.Val
 		return e.extractFromKeys(req, jsonValue, "objectRef", "name")
 	case "ka.req.configmap.obj":
 		return e.extractFromKeys(req, jsonValue, "requestObject", "data")
+	case "ka.req.pod.containers.args":
+		indexFilter := e.argIndexFilter(req)
+		images, err := e.readContainerArgs(jsonValue, indexFilter)
+		if err != nil {
+			return err
+		}
+		req.SetValue(images)
+	case "ka.req.pod.containers.command":
+		indexFilter := e.argIndexFilter(req)
+		images, err := e.readContainerCommands(jsonValue, indexFilter)
+		if err != nil {
+			return err
+		}
+		req.SetValue(images)
 	case "ka.req.pod.containers.name":
 		indexFilter := e.argIndexFilter(req)
 		images, err := e.readContainerNames(jsonValue, indexFilter)
@@ -562,6 +576,62 @@ func (e *Plugin) readContainerNames(jsonValue *fastjson.Value, indexFilter int) 
 		return nil, err
 	}
 	return e.arrayAsStrings(arr)
+}
+
+func (e *Plugin) readContainerCommands(jsonValue *fastjson.Value, indexFilter int) ([]string, error) {
+	containersCommands, err := e.getValuesRecursive(jsonValue, indexFilter, "requestObject", "spec", "containers", "command")
+	if err != nil {
+		return nil, err
+	}
+	var commands []string
+	for _, cmd := range containersCommands {
+		if cmd == nil {
+			continue
+		}
+		if cmd.Type() != fastjson.TypeArray {
+			return nil, ErrExtractWrongType
+		}
+		var singleCmd []string
+		for _, c := range cmd.GetArray() {
+			if c.Type() != fastjson.TypeString {
+				return nil, ErrExtractWrongType
+			}
+			singleCmd = append(singleCmd, string(c.GetStringBytes()))
+		}
+		commands = append(commands, strings.Join(singleCmd, " "))
+	}
+	if len(commands) == 0 {
+		return nil, ErrExtractNotAvailable
+	}
+	return commands, nil
+}
+
+func (e *Plugin) readContainerArgs(jsonValue *fastjson.Value, indexFilter int) ([]string, error) {
+	containersArgs, err := e.getValuesRecursive(jsonValue, indexFilter, "requestObject", "spec", "containers", "args")
+	if err != nil {
+		return nil, err
+	}
+	var argsList []string
+	for _, args := range containersArgs {
+		if args == nil {
+			continue
+		}
+		if args.Type() != fastjson.TypeArray {
+			return nil, ErrExtractWrongType
+		}
+		var singleArgs []string
+		for _, a := range args.GetArray() {
+			if a.Type() != fastjson.TypeString {
+				return nil, ErrExtractWrongType
+			}
+			singleArgs = append(singleArgs, string(a.GetStringBytes()))
+		}
+		argsList = append(argsList, strings.Join(singleArgs, " "))
+	}
+	if len(argsList) == 0 {
+		return nil, ErrExtractNotAvailable
+	}
+	return argsList, nil
 }
 
 func (e *Plugin) readContainerImages(jsonValue *fastjson.Value, indexFilter int) ([]string, error) {
