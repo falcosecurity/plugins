@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.3.0
+
+* [`2b5f8a8`](https://github.com/falcosecurity/plugins/commit/2b5f8a8) update(plugins/container): bump plugin version to 0.3.0
+
+* [`5cfa378`](https://github.com/falcosecurity/plugins/commit/5cfa378) chore(plugins/container): set an unexisted tid on generated asyncevents.
+
+
 ## v0.2.6
 
 * [`f01e70d`](https://github.com/falcosecurity/plugins/commit/f01e70d) update(plugins/container): bump container plugin to 0.2.6.
