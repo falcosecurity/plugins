@@ -223,18 +223,18 @@ func (e *Plugin) ExtractFromJSON(req sdk.ExtractRequest, jsonValue *fastjson.Val
 		return e.extractFromKeys(req, jsonValue, "requestObject", "data")
 	case "ka.req.pod.containers.args":
 		indexFilter := e.argIndexFilter(req)
-		images, err := e.readContainerArgs(jsonValue, indexFilter)
+		args, err := e.readContainerArgs(jsonValue, indexFilter)
 		if err != nil {
 			return err
 		}
-		req.SetValue(images)
+		req.SetValue(args)
 	case "ka.req.pod.containers.command":
 		indexFilter := e.argIndexFilter(req)
-		images, err := e.readContainerCommands(jsonValue, indexFilter)
+		commands, err := e.readContainerCommands(jsonValue, indexFilter)
 		if err != nil {
 			return err
 		}
-		req.SetValue(images)
+		req.SetValue(commands)
 	case "ka.req.pod.containers.name":
 		indexFilter := e.argIndexFilter(req)
 		images, err := e.readContainerNames(jsonValue, indexFilter)
