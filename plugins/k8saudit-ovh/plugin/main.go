@@ -29,7 +29,7 @@ const (
 	PluginName               = "k8saudit-ovh"
 	PluginDescription        = "Read Kubernetes Audit Events for OVHcloud MKS"
 	PluginContact            = "github.com/falcosecurity/plugins"
-	PluginVersion            = "0.2.0"
+	PluginVersion            = "0.3.0"
 	PluginEventSource        = "k8s_audit"
 )
 
