@@ -5,11 +5,11 @@ go 1.23.0
 toolchain go1.24.1
 
 require (
-	github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs v1.3.2
+	github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs v1.4.0
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.6.1
 	github.com/falcosecurity/plugin-sdk-go v0.7.5
-	github.com/falcosecurity/plugins/plugins/k8saudit v0.14.0
-	github.com/falcosecurity/plugins/shared/go/azure/eventhub v0.0.0-20250512123123-3f35135b52ce
+	github.com/falcosecurity/plugins/plugins/k8saudit v0.15.0
+	github.com/falcosecurity/plugins/shared/go/azure/eventhub v0.0.0-20250617140945-5d23e77c8bbd
 	github.com/invopop/jsonschema v0.13.0
 	golang.org/x/time v0.12.0
 )
@@ -25,8 +25,8 @@ require (
 	github.com/mailru/easyjson v0.9.0 // indirect
 	github.com/valyala/fastjson v1.6.4 // indirect
 	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect
-	golang.org/x/net v0.39.0 // indirect
-	golang.org/x/text v0.24.0 // indirect
+	golang.org/x/net v0.41.0 // indirect
+	golang.org/x/text v0.26.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
