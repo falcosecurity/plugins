@@ -3,17 +3,13 @@
 ## Introduction
 
 This plugin extends Falco to support [Kubernetes Audit Events](https://kubernetes.io/docs/tasks/debug-application-cluster/audit/#audit-backends) as a new data source.
-Audit events are logged by the API server when almost every cluster management task is performed. By monitoring the audit logs, this plugins provides high visibility over the activity in your cluster allows detecting malicious behavior.
-
-Support for Kubernetes Audit Events was previously introduced in Falco v0.13 as a parallel independent stream of events that was read separately from system calls, and was matched separately against its own sets of rules.
-This legacy implementation resided in the Falco codebase and hooked into many points of libsinsp. This plugin is a direct porting of that feature by leveraging the Falco Plugin System introduced in [Falco 0.31](https://falco.org/blog/falco-0-31-0/).
-The plugin implementation is a 1-1 porting of the legacy implementation supported by Falco, with few breaking changes introduced to solve few cases of ambiguous behavior and to comply to the constraints of libsinsp and the plugin system.
+Audit events are logged by the API server when almost every cluster management task is performed. By monitoring the audit logs, this plugin provides high visibility into the activity in your cluster, allowing for the detection of malicious behavior.
 
 ### Functionality
 
-This plugin supports consuming Kubernetes Audit Events coming from the [Webhook backend](https://kubernetes.io/docs/tasks/debug/debug-cluster/audit/#webhook-backend) or from file. For webhooks, the plugin embeds a webserver that listens on a configurable port and accepts POST requests. The posted JSON object comprises one or more events. The webserver of the plugin can be configuted as part of the plugin's init configuration and open parameters. For files, the plugins expects content to be [in JSONL format](https://jsonlines.org/), where each line represents a JSON object, containing one or more audit events.
+This plugin supports consuming Kubernetes Audit Events coming from the [Webhook backend](https://kubernetes.io/docs/tasks/debug/debug-cluster/audit/#webhook-backend) or from a file. For webhooks, the plugin embeds a web server that listens on a configurable port and accepts POST requests. The posted JSON object comprises one or more events. The web server of the plugin can be configured as part of the plugin's init configuration and open parameters. For files, the plugin expects content to be in [JSONL format](https://jsonlines.org/), where each line represents a JSON object, containing one or more audit events.
 
-The expected way of using the plugin is through Webhook. The file reading support is mostly designed for testing purposes and for development, but does not represent a concrete deployment use case.
+The expected way of using the plugin is through a webhook. The file reading support is mainly designed for testing purposes and development, but does not represent a concrete deployment use case.
 
 ## Capabilities
 
@@ -56,8 +52,8 @@ The event source for Kubernetes Audit Events is `k8s_audit`.
 | `ka.req.binding.subject.has_name`                  | `string`        | Key, Required | Deprecated, always returns "N/A". Only provided for backwards compatibility                                                                                                                                  |
 | `ka.req.configmap.name`                            | `string`        | None          | If the request object refers to a configmap, the configmap name                                                                                                                                              |
 | `ka.req.configmap.obj`                             | `string`        | None          | If the request object refers to a configmap, the entire configmap object                                                                                                                                     |
-| `ka.req.pod.containers.args`                       | `string (list)` | Index         | When the request object refers to a pod, the container's args.                                                                                                                                              |
-| `ka.req.pod.containers.command`                    | `string (list)` | Index         | When the request object refers to a pod, the container's command.                                                                                                                                              |
+| `ka.req.pod.containers.args`                       | `string (list)` | Index         | When the request object refers to a pod, the container's args.                                                                                                                                               |
+| `ka.req.pod.containers.command`                    | `string (list)` | Index         | When the request object refers to a pod, the container's command.                                                                                                                                            |
 | `ka.req.pod.containers.name`                       | `string (list)` | Index         | When the request object refers to a pod, the container's names.                                                                                                                                              |
 | `ka.req.pod.containers.image`                      | `string (list)` | Index         | When the request object refers to a pod, the container's images.                                                                                                                                             |
 | `ka.req.container.image`                           | `string`        | None          | Deprecated by ka.req.pod.containers.image. Returns the image of the first container only                                                                                                                     |
@@ -106,15 +102,15 @@ The event source for Kubernetes Audit Events is `k8s_audit`.
 ### Requirements
 
 The Kubernetes cluster must have the [audit logs](https://kubernetes.io/docs/tasks/debug/debug-cluster/audit/)
-enabled and configured to send the audit logs to the plugin. We provide the [audit-policy.yaml](./configs/audit-policy.yaml) which is tailored for the `k8saudit` plugin.
-The [audit-policy.yaml](./configs/audit-policy.yaml) is of vital importance, it defines the rules about what events should
-be recorded and what data they should include. The rules shipped with the `k8saudit` plugins relies on those events.
+enabled and configured to send the audit logs to the plugin. We provide the [audit-policy.yaml](./configs/audit-policy.yaml), which is tailored for the `k8saudit` plugin.
+The [audit-policy.yaml](./configs/audit-policy.yaml) is of vital importance; it defines the rules about what events should
+be recorded and what data they should include. The rules shipped with the `k8saudit` plugins rely on those events.
 The [webhook-config.yaml](./configs/webhook-config.yaml.in) shows how to configure the webhook backend to send events to
 an external HTTP API.
 
 ### Configuration
 
-Here's an example of configuration of `falco.yaml`:
+Here's an example of the configuration of `falco.yaml`:
 
 ```yaml
 plugins:
@@ -134,11 +130,11 @@ load_plugins: [k8saudit, json]
 - `sslCertificate`: The SSL Certificate to be used with the HTTPS Webhook endpoint (Default: /etc/falco/falco.pem)
 - `maxEventSize`: Maximum size of single audit event (Default: 262144)
 - `webhookMaxBatchSize`: Maximum size of incoming webhook POST request bodies (Default: 12582912)
-- `useAsync`: If true then async extraction optimization is enabled (Default: true)
+- `useAsync`: If true, then async extraction optimization is enabled (Default: true)
 
 **Open Parameters**:
-- `http://<host>:<port>/<endpoint>`: Opens an event stream by listening on a HTTP webserver
-- `https://<host>:<port>/<endpoint>`: Opens an event stream by listening on a HTTPS webserver
+- `http://<host>:<port>/<endpoint>`: Opens an event stream by listening on an HTTP web server
+- `https://<host>:<port>/<endpoint>`: Opens an event stream by listening on an HTTPS web server
 - `no scheme`: Opens an event stream by reading the events from a file on the local filesystem. The params string is interpreted as a filepath
 
 
@@ -148,7 +144,7 @@ https://falco.org/docs/install-operate/third-party/learning/#falco-with-multiple
 ### Rules
 
 The `k8saudit` plugin ships with a default set of ruleset (see `rules/` directory).
-The official ruleset depends on the `json` plugin, which motivates its presence in the `falco.yaml` sample showed above.
+The official ruleset depends on the `json` plugin, which is why its presence is demonstrated in the `falco.yaml` sample shown above.
 
 ### Running
 
