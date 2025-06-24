@@ -45,28 +45,6 @@ false, "host_network": false, "host_pid": false, "id": "32a1026ccb88", "image":
 }
 */
 
-void from_json(const nlohmann::json& j, container_health_probe& probe)
-{
-    probe.m_args = j.value("args", std::vector<std::string>{});
-    probe.m_exe = j.value("exe", "");
-}
-
-void from_json(const nlohmann::json& j, container_mount_info& mount)
-{
-    mount.m_source = j.value("Source", "");
-    mount.m_dest = j.value("Destination", "");
-    mount.m_mode = j.value("Mode", "");
-    mount.m_rdwr = j.value("RW", false);
-    mount.m_propagation = j.value("Propagation", "");
-}
-
-void from_json(const nlohmann::json& j, container_port_mapping& port)
-{
-    port.m_host_ip = j.value("HostIp", 0);
-    port.m_host_port = j.value("HostPort", 0);
-    port.m_container_port = j.value("ContainerPort", 0);
-}
-
 /*
  * Since some old json pushed json entries like:
  * "pod_sandbox_labels": null
@@ -85,6 +63,28 @@ static inline void object_from_json(const nlohmann::json& j, const char* key,
     {
         obj = T();
     }
+}
+
+void from_json(const nlohmann::json& j, container_health_probe& probe)
+{
+    object_from_json(j, "args", probe.m_args);
+    probe.m_exe = j.value("exe", "");
+}
+
+void from_json(const nlohmann::json& j, container_mount_info& mount)
+{
+    mount.m_source = j.value("Source", "");
+    mount.m_dest = j.value("Destination", "");
+    mount.m_mode = j.value("Mode", "");
+    mount.m_rdwr = j.value("RW", false);
+    mount.m_propagation = j.value("Propagation", "");
+}
+
+void from_json(const nlohmann::json& j, container_port_mapping& port)
+{
+    port.m_host_ip = j.value("HostIp", 0);
+    port.m_host_port = j.value("HostPort", 0);
+    port.m_container_port = j.value("ContainerPort", 0);
 }
 
 void from_json(const nlohmann::json& j, std::shared_ptr<container_info>& cinfo)
