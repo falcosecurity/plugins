@@ -7,6 +7,10 @@ constexpr const cgroup_layout ROOT_PODMAN_CGROUP_LAYOUT[] = {
         {"/libpod-", ".scope"},           // podman
         {"/libpod-", ".scope/container"}, // podman
         {"/libpod-", ""},                 // non-systemd podman, e.g. on alpine
+        // cgroup mode split
+        {"/libpod-payload-", ".scope"},
+        {"/libpod-payload-", ".scope/container"},
+        {"/libpod-payload-", ""},
         {nullptr, nullptr}};
 
 bool podman::resolve(const std::string& cgroup, std::string& container_id)
