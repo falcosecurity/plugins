@@ -43,7 +43,7 @@ clean:
 # This Makefile requires CMake installed on the system
 .PHONY: $(OUTPUT)
 $(OUTPUT):
-	cmake -B build -S . && cmake --build build --target $(NAME) --parallel 6 --config Release && cp $(OUTPUT_FILE) $(OUTPUT)
+	cmake -B build -S . -DCMAKE_EXPORT_COMPILE_COMMANDS=ON && cmake --build build --target $(NAME) --parallel 6 --config Release && cp $(OUTPUT_FILE) $(OUTPUT)
 
 .PHONY: test
 test: $(OUTPUT)
