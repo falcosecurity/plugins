@@ -32,7 +32,9 @@ func TestCRIFetcher(t *testing.T) {
 func testFetcher(t *testing.T, containerEngine Engine, containerId string, expectedEvent event.Event) {
 	// Create the fetcher engine with the docker engine as the only container engine
 	containerEngines := []Engine{containerEngine}
-	f := NewFetcherEngine(context.Background(), containerEngines)
+	fetchCh := make(chan string)
+	assert.NotNil(t, fetchCh)
+	f := NewFetcherEngine(context.Background(), fetchCh, containerEngines)
 	assert.NotNil(t, f)
 
 	// Check that fetcher is able to fetch the container
@@ -47,11 +49,9 @@ func testFetcher(t *testing.T, containerEngine Engine, containerId string, expec
 	assert.NoError(t, err)
 
 	// Send the container ID to the fetcher channel to request its info to be loaded
-	ch := GetFetcherChan()
-	assert.NotNil(t, ch)
 	go func() {
 		time.Sleep(1 * time.Second)
-		ch <- containerId
+		fetchCh <- containerId
 	}()
 
 	evt := waitOnChannelOrTimeout(t, listCh)
