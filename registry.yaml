@@ -657,3 +657,23 @@ plugins:
         supported: true
         id: 24
         source: collector
+  - name: awselb
+    description: AWS Elastic Load Balancer access logs events
+    authors: Yuki Nakamura
+    contact: https://github.com/yukinakanaka/falco-plugin-aws-elb/issues
+    maintainers:
+      - name: Yuki Nakamura
+        email: george.yuki1029@gmail.com
+    keywords:
+      - aws
+      - elb
+    url: https://github.com/yukinakanaka/falco-plugin-aws-elb
+    rules_url: https://github.com/yukinakanaka/falco-plugin-aws-elb/tree/main/rules
+    license: Apache-2.0
+    capabilities:
+      sourcing:
+        supported: true
+        id: 25
+        source: awselb
+      extraction:
+        supported: true
