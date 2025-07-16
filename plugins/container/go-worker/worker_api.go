@@ -25,6 +25,7 @@ type PluginCtx struct {
 	ctxCancel    context.CancelFunc
 	stringBuffer ptr.StringBuffer
 	pinner       runtime.Pinner
+	fetchCh      chan string
 }
 
 //export StartWorker
@@ -79,9 +80,12 @@ func StartWorker(cb C.async_cb, initCfg *C.cchar_t, enabledSocks **C.cchar_t) un
 			}
 		}
 	}
+
+	pluginCtx.fetchCh = make(chan string)
+
 	// Always append the dummy engine that is required to
 	// be able to fetch container infos on the fly given other enabled engines.
-	containerEngines = append(containerEngines, container.NewFetcherEngine(ctx, containerEngines))
+	containerEngines = append(containerEngines, container.NewFetcherEngine(ctx, pluginCtx.fetchCh, containerEngines))
 
 	// Store json of attached sockets in `enabledSocks`
 	bytes, _ := json.Marshal(enabledEngines)
@@ -106,16 +110,20 @@ func StopWorker(pCtx unsafe.Pointer) {
 	pluginCtx.ctxCancel()
 	pluginCtx.wg.Wait()
 	pluginCtx.stringBuffer.Free()
+	close(pluginCtx.fetchCh)
+	pluginCtx.fetchCh = nil
 
 	pluginCtx.pinner.Unpin()
 	h.Delete()
 }
 
 //export AskForContainerInfo
-func AskForContainerInfo(containerId *C.cchar_t) {
+func AskForContainerInfo(pCtx unsafe.Pointer, containerId *C.cchar_t) {
+	h := (*cgo.Handle)(pCtx)
+	pluginCtx := h.Value().(*PluginCtx)
+
 	containerID := C.GoString(containerId)
-	ch := container.GetFetcherChan()
-	if ch != nil {
-		ch <- containerID
+	if pluginCtx.fetchCh != nil {
+		pluginCtx.fetchCh <- containerID
 	}
 }
