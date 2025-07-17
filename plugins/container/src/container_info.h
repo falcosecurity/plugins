@@ -130,7 +130,7 @@ class container_info
     std::string m_imagerepo;
     std::string m_imagetag;
     std::string m_imagedigest;
-    std::string m_container_ip; // TODO: to be exposed by state API
+    std::string m_container_ip;
     bool m_privileged;
     bool m_host_pid;
     bool m_host_network;
@@ -150,7 +150,7 @@ class container_info
     std::map<std::string, std::string> m_pod_sandbox_labels;
     std::string m_pod_sandbox_cniresult;
     bool m_is_pod_sandbox;
-    std::string m_container_user; // TODO: to be exposed by state API
+    std::string m_container_user;
 
     /**
      * The time at which the container was created (IN SECONDS), cast from a
