@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <container_info.h>
+#include <container_info_json.h>
 
 TEST(container_info_json, null_healthcheck)
 {

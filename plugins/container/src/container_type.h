@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 enum container_type
 {
     CT_DOCKER = 0,
