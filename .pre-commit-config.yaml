@@ -1,4 +1,19 @@
 repos:
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: 'v18.1.3'
+    hooks:
+    - id: clang-format
+      name: clang-format-18
+      files: ^plugins/container/.*$
+      exclude: plugin_config_schema\.h
+      stages: [pre-commit]
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: 'v14.0.6'
+    hooks:
+    - id: clang-format
+      name: clang-format-14
+      files: ^plugins/(k8smeta|dummy_c)/.*$
+      stages: [pre-commit]
   - repo: local
     hooks:
       - id: rust-fmt
