@@ -42,7 +42,7 @@ void generate_async_event(const char *json, bool added, bool initial_state)
         //       we need pre-existing containers to be already cached.
         if (initial_state) {
             auto json_event = nlohmann::json::parse(json);
-            auto cinfo = json_event.get<std::shared_ptr<container_info>>();
+            auto cinfo = json_event.get<container_info::ptr_t>();
             s_preexisting_containers[cinfo->m_id] = cinfo;
         }
     }

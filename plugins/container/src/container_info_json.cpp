@@ -87,9 +87,9 @@ void from_json(const nlohmann::json& j, container_port_mapping& port)
     port.m_container_port = j.value("ContainerPort", 0);
 }
 
-void from_json(const nlohmann::json& j, std::shared_ptr<container_info>& cinfo)
+void from_json(const nlohmann::json& j, container_info::ptr_t& cinfo)
 {
-    std::shared_ptr<container_info> info = std::make_shared<container_info>();
+    container_info::ptr_t info = std::make_shared<container_info>();
     const nlohmann::json& container = j["container"];
     info->m_type = container.value("type", CT_UNKNOWN);
     info->m_id = container.value("id", "");

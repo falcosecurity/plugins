@@ -14,8 +14,7 @@ class cgroup_matcher
     /// and container type). For those, it's ok to immediately send the async
     /// event since we don't have to wait for the go-worker because they are not
     /// implemented in listener mode.
-    virtual std::shared_ptr<container_info>
-    to_container(const std::string& container_id)
+    virtual container_info::ptr_t to_container(const std::string& container_id)
     {
         return nullptr;
     }
@@ -27,7 +26,7 @@ class matcher_manager
     matcher_manager(const Engines& cfg);
 
     bool match_cgroup(const std::string& cgroup, std::string& container_id,
-                      std::shared_ptr<container_info>& ctr);
+                      container_info::ptr_t& ctr);
 
     private:
     std::list<std::shared_ptr<cgroup_matcher>> m_matchers;

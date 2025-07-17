@@ -107,8 +107,7 @@ class my_plugin
                         const falcosecurity::table_writer& tw);
     std::string compute_container_id_for_thread(
             const falcosecurity::table_entry& thread_entry,
-            const falcosecurity::table_reader& tr,
-            std::shared_ptr<container_info>& info);
+            const falcosecurity::table_reader& tr, container_info::ptr_t& info);
     void
     write_thread_category(const std::shared_ptr<const container_info>& cinfo,
                           const falcosecurity::table_entry& thread_entry,
