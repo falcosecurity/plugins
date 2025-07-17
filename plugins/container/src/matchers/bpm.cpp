@@ -27,8 +27,7 @@ bool bpm::resolve(const std::string& cgroup, std::string& container_id)
     return false;
 }
 
-std::shared_ptr<container_info>
-bpm::to_container(const std::string& container_id)
+container_info::ptr_t bpm::to_container(const std::string& container_id)
 {
     auto ctr = std::make_shared<container_info>();
     ctr->m_id = container_id;

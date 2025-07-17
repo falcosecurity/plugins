@@ -9,9 +9,9 @@ class static_container : public cgroup_matcher
                      const std::string& image);
 
     bool resolve(const std::string& cgroup, std::string& container_id) override;
-    std::shared_ptr<container_info>
+    container_info::ptr_t
     to_container(const std::string& container_id) override;
 
     private:
-    std::shared_ptr<container_info> m_static_container_info;
+    container_info::ptr_t m_static_container_info;
 };

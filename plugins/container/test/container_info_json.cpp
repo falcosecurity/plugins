@@ -47,5 +47,5 @@ TEST(container_info_json, null_healthcheck)
     }
 })";
     auto json_event = nlohmann::json::parse(json);
-    ASSERT_NO_THROW(json_event.get<std::shared_ptr<container_info>>());
+    ASSERT_NO_THROW(json_event.get<container_info::ptr_t>());
 }

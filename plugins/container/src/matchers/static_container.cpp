@@ -84,7 +84,7 @@ bool static_container::resolve(const std::string& cgroup,
     return true;
 }
 
-std::shared_ptr<container_info>
+container_info::ptr_t
 static_container::to_container(const std::string& container_id)
 {
     return m_static_container_info;

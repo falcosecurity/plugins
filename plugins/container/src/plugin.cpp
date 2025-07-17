@@ -171,8 +171,7 @@ FALCOSECURITY_PLUGIN(my_plugin);
 
 std::string my_plugin::compute_container_id_for_thread(
         const falcosecurity::table_entry& thread_entry,
-        const falcosecurity::table_reader& tr,
-        std::shared_ptr<container_info>& info)
+        const falcosecurity::table_reader& tr, container_info::ptr_t& info)
 {
     // retrieve tid cgroups, compute container_id and store it.
     std::string container_id;
@@ -336,7 +335,7 @@ void my_plugin::on_new_process(const falcosecurity::table_entry& thread_entry,
                                const falcosecurity::table_reader& tr,
                                const falcosecurity::table_writer& tw)
 {
-    std::shared_ptr<container_info> info = nullptr;
+    container_info::ptr_t info = nullptr;
     auto container_id = compute_container_id_for_thread(thread_entry, tr, info);
     m_container_id_field.write_value(tw, thread_entry, container_id);
 

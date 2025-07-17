@@ -86,6 +86,8 @@ class container_health_probe
 class container_info
 {
     public:
+    using ptr_t = std::shared_ptr<container_info>;
+
     container_info():
             m_type(CT_UNKNOWN), m_privileged(false), m_host_pid(false),
             m_host_network(false), m_host_ipc(false), m_memory_limit(0),
@@ -104,7 +106,7 @@ class container_info
     bool is_pod_sandbox() const { return m_is_pod_sandbox; }
 
     // static utilities to build a container_info
-    static std::shared_ptr<container_info> host_container_info()
+    static container_info::ptr_t host_container_info()
     {
         auto host_info = std::make_shared<container_info>();
         host_info->m_id = HOST_CONTAINER_ID;

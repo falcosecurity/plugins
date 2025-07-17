@@ -73,7 +73,7 @@ bool my_plugin::parse_async_event(const falcosecurity::parse_event_input& in)
         return false;
     }
     auto json_event = nlohmann::json::parse(json_charbuf_pointer);
-    auto cinfo = json_event.get<std::shared_ptr<container_info>>();
+    auto cinfo = json_event.get<container_info::ptr_t>();
     if(added)
     {
         m_logger.log(fmt::format("Adding container: {}", cinfo->m_id),
@@ -137,7 +137,7 @@ bool my_plugin::parse_container_json_event(
     std::string json_str = (char*)json_param.param_pointer;
     auto json_event = nlohmann::json::parse(json_str);
 
-    auto cinfo = json_event.get<std::shared_ptr<container_info>>();
+    auto cinfo = json_event.get<container_info::ptr_t>();
     m_logger.log(
             fmt::format("Adding container from old container_json event: {}",
                         cinfo->m_id),
@@ -156,7 +156,7 @@ bool my_plugin::parse_container_json_2_event(
     std::string json_str = (char*)json_param.param_pointer;
     auto json_event = nlohmann::json::parse(json_str);
 
-    auto cinfo = json_event.get<std::shared_ptr<container_info>>();
+    auto cinfo = json_event.get<container_info::ptr_t>();
     m_logger.log(
             fmt::format("Adding container from old container_json_2 event: {}",
                         cinfo->m_id),

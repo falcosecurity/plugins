@@ -58,7 +58,7 @@ matcher_manager::matcher_manager(const Engines& cfg)
 
 bool matcher_manager::match_cgroup(const std::string& cgroup,
                                    std::string& container_id,
-                                   std::shared_ptr<container_info>& ctr)
+                                   container_info::ptr_t& ctr)
 {
     for(const auto& matcher : m_matchers)
     {

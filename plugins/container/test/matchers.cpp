@@ -44,7 +44,7 @@ TEST_P(matchers_test, detect_container_id)
     const auto& test_case = GetParam();
 
     std::string container_id;
-    std::shared_ptr<container_info> info;
+    container_info::ptr_t info;
     EXPECT_EQ(m_mgr.match_cgroup(test_case.cgroup, container_id, info),
               test_case.should_match);
 
