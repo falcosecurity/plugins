@@ -1,15 +1,13 @@
 #pragma once
 
-#include <cassert>
+#include "container_type.h"
+
 #include <cstdint>
 #include <map>
 #include <memory>
 #include <list>
 #include <string>
 #include <vector>
-#include <nlohmann/json.hpp>
-#include "container_type.h"
-#include "consts.h"
 
 #define HOST_CONTAINER_ID "host"
 
@@ -161,15 +159,3 @@ class container_info
     int64_t m_created_time;
     int64_t m_size_rw_bytes; // TODO: to be exposed by state API
 };
-
-/* Nlhomann adapters (implemented by container_info_json.cpp) */
-void from_json(const nlohmann::json& j, container_health_probe& probe);
-void from_json(const nlohmann::json& j, container_mount_info& mount);
-void from_json(const nlohmann::json& j, container_port_mapping& port);
-void from_json(const nlohmann::json& j, std::shared_ptr<container_info>& cinfo);
-
-void to_json(nlohmann::json& j, const container_health_probe& probe);
-void to_json(nlohmann::json& j, const container_mount_info& mount);
-void to_json(nlohmann::json& j, const container_port_mapping& port);
-void to_json(nlohmann::json& j,
-             const std::shared_ptr<const container_info>& cinfo);

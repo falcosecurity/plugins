@@ -1,5 +1,7 @@
 #pragma once
 
+#include "container_info_json.h"
+
 #include <libworker.h>
 #include <chrono>
 
