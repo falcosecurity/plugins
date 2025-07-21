@@ -7,7 +7,7 @@ toolchain go1.24.1
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs v1.4.0
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.6.1
-	github.com/falcosecurity/plugin-sdk-go v0.7.5
+	github.com/falcosecurity/plugin-sdk-go v0.8.1
 	github.com/falcosecurity/plugins/plugins/k8saudit v0.15.0
 	github.com/falcosecurity/plugins/shared/go/azure/eventhub v0.0.0-20250617140945-5d23e77c8bbd
 	github.com/invopop/jsonschema v0.13.0
