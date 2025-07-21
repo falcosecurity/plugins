@@ -7,7 +7,7 @@ toolchain go1.24.1
 require (
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/falcosecurity/falcoctl v0.11.0
-	github.com/falcosecurity/plugin-sdk-go v0.7.5
+	github.com/falcosecurity/plugin-sdk-go v0.8.1
 	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.37.0
 	github.com/pkg/errors v0.9.1
