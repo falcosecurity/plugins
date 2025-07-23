@@ -34,6 +34,10 @@ func testFetcher(t *testing.T, containerEngine Engine, containerId string, expec
 	containerEngines := []Engine{containerEngine}
 	fetchCh := make(chan string)
 	assert.NotNil(t, fetchCh)
+	t.Cleanup(func() {
+		close(fetchCh)
+	})
+
 	f := NewFetcherEngine(context.Background(), fetchCh, containerEngines)
 	assert.NotNil(t, f)
 
