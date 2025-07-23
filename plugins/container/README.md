@@ -1,9 +1,5 @@
 # Container metadata enrichment Plugin
 
-## Experimental
-
-Consider this plugin as experimental until it reaches version `1.0.0`. By 'experimental' we mean that, although the plugin is functional and tested, it is currently in active development and may undergo changes in behavior as necessary, without prioritizing backward compatibility.
-
 ## Introduction
 
 The `container` plugin enhances the Falco syscall source by providing additional information about container resources involved. You can find the comprehensive list of supported fields [here](#supported-fields).
@@ -124,6 +120,12 @@ Given that there is no "listener" SDK to attach to, for these engines the `async
 
 ### Configuration
 
+By default, all engines are enabled on **default sockets**:
+* Docker: [`/var/run/docker.sock`]
+* Podman: [`/run/podman/podman.sock` for root, + `/run/user/$uid/podman/podman.sock` for each user in the system]
+* Containerd: [`/run/host-containerd/containerd.sock`]
+* Cri: [`/run/containerd/containerd.sock`, `/run/crio/crio.sock`, `/run/k3s/containerd/containerd.sock`, `/run/host-containerd/containerd.sock`]
+
 Here's an example of configuration of `falco.yaml`:
 
 ```yaml
@@ -157,12 +159,6 @@ plugins:
 
 load_plugins: [container]
 ```
-
-By default, all engines are enabled on **default sockets**:
-* Docker: `/var/run/docker.sock`
-* Podman: `/run/podman/podman.sock` for root, + `/run/user/$uid/podman/podman.sock` for each user in the system
-* Containerd: [`/run/containerd/containerd.sock`, `/run/k3s/containerd/containerd.sock`, `/run/host-containerd/containerd.sock`]
-* Cri: `/run/crio/crio.sock`
 
 ### Rules
 
