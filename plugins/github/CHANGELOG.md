@@ -1,5 +1,11 @@
 # Changelog
 
+## dev build (unreleased)
+
+* [`6ac5f75`](https://github.com/falcosecurity/plugins/commit/6ac5f75) build(deps): bump golang.org/x/oauth2 in /plugins/github
+
+* [`af547e2`](https://github.com/falcosecurity/plugins/commit/af547e2) docs(plugins/github): update readme
+
 ## v0.9.0
 
 * [`d69e701`](https://github.com/falcosecurity/plugins/commit/d69e701) update(github): bump to v0.9.0

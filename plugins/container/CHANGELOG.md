@@ -1,5 +1,35 @@
 # Changelog
 
+## v0.3.2
+
+* [`92ec4dc`](https://github.com/falcosecurity/plugins/commit/92ec4dc) chore(plugins/container): add a trace log when removing container from procexit.
+
+* [`6a75982`](https://github.com/falcosecurity/plugins/commit/6a75982) update(plugins/container): bump version to 0.3.2.
+
+* [`1f8a375`](https://github.com/falcosecurity/plugins/commit/1f8a375) fix(plugins/container): properly cleanup stale container cache entries for ex...
+
+* [`2f4b632`](https://github.com/falcosecurity/plugins/commit/2f4b632) chore(plugins/container): properly cleanup fetchCh in test.
+
+* [`1c135e3`](https://github.com/falcosecurity/plugins/commit/1c135e3) chore(plugins/container): let async_ctx own the fetcher channel.
+
+* [`6e02f91`](https://github.com/falcosecurity/plugins/commit/6e02f91) chore(plugins/container): drop fulfilled TODOs
+
+* [`e8745cf`](https://github.com/falcosecurity/plugins/commit/e8745cf) chore(plugins/container): introduce and use container_info::ptr_t
+
+* [`db2b9c9`](https://github.com/falcosecurity/plugins/commit/db2b9c9) chore(plugins/container): headers cleanup
+
+* [`a7da58c`](https://github.com/falcosecurity/plugins/commit/a7da58c) chore(plugins/container): avoid building unneeded RE-flex targets
+
+* [`e281227`](https://github.com/falcosecurity/plugins/commit/e281227) fix(container): detect libpod container ids with cgroups mode split
+
+
+## v0.3.1
+
+* [`398db32`](https://github.com/falcosecurity/plugins/commit/398db32) new(plugins/container): add test around null healthcheck in container json.
+
+* [`ab266f5`](https://github.com/falcosecurity/plugins/commit/ab266f5) fix(plugins/container): fix healthcheck probe args retrieval since they can b...
+
+
 ## v0.3.0
 
 * [`2b5f8a8`](https://github.com/falcosecurity/plugins/commit/2b5f8a8) update(plugins/container): bump plugin version to 0.3.0

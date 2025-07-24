@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.9.0
+
+* [`ecadcf8`](https://github.com/falcosecurity/plugins/commit/ecadcf8) update(plugins/k8saudit-eks): bump to v0.9.0
+
+* [`fe732fc`](https://github.com/falcosecurity/plugins/commit/fe732fc) build(deps): bump github.com/invopop/jsonschema in /plugins/k8saudit-eks
+
+
 ## v0.8.0
 
 * [`a2af2f4`](https://github.com/falcosecurity/plugins/commit/a2af2f4) update(plugins/k8saudit-eks): bump to v0.8.0

@@ -1,5 +1,9 @@
 # Changelog
 
+## dev build (unreleased)
+
+* [`a214622`](https://github.com/falcosecurity/plugins/commit/a214622) build(deps): bump github.com/aws/aws-lambda-go in /plugins/cloudtrail
+
 ## v0.13.0
 
 * [`ecff28f`](https://github.com/falcosecurity/plugins/commit/ecff28f) update(cloudtrail): bump to v0.13.0
