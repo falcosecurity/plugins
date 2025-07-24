@@ -56,6 +56,7 @@ These comments and the text between them should not be edited by hand -->
 | [container](https://github.com/falcosecurity/plugins/tree/main/plugins/container) | **Field Extraction** <br/> `syscall` | Enriche Falco syscall flow with Container Metadata  <br/><br/> Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
 | [krsi](https://github.com/falcosecurity/plugins/tree/main/plugins/krsi) | **Field Extraction** <br/> `syscall` | Security (KRSI) events support for Falco  <br/><br/> Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
 | [collector](https://github.com/falcosecurity/plugins/tree/main/plugins/collector) | **Event Sourcing** <br/>ID: 24 <br/>`collector` | Generic collector to ingest raw payloads into Falco  <br/><br/> Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
+| [awselb](https://github.com/yukinakanaka/falco-plugin-aws-elb) | **Event Sourcing** <br/>ID: 25 <br/>`awselb` <br/>**Field Extraction** <br/> `awselb` | AWS Elastic Load Balancer access logs events  <br/><br/> Authors: [Yuki Nakamura](https://github.com/yukinakanaka/falco-plugin-aws-elb/issues) <br/> License: Apache-2.0 |
 
 <!-- REGISTRY:TABLE -->
 
