@@ -87,6 +87,7 @@ class my_plugin
     bool parse_container_json_event(const falcosecurity::parse_event_input& in);
     bool
     parse_container_json_2_event(const falcosecurity::parse_event_input& in);
+    bool parse_exit_process_event(const falcosecurity::parse_event_input& in);
     bool parse_new_process_event(const falcosecurity::parse_event_input& in);
     bool parse_event(const falcosecurity::parse_event_input& in);
 #endif

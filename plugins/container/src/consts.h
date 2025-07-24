@@ -35,5 +35,6 @@ constexpr auto PPME_SYSCALL_EXECVE_18_X = (_et)289;
 constexpr auto PPME_SYSCALL_EXECVE_19_X = (_et)293;
 constexpr auto PPME_SYSCALL_EXECVEAT_X = (_et)331;
 constexpr auto PPME_SYSCALL_CHROOT_X = (_et)267;
+constexpr auto PPME_PROCEXIT_1_E = (_et)186;
 
 #define SHORT_ID_LEN 12
