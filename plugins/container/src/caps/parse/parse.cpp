@@ -166,6 +166,44 @@ bool my_plugin::parse_container_json_2_event(
     return true;
 }
 
+bool my_plugin::parse_exit_process_event(
+        const falcosecurity::parse_event_input& in)
+{
+    // get tid
+    auto thread_id = in.get_event_reader().get_tid();
+    auto& tr = in.get_table_reader();
+
+    int64_t vpid;
+    std::string container_id;
+
+    // retrieve the thread entry associated with this thread id,
+    // then, fetch the container_id and remove it from the container cache.
+    try
+    {
+        auto thread_entry = m_threads_table.get_entry(tr, thread_id);
+        m_threads_field_vpid.read_value(tr, thread_entry, vpid);
+        if(vpid == 1)
+        {
+            m_container_id_field.read_value(tr, thread_entry, container_id);
+            if(!container_id.empty())
+            {
+                m_containers.erase(container_id);
+            }
+        }
+        return true;
+    }
+    catch(const std::exception& e)
+    {
+        m_logger.log(
+                fmt::format("cannot cleanup container cache in exiting process "
+                            "event for the "
+                            "thread id '{}': {}",
+                            thread_id, e.what()),
+                falcosecurity::_internal::SS_PLUGIN_LOG_SEV_ERROR);
+        return false;
+    }
+}
+
 bool my_plugin::parse_new_process_event(
         const falcosecurity::parse_event_input& in)
 {
@@ -231,6 +269,8 @@ bool my_plugin::parse_event(const falcosecurity::parse_event_input& in)
     case PPME_SYSCALL_EXECVEAT_X:
     case PPME_SYSCALL_CHROOT_X:
         return parse_new_process_event(in);
+    case PPME_PROCEXIT_1_E:
+        return parse_exit_process_event(in);
     default:
         m_logger.log(fmt::format("received an unknown event type {}",
                                  int32_t(evt.get_type())),

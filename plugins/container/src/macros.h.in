@@ -60,7 +60,7 @@ limitations under the License.
                 PPME_SYSCALL_CLONE3_X, PPME_SYSCALL_EXECVE_16_X,               \
                 PPME_SYSCALL_EXECVE_17_X, PPME_SYSCALL_EXECVE_18_X,            \
                 PPME_SYSCALL_EXECVE_19_X, PPME_SYSCALL_EXECVEAT_X,             \
-                PPME_SYSCALL_CHROOT_X                                          \
+                PPME_SYSCALL_CHROOT_X, PPME_PROCEXIT_1_E                                          \
     }
 
 #define PARSE_EVENT_SOURCES                                                    \
