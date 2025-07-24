@@ -148,6 +148,8 @@ class my_plugin
     falcosecurity::table_field m_threads_field_category;
     // Accessors to the thread table "vpid" field
     falcosecurity::table_field m_threads_field_vpid;
+    // Accessors to the thread table "vtid" field
+    falcosecurity::table_field m_threads_field_vtid;
     // Accessors to the thread table "ptid" field
     falcosecurity::table_field m_threads_field_ptid;
     // Accessors to the thread table "args" sub table

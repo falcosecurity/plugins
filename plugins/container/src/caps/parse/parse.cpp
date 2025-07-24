@@ -173,9 +173,6 @@ bool my_plugin::parse_exit_process_event(
     auto thread_id = in.get_event_reader().get_tid();
     auto& tr = in.get_table_reader();
 
-    int64_t vpid;
-    std::string container_id;
-
     // retrieve the thread entry associated with this thread id,
     // check if vpid is 1, so if this is an init process,
     // then, fetch the container_id and if not empty,
@@ -183,9 +180,12 @@ bool my_plugin::parse_exit_process_event(
     try
     {
         auto thread_entry = m_threads_table.get_entry(tr, thread_id);
+        int64_t vpid, vtid;
         m_threads_field_vpid.read_value(tr, thread_entry, vpid);
-        if(vpid == 1)
+        m_threads_field_vtid.read_value(tr, thread_entry, vtid);
+        if(vtid == vpid && vpid == 1)
         {
+            std::string container_id;
             m_container_id_field.read_value(tr, thread_entry, container_id);
             if(!container_id.empty())
             {

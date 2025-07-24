@@ -103,6 +103,8 @@ bool my_plugin::init(falcosecurity::init_input& in)
         // entry
         m_threads_field_vpid = m_threads_table.get_field(
                 t.fields(), VPID_FIELD_NAME, st::SS_PLUGIN_ST_INT64);
+        m_threads_field_vtid = m_threads_table.get_field(
+                t.fields(), VTID_FIELD_NAME, st::SS_PLUGIN_ST_INT64);
         m_threads_field_ptid = m_threads_table.get_field(
                 t.fields(), PTID_FIELD_NAME, st::SS_PLUGIN_ST_INT64);
 
