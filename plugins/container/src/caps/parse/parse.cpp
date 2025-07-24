@@ -177,7 +177,9 @@ bool my_plugin::parse_exit_process_event(
     std::string container_id;
 
     // retrieve the thread entry associated with this thread id,
-    // then, fetch the container_id and remove it from the container cache.
+    // check if vpid is 1, so if this is an init process,
+    // then, fetch the container_id and if not empty,
+    // remove its associated entry from the container cache.
     try
     {
         auto thread_entry = m_threads_table.get_entry(tr, thread_id);
@@ -187,6 +189,9 @@ bool my_plugin::parse_exit_process_event(
             m_container_id_field.read_value(tr, thread_entry, container_id);
             if(!container_id.empty())
             {
+                m_logger.log(fmt::format("Removing container from procexit: {}",
+                                         container_id),
+                             falcosecurity::_internal::SS_PLUGIN_LOG_SEV_TRACE);
                 m_containers.erase(container_id);
             }
         }
