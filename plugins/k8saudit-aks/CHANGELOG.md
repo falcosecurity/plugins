@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.3.0
+
+* [`785bf34`](https://github.com/falcosecurity/plugins/commit/785bf34) update(plugins/k8saudit-aks): bump to v0.3.0
+
+* [`00ea9d3`](https://github.com/falcosecurity/plugins/commit/00ea9d3) build(deps): bump golang.org/x/time in /plugins/k8saudit-aks
+
+
 ## v0.2.0
 
 * [`2a07283`](https://github.com/falcosecurity/plugins/commit/2a07283) update(plugins/k8saudit-aks): bump to v0.2.0

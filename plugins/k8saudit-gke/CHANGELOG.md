@@ -1,5 +1,22 @@
 # Changelog
 
+## dev build (unreleased)
+
+* [`c8f34c5`](https://github.com/falcosecurity/plugins/commit/c8f34c5) build(deps): bump google.golang.org/api in /plugins/k8saudit-gke
+
+## v0.6.0
+
+* [`8cb2bc8`](https://github.com/falcosecurity/plugins/commit/8cb2bc8) update(plugins/k8saudit-gke): bump to v0.6.0
+
+* [`af68b7e`](https://github.com/falcosecurity/plugins/commit/af68b7e) build(deps): bump google.golang.org/api in /plugins/k8saudit-gke
+
+* [`0cdc099`](https://github.com/falcosecurity/plugins/commit/0cdc099) build(deps): bump google.golang.org/api in /plugins/k8saudit-gke
+
+* [`576b439`](https://github.com/falcosecurity/plugins/commit/576b439) build(deps): bump google.golang.org/api in /plugins/k8saudit-gke
+
+* [`5dd873d`](https://github.com/falcosecurity/plugins/commit/5dd873d) build(deps): bump google.golang.org/api in /plugins/k8saudit-gke
+
+
 ## v0.5.0
 
 * [`a116c38`](https://github.com/falcosecurity/plugins/commit/a116c38) update(plugins/k8saudit-gke): bump to v0.6.0

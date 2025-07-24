@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.3.0
+
+* [`2f09a40`](https://github.com/falcosecurity/plugins/commit/2f09a40) update(plugins/k8saudit-ovh): bump to v0.3.0
+
+
 ## v0.2.0
 
 * [`ef1682c`](https://github.com/falcosecurity/plugins/commit/ef1682c) docs(plugins/k8saudit-ovh): add files header

@@ -1,5 +1,13 @@
 # Changelog
 
+## dev build (unreleased)
+
+* [`f39b719`](https://github.com/falcosecurity/plugins/commit/f39b719) build(deps): bump google.golang.org/api in /plugins/gcpaudit
+
+* [`299d65b`](https://github.com/falcosecurity/plugins/commit/299d65b) build(deps): bump google.golang.org/api in /plugins/gcpaudit
+
+* [`0e0737e`](https://github.com/falcosecurity/plugins/commit/0e0737e) build(deps): bump google.golang.org/api in /plugins/gcpaudit
+
 ## v0.6.0
 
 * [`898b3cb`](https://github.com/falcosecurity/plugins/commit/898b3cb) build(deps): bump google.golang.org/api in /plugins/gcpaudit

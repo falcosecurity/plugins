@@ -1,5 +1,15 @@
 # Changelog
 
+## dev build (unreleased)
+
+* [`81b7e1d`](https://github.com/falcosecurity/plugins/commit/81b7e1d) build(deps): bump github.com/testcontainers/testcontainers-go/modules/kafka
+
+* [`5875b85`](https://github.com/falcosecurity/plugins/commit/5875b85) build(deps): bump github.com/testcontainers/testcontainers-go/modules/kafka
+
+* [`471dd90`](https://github.com/falcosecurity/plugins/commit/471dd90) update(plugins/kafka): upgrade deps
+
+* [`6d5a24e`](https://github.com/falcosecurity/plugins/commit/6d5a24e) build(deps): bump github.com/testcontainers/testcontainers-go/modules/kafka
+
 ## v0.1.4
 
 * [`b53587b`](https://github.com/falcosecurity/plugins/commit/b53587b) update(plugins/kafka): bump to v0.1.4

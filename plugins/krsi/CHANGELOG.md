@@ -1,5 +1,33 @@
 # Changelog
 
+## dev build (unreleased)
+
+* [`8d44358`](https://github.com/falcosecurity/plugins/commit/8d44358) build(plugins/krsi): bump `cargo_metadata` from 0.19.0 to 0.20.0
+
+* [`d4e8eb2`](https://github.com/falcosecurity/plugins/commit/d4e8eb2) feat(plugins/krsi): add initial `renameat` parsing/extraction support
+
+* [`9fd1d28`](https://github.com/falcosecurity/plugins/commit/9fd1d28) refactor(plugins/krsi): remove redundant parts and rephrase README.md
+
+* [`56ec9a8`](https://github.com/falcosecurity/plugins/commit/56ec9a8) refactor(plugins/krsi): rename example file as `example_rules.yaml`
+
+* [`c358225`](https://github.com/falcosecurity/plugins/commit/c358225) refactor(plugins/krsi/krsi): split event parsing into dedicated funcs
+
+* [`b56ce0a`](https://github.com/falcosecurity/plugins/commit/b56ce0a) refactor(plugins/krsi/krsi): fix extracted field desc formatting
+
+* [`400cdcb`](https://github.com/falcosecurity/plugins/commit/400cdcb) fix(plugins/krsi): properly handle `auxbuf` writing errors
+
+* [`53ba10d`](https://github.com/falcosecurity/plugins/commit/53ba10d) refactor(plugins/krsi): remove `auxbuf` unsafe code using `zerocopy`
+
+* [`54c8287`](https://github.com/falcosecurity/plugins/commit/54c8287) fix(plugins/krsi): use safe ring buffer events parsing logic
+
+* [`2e7dff5`](https://github.com/falcosecurity/plugins/commit/2e7dff5) refactor(plugins/krsi/krsi): use macros for field extraction
+
+* [`e53b45e`](https://github.com/falcosecurity/plugins/commit/e53b45e) docs(plugins/krsi): add `ekoops` as maintainer
+
+* [`f91ed60`](https://github.com/falcosecurity/plugins/commit/f91ed60) feat(plugins/krsi): add `protocol` field extraction support
+
+* [`ae39190`](https://github.com/falcosecurity/plugins/commit/ae39190) build(deps): bump tokio from 1.44.0 to 1.44.2 in /plugins/krsi
+
 ## v0.1.0
 
 * [`28618ac`](https://github.com/falcosecurity/plugins/commit/28618ac) fix(plugins/krsi): fix plugin version
