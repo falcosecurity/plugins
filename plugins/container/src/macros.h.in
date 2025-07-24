@@ -78,6 +78,7 @@ limitations under the License.
 #define PIDNS_INIT_START_TS_FIELD_NAME "pidns_init_start_ts"
 #define CATEGORY_FIELD_NAME "category"
 #define VPID_FIELD_NAME "vpid"
+#define VTID_FIELD_NAME "vtid"
 #define PTID_FIELD_NAME "ptid"
 
 /////////////////////////
