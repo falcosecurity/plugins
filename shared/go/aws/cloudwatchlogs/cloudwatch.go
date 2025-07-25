@@ -129,7 +129,7 @@ func (client *Client) Open(context context.Context, filter *Filter, options *Opt
 				func(page *cloudwatchlogs.FilterLogEventsOutput, lastPage bool) bool {
 					for _, i := range page.Events {
 						eventC <- i
-						if *filters.StartTime == *i.Timestamp && lastIngestionTime > *i.IngestionTime {
+						if *filters.StartTime == *i.Timestamp && lastIngestionTime >= *i.IngestionTime {
 							continue
 						}
 						if lastEventTime <= *i.Timestamp {
