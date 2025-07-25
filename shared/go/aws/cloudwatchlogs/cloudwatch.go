@@ -121,16 +121,22 @@ func (client *Client) Open(context context.Context, filter *Filter, options *Opt
 		defer close(eventC)
 		defer close(errC)
 		for {
-			var lastEventTime int64
+			var (
+				lastEventTime     int64
+				lastIngestionTime int64
+			)
 			err := client.CloudWatchLogs.FilterLogEventsPagesWithContext(aws.Context(context), filters,
 				func(page *cloudwatchlogs.FilterLogEventsOutput, lastPage bool) bool {
-					if len(page.Events) == 0 {
-						return false
-					}
 					for _, i := range page.Events {
 						eventC <- i
-						if lastEventTime < *i.Timestamp {
-							lastEventTime = *i.Timestamp
+						if *filters.StartTime == *i.Timestamp && lastIngestionTime > *i.IngestionTime {
+							continue
+						}
+						if lastEventTime <= *i.Timestamp {
+							if lastEventTime < *i.Timestamp {
+								lastIngestionTime = *i.IngestionTime
+							}
+							lastIngestionTime = *i.IngestionTime
 						}
 					}
 					return true
@@ -142,7 +148,7 @@ func (client *Client) Open(context context.Context, filter *Filter, options *Opt
 
 			time.Sleep(options.PollingInterval)
 			if lastEventTime > 0 {
-				filters.SetStartTime(lastEventTime + 1)
+				filters.SetStartTime(lastEventTime)
 			}
 		}
 	}()
