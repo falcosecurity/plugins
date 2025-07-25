@@ -120,11 +120,11 @@ func (client *Client) Open(context context.Context, filter *Filter, options *Opt
 	go func() {
 		defer close(eventC)
 		defer close(errC)
+		var (
+			lastEventTime     int64
+			lastIngestionTime int64
+		)
 		for {
-			var (
-				lastEventTime     int64
-				lastIngestionTime int64
-			)
 			err := client.CloudWatchLogs.FilterLogEventsPagesWithContext(aws.Context(context), filters,
 				func(page *cloudwatchlogs.FilterLogEventsOutput, lastPage bool) bool {
 					for _, i := range page.Events {
