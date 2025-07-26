@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
 	"sync"
+	"time"
 )
 
 /*
@@ -17,13 +18,13 @@ FetcherChan requests are published through a CGO exposed API: AskForContainerInf
 type fetcher struct {
 	getters     []getter
 	ctx         context.Context
-	fetcherChan <-chan string
+	fetcherChan chan string
 }
 
 // NewFetcherEngine returns a fetcher engine.
 // The fetcher engine is responsible to allow us to get() single container
 // trying all container engines enabled.
-func NewFetcherEngine(_ context.Context, fetcherChan <-chan string, containerEngines []Engine) Engine {
+func NewFetcherEngine(_ context.Context, fetcherChan chan string, containerEngines []Engine) Engine {
 	f := fetcher{
 		getters: make([]getter, len(containerEngines)),
 		// Since podman relies upon context to store
@@ -68,17 +69,36 @@ func (f *fetcher) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan event.
 			close(outCh)
 			wg.Done()
 		}()
+		containerFirstSeen := make(map[string]time.Time)
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			case containerId := <-f.fetcherChan:
+				found := false
+				now := time.Now()
+				if containerRequestTime, exists := containerFirstSeen[containerId]; exists {
+					if now.Sub(containerRequestTime) > (time.Second) {
+						delete(containerFirstSeen, containerId)
+						break
+					}
+				} else {
+					containerFirstSeen[containerId] = now
+				}
 				for _, e := range f.getters {
 					evt, _ := e.get(f.ctx, containerId)
 					if evt != nil {
 						outCh <- *evt
+						found = true
+						delete(containerFirstSeen, containerId)
 						break
 					}
+				}
+				if !found {
+					go func() {
+						time.Sleep(10 * time.Millisecond)
+						f.fetcherChan <- containerId
+					}()
 				}
 			}
 		}

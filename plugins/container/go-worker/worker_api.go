@@ -81,7 +81,7 @@ func StartWorker(cb C.async_cb, initCfg *C.cchar_t, enabledSocks **C.cchar_t) un
 		}
 	}
 
-	pluginCtx.fetchCh = make(chan string)
+	pluginCtx.fetchCh = make(chan string, 100)
 
 	// Always append the dummy engine that is required to
 	// be able to fetch container infos on the fly given other enabled engines.
@@ -118,12 +118,18 @@ func StopWorker(pCtx unsafe.Pointer) {
 }
 
 //export AskForContainerInfo
-func AskForContainerInfo(pCtx unsafe.Pointer, containerId *C.cchar_t) {
+func AskForContainerInfo(pCtx unsafe.Pointer, containerId *C.cchar_t) bool {
 	h := (*cgo.Handle)(pCtx)
 	pluginCtx := h.Value().(*PluginCtx)
 
 	containerID := C.GoString(containerId)
 	if pluginCtx.fetchCh != nil {
-		pluginCtx.fetchCh <- containerID
+		select {
+		case pluginCtx.fetchCh <- containerID:
+			return true
+		default:
+			return false
+		}
 	}
+	return true
 }
