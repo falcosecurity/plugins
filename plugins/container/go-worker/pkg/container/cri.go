@@ -461,7 +461,11 @@ func (c *criEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan even
 			select {
 			case <-ctx.Done():
 				return
-			case evt := <-containerEventsCh:
+			case evt, ok := <-containerEventsCh:
+				if !ok {
+					// force channel to be nil to get out of stuck loop and allow fallback to fetcher engine
+					containerEventsCh = nil
+				}
 				if evt == nil {
 					// Nothing to do for nil event
 					break
