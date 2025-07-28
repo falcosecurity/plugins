@@ -61,7 +61,14 @@ func (f *fetcher) List(_ context.Context) ([]event.Event, error) {
 	panic("do not call")
 }
 
+// Everytime a containerID is published on the fetcher channel, the fetcher engine loops
+// over all enabled engines and tries to get info about the container.
+// In case the container info is missing, due to a timing issue of the unterlying engines
+// a retry is set up every containerFetchRetryInterval until containerFetchRetryTimeout is reached.
+// On success, publish event on output channel.
 func (f *fetcher) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan event.Event, error) {
+	const containerFetchRetryInterval = 10 * time.Millisecond
+	const containerFetchRetryTimeout = time.Second
 	outCh := make(chan event.Event)
 	wg.Add(1)
 	go func() {
@@ -78,7 +85,7 @@ func (f *fetcher) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan event.
 				found := false
 				now := time.Now()
 				if containerRequestTime, exists := containerFirstSeen[containerId]; exists {
-					if now.Sub(containerRequestTime) > (time.Second) {
+					if now.Sub(containerRequestTime) > containerFetchRetryTimeout {
 						delete(containerFirstSeen, containerId)
 						break
 					}
@@ -96,7 +103,7 @@ func (f *fetcher) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan event.
 				}
 				if !found {
 					go func() {
-						time.Sleep(10 * time.Millisecond)
+						time.Sleep(containerFetchRetryInterval)
 						f.fetcherChan <- containerId
 					}()
 				}

@@ -34,6 +34,7 @@ func StartWorker(cb C.async_cb, initCfg *C.cchar_t, enabledSocks **C.cchar_t) un
 		pluginCtx PluginCtx
 		ctx       context.Context
 	)
+	const fetchChSize = 100
 	ctx, pluginCtx.ctxCancel = context.WithCancel(context.Background())
 
 	// See https://github.com/enobufs/go-calls-c-pointer/blob/master/counter_api.go
@@ -81,7 +82,7 @@ func StartWorker(cb C.async_cb, initCfg *C.cchar_t, enabledSocks **C.cchar_t) un
 		}
 	}
 
-	pluginCtx.fetchCh = make(chan string, 100)
+	pluginCtx.fetchCh = make(chan string, fetchChSize)
 
 	// Always append the dummy engine that is required to
 	// be able to fetch container infos on the fly given other enabled engines.

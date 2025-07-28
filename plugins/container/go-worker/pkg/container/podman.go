@@ -18,6 +18,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 func init() {
@@ -252,6 +253,8 @@ func (pc *podmanEngine) List(_ context.Context) ([]event.Event, error) {
 	return evts, nil
 }
 
+// Set up container created event listener by call to system.Events
+// In case events have been disabled in the podmanEngine an error will be captured and passed to the caller
 func (pc *podmanEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan event.Event, error) {
 	stream := true
 
@@ -268,16 +271,33 @@ func (pc *podmanEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan 
 	filters["event"] = append(filters["event"], string(events.ActionRemove))
 
 	evChn := make(chan types.Event)
+	evErrorChn := make(chan error)
+	const eventsErrorTimeout = 10 * time.Millisecond
 	cancelChan := make(chan bool)
 	wg.Add(1)
 	// producers
 	go func(ch chan types.Event) {
 		defer wg.Done()
-		_ = system.Events(pc.pCtx, ch, cancelChan, &system.EventsOptions{
+		evErrorChn <- system.Events(pc.pCtx, ch, cancelChan, &system.EventsOptions{
 			Filters: filters,
 			Stream:  &stream,
 		})
 	}(evChn)
+
+	// Catch error on initialization of evChn
+	select {
+	case err := <-evErrorChn:
+		return nil, err
+	case <-time.After(eventsErrorTimeout):
+		// continue reading of error channel to avoid blocking initial go-routine
+		go func() {
+			for {
+				if _, ok := <-evErrorChn; !ok {
+					break
+				}
+			}
+		}()
+	}
 
 	outCh := make(chan event.Event)
 	wg.Add(1)
@@ -292,11 +312,15 @@ func (pc *podmanEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan 
 			select {
 			case <-ctx.Done():
 				return
-			case ev := <-evChn:
+			case ev, ok := <-evChn:
 				var (
 					ctr *define.InspectContainerData
 					err error
 				)
+				if !ok {
+					// evChn has been closed - block further reads from channel
+					evChn = nil
+				}
 				switch ev.Action {
 				case events.ActionCreate, events.ActionStart:
 					ctr, err = containers.Inspect(pc.pCtx, ev.Actor.ID, &containers.InspectOptions{Size: &size})
