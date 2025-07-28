@@ -287,7 +287,9 @@ func (pc *podmanEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan 
 	// Catch error on initialization of evChn
 	select {
 	case err := <-evErrorChn:
-		return nil, err
+		if err != nil {
+			return nil, err
+		}
 	case <-time.After(containerEventsErrorTimeout):
 		break
 	}
