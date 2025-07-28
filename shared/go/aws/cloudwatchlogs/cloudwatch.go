@@ -134,7 +134,7 @@ func (client *Client) Open(context context.Context, filter *Filter, options *Opt
 						}
 						if lastEventTime <= *i.Timestamp {
 							if lastEventTime < *i.Timestamp {
-								lastIngestionTime = *i.IngestionTime
+								lastEventTime = *i.Timestamp
 							}
 							lastIngestionTime = *i.IngestionTime
 						}
