@@ -450,7 +450,6 @@ func (c *criEngine) List(ctx context.Context) ([]event.Event, error) {
 func (c *criEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan event.Event, error) {
 	containerEventsCh := make(chan *v1.ContainerEventResponse)
 	containerEventsErrorCh := make(chan error)
-	const containerEventsErrorTimeout = 10 * time.Millisecond
 	wg.Add(1)
 	go func() {
 		defer close(containerEventsCh)
@@ -464,14 +463,7 @@ func (c *criEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan even
 	case err := <-containerEventsErrorCh:
 		return nil, err
 	case <-time.After(containerEventsErrorTimeout):
-		// continue reading of error channel to avoid blocking initial go-routine
-		go func() {
-			for {
-				if _, ok := <-containerEventsErrorCh; !ok {
-					break
-				}
-			}
-		}()
+		break
 	}
 
 	outCh := make(chan event.Event)
@@ -483,6 +475,11 @@ func (c *criEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan even
 			select {
 			case <-ctx.Done():
 				return
+			case _, ok := <- containerEventsErrorCh:
+				if !ok {
+					// containerEventsErrorCh has been closed - block further reads from channel
+					containerEventsErrorCh = nil
+				}
 			case evt, ok := <-containerEventsCh:
 				if !ok {
 					// containerEventsCh has been closed - block further reads from channel

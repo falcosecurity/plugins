@@ -28,6 +28,8 @@ const (
 	typeCri        engineType = "cri"
 	typeCrio       engineType = "cri-o"
 	typeContainerd engineType = "containerd"
+
+	containerEventsErrorTimeout = 10 * time.Millisecond
 )
 
 type engineType string
