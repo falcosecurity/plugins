@@ -382,18 +382,18 @@ void my_plugin::on_new_process(const falcosecurity::table_entry& thread_entry,
                                          "container {}",
                                          container_id),
                              falcosecurity::_internal::SS_PLUGIN_LOG_SEV_DEBUG);
-                m_asked_containers.insert(container_id);
                 // Implemented by GO worker.go
-                if(!AskForContainerInfo(m_async_ctx, container_id.c_str()))
+                if(AskForContainerInfo(m_async_ctx, container_id.c_str()))
                 {
+                    m_asked_containers.insert(container_id);
+                } else {
                     m_logger.log(
-                            fmt::format("failed to asking the plugin to fetch "
+                            fmt::format("failed to ask the plugin to fetch "
                                         "info for "
                                         "container {}, removing from asked "
                                         "containers to allow retry",
                                         container_id),
                             falcosecurity::_internal::SS_PLUGIN_LOG_SEV_DEBUG);
-                    m_asked_containers.erase(container_id);
                 }
             }
 #endif

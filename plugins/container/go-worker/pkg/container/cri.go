@@ -444,14 +444,36 @@ func (c *criEngine) List(ctx context.Context) ([]event.Event, error) {
 	return evts, nil
 }
 
+// Set up container created event loop by call to GetContainerEvents of the criEngine client
+// In case events have been disabled in the criEngine,
+// an error will be captured and passed to the caller
 func (c *criEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan event.Event, error) {
 	containerEventsCh := make(chan *v1.ContainerEventResponse)
+	containerEventsErrorCh := make(chan error)
+	const containerEventsErrorTimeout = 10 * time.Millisecond
 	wg.Add(1)
 	go func() {
 		defer close(containerEventsCh)
+		defer close(containerEventsErrorCh)
 		defer wg.Done()
-		_ = c.client.GetContainerEvents(ctx, containerEventsCh, nil)
+		containerEventsErrorCh <- c.client.GetContainerEvents(ctx, containerEventsCh, nil)
 	}()
+
+	// Catch error on initialization containerEventsErrorCh
+	select {
+	case err := <-containerEventsErrorCh:
+		return nil, err
+	case <-time.After(containerEventsErrorTimeout):
+		// continue reading of error channel to avoid blocking initial go-routine
+		go func() {
+			for {
+				if _, ok := <-containerEventsErrorCh; !ok {
+					break
+				}
+			}
+		}()
+	}
+
 	outCh := make(chan event.Event)
 	wg.Add(1)
 	go func() {
@@ -463,7 +485,7 @@ func (c *criEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan even
 				return
 			case evt, ok := <-containerEventsCh:
 				if !ok {
-					// force channel to be nil to get out of stuck loop and allow fallback to fetcher engine
+					// containerEventsCh has been closed - block further reads from channel
 					containerEventsCh = nil
 				}
 				if evt == nil {
