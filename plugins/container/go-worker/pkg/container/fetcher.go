@@ -63,7 +63,7 @@ func (f *fetcher) List(_ context.Context) ([]event.Event, error) {
 
 // Everytime a containerID is published on the fetcher channel, the fetcher engine loops
 // over all enabled engines and tries to get info about the container.
-// In case the container info is missing, due to a timing issue of the unterlying engines
+// In case the container info is missing, due to a timing issue of the underlying engines
 // a retry is set up every containerFetchRetryInterval until containerFetchRetryTimeout is reached.
 // On success, publish event on output channel.
 func (f *fetcher) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan event.Event, error) {
