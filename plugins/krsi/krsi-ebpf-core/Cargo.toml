@@ -30,4 +30,4 @@ paste = { workspace = true }
 
 [build-dependencies]
 bindgen = { version = "0.72.0", features = ["runtime"] }
-cc = "1.2.29"
+cc = "1.2.30"
