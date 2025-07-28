@@ -390,8 +390,7 @@ void my_plugin::on_new_process(const falcosecurity::table_entry& thread_entry,
                     m_logger.log(
                             fmt::format("failed to ask the plugin to fetch "
                                         "info for "
-                                        "container {}, removing from asked "
-                                        "containers to allow retry",
+                                        "container {}",
                                         container_id),
                             falcosecurity::_internal::SS_PLUGIN_LOG_SEV_DEBUG);
                 }
