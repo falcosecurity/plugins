@@ -386,7 +386,9 @@ void my_plugin::on_new_process(const falcosecurity::table_entry& thread_entry,
                 if(AskForContainerInfo(m_async_ctx, container_id.c_str()))
                 {
                     m_asked_containers.insert(container_id);
-                } else {
+                }
+                else
+                {
                     m_logger.log(
                             fmt::format("failed to ask the plugin to fetch "
                                         "info for "

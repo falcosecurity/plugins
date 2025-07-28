@@ -67,8 +67,8 @@ func (f *fetcher) List(_ context.Context) ([]event.Event, error) {
 // a retry is set up every containerFetchRetryInterval until containerFetchRetryTimeout is reached.
 // On success, publish event on output channel.
 func (f *fetcher) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan event.Event, error) {
-	const containerFetchRetryInterval = 10 * time.Millisecond
-	const containerFetchRetryTimeout = time.Second
+	const containerFetchRetryInterval = 30 * time.Millisecond
+	const containerFetchRetryTimeout = 150 * time.Millisecond
 	outCh := make(chan event.Event)
 	wg.Add(1)
 	go func() {

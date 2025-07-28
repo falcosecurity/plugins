@@ -132,5 +132,7 @@ func AskForContainerInfo(pCtx unsafe.Pointer, containerId *C.cchar_t) bool {
 			return false
 		}
 	}
+	// In case the fetch channel is nil a retry from falco
+	// does not make sense, report the containerId as handled
 	return true
 }

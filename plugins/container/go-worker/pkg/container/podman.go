@@ -272,11 +272,11 @@ func (pc *podmanEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan 
 
 	evChn := make(chan types.Event)
 	evErrorChn := make(chan error)
-	const eventsErrorTimeout = 10 * time.Millisecond
 	cancelChan := make(chan bool)
 	wg.Add(1)
 	// producers
 	go func(ch chan types.Event) {
+		defer close(evErrorChn)
 		defer wg.Done()
 		evErrorChn <- system.Events(pc.pCtx, ch, cancelChan, &system.EventsOptions{
 			Filters: filters,
@@ -288,15 +288,8 @@ func (pc *podmanEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan 
 	select {
 	case err := <-evErrorChn:
 		return nil, err
-	case <-time.After(eventsErrorTimeout):
-		// continue reading of error channel to avoid blocking initial go-routine
-		go func() {
-			for {
-				if _, ok := <-evErrorChn; !ok {
-					break
-				}
-			}
-		}()
+	case <-time.After(containerEventsErrorTimeout):
+		break
 	}
 
 	outCh := make(chan event.Event)
@@ -312,6 +305,11 @@ func (pc *podmanEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan 
 			select {
 			case <-ctx.Done():
 				return
+			case _, ok := <-evErrorChn:
+				if !ok {
+					// evErrorChn has been closed - block further reads from channel
+					evErrorChn = nil
+				}
 			case ev, ok := <-evChn:
 				var (
 					ctr *define.InspectContainerData
