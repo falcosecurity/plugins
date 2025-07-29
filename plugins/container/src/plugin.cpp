@@ -378,10 +378,11 @@ void my_plugin::on_new_process(const falcosecurity::table_entry& thread_entry,
                m_asked_containers.find(container_id) ==
                        m_asked_containers.end())
             {
-                m_logger.log(fmt::format("asking the plugin to fetch info for "
-                                         "container {}",
-                                         container_id),
-                             falcosecurity::_internal::SS_PLUGIN_LOG_SEV_DEBUG);
+                m_logger.log(
+                        fmt::format("asking the go-worker to fetch info for "
+                                    "container {}",
+                                    container_id),
+                        falcosecurity::_internal::SS_PLUGIN_LOG_SEV_DEBUG);
                 // Implemented by GO worker.go
                 if(AskForContainerInfo(m_async_ctx, container_id.c_str()))
                 {
