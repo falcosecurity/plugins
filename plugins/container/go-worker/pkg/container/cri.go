@@ -444,9 +444,9 @@ func (c *criEngine) List(ctx context.Context) ([]event.Event, error) {
 	return evts, nil
 }
 
-// Set up container created event loop by call to GetContainerEvents of the criEngine client
+// Listen set up container created event loop by call to GetContainerEvents of the criEngine client
 // In case events have been disabled in the criEngine,
-// an error will be captured and passed to the caller
+// an error will be captured and passed to the caller.
 func (c *criEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan event.Event, error) {
 	containerEventsCh := make(chan *v1.ContainerEventResponse)
 	containerEventsErrorCh := make(chan error)
@@ -459,6 +459,7 @@ func (c *criEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan even
 	}()
 
 	// Catch error on initialization containerEventsErrorCh
+	const containerEventsErrorTimeout = 10 * time.Millisecond
 	select {
 	case err := <-containerEventsErrorCh:
 		return nil, err
@@ -475,7 +476,7 @@ func (c *criEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan even
 			select {
 			case <-ctx.Done():
 				return
-			case _, ok := <- containerEventsErrorCh:
+			case _, ok := <-containerEventsErrorCh:
 				if !ok {
 					// containerEventsErrorCh has been closed - block further reads from channel
 					containerEventsErrorCh = nil
