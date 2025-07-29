@@ -48,13 +48,17 @@ func workerLoop(ctx context.Context, cb asyncCb, containerEngines []container.En
 	}
 
 	for {
-		chosen, val, _ := reflect.Select(cases)
+		chosen, val, recvOk := reflect.Select(cases)
 		if chosen == ctxDoneIdx {
 			// ctx.Done!
-			break
-		} else {
+			return
+		}
+		if recvOk {
 			evt, _ = val.Interface().(event.Event)
 			cb(evt.String(), evt.IsCreate, false)
+		} else {
+			// Remove the stopped goroutine
+			cases = append(cases[:chosen], cases[chosen+1:]...)
 		}
 	}
 }

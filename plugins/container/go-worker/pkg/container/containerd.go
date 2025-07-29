@@ -300,7 +300,11 @@ func (c *containerdEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-ch
 			select {
 			case <-ctx.Done():
 				return
-			case ev := <-eventsCh:
+			case ev, ok := <-eventsCh:
+				if !ok {
+					// eventsCh has been closed - kill the goroutine
+					return
+				}
 				if ev == nil {
 					// Nothing to do for null event
 					break

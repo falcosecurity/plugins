@@ -383,7 +383,11 @@ func (dc *dockerEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan 
 			select {
 			case <-ctx.Done():
 				return
-			case msg := <-msgs:
+			case msg, ok := <-msgs:
+				if !ok {
+					// msgs has been closed - kill the goroutine
+					return
+				}
 				var (
 					ctrJson container.InspectResponse
 					err     error
