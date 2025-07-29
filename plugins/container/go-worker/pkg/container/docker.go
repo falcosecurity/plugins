@@ -1,13 +1,14 @@
 package container
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/config"
 	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
@@ -102,7 +103,7 @@ func parseHealthcheckProbe(hcheck *container.HealthConfig) *event.Probe {
 	return &p
 }
 
-func (dc *dockerEngine) ctrToInfo(ctx context.Context, ctr types.ContainerJSON) event.Info {
+func (dc *dockerEngine) ctrToInfo(ctx context.Context, ctr container.InspectResponse) event.Info {
 	hostCfg := ctr.HostConfig
 	if hostCfg == nil {
 		hostCfg = &container.HostConfig{
@@ -130,7 +131,7 @@ func (dc *dockerEngine) ctrToInfo(ctx context.Context, ctr types.ContainerJSON) 
 
 	netCfg := ctr.NetworkSettings
 	if netCfg == nil {
-		netCfg = &types.NetworkSettings{}
+		netCfg = &container.NetworkSettings{}
 	}
 	portMappings := make([]event.PortMapping, 0)
 	for port, portBindings := range netCfg.Ports {
@@ -161,9 +162,10 @@ func (dc *dockerEngine) ctrToInfo(ctx context.Context, ctr types.ContainerJSON) 
 		cfg = &container.Config{}
 	}
 
-	image, _, err := dc.ImageInspectWithRaw(ctx, ctr.Image)
+	var buf bytes.Buffer
+	img, err := dc.ImageInspect(ctx, ctr.Image, client.ImageInspectWithRawResponse(&buf))
 	if err != nil {
-		image = types.ImageInspect{}
+		img = image.InspectResponse{}
 	}
 
 	var (
@@ -173,7 +175,7 @@ func (dc *dockerEngine) ctrToInfo(ctx context.Context, ctr types.ContainerJSON) 
 		imageID     string
 	)
 	imageDigestSet := make([]string, 0)
-	for _, repoDigest := range image.RepoDigests {
+	for _, repoDigest := range img.RepoDigests {
 		repoDigestParts := strings.Split(repoDigest, "@")
 		if len(repoDigestParts) != 2 {
 			// malformed
@@ -193,7 +195,7 @@ func (dc *dockerEngine) ctrToInfo(ctx context.Context, ctr types.ContainerJSON) 
 		imageDigest = imageDigestSet[0]
 	}
 
-	for _, repoTag := range image.RepoTags {
+	for _, repoTag := range img.RepoTags {
 		repoTagsParts := strings.Split(repoTag, ":")
 		if len(repoTagsParts) != 2 {
 			// malformed
@@ -208,9 +210,9 @@ func (dc *dockerEngine) ctrToInfo(ctx context.Context, ctr types.ContainerJSON) 
 		}
 	}
 
-	img := ctr.Image
-	if !strings.Contains(img, "/") && strings.Contains(img, ":") {
-		imageID = strings.Split(img, ":")[1]
+	imgName := ctr.Image
+	if !strings.Contains(imgName, "/") && strings.Contains(imgName, ":") {
+		imageID = strings.Split(imgName, ":")[1]
 	}
 
 	labels := make(map[string]string)
@@ -383,7 +385,7 @@ func (dc *dockerEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan 
 				return
 			case msg := <-msgs:
 				var (
-					ctrJson types.ContainerJSON
+					ctrJson container.InspectResponse
 					err     error
 				)
 				switch msg.Action {
