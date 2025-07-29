@@ -18,7 +18,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 )
 
 func init() {
@@ -271,47 +270,31 @@ func (pc *podmanEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan 
 	filters["event"] = append(filters["event"], string(events.ActionRemove))
 
 	evChn := make(chan types.Event)
-	evErrorChn := make(chan error)
 	cancelChan := make(chan bool)
-	wg.Add(1)
-	// producers
-	go func(ch chan types.Event) {
-		defer close(evErrorChn)
-		defer wg.Done()
-		evErrorChn <- system.Events(pc.pCtx, ch, cancelChan, &system.EventsOptions{
-			Filters: filters,
-			Stream:  &stream,
-		})
-	}(evChn)
-
-	// Catch error on initialization of evChn
-	select {
-	case err := <-evErrorChn:
-		if err != nil {
-			return nil, err
-		}
-	case <-time.After(containerEventsErrorTimeout):
-		break
+	err := system.Events(pc.pCtx, evChn, cancelChan, &system.EventsOptions{
+		Filters: filters,
+		Stream:  &stream,
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	outCh := make(chan event.Event)
 	wg.Add(1)
 	go func() {
-		defer close(outCh)
-		defer close(cancelChan)
 		defer wg.Done()
+		defer func() {
+			close(cancelChan)
+			close(outCh)
+		}()
 		size := config.GetWithSize()
 		// Blocking: convert all events from podman to json strings
 		// and send them to the main loop until the channel is closed
 		for {
 			select {
 			case <-ctx.Done():
+				cancelChan <- true
 				return
-			case _, ok := <-evErrorChn:
-				if !ok {
-					// evErrorChn has been closed - block further reads from channel
-					evErrorChn = nil
-				}
 			case ev, ok := <-evChn:
 				var (
 					ctr *define.InspectContainerData
