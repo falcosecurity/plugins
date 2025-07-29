@@ -483,8 +483,9 @@ func (c *criEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan even
 				}
 			case evt, ok := <-containerEventsCh:
 				if !ok {
-					// containerEventsCh has been closed - block further reads from channel
-					containerEventsCh = nil
+					// containerEventsCh has been closed - kill the goroutine.
+					// It happens only if the producer goroutine leaves because of errors.
+					return
 				}
 				if evt == nil {
 					// Nothing to do for nil event

@@ -282,8 +282,8 @@ func (pc *podmanEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan 
 	outCh := make(chan event.Event)
 	wg.Add(1)
 	go func() {
-		defer wg.Done()
 		defer func() {
+			wg.Done()
 			close(cancelChan)
 			close(outCh)
 		}()
@@ -296,14 +296,15 @@ func (pc *podmanEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan 
 				cancelChan <- true
 				return
 			case ev, ok := <-evChn:
+				if !ok {
+					// evChn has been closed - kill the goroutine
+					// NOTE this should never happen since we are the ones closing the channel.
+					return
+				}
 				var (
 					ctr *define.InspectContainerData
 					err error
 				)
-				if !ok {
-					// evChn has been closed - block further reads from channel
-					evChn = nil
-				}
 				switch ev.Action {
 				case events.ActionCreate, events.ActionStart:
 					ctr, err = containers.Inspect(pc.pCtx, ev.Actor.ID, &containers.InspectOptions{Size: &size})
