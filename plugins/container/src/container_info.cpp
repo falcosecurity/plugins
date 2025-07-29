@@ -17,6 +17,7 @@ limitations under the License.
 */
 
 #include <utility>
+#include <algorithm>
 #include <reflex/matcher.h>
 #include "container_info.h"
 
