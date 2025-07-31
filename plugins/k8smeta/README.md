@@ -1,9 +1,5 @@
 # Kubernetes metadata enrichment Plugin
 
-## Experimental
-
-Consider this plugin as experimental until it reaches version `1.0.0`. By 'experimental' we mean that, although the plugin is functional and tested, it is currently in active development and may undergo changes in behavior as necessary, without prioritizing backward compatibility.
-
 ## Introduction
 
 The `k8smeta` plugin enhances the Falco syscall source by providing additional information about the Kubernetes resources involved. For instance, when a syscall is thrown within a pod, it allows retrieving details about the pod, such as `uid`, `name`, `labels`, and more. It also provides information about resources associated with the pod like `deployments`, `services`, `replica-sets`, and others. You can find the comprehensive list of supported fields [here](#supported-fields).
