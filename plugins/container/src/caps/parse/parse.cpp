@@ -204,7 +204,7 @@ bool my_plugin::parse_exit_process_event(
                             "event for the "
                             "thread id '{}': {}",
                             thread_id, e.what()),
-                falcosecurity::_internal::SS_PLUGIN_LOG_SEV_ERROR);
+                falcosecurity::_internal::SS_PLUGIN_LOG_SEV_DEBUG);
         return false;
     }
 }
