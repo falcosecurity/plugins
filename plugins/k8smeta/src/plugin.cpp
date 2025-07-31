@@ -289,11 +289,6 @@ bool my_plugin::init(falcosecurity::init_input& in)
 
     SPDLOG_DEBUG("init the plugin");
 
-    // Remove this log when we reach `1.0.0`
-    SPDLOG_WARN("[EXPERIMENTAL] This plugin is in active development "
-                "and may undergo changes in behavior without prioritizing "
-                "backward compatibility.");
-
     try
     {
         m_thread_table = t.get_table(THREAD_TABLE_NAME, st::SS_PLUGIN_ST_INT64);
