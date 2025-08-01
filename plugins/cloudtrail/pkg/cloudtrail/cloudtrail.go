@@ -31,7 +31,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
@@ -40,7 +39,6 @@ import (
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/symbols/extract"
 	_ "github.com/falcosecurity/plugin-sdk-go/pkg/sdk/symbols/progress"
 	"github.com/invopop/jsonschema"
-	"github.com/tidwall/gjson"
 	"github.com/valyala/fastjson"
 )
 
@@ -194,7 +192,7 @@ func (p *Plugin) String(evt sdk.EventReader) (string, error) {
 		}
 	}
 
-	present, user := getUser(p.jdata)
+	present, user, _, _ := getUser(p.jdata)
 	if present && user != "" {
 		user = " " + user
 	}
@@ -212,41 +210,6 @@ func (p *Plugin) String(evt sdk.EventReader) (string, error) {
 
 func (p *Plugin) Fields() []sdk.FieldEntry {
 	return supportedFields
-}
-
-func (p *Plugin) extractOffset(req sdk.ExtractRequest, evt sdk.EventReader) {
-	// Read the event data
-	data, err := io.ReadAll(evt.Reader())
-	if err != nil {
-		return
-	}
-
-	// Maybe temp--remove trailing null bytes from string
-	data = bytes.Trim(data, "\x00")
-
-	// For this plugin, events are always strings
-	evtStr := string(data)
-
-	path, ok := fieldPaths[req.Field()]
-	if ok {
-		if path == "_GENERATED_" {
-			req.SetValueOffset(0, 0)
-		} else {
-			result := gjson.Get(evtStr, path)
-			// result.Index gives us the starting index of the field value.
-			// Use that to find the start of the field name and the end of the field value.
-			paths := strings.Split(path, ".")
-			lastKey := "\"" + paths[len(paths)-1] + "\":"
-			start := result.Index
-			for idx := start - len(lastKey); idx >= 0; idx-- {
-				if evtStr[idx:idx+len(lastKey)] == lastKey {
-					start = idx
-					break
-				}
-			}
-			req.SetValueOffset(uint32(sdk.PluginEventPayloadOffset + start), uint32(len(result.Raw) + result.Index - start))
-		}
-	}
 }
 
 func (p *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
@@ -275,15 +238,17 @@ func (p *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 	// Extract the field value
 	var present bool
 	var value interface{}
+	var offset int
+	var length int
 	if req.FieldType() == sdk.FieldTypeUint64 {
-		present, value = getfieldU64(p.jdata, req.Field())
+		present, value, offset, length = getfieldU64(p.jdata, req.Field())
 	} else {
-		present, value = getfieldStr(p.jdata, req.Field())
+		present, value, offset, length = getfieldStr(p.jdata, req.Field())
 	}
 	if present {
 		req.SetValue(value)
 		if req.WantOffset() {
-			p.extractOffset(req, evt)
+			req.SetValueOffset(sdk.PluginEventPayloadOffset + uint32(offset), uint32(length))
 		}
 	}
 
