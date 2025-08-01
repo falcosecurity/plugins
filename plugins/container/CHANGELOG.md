@@ -1,5 +1,35 @@
 # Changelog
 
+## v0.3.4
+
+* [`885c18e`](https://github.com/falcosecurity/plugins/commit/885c18e) update(plugins/container): bump to 0.3.4.
+
+* [`11c7d16`](https://github.com/falcosecurity/plugins/commit/11c7d16) chore(plugins/container): move error log to debug level.
+
+* [`0275c81`](https://github.com/falcosecurity/plugins/commit/0275c81) chore(plugins/container): added some tests around workerLoop().
+
+* [`4bcabb2`](https://github.com/falcosecurity/plugins/commit/4bcabb2) chore(plugins/container): improve exit strategy for goroutine workers when st...
+
+* [`dd90663`](https://github.com/falcosecurity/plugins/commit/dd90663) chore(plugins/container): fixed a log.
+
+* [`4684790`](https://github.com/falcosecurity/plugins/commit/4684790) fix(plugins/container): fixed build under recent gcc by including `algorithm`.
+
+* [`2487f7c`](https://github.com/falcosecurity/plugins/commit/2487f7c) chore(plugins/container): move `containerEventsErrorTimeout` to cri.
+
+* [`2fc5772`](https://github.com/falcosecurity/plugins/commit/2fc5772) cleanup(plugins/container): podman `system.Events` now returns error synchron...
+
+* [`f9da9fa`](https://github.com/falcosecurity/plugins/commit/f9da9fa) chore(plugins/container): port docker engine away from deprecated APIs.
+
+
+## v0.3.3
+
+* [`5ca391e`](https://github.com/falcosecurity/plugins/commit/5ca391e) update(plugins/container): bump to v0.3.3
+
+* [`f28adb7`](https://github.com/falcosecurity/plugins/commit/f28adb7) fix(plugins/container): parse_exit_process_event
+
+* [`a97e226`](https://github.com/falcosecurity/plugins/commit/a97e226) chore(container/make): add CMAKE_EXPORT_COMPILE_COMMANDS
+
+
 ## v0.3.2
 
 * [`92ec4dc`](https://github.com/falcosecurity/plugins/commit/92ec4dc) chore(plugins/container): add a trace log when removing container from procexit.
