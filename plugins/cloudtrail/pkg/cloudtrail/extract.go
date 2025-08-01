@@ -101,108 +101,40 @@ var supportedFields = []sdk.FieldEntry{
 	{Type: "string", Name: "iam.policy", Display: "IAM Policy", Desc: "the IAM policy specified in the request."},
 }
 
-// XXX We should combine this with supportedFields above.
-var fieldPaths = map[string]string{
-	"ct.id":                                  "eventID",
-	"ct.error":                               "errorCode",
-	"ct.errormessage":                        "errorMessage",
-	"ct.time":                                "eventTime",
-	"ct.src":                                 "eventSource",
-	"ct.shortsrc":                            "eventSource",
-	"ct.name":                                "eventName",
-	"ct.user":                                "userIdentity.userName",
-	"ct.user.accountid":                      "userIdentity.accountId",
-	"ct.user.identitytype":                   "userIdentity.type",
-	"ct.user.principalid":                    "userIdentity.principalId",
-	"ct.user.arn":                            "userIdentity.arn",
-	"ct.region":                              "awsRegion",
-	"ct.response.subnetid":                   "responseElements.subnetId",
-	"ct.response.reservationid":              "responseElements.reservationId",
-	"ct.request.availabilityzone":            "requestParameters.availabilityZone",
-	"ct.request.cluster":                     "requestParameters.cluster",
-	"ct.request.functionname":                "requestParameters.functionName",
-	"ct.request.groupname":                   "requestParameters.groupName",
-	"ct.request.host":                        "requestParameters.Host",
-	"ct.request.name":                        "requestParameters.name",
-	"ct.request.policy":                      "requestParameters.policy",
-	"ct.request.serialnumber":                "requestParameters.serialNumber",
-	"ct.request.servicename":                 "requestParameters.serviceName",
-	"ct.request.subnetid":                    "requestParameters.subnetId",
-	"ct.request.taskdefinition":              "requestParameters.taskDefinition",
-	"ct.request.username":                    "requestParameters.userName",
-	"ct.srcip":                               "sourceIPAddress",
-	"ct.useragent":                           "userAgent",
-	"ct.info":                                "_GENERATED_",
-	"ct.managementevent":                     "managementEvent",
-	"ct.readonly":                            "readOnly", // incomplete
-	"ct.requestid":                           "requestID",
-	"ct.eventtype":                           "eventType",
-	"ct.apiversion":                          "apiVersion",
-	"ct.resources":                           "_GENERATED_",
-	"ct.recipientaccountid":                  "recipientAccountId",
-	"ct.serviceeventdetails":                 "serviceEventDetails",
-	"ct.sharedeventid":                       "sharedEventID",
-	"ct.vpcendpointid":                       "vpcEndpointId",
-	"ct.eventcategory":                       "eventCategory",
-	"ct.addendum.reason":                     "addendum.reason",
-	"ct.addendum.updatedfields":              "addendum.updatedFields",
-	"ct.addendum.originalrequestid":          "addendum.originalRequestID",
-	"ct.addendum.originaleventid":            "addendum.originalEventID",
-	"ct.sessioncredentialfromconsole":        "sessionCredentialFromConsole",
-	"ct.edgedevicedetails":                   "edgeDeviceDetails",
-	"ct.tlsdetails.tlsversion":               "tlsDetails.tlsVersion",
-	"ct.tlsdetails.ciphersuite":              "tlsDetails.cipherSuite",
-	"ct.tlsdetails.clientprovidedhostheader": "tlsDetails.clientProvidedHostHeader",
-	"s3.uri":                                 "_GENERATED_",
-	"s3.bucket":                              "requestParameters.bucketName",
-	"s3.key":                                 "requestParameters.key",
-	"s3.bytes":                               "_GENERATED_",
-	"s3.bytes.in":                            "additionalEventData.bytesTransferredIn",
-	"s3.bytes.out":                           "additionalEventData.bytesTransferredOut",
-	"s3.cnt.get":                             "_GENERATED_",
-	"s3.cnt.put":                             "_GENERATED_",
-	"s3.cnt.other":                           "_GENERATED_",
-	"ec2.name":                               "_GENERATED_",
-	"ec2.imageid":                            "_GENERATED_",
-	"ecr.repository":                         "requestParameters.repositoryName",
-	"ecr.imagetag":                           "requestParameters.imageTag",
-}
-
-func getUser(jdata *fastjson.Value) (bool, string) {
+func getUser(jdata *fastjson.Value) (bool, string, int, int) {
 	jutype := jdata.GetStringBytes("userIdentity", "type")
 
 	if jutype == nil {
-		return false, ""
+		return false, "", 0, 0
 	}
 
 	utype := string(jutype)
 
+	var jun *fastjson.Value
+
 	switch utype {
 	case "Root", "IAMUser":
-		jun := jdata.GetStringBytes("userIdentity", "userName")
-		if jun != nil {
-			return true, string(jun)
-		}
+		jun = jdata.Get("userIdentity", "userName")
 	case "AWSService":
-		jun := jdata.GetStringBytes("userIdentity", "invokedBy")
-		if jun != nil {
-			return true, string(jun)
-		}
+		jun = jdata.Get("userIdentity", "invokedBy")
 	case "AssumedRole":
-		jun := jdata.GetStringBytes("userIdentity", "sessionContext", "sessionIssuer", "userName")
-		if jun != nil {
-			return true, string(jun)
+		jun = jdata.Get("userIdentity", "sessionContext", "sessionIssuer", "userName")
+		if jun == nil {
+			return true, "AssumedRole", 0, 0
 		}
-		return true, "AssumedRole"
 	case "AWSAccount":
-		return true, "AWSAccount"
+		return true, "AWSAccount", 0, 0
 	case "FederatedUser":
-		return true, "FederatedUser"
+		return true, "FederatedUser", 0, 0
 	default:
-		return false, "<unknown user type>"
+		return false, "<unknown user type>", 0, 0
 	}
 
-	return false, "<NA>"
+	if jun != nil {
+		return true, string(jun.MarshalTo(nil)), jun.Offset(), jun.Len()
+	}
+
+	return false, "<NA>", 0, 0
 }
 
 func getEvtInfo(jdata *fastjson.Value) string {
@@ -217,29 +149,29 @@ func getEvtInfo(jdata *fastjson.Value) string {
 
 	// Start the info field "who" (ct.user), "where" (ct.srcip), and "what" (ct.name)
 	// along with read/write and error status.
-	present, evtuser = getfieldStr(jdata, "ct.user")
+	present, evtuser, _, _ = getfieldStr(jdata, "ct.user")
 	if !present {
 		return "<invalid cloudtrail event: userIdentity field missing>"
 	}
 
-	present, evtsrcip = getfieldStr(jdata, "ct.srcip")
+	present, evtsrcip, _, _ = getfieldStr(jdata, "ct.srcip")
 	if !present {
 		return "<invalid cloudtrail event: eventSource field missing>"
 	}
 
 	errsymbol = ""
-	present, _ = getfieldStr(jdata, "ct.error")
+	present, _, _, _ = getfieldStr(jdata, "ct.error")
 	if present {
 		errsymbol = "!"
 	}
 
 	rwsymbol = "←"
-	present, evtreadonly = getfieldStr(jdata, "ct.readonly")
+	present, evtreadonly, _, _ = getfieldStr(jdata, "ct.readonly")
 	if present && evtreadonly == "false" {
 		rwsymbol = "→"
 	}
 
-	present, evtname = getfieldStr(jdata, "ct.name")
+	present, evtname, _, _ = getfieldStr(jdata, "ct.name")
 	if !present {
 		return "<invalid cloudtrail event: eventName field missing>"
 	}
@@ -265,30 +197,30 @@ func getEvtInfo(jdata *fastjson.Value) string {
 	default:
 	}
 
-	present, u64val := getfieldU64(jdata, "s3.bytes")
+	present, u64val, _, _ := getfieldU64(jdata, "s3.bytes")
 	if present {
 		info += fmt.Sprintf(" Size=%v", u64val)
 	}
 
-	present, val := getfieldStr(jdata, "s3.uri")
+	present, val, _, _ := getfieldStr(jdata, "s3.uri")
 	if present {
 		info += fmt.Sprintf(" URI=%s", val)
 		return info
 	}
 
-	present, val = getfieldStr(jdata, "s3.bucket")
+	present, val, _, _ = getfieldStr(jdata, "s3.bucket")
 	if present {
 		info += fmt.Sprintf(" Bucket=%s", val)
 		return info
 	}
 
-	present, val = getfieldStr(jdata, "s3.key")
+	present, val, _, _ = getfieldStr(jdata, "s3.key")
 	if present {
 		info += fmt.Sprintf(" Key=%s", val)
 		return info
 	}
 
-	present, val = getfieldStr(jdata, "ct.request.host")
+	present, val, _, _ = getfieldStr(jdata, "ct.request.host")
 	if present {
 		info += fmt.Sprintf(" Host=%s", val)
 		return info
@@ -297,251 +229,110 @@ func getEvtInfo(jdata *fastjson.Value) string {
 	return info
 }
 
-func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
-	var res string
+func getfieldStr(jdata *fastjson.Value, field string) (bool, string, int, int) {
+	var fsval *fastjson.Value
 
 	// Go should do binary search here:
 	// https://github.com/golang/go/blob/8ee9bca2729ead81da6bf5a18b87767ff396d1b7/src/cmd/compile/internal/gc/swt.go#L375
 	switch field {
 	case "ct.id":
-		val := jdata.GetStringBytes("eventID")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("eventID")
 	case "ct.error":
-		val := jdata.GetStringBytes("errorCode")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("errorCode")
 	case "ct.errormessage":
-		val := jdata.GetStringBytes("errorMessage")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("errorMessage")
 	case "ct.time":
-		val := jdata.GetStringBytes("eventTime")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("eventTime")
 	case "ct.src":
-		val := jdata.GetStringBytes("eventSource")
-
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("eventSource")
 	case "ct.shortsrc":
-		val := jdata.GetStringBytes("eventSource")
-
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
-
-		if len(res) > len(".amazonaws.com") {
-			srctrailer := res[len(res)-len(".amazonaws.com"):]
-			if srctrailer == ".amazonaws.com" {
-				res = res[0 : len(res)-len(".amazonaws.com")]
+		fsval = jdata.Get("eventSource")
+		if fsval != nil {
+			res := string(fsval.MarshalTo(nil))
+			if len(res) > len(".amazonaws.com") {
+				srctrailer := res[len(res)-len(".amazonaws.com"):]
+				if srctrailer == ".amazonaws.com" {
+					res = res[0 : len(res)-len(".amazonaws.com")]
+				}
+				return true, res, fsval.Offset(), fsval.Len()
 			}
 		}
 	case "ct.name":
-		val := jdata.GetStringBytes("eventName")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("eventName")
 	case "ct.user":
-		present, res := getUser(jdata)
+		present, res, offset, length := getUser(jdata)
 		if !present {
-			return false, ""
+			return false, "", 0, 0
 		}
-		return true, res
+		return true, res, offset, length
 	case "ct.user.accountid":
-		val := jdata.GetStringBytes("userIdentity", "accountId")
-		if val != nil {
-			res = string(val)
-		} else {
-			val := jdata.GetStringBytes("recipientAccountId")
-			if val != nil {
-				res = string(val)
-			}
+		fsval = jdata.Get("userIdentity", "accountId")
+		if fsval == nil {
+			fsval = jdata.Get("recipientAccountId")
 		}
 	case "ct.user.identitytype":
-		val := jdata.GetStringBytes("userIdentity", "type")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("userIdentity", "type")
 	case "ct.user.principalid":
-		val := jdata.GetStringBytes("userIdentity", "principalId")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("userIdentity", "principalId")
 	case "ct.user.arn":
-		val := jdata.GetStringBytes("userIdentity", "arn")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("userIdentity", "arn")
 	case "ct.region":
-		val := jdata.GetStringBytes("awsRegion")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("awsRegion")
 	case "ct.response.subnetid":
-		val := jdata.GetStringBytes("responseElements", "subnetId")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("responseElements", "subnetId")
 	case "ct.response.reservationid":
-		val := jdata.GetStringBytes("responseElements", "reservationId")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("responseElements", "reservationId")
 	case "ct.response":
-		val := jdata.Get("responseElements")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val.MarshalTo(nil))
-		}
+		fsval = jdata.Get("responseElements")
 	case "ct.request.availabilityzone":
-		val := jdata.GetStringBytes("requestParameters", "availabilityZone")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("requestParameters", "availabilityZone")
 	case "ct.request.cluster":
-		val := jdata.GetStringBytes("requestParameters", "cluster")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("requestParameters", "cluster")
 	case "ct.request.functionname":
-		val := jdata.GetStringBytes("requestParameters", "functionName")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("requestParameters", "functionName")
 	case "ct.request.groupname":
-		val := jdata.GetStringBytes("requestParameters", "groupName")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("requestParameters", "groupName")
 	case "ct.request.host":
-		val := jdata.GetStringBytes("requestParameters", "Host")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("requestParameters", "Host")
 	case "ct.request.name":
-		val := jdata.GetStringBytes("requestParameters", "name")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("requestParameters", "name")
 	case "ct.request.policy":
-		val := jdata.GetStringBytes("requestParameters", "policy")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("requestParameters", "policy")
 	case "ct.request.serialnumber":
-		val := jdata.GetStringBytes("requestParameters", "serialNumber")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("requestParameters", "serialNumber")
 	case "ct.request.servicename":
-		val := jdata.GetStringBytes("requestParameters", "serviceName")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("requestParameters", "serviceName")
 	case "ct.request.subnetid":
-		val := jdata.GetStringBytes("requestParameters", "subnetId")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("requestParameters", "subnetId")
 	case "ct.request.taskdefinition":
-		val := jdata.GetStringBytes("requestParameters", "taskDefinition")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("requestParameters", "taskDefinition")
 	case "ct.request.username":
-		val := jdata.GetStringBytes("requestParameters", "userName")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("requestParameters", "userName")
 	case "ct.request":
-		val := jdata.Get("requestParameters")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val.MarshalTo(nil))
-		}
+		fsval = jdata.Get("requestParameters")
 	case "ct.srcip":
-		val := jdata.GetStringBytes("sourceIPAddress")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("sourceIPAddress")
 	case "ct.useragent":
-		val := jdata.GetStringBytes("userAgent")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("userAgent")
 	case "ct.info":
-		res = getEvtInfo(jdata)
+		return true, getEvtInfo(jdata), 0, 0
 	case "ct.managementevent":
-		ro := jdata.GetBool("managementEvent")
-		if ro {
-			res = "true"
-		} else {
-			res = "false"
+		fsval := jdata.Get("managementEvent")
+		if fsval != nil {
+			res := "false"
+			me, _ := fsval.Bool()
+			if me {
+				res = "true"
+			}
+			return true, res, fsval.Offset(), fsval.Len()
 		}
 	case "ct.readonly":
-		ro := jdata.GetBool("readOnly")
+		fsval = jdata.Get("readOnly")
+		if fsval == nil {
+			return false, "", 0, 0
+		}
+		ro, _ := fsval.Bool()
+		var res string
 		if ro {
 			res = "true"
 		} else {
@@ -553,7 +344,7 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 				//
 				val := jdata.GetStringBytes("eventName")
 				if val == nil {
-					return false, ""
+					return false, "", 0, 0
 				}
 				ename := string(val)
 				if strings.HasPrefix(ename, "Start") || strings.HasPrefix(ename, "Stop") || strings.HasPrefix(ename, "Create") ||
@@ -577,32 +368,22 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 				res = "false"
 			}
 		}
+		return true, res, fsval.Offset(), fsval.Len()
 	case "ct.requestid":
-		val := jdata.GetStringBytes("requestID")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("requestID")
 	case "ct.eventtype":
-		val := jdata.GetStringBytes("eventType")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("eventType")
 	case "ct.apiversion":
-		val := jdata.GetStringBytes("apiVersion")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("apiVersion")
 	case "ct.resources":
 		var resources string = ""
-		rlist := jdata.GetArray("resources")
-		if rlist == nil || len(rlist) == 0 {
-			return false, ""
+		fsval := jdata.Get("resources")
+		if fsval == nil {
+			return false, "", 0, 0
+		}
+		rlist, _ := fsval.Array()
+		if len(rlist) == 0 {
+			return false, "", 0, 0
 		}
 		for _, resource := range rlist {
 			resources += string(resource.MarshalTo(nil))
@@ -610,146 +391,69 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 		}
 		resources = strings.TrimSuffix(resources, ",")
 		if resources == "" {
-			return false, ""
+			return false, "", 0, 0
 		}
-		res = resources
+		return true, resources, fsval.Offset(), fsval.Len()
 	case "ct.recipientaccountid":
-		val := jdata.GetStringBytes("recipientAccountId")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("recipientAccountId")
 	case "ct.serviceeventdetails":
-		val := jdata.GetStringBytes("serviceEventDetails")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("serviceEventDetails")
 	case "ct.sharedeventid":
-		val := jdata.GetStringBytes("sharedEventID")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("sharedEventID")
 	case "ct.vpcendpointid":
-		val := jdata.GetStringBytes("vpcEndpointId")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("vpcEndpointId")
 	case "ct.eventcategory":
-		val := jdata.GetStringBytes("eventCategory")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("eventCategory")
 	case "ct.addendum.reason":
-		val := jdata.GetStringBytes("addendum", "reason")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("addendum", "reason")
 	case "ct.addendum.updatedfields":
-		val := jdata.GetStringBytes("addendum", "updatedFields")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("addendum", "updatedFields")
 	case "ct.addendum.originalrequestid":
-		val := jdata.GetStringBytes("addendum", "originalRequestID")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("addendum", "originalRequestID")
 	case "ct.addendum.originaleventid":
-		val := jdata.GetStringBytes("addendum", "originalEventID")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("addendum", "originalEventID")
 	case "ct.sessioncredentialfromconsole":
-		scc := jdata.GetBool("sessionCredentialFromConsole")
-		if scc {
-			res = "true"
-		} else {
-			res = "false"
+		fsval := jdata.Get("sessionCredentialFromConsole")
+		if fsval != nil {
+			res := "false"
+			scc, _ := fsval.Bool()
+			if scc {
+				res = "true"
+			}
+			return true, res, fsval.Offset(), fsval.Len()
 		}
 	case "ct.edgedevicedetails":
-		val := jdata.GetStringBytes("edgeDeviceDetails")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("edgeDeviceDetails")
 	case "ct.tlsdetails.tlsversion":
-		val := jdata.GetStringBytes("tlsDetails", "tlsVersion")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("tlsDetails", "tlsVersion")
 	case "ct.tlsdetails.ciphersuite":
-		val := jdata.GetStringBytes("tlsDetails", "cipherSuite")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("tlsDetails", "cipherSuite")
 	case "ct.tlsdetails.clientprovidedhostheader":
-		val := jdata.GetStringBytes("tlsDetails", "clientProvidedHostHeader")
-		if val == nil {
-			return false, ""
-		} else {
-			res = string(val)
-		}
+		fsval = jdata.Get("tlsDetails", "clientProvidedHostHeader")
 	case "ct.additionaleventdata":
-		val := jdata.Get("additionalEventData")
-		if val == nil {
-			return false, ""
-		}
-		res = string(val.MarshalTo(nil))
+		fsval = jdata.Get("additionalEventData")
 	case "s3.bucket":
-		val := jdata.GetStringBytes("requestParameters", "bucketName")
-
-		if val == nil {
-			return false, ""
-		}
-
-		res = string(val)
+		fsval = jdata.Get("requestParameters", "bucketName")
 	case "s3.key":
-		val := jdata.GetStringBytes("requestParameters", "key")
-
-		if val == nil {
-			return false, ""
-		}
-
-		res = string(val)
+		fsval = jdata.Get("requestParameters", "key")
 	case "s3.uri":
 		sbucket := jdata.GetStringBytes("requestParameters", "bucketName")
 		if sbucket == nil {
-			return false, ""
+			return false, "", 0, 0
 		}
 
 		skey := jdata.GetStringBytes("requestParameters", "key")
 		if skey == nil {
-			return false, ""
+			return false, "", 0, 0
 		}
 
-		res = fmt.Sprintf("s3://%s/%s", sbucket, skey)
+		res := fmt.Sprintf("s3://%s/%s", sbucket, skey)
+		return true, res, 0, 0
 	case "ec2.name":
 		var iname string = ""
 		jilist := jdata.GetArray("requestParameters", "tagSpecificationSet", "items")
 		if jilist == nil {
-			return false, ""
+			return false, "", 0, 0
 		}
 		for _, item := range jilist {
 			if string(item.GetStringBytes("resourceType")) != "instance" {
@@ -766,50 +470,38 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 		}
 
 		if iname == "" {
-			return false, ""
+			return false, "", 0, 0
 		}
-		res = iname
+		return true, iname, 0, 0
 	case "ec2.imageid":
 		var imageId = ""
 		jilist := jdata.GetArray("responseElements", "tagSpecificationSet", "items")
 		if jilist == nil || len(jilist) == 0 {
-			return false, ""
+			return false, "", 0, 0
 		}
 		item := jilist[0]
 		imageId = string(item.GetStringBytes("imageId"))
 		if imageId == "" {
-			return false, ""
+			return false, "", 0, 0
 		}
-		res = imageId
+		return true, imageId, 0, 0
 	case "ecr.repository":
-		val := jdata.GetStringBytes("requestParameters", "repositoryName")
-		if val == nil {
-			return false, ""
-		}
-		res = string(val)
+		fsval = jdata.Get("requestParameters", "repositoryName")
 	case "ecr.imagetag":
-		val := jdata.GetStringBytes("requestParameters", "imageTag")
-		if val == nil {
-			return false, ""
-		}
-		res = string(val)
+		fsval = jdata.Get("requestParameters", "imageTag")
 	case "iam.role":
-		val := jdata.GetStringBytes("requestParameters", "roleName")
-		if val == nil {
-			return false, ""
-		}
-		res = string(val)
+		fsval = jdata.Get("requestParameters", "roleName")
 	case "iam.policy":
-		val := jdata.GetStringBytes("requestParameters", "policyName")
-		if val == nil {
-			return false, ""
-		}
-		res = string(val)
+		fsval = jdata.Get("requestParameters", "policyName")
 	default:
-		return false, ""
+		return false, "", 0, 0
 	}
 
-	return true, res
+	if fsval == nil {
+		return false, "", 0, 0
+	}
+
+	return true, string(fsval.MarshalTo(nil)), fsval.Offset(), fsval.Len()
 }
 
 func getvalueU64(jvalue *fastjson.Value) uint64 {
@@ -825,7 +517,7 @@ func getvalueU64(jvalue *fastjson.Value) uint64 {
 	return 0
 }
 
-func getfieldU64(jdata *fastjson.Value, field string) (bool, uint64) {
+func getfieldU64(jdata *fastjson.Value, field string) (bool, uint64, int, int) {
 	// Go should do binary search here:
 	// https://github.com/golang/go/blob/8ee9bca2729ead81da6bf5a18b87767ff396d1b7/src/cmd/compile/internal/gc/swt.go#L375
 	switch field {
@@ -839,38 +531,38 @@ func getfieldU64(jdata *fastjson.Value, field string) (bool, uint64) {
 		if out != nil {
 			tot = tot + getvalueU64(out)
 		}
-		return (in != nil || out != nil), tot
+		return (in != nil || out != nil), tot, 0, 0
 	case "s3.bytes.in":
 		var tot uint64 = 0
 		in := jdata.Get("additionalEventData", "bytesTransferredIn")
 		if in != nil {
 			tot = tot + getvalueU64(in)
 		}
-		return in != nil, tot
+		return in != nil, tot, in.Offset(), in.Len()
 	case "s3.bytes.out":
 		var tot uint64 = 0
 		out := jdata.Get("additionalEventData", "bytesTransferredOut")
 		if out != nil {
 			tot = tot + getvalueU64(out)
 		}
-		return (out != nil), tot
+		return (out != nil), tot, out.Offset(), out.Len()
 	case "s3.cnt.get":
 		if string(jdata.GetStringBytes("eventName")) == "GetObject" {
-			return true, 1
+			return true, 1, 0, 0
 		}
-		return false, 0
+		return false, 0, 0, 0
 	case "s3.cnt.put":
 		if string(jdata.GetStringBytes("eventName")) == "PutObject" {
-			return true, 1
+			return true, 1, 0, 0
 		}
-		return false, 0
+		return false, 0, 0, 0
 	case "s3.cnt.other":
 		ename := string(jdata.GetStringBytes("eventName"))
 		if ename == "GetObject" || ename == "PutObject" {
-			return false, 0
+			return false, 0, 0, 0
 		}
-		return true, 1
+		return true, 1, 0, 0
 	default:
-		return false, 0
+		return false, 0, 0, 0
 	}
 }
