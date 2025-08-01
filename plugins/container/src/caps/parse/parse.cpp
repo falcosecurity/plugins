@@ -1,5 +1,8 @@
 #include "plugin.h"
 #include "container_info_json.h"
+#ifdef _HAS_ASYNC
+#include "caps/async/async.tpp"
+#endif
 
 //////////////////////////
 // Parse capability
@@ -192,7 +195,17 @@ bool my_plugin::parse_exit_process_event(
                 m_logger.log(fmt::format("Removing container from procexit: {}",
                                          container_id),
                              falcosecurity::_internal::SS_PLUGIN_LOG_SEV_TRACE);
-                m_containers.erase(container_id);
+#ifdef _HAS_ASYNC
+                auto it = m_containers.find(container_id);
+                if(it == m_containers.end())
+                {
+                    return true;
+                }
+                auto info = it->second;
+                nlohmann::json j(info);
+                generate_async_event<ASYNC_HANDLER_DEFAULT>(j.dump().c_str(),
+                                                            false, false);
+#endif
             }
         }
         return true;
