@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.3.1
+
+* [`b029bc3`](https://github.com/falcosecurity/plugins/commit/b029bc3) chore(plugins/k8smeta): drop experimental status.
+
+* [`6e458f9`](https://github.com/falcosecurity/plugins/commit/6e458f9) update(plugins/k8smeta): bump k8smeta to 0.3.0 final.
+
+
 ## v0.3.0-rc1
 
 
