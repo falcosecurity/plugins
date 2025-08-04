@@ -372,7 +372,9 @@ func (dc *dockerEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan 
 	if config.IsHookEnabled(config.HookStart) {
 		flts.Add("event", string(events.ActionStart))
 	}
-	flts.Add("event", string(events.ActionDestroy))
+	if config.IsHookEnabled(config.HookRemove) {
+		flts.Add("event", string(events.ActionDestroy))
+	}
 
 	msgs, _ := dc.Events(ctx, events.ListOptions{Filters: flts})
 	wg.Add(1)

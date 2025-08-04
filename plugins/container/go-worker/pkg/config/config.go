@@ -5,9 +5,11 @@ import (
 )
 
 const (
+	HookCreate = 1 << iota
+	HookStart
+	HookRemove
+
 	defaultLabelMaxLen = 100
-	HookCreate         = 1
-	HookStart          = 2
 )
 
 type SocketsEngine struct {
@@ -29,7 +31,10 @@ var c EngineCfg
 func init() {
 	c.LabelMaxLen = defaultLabelMaxLen
 	c.WithSize = false
-	c.Hooks = HookCreate
+	// We will always override it when called by C++ plugin.
+	// By default, for go-worker executable (make exe) and go-worker tests,
+	// we attach remove hook too.
+	c.Hooks = HookCreate | HookRemove
 }
 
 func Load(initCfg string) error {

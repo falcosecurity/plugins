@@ -82,6 +82,11 @@ bool my_plugin::parse_async_event(const falcosecurity::parse_event_input& in)
         m_logger.log(fmt::format("Adding container: {}", cinfo->m_id),
                      falcosecurity::_internal::SS_PLUGIN_LOG_SEV_TRACE);
         m_containers[cinfo->m_id] = cinfo;
+        // We cache the container here since "container" events can be parsed
+        // **before** we even attached a container_id to the thread (since no
+        // thread has be spawned in the container yet). This allows us to
+        // extract container metadata for the being-added container, in the
+        // "container" added event.
         m_last_container = cinfo;
         m_asked_containers.erase(cinfo->m_id);
     }
@@ -89,6 +94,9 @@ bool my_plugin::parse_async_event(const falcosecurity::parse_event_input& in)
     {
         m_logger.log(fmt::format("Removing container: {}", cinfo->m_id),
                      falcosecurity::_internal::SS_PLUGIN_LOG_SEV_TRACE);
+        //  We cache the container here to allow "container_removed"
+        // event to extract metadata for the being-removed container.
+        m_last_container = cinfo;
         m_containers.erase(cinfo->m_id);
     }
 
