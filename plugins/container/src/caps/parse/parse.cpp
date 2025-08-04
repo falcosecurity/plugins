@@ -204,15 +204,25 @@ bool my_plugin::parse_exit_process_event(
                                          container_id),
                              falcosecurity::_internal::SS_PLUGIN_LOG_SEV_TRACE);
 #ifdef _HAS_ASYNC
-                auto it = m_containers.find(container_id);
-                if(it == m_containers.end())
+                // This parser can be triggered from a scap file read too,
+                // where we don't have any async ctx available.
+                // In that case, do nothing since the `container_removed` event
+                // should already be present in the scap file itself.
+                // In case of older scap files, without `container_removed`
+                // events, we would just keep the container in the cache. Not a
+                // big problem since scap file reading is a short operation.
+                if(m_async_ctx != nullptr)
                 {
-                    return true;
+                    auto it = m_containers.find(container_id);
+                    if(it == m_containers.end())
+                    {
+                        return true;
+                    }
+                    auto info = it->second;
+                    nlohmann::json j(info);
+                    generate_async_event<ASYNC_HANDLER_DEFAULT>(
+                            j.dump().c_str(), false, false);
                 }
-                auto info = it->second;
-                nlohmann::json j(info);
-                generate_async_event<ASYNC_HANDLER_DEFAULT>(j.dump().c_str(),
-                                                            false, false);
 #endif
             }
         }
