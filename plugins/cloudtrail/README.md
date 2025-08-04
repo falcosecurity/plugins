@@ -87,6 +87,8 @@ Here is the current set of supported fields:
 | `ec2.imageid`                            | `string` | None | the ID for the image used to run the ec2 instance in the response.                                                                                       |
 | `ecr.repository`                         | `string` | None | the name of the ecr Repository specified in the request.                                                                                                 |
 | `ecr.imagetag`                           | `string` | None | the tag of the image specified in the request.                                                                                                           |
+| `iam.role`                               | `string` | None | the IAM role specified in the request.                                                                                                                   |
+| `iam.policy`                             | `string` | None | the IAM policy specified in the request.                                                                                                                 |
 <!-- /README-PLUGIN-FIELDS -->
 
 ## Handling AWS Authentication
