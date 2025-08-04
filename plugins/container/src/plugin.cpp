@@ -344,13 +344,18 @@ void my_plugin::on_new_process(const falcosecurity::table_entry& thread_entry,
     if(info != nullptr)
     {
 #ifdef _HAS_ASYNC
-        // Since the matcher also returned a container_info,
-        // it means we do not expect to receive any metadata from the go-worker,
-        // since the engine has no listener SDK.
-        // Just send the event now.
-        nlohmann::json j(info);
-        generate_async_event<ASYNC_HANDLER_DEFAULT>(j.dump().c_str(), true,
-                                                    false);
+        if(m_async_ctx != nullptr)
+        {
+            // Since the matcher also returned a container_info,
+            // it means we do not expect to receive any metadata from the
+            // go-worker, since the engine has no listener SDK. Just send the
+            // event now. Only in live mode where the async_ctx is actually set
+            // up. No need to send any even when reading from a scap file since
+            // the `container` event is already encoded in it.
+            nlohmann::json j(info);
+            generate_async_event<ASYNC_HANDLER_DEFAULT>(j.dump().c_str(), true,
+                                                        false);
+        }
 #endif
         // Immediately cache the container metadata
         m_containers[info->m_id] = info;
