@@ -167,44 +167,44 @@ void to_json(nlohmann::json& j,
              const std::shared_ptr<const container_info>& cinfo)
 {
     auto& container = j["container"];
-    j["type"] = cinfo->m_type;
-    j["id"] = cinfo->m_id;
-    j["name"] = cinfo->m_name;
-    j["image"] = cinfo->m_image;
-    j["imagedigest"] = cinfo->m_imagedigest;
-    j["imageid"] = cinfo->m_imageid;
-    j["imagerepo"] = cinfo->m_imagerepo;
-    j["imagetag"] = cinfo->m_imagetag;
-    j["User"] = cinfo->m_container_user;
-    j["cni_json"] = cinfo->m_pod_sandbox_cniresult;
-    j["cpu_period"] = cinfo->m_cpu_period;
-    j["cpu_quota"] = cinfo->m_cpu_quota;
-    j["cpu_shares"] = cinfo->m_cpu_shares;
-    j["cpuset_cpu_count"] = cinfo->m_cpuset_cpu_count;
-    j["created_time"] = cinfo->m_created_time;
-    j["size"] = cinfo->m_size_rw_bytes;
+    container["type"] = cinfo->m_type;
+    container["id"] = cinfo->m_id;
+    container["name"] = cinfo->m_name;
+    container["image"] = cinfo->m_image;
+    container["imagedigest"] = cinfo->m_imagedigest;
+    container["imageid"] = cinfo->m_imageid;
+    container["imagerepo"] = cinfo->m_imagerepo;
+    container["imagetag"] = cinfo->m_imagetag;
+    container["User"] = cinfo->m_container_user;
+    container["cni_json"] = cinfo->m_pod_sandbox_cniresult;
+    container["cpu_period"] = cinfo->m_cpu_period;
+    container["cpu_quota"] = cinfo->m_cpu_quota;
+    container["cpu_shares"] = cinfo->m_cpu_shares;
+    container["cpuset_cpu_count"] = cinfo->m_cpuset_cpu_count;
+    container["created_time"] = cinfo->m_created_time;
+    container["size"] = cinfo->m_size_rw_bytes;
     // TODO: only append a limited set of env?
     // https://github.com/falcosecurity/libs/blob/master/userspace/libsinsp/container.cpp#L232
-    j["env"] = cinfo->m_env;
-    j["full_id"] = cinfo->m_full_id;
-    j["host_ipc"] = cinfo->m_host_ipc;
-    j["host_network"] = cinfo->m_host_network;
-    j["host_pid"] = cinfo->m_host_pid;
-    j["ip"] = cinfo->m_container_ip;
-    j["is_pod_sandbox"] = cinfo->m_is_pod_sandbox;
-    j["labels"] = cinfo->m_labels;
-    j["memory_limit"] = cinfo->m_memory_limit;
-    j["swap_limit"] = cinfo->m_swap_limit;
-    j["pod_sandbox_id"] = cinfo->m_pod_sandbox_id;
-    j["privileged"] = cinfo->m_privileged;
-    j["pod_sandbox_labels"] = cinfo->m_pod_sandbox_labels;
-    j["port_mappings"] = cinfo->m_port_mappings;
-    j["Mounts"] = cinfo->m_mounts;
+    container["env"] = cinfo->m_env;
+    container["full_id"] = cinfo->m_full_id;
+    container["host_ipc"] = cinfo->m_host_ipc;
+    container["host_network"] = cinfo->m_host_network;
+    container["host_pid"] = cinfo->m_host_pid;
+    container["ip"] = cinfo->m_container_ip;
+    container["is_pod_sandbox"] = cinfo->m_is_pod_sandbox;
+    container["labels"] = cinfo->m_labels;
+    container["memory_limit"] = cinfo->m_memory_limit;
+    container["swap_limit"] = cinfo->m_swap_limit;
+    container["pod_sandbox_id"] = cinfo->m_pod_sandbox_id;
+    container["privileged"] = cinfo->m_privileged;
+    container["pod_sandbox_labels"] = cinfo->m_pod_sandbox_labels;
+    container["port_mappings"] = cinfo->m_port_mappings;
+    container["Mounts"] = cinfo->m_mounts;
 
     for(auto& probe : cinfo->m_health_probes)
     {
         const auto probe_type =
                 container_health_probe::probe_type_names[probe.m_type];
-        j[probe_type] = probe;
+        container[probe_type] = probe;
     }
 }
