@@ -267,7 +267,9 @@ func (pc *podmanEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan 
 	if config.IsHookEnabled(config.HookStart) {
 		filters["event"] = append(filters["event"], string(events.ActionStart))
 	}
-	filters["event"] = append(filters["event"], string(events.ActionRemove))
+	if config.IsHookEnabled(config.HookRemove) {
+		filters["event"] = append(filters["event"], string(events.ActionRemove))
+	}
 
 	evChn := make(chan types.Event)
 	cancelChan := make(chan bool)

@@ -503,7 +503,10 @@ func (c *criEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan even
 						continue
 					}
 				case v1.ContainerEventType_CONTAINER_DELETED_EVENT:
-					// Always enabled
+					if !config.IsHookEnabled(config.HookRemove) {
+						// Skip
+						continue
+					}
 				}
 
 				var info event.Info

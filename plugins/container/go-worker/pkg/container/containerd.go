@@ -289,7 +289,9 @@ func (c *containerdEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-ch
 	if config.IsHookEnabled(config.HookStart) {
 		topics = append(topics, `topic=="/tasks/start"`)
 	}
-	topics = append(topics, `topic=="/containers/delete"`)
+	if config.IsHookEnabled(config.HookRemove) {
+		topics = append(topics, `topic=="/containers/delete"`)
+	}
 
 	eventsCh, _ := eventsClient.Subscribe(ctx, topics...)
 	wg.Add(1)
