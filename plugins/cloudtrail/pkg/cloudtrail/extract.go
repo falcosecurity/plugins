@@ -97,6 +97,8 @@ var supportedFields = []sdk.FieldEntry{
 	{Type: "string", Name: "ec2.imageid", Display: "Image Id", Desc: "the ID for the image used to run the ec2 instance in the response."},
 	{Type: "string", Name: "ecr.repository", Display: "ECR Repository name", Desc: "the name of the ecr Repository specified in the request."},
 	{Type: "string", Name: "ecr.imagetag", Display: "Image Tag", Desc: "the tag of the image specified in the request."},
+	{Type: "string", Name: "iam.role", Display: "IAM Role", Desc: "the IAM role specified in the request."},
+	{Type: "string", Name: "iam.policy", Display: "IAM Policy", Desc: "the IAM policy specified in the request."},
 }
 
 func getUser(jdata *fastjson.Value) (bool, string) {
@@ -720,6 +722,18 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 		res = string(val)
 	case "ecr.imagetag":
 		val := jdata.GetStringBytes("requestParameters", "imageTag")
+		if val == nil {
+			return false, ""
+		}
+		res = string(val)
+	case "iam.role":
+		val := jdata.GetStringBytes("requestParameters", "roleName")
+		if val == nil {
+			return false, ""
+		}
+		res = string(val)
+	case "iam.policy":
+		val := jdata.GetStringBytes("requestParameters", "policyName")
 		if val == nil {
 			return false, ""
 		}
