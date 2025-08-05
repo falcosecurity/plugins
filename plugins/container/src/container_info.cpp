@@ -21,20 +21,6 @@ limitations under the License.
 #include <reflex/matcher.h>
 #include "container_info.h"
 
-std::vector<std::string> container_health_probe::probe_type_names = {
-        "None", "Healthcheck", "LivenessProbe", "ReadinessProbe"};
-
-container_health_probe::container_health_probe(): m_type(PT_NONE) {}
-
-container_health_probe::container_health_probe(
-        const probe_type ptype, const std::string &&exe,
-        const std::vector<std::string> &&args):
-        m_type(ptype), m_exe(exe), m_args(args)
-{
-}
-
-container_health_probe::~container_health_probe() {}
-
 const container_mount_info *container_info::mount_by_idx(uint32_t idx) const
 {
     if(idx >= m_mounts.size())
