@@ -22,6 +22,7 @@ import (
 	"io"
 
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
+	"github.com/valyala/fastjson"
 )
 
 func (p *Plugin) Fields() []sdk.FieldEntry {
@@ -68,134 +69,86 @@ func (p *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 		p.lastEventNum = evt.EventNum()
 	}
 
+	var fsval *fastjson.Value
+
 	switch req.Field() {
 	case "gcp.user":
-		principalEmail := string(p.jdata.Get("protoPayload").Get("authenticationInfo").Get("principalEmail").GetStringBytes())
-		req.SetValue(principalEmail)
+		fsval = p.jdata.Get("protoPayload", "authenticationInfo", "principalEmail")
 
 	case "gcp.callerIP":
-		principalIP := string(p.jdata.Get("protoPayload").Get("requestMetadata").Get("callerIp").GetStringBytes())
-		req.SetValue(principalIP)
+		fsval = p.jdata.Get("protoPayload", "requestMetadata", "callerIp")
 
 	case "gcp.userAgent":
-		principalUserAgent := p.jdata.Get("protoPayload").Get("requestMetadata").GetStringBytes("callerSuppliedUserAgent")
-		if principalUserAgent != nil {
-			req.SetValue(string(principalUserAgent))
-		}
+		fsval = p.jdata.Get("protoPayload", "requestMetadata", "callerSuppliedUserAgent")
 
 	case "gcp.authorizationInfo":
-		principalAuthorizationInfo := p.jdata.Get("protoPayload").GetStringBytes("authorizationInfo")
-		if principalAuthorizationInfo != nil {
-			req.SetValue(string(principalAuthorizationInfo))
-		}
+		fsval = p.jdata.Get("protoPayload", "authorizationInfo")
 
 	case "gcp.serviceName":
-		serviceName := p.jdata.Get("protoPayload").Get("serviceName")
-		if serviceName.Exists() {
-			req.SetValue(string(serviceName.GetStringBytes()))
-		}
+		fsval = p.jdata.Get("protoPayload", "serviceName")
 
 	case "gcp.request":
-		request := p.jdata.Get("protoPayload").GetStringBytes("request")
-		if request != nil {
-			req.SetValue(string(request))
-		}
+		fsval = p.jdata.Get("protoPayload", "request")
 
 	case "gcp.policyDelta":
 		resource := string(p.jdata.Get("resource").Get("type").GetStringBytes())
 
 		if resource == "gcs_bucket" {
-			bindingDeltas := p.jdata.Get("protoPayload").Get("serviceData").Get("policyDelta").GetStringBytes("bindingDeltas")
-			if bindingDeltas != nil {
-				req.SetValue(string(bindingDeltas))
-			}
+			fsval = p.jdata.Get("protoPayload", "serviceData", "policyDelta", "bindingDeltas")
 		} else {
-			bindingDeltas := p.jdata.Get("protoPayload").Get("metadata").Get("datasetChange").GetStringBytes("bindingDeltas")
-			if bindingDeltas != nil {
-				req.SetValue(string(bindingDeltas))
-			}
+			fsval = p.jdata.Get("protoPayload", "metadata", "datasetChange", "bindingDeltas")
 		}
 
 	case "gcp.methodName":
-		methodName := string(p.jdata.Get("protoPayload").Get("methodName").GetStringBytes())
-		req.SetValue(methodName)
+		fsval = p.jdata.Get("protoPayload", "methodName")
 
 	case "gcp.cloudfunctions.function":
-		functionName := p.jdata.Get("resource").Get("labels").GetStringBytes("function_name")
-		if functionName != nil {
-			req.SetValue(string(functionName))
-		}
+		fsval = p.jdata.Get("resource", "labels", "function_name")
 
 	case "gcp.cloudsql.databaseId":
-		databaseId := p.jdata.Get("resource").Get("labels").GetStringBytes("database_id")
-		if databaseId != nil {
-			req.SetValue(string(databaseId))
-		}
+		fsval = p.jdata.Get("resource", "labels", "database_id")
 
 	case "gcp.compute.instanceId":
-		instanceId := p.jdata.Get("resource").Get("labels").GetStringBytes("instance_id")
-		if instanceId != nil {
-			req.SetValue(string(instanceId))
-		}
+		fsval = p.jdata.Get("resource", "labels", "instance_id")
 
 	case "gcp.compute.networkId":
-		networkId := p.jdata.Get("resource").Get("labels").GetStringBytes("network_id")
-		if networkId != nil {
-			req.SetValue(string(networkId))
-		}
+		fsval = p.jdata.Get("resource", "labels", "network_id")
 
 	case "gcp.compute.subnetwork":
-		subnetwork := p.jdata.Get("resource").Get("labels").GetStringBytes("subnetwork_name")
-		if subnetwork != nil {
-			req.SetValue(string(subnetwork))
-		}
+		fsval = p.jdata.Get("resource", "labels", "subnetwork_name")
 
 	case "gcp.compute.subnetworkId":
-		subnetworkId := p.jdata.Get("resource").Get("labels").GetStringBytes("subnetwork_id")
-		if subnetworkId != nil {
-			req.SetValue(string(subnetworkId))
-		}
+		fsval = p.jdata.Get("resource", "labels", "subnetwork_id")
 
 	case "gcp.dns.zone":
-		zone := p.jdata.Get("resource").Get("labels").GetStringBytes("zone_name")
-		if zone != nil {
-			req.SetValue(string(zone))
-		}
+		fsval = p.jdata.Get("resource", "labels", "zone_name")
 
 	case "gcp.iam.serviceAccount":
-		serviceAccount := p.jdata.Get("resource").Get("labels").GetStringBytes("email_id")
-		if serviceAccount != nil {
-			req.SetValue(string(serviceAccount))
-		}
+		fsval = p.jdata.Get("resource", "labels", "email_id")
 
 	case "gcp.iam.serviceAccountId":
-		serviceAccountId := p.jdata.Get("resource").Get("labels").GetStringBytes("unique_id")
-		if serviceAccountId != nil {
-			req.SetValue(string(serviceAccountId))
-		}
+		fsval = p.jdata.Get("resource", "labels", "unique_id")
 
 	case "gcp.location":
-		location := p.jdata.Get("resource").Get("labels").GetStringBytes("location")
-		if location != nil {
-			req.SetValue(string(location))
-			return nil
-		}
-		// if location is not present, check for region
-		region := p.jdata.Get("resource").Get("labels").GetStringBytes("region")
-		if region != nil {
-			req.SetValue(string(region))
-			return nil
-		}
-		// if region is not present, check for zone
-		val := p.jdata.Get("resource").Get("labels").Get("zone").GetStringBytes()
-		if val != nil {
-			zone := string(val)
-			if len(zone) > 2 {
-				// if in format: "us-central1-a", remove last two chars
-				formattedZone := zone[:len(zone)-2]
-				req.SetValue(formattedZone)
-			} else if zone != "" {
-				req.SetValue(zone)
+		fsval = p.jdata.Get("resource", "labels", "location")
+		if fsval == nil {
+			// if location is not present, check for region
+			fsval = p.jdata.Get("resource", "labels", "region")
+			if fsval == nil {
+				// if region is not present, check for zone
+				val := p.jdata.Get("resource").Get("labels").Get("zone").GetStringBytes()
+				if val != nil {
+					zone := string(val)
+					if len(zone) > 2 {
+						// if in format: "us-central1-a", remove last two chars
+						formattedZone := zone[:len(zone)-2]
+						req.SetValue(formattedZone)
+						return nil
+					} else if zone != "" {
+						req.SetValue(zone)
+						return nil
+					}
+				}
 			}
 		}
 
@@ -203,49 +156,47 @@ func (p *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 		resource := string(p.jdata.Get("resource").Get("type").GetStringBytes())
 
 		if resource == "logging_sink" {
-			loggingSink := p.jdata.Get("resource").Get("labels").Get("name")
-			if loggingSink.Exists() {
-				req.SetValue(loggingSink)
-			}
+			fsval = p.jdata.Get("resource", "labels", "name")
 		}
 
 	case "gcp.projectId":
-		projectId := p.jdata.Get("resource").Get("labels").GetStringBytes("project_id")
-		if projectId != nil {
-			req.SetValue(string(projectId))
-		}
+		fsval = p.jdata.Get("resource", "labels", "project_id")
 
 	case "gcp.resourceName":
-		resourceName := p.jdata.Get("protoPayload").GetStringBytes("resourceName")
-		if resourceName != nil {
-			req.SetValue(string(resourceName))
-		}
+		fsval = p.jdata.Get("protoPayload", "resourceName")
 
 	case "gcp.resourceType":
-		resourceType := p.jdata.Get("resource").GetStringBytes("type")
-		if resourceType != nil {
-			req.SetValue(string(resourceType))
-		}
+		fsval = p.jdata.Get("resource", "type")
 
 	case "gcp.resourceLabels":
-		resourceLabels := p.jdata.Get("resource").Get("labels").MarshalTo(nil)
-		if resourceLabels != nil && len(resourceLabels) > 0 {
-			req.SetValue(string(resourceLabels))
+		fsval = p.jdata.Get("resource", "labels")
+		if fsval != nil {
+			resourceLabels := fsval.MarshalTo(nil)
+			if len(resourceLabels) > 0 {
+				req.SetValue(string(resourceLabels))
+				if req.WantOffset() {
+					req.SetValueOffset(sdk.PluginEventPayloadOffset + uint32(fsval.Offset()), uint32(fsval.Len()))
+				}
+			}
 		}
-
+		return nil
 	case "gcp.storage.bucket":
-		bucket := p.jdata.Get("resource").Get("labels").GetStringBytes("bucket_name")
-		if bucket != nil {
-			req.SetValue(string(bucket))
-		}
+		fsval = p.jdata.Get("resource", "labels", "bucket_name")
 
 	case "gcp.time":
-		timestamp := p.jdata.GetStringBytes("timestamp")
-		if timestamp != nil {
-			req.SetValue(string(timestamp))
-		}
+		fsval = p.jdata.Get("timestamp")
 	default:
 		return fmt.Errorf("unknown field: %s", req.Field())
+	}
+
+	if fsval == nil {
+		// return fmt.Errorf("unable to extract field: %s", req.Field())
+		return nil
+	}
+
+	req.SetValue(string(fsval.GetStringBytes()))
+	if req.WantOffset() {
+		req.SetValueOffset(sdk.PluginEventPayloadOffset + uint32(fsval.Offset()), uint32(fsval.Len()))
 	}
 
 	return nil
