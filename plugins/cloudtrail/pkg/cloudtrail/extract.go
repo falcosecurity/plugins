@@ -131,7 +131,7 @@ func getUser(jdata *fastjson.Value) (bool, string, int, int) {
 	}
 
 	if jun != nil {
-		return true, string(jun.MarshalTo(nil)), jun.Offset(), jun.Len()
+		return true, string(jun.GetStringBytes()), jun.Offset(), jun.Len()
 	}
 
 	return false, "<NA>", 0, 0
@@ -248,13 +248,13 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string, int, int) {
 	case "ct.shortsrc":
 		fsval = jdata.Get("eventSource")
 		if fsval != nil {
-			res := string(fsval.MarshalTo(nil))
+			res := string(fsval.GetStringBytes())
 			if len(res) > len(".amazonaws.com") {
 				srctrailer := res[len(res)-len(".amazonaws.com"):]
 				if srctrailer == ".amazonaws.com" {
 					res = res[0 : len(res)-len(".amazonaws.com")]
+					return true, res, fsval.Offset(), fsval.Len()
 				}
-				return true, res, fsval.Offset(), fsval.Len()
 			}
 		}
 	case "ct.name":
@@ -283,7 +283,11 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string, int, int) {
 	case "ct.response.reservationid":
 		fsval = jdata.Get("responseElements", "reservationId")
 	case "ct.response":
-		fsval = jdata.Get("responseElements")
+		val := jdata.Get("responseElements")
+		if val == nil {
+			return false, "", 0, 0
+		}
+		return true, string(val.MarshalTo(nil)), val.Offset(), val.Len()
 	case "ct.request.availabilityzone":
 		fsval = jdata.Get("requestParameters", "availabilityZone")
 	case "ct.request.cluster":
@@ -309,7 +313,11 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string, int, int) {
 	case "ct.request.username":
 		fsval = jdata.Get("requestParameters", "userName")
 	case "ct.request":
-		fsval = jdata.Get("requestParameters")
+		val := jdata.Get("requestParameters")
+		if val == nil {
+			return false, "", 0, 0
+		}
+		return true, string(val.MarshalTo(nil)), val.Offset(), val.Len()
 	case "ct.srcip":
 		fsval = jdata.Get("sourceIPAddress")
 	case "ct.useragent":
@@ -431,7 +439,11 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string, int, int) {
 	case "ct.tlsdetails.clientprovidedhostheader":
 		fsval = jdata.Get("tlsDetails", "clientProvidedHostHeader")
 	case "ct.additionaleventdata":
-		fsval = jdata.Get("additionalEventData")
+		val := jdata.Get("additionalEventData")
+		if val == nil {
+			return false, "", 0, 0
+		}
+		return true, string(val.MarshalTo(nil)), val.Offset(), val.Len()
 	case "s3.bucket":
 		fsval = jdata.Get("requestParameters", "bucketName")
 	case "s3.key":
@@ -501,7 +513,7 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string, int, int) {
 		return false, "", 0, 0
 	}
 
-	return true, string(fsval.MarshalTo(nil)), fsval.Offset(), fsval.Len()
+	return true, string(fsval.GetStringBytes()), fsval.Offset(), fsval.Len()
 }
 
 func getvalueU64(jvalue *fastjson.Value) uint64 {
