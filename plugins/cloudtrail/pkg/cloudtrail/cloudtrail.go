@@ -192,7 +192,7 @@ func (p *Plugin) String(evt sdk.EventReader) (string, error) {
 		}
 	}
 
-	present, user := getUser(p.jdata)
+	present, user, _, _ := getUser(p.jdata)
 	if present && user != "" {
 		user = " " + user
 	}
@@ -238,13 +238,18 @@ func (p *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 	// Extract the field value
 	var present bool
 	var value interface{}
+	var offset int
+	var length int
 	if req.FieldType() == sdk.FieldTypeUint64 {
-		present, value = getfieldU64(p.jdata, req.Field())
+		present, value, offset, length = getfieldU64(p.jdata, req.Field())
 	} else {
-		present, value = getfieldStr(p.jdata, req.Field())
+		present, value, offset, length = getfieldStr(p.jdata, req.Field())
 	}
 	if present {
 		req.SetValue(value)
+		if req.WantOffset() {
+			req.SetValueOffset(sdk.PluginEventPayloadOffset + uint32(offset), uint32(length))
+		}
 	}
 
 	return nil
