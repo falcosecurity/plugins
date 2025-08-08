@@ -2,15 +2,16 @@ package container
 
 import (
 	"context"
+	"io"
+	"runtime"
+	"sync"
+	"testing"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
 	"github.com/stretchr/testify/assert"
-	"io"
-	"runtime"
-	"sync"
-	"testing"
 )
 
 func testDocker(t *testing.T, withFetcher bool) {
@@ -23,7 +24,7 @@ func testDocker(t *testing.T, withFetcher bool) {
 	engine, err := newDockerEngine(context.Background(), client.DefaultDockerHost)
 	assert.NoError(t, err)
 
-	if _, _, err = dockerClient.ImageInspectWithRaw(context.Background(), "alpine:3.20.3"); client.IsErrNotFound(err) {
+	if _, err = dockerClient.ImageInspect(context.Background(), "alpine:3.20.3"); client.IsErrNotFound(err) {
 		pullRes, err := dockerClient.ImagePull(context.Background(), "alpine:3.20.3", image.PullOptions{})
 		assert.NoError(t, err)
 

@@ -207,6 +207,9 @@ func testCRIFake(t *testing.T, withFetcher bool) {
 	fakeRuntime := fake.NewFakeRemoteRuntime()
 	err = fakeRuntime.Start(endpoint)
 	assert.NoError(t, err)
+	t.Cleanup(func() {
+		fakeRuntime.Stop()
+	})
 
 	engine, err := newCriEngine(context.Background(), endpoint)
 	assert.NoError(t, err)
