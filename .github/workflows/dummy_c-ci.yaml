@@ -31,7 +31,7 @@ jobs:
             sudo apt install -y --no-install-recommends build-essential
 
         - name: Initialize CodeQL
-          uses: github/codeql-action/init@4e828ff8d448a8a6e532957b1811f387a63867e8 # v3.29.4
+          uses: github/codeql-action/init@76621b61decf072c1cee8dd1ce2d2a82d33c17ed # v3.29.8
           with:
             languages: cpp
 
@@ -41,7 +41,7 @@ jobs:
             make libdummy_c.so
 
         - name: Perform CodeQL Analysis
-          uses: github/codeql-action/analyze@4e828ff8d448a8a6e532957b1811f387a63867e8 # v3.29.4
+          uses: github/codeql-action/analyze@76621b61decf072c1cee8dd1ce2d2a82d33c17ed # v3.29.8
 
     formatting-check:
       runs-on: ubuntu-22.04
