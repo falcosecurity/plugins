@@ -33,9 +33,9 @@ zerocopy-derive = { version = "0.8.25", default-features = false }
 # See https://github.com/clap-rs/clap/blob/61f5ee5/clap_builder/src/lib.rs#L15.
 clap = { version = "4.5.20", default-features = false, features = ["std"] }
 env_logger = { version = "0.11.8", default-features = false }
-libc = { version = "0.2.174", default-features = false }
+libc = { version = "0.2.175", default-features = false }
 log = { version = "0.4.27", default-features = false }
-tokio = { version = "1.47.0", default-features = false }
+tokio = { version = "1.47.1", default-features = false }
 which = { version = "6.0.0", default-features = false }
 
 [profile.release.package.krsi-ebpf]
