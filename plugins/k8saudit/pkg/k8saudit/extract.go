@@ -753,6 +753,9 @@ func (e *Plugin) extractFromKeys(req sdk.ExtractRequest, jsonValue *fastjson.Val
 			return ErrExtractUnsupportedType
 		}
 	}
+	if req.WantOffset() {
+		req.SetValueOffset(sdk.PluginEventPayloadOffset + uint32(jsonValue.Offset()), uint32(jsonValue.Len()))
+	}
 	return nil
 }
 
