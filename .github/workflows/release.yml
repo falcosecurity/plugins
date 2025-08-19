@@ -4,7 +4,7 @@ on:
   push:
     tags:
       # All tags
-      - '**'
+      - "**"
 
 # Checks if any concurrent jobs is running for release CI and eventually cancel it.
 concurrency:
@@ -50,7 +50,7 @@ jobs:
     with:
       plugin: ${{ needs.extract-info.outputs.package }}
       falcoctl-version: 0.11.0
-      falco-image: falcosecurity/falco:0.40.0
+      falco-image: falcosecurity/falco:0.41.3
       plugins-artifact: plugins-x86_64-stable.tar.gz
       rules-checker: ./rules-checker
       arch: x86_64
@@ -63,7 +63,7 @@ jobs:
     secrets: inherit
 
   publish-oci-artifacts:
-    needs: [ build-plugins, validate-plugins ]
+    needs: [build-plugins, validate-plugins]
     uses: ./.github/workflows/reusable-publish-oci-artifacts.yaml
     with:
       suffix: stable
