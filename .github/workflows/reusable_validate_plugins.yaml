@@ -47,12 +47,12 @@ jobs:
         run: ./.github/setup-plugin-config-rules.sh ${{ inputs.plugin }}
 
       - name: Download rules tool
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
         with:
           name: rules-tool.tar.gz
 
       - name: Download plugins
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
         with:
           name: ${{ inputs.plugins-artifact }}
           path: /tmp/plugins-${{ inputs.arch }}
@@ -129,13 +129,13 @@ jobs:
         run: ./.github/setup-plugin-config-rules.sh ${{ inputs.plugin }}
 
       - name: Download plugins
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
         with:
           name: ${{ inputs.plugins-artifact }}
           path: /tmp/plugins-${{ inputs.arch }}
 
       - name: Download rules tool
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
         with:
           name: rules-tool.tar.gz
 
