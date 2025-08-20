@@ -50,6 +50,17 @@ endif()
 target_compile_options(container PUBLIC "$<$<CONFIG:DEBUG>:-DDEBUG>")
 target_compile_features(container PUBLIC cxx_std_20)
 
+# Global static linking for legacy compatibility (i.e. RHEL8)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libgcc -static-libstdc++")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+    
+    message(STATUS "Static linking enabled for Linux platform")
+else()
+    message(STATUS "Static linking not applied (not on Linux platform)")
+endif()
+
 # project includes
 target_include_directories(container PRIVATE ${CMAKE_BINARY_DIR}/src/ src/ ${PLUGIN_SDK_INCLUDE} ${PLUGIN_SDK_DEPS_INCLUDE} ${WORKER_INCLUDE})
 
