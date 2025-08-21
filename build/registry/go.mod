@@ -4,6 +4,10 @@ go 1.24.3
 
 toolchain go1.24.6
 
+// Force klauspost/compress to use safe operations instead of unsafe little endian loaders
+// This works around segfaults in Docker v28.x + klauspost/compress v1.18.0 combination
+replace github.com/klauspost/compress => github.com/klauspost/compress v1.17.11
+
 require (
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/falcosecurity/falcoctl v0.11.3
