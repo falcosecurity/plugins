@@ -6,7 +6,7 @@ toolchain go1.24.6
 
 require (
 	github.com/blang/semver v3.5.1+incompatible
-	github.com/falcosecurity/falcoctl v0.11.2
+	github.com/falcosecurity/falcoctl v0.11.3
 	github.com/falcosecurity/plugin-sdk-go v0.8.1
 	github.com/onsi/ginkgo/v2 v2.24.0
 	github.com/onsi/gomega v1.38.0
@@ -38,8 +38,8 @@ require (
 	github.com/creasty/defaults v1.7.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/distribution/reference v0.6.0 // indirect
-	github.com/docker/cli v28.0.2+incompatible // indirect
-	github.com/docker/docker v28.3.0+incompatible // indirect
+	github.com/docker/cli v28.3.2+incompatible // indirect
+	github.com/docker/docker v28.3.3+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.8.2 // indirect
 	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
