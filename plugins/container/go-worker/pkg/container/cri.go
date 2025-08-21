@@ -4,15 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/config"
 	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
 	internalapi "k8s.io/cri-api/pkg/apis"
 	v1 "k8s.io/cri-api/pkg/apis/runtime/v1"
 	remote "k8s.io/cri-client/pkg"
-	"strconv"
-	"strings"
-	"sync"
-	"time"
 )
 
 const maxCNILen = 4096
@@ -449,7 +450,7 @@ func (c *criEngine) List(ctx context.Context) ([]event.Event, error) {
 // an error will be captured and passed to the caller.
 func (c *criEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan event.Event, error) {
 	containerEventsCh := make(chan *v1.ContainerEventResponse)
-	containerEventsErrorCh := make(chan error)
+	containerEventsErrorCh := make(chan error, 1) // Buffered to prevent blocking
 	wg.Add(1)
 	go func() {
 		defer close(containerEventsCh)
