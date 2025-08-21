@@ -167,7 +167,7 @@ func handleArtifact(ctx context.Context, cfg *config, plugin *registry.Plugin, o
 	// Filter out plugins that are not owned by falcosecurity.
 	if !strings.HasPrefix(plugin.URL, PluginsRepo) {
 		sepString := strings.Repeat("#", 15)
-		klog.Info("%s %s %s", sepString, plugin.Name, sepString)
+		klog.Infof("%s %s %s", sepString, plugin.Name, sepString)
 		klog.Infof("skipping plugin %q with authors %q: it is not maintained by %q",
 			plugin.Name, plugin.Authors, FalcoAuthors)
 		return nil, nil, nil
@@ -280,10 +280,10 @@ func handlePlugin(ctx context.Context, cfg *config, plugin *registry.Plugin, oci
 	}
 	if res != nil {
 		metadata = append(metadata, registry.ArtifactPushMetadata{
-			registry.RepositoryMetadata{
+			Repository: registry.RepositoryMetadata{
 				Ref: ref,
 			},
-			registry.ArtifactMetadata{
+			Artifact: registry.ArtifactMetadata{
 				Digest: res.RootDigest,
 				Tags:   tags,
 			},
