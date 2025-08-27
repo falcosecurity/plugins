@@ -5,6 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
@@ -12,9 +16,6 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/config"
 	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
-	"strings"
-	"sync"
-	"time"
 )
 
 const k8sLastAppliedConfigLabel = "io.kubernetes.container.last-applied-config"
@@ -352,10 +353,11 @@ func (dc *dockerEngine) List(ctx context.Context) ([]event.Event, error) {
 				},
 				IsCreate: true,
 			}
-		}
-		evts[idx] = event.Event{
-			Info:     dc.ctrToInfo(ctx, ctrJson),
-			IsCreate: true,
+		} else {
+			evts[idx] = event.Event{
+				Info:     dc.ctrToInfo(ctx, ctrJson),
+				IsCreate: true,
+			}
 		}
 	}
 	return evts, nil
