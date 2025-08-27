@@ -344,7 +344,7 @@ func (c *criEngine) ctrToInfo(ctx context.Context, ctr *v1.ContainerStatus, podS
 		imageID = ctr.GetImageId()
 	}
 
-	return event.Info{
+	evtInfo := event.Info{
 		Container: event.Container{
 			Type:             c.runtime,
 			ID:               shortContainerID(ctr.Id),
@@ -363,10 +363,6 @@ func (c *criEngine) ctrToInfo(ctx context.Context, ctr *v1.ContainerStatus, podS
 			CreatedTime:      nanoSecondsToUnix(ctr.CreatedAt),
 			Env:              ctrInfo.getEnvs(),
 			FullID:           ctr.Id,
-			HostIPC:          podSandboxStatus.Linux.Namespaces.Options.Ipc == v1.NamespaceMode_NODE,
-			HostNetwork:      podSandboxStatus.Linux.Namespaces.Options.Network == v1.NamespaceMode_NODE,
-			HostPID:          podSandboxStatus.Linux.Namespaces.Options.Pid == v1.NamespaceMode_NODE,
-			Ip:               podSandboxStatus.Network.Ip,
 			IsPodSandbox:     isPodSandbox,
 			Labels:           labels,
 			MemoryLimit:      memoryLimit,
@@ -378,6 +374,19 @@ func (c *criEngine) ctrToInfo(ctx context.Context, ctr *v1.ContainerStatus, podS
 			Size:             size,
 		},
 	}
+
+	if podSandboxStatus.Linux != nil && podSandboxStatus.Linux.Namespaces != nil &&
+		podSandboxStatus.Linux.Namespaces.Options != nil {
+		evtInfo.HostIPC = podSandboxStatus.Linux.Namespaces.Options.Ipc == v1.NamespaceMode_NODE
+		evtInfo.HostNetwork = podSandboxStatus.Linux.Namespaces.Options.Network == v1.NamespaceMode_NODE
+		evtInfo.HostPID = podSandboxStatus.Linux.Namespaces.Options.Pid == v1.NamespaceMode_NODE
+	}
+
+	if podSandboxStatus.Network != nil {
+		evtInfo.Ip = podSandboxStatus.Network.Ip
+	}
+
+	return evtInfo
 }
 
 func (c *criEngine) get(ctx context.Context, containerId string) (*event.Event, error) {
