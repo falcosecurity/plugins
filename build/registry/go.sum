@@ -100,8 +100,8 @@ github.com/falcosecurity/driverkit v0.21.2 h1:tB9CzVlMlRlVxAc1GTt9i43sRnKU+0ReqS
 github.com/falcosecurity/driverkit v0.21.2/go.mod h1:vdbevmWslq3fp7zAIaZvqW5kzpATXBFtPaAx/B8KW58=
 github.com/falcosecurity/falcoctl v0.11.3 h1:Bt+fNhUoJrKtPoUgjhwsGrfuM+N/I6TYqEZ05AS1PrQ=
 github.com/falcosecurity/falcoctl v0.11.3/go.mod h1:Nt1gURfxVam4e3drxStN0hG4xjt28oqFiMavwMMlPJk=
-github.com/falcosecurity/plugin-sdk-go v0.8.1 h1:yZHNCB8acr20XCifHwheJX4ekmZVrfZENawvJQTQFVY=
-github.com/falcosecurity/plugin-sdk-go v0.8.1/go.mod h1:gEgxjvuopv5VF4wc8s0EHnmT9qrIKBtcJVBnRlEPU1A=
+github.com/falcosecurity/plugin-sdk-go v0.8.2-0.20250902144400-6f778b5adc3c h1:BCVX1BuE24UXNHJl9YjxObr5WUFDfS2K4sbGNNO/rC4=
+github.com/falcosecurity/plugin-sdk-go v0.8.2-0.20250902144400-6f778b5adc3c/go.mod h1:gEgxjvuopv5VF4wc8s0EHnmT9qrIKBtcJVBnRlEPU1A=
 github.com/fatih/camelcase v1.0.0 h1:hxNvNX/xYBp0ovncs8WyWZrOrpBNub/JfaMvbURyft8=
 github.com/fatih/camelcase v1.0.0/go.mod h1:yN2Sb0lFhZJUdVvtELVWefmrXpuZESvPmqwoZc+/fpc=
 github.com/felixge/httpsnoop v1.0.4 h1:NFTV2Zj1bL4mc9sqWACXbQFVBBg2W3GPvqp8/ESS2Wg=

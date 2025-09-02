@@ -11,7 +11,7 @@ replace github.com/klauspost/compress => github.com/klauspost/compress v1.17.11
 require (
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/falcosecurity/falcoctl v0.11.3
-	github.com/falcosecurity/plugin-sdk-go v0.8.1
+	github.com/falcosecurity/plugin-sdk-go v0.8.2-0.20250902144400-6f778b5adc3c
 	github.com/onsi/ginkgo/v2 v2.24.0
 	github.com/onsi/gomega v1.38.0
 	github.com/pkg/errors v0.9.1
