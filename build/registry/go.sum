@@ -100,8 +100,8 @@ github.com/falcosecurity/driverkit v0.21.2 h1:tB9CzVlMlRlVxAc1GTt9i43sRnKU+0ReqS
 github.com/falcosecurity/driverkit v0.21.2/go.mod h1:vdbevmWslq3fp7zAIaZvqW5kzpATXBFtPaAx/B8KW58=
 github.com/falcosecurity/falcoctl v0.11.3 h1:Bt+fNhUoJrKtPoUgjhwsGrfuM+N/I6TYqEZ05AS1PrQ=
 github.com/falcosecurity/falcoctl v0.11.3/go.mod h1:Nt1gURfxVam4e3drxStN0hG4xjt28oqFiMavwMMlPJk=
-github.com/falcosecurity/plugin-sdk-go v0.8.2-0.20250902144400-6f778b5adc3c h1:BCVX1BuE24UXNHJl9YjxObr5WUFDfS2K4sbGNNO/rC4=
-github.com/falcosecurity/plugin-sdk-go v0.8.2-0.20250902144400-6f778b5adc3c/go.mod h1:gEgxjvuopv5VF4wc8s0EHnmT9qrIKBtcJVBnRlEPU1A=
+github.com/falcosecurity/plugin-sdk-go v0.8.2 h1:bc7udsrUXlS2Cmlsk4PoNjJbn7RERdDgQxY0RItUAb8=
+github.com/falcosecurity/plugin-sdk-go v0.8.2/go.mod h1:gEgxjvuopv5VF4wc8s0EHnmT9qrIKBtcJVBnRlEPU1A=
 github.com/fatih/camelcase v1.0.0 h1:hxNvNX/xYBp0ovncs8WyWZrOrpBNub/JfaMvbURyft8=
 github.com/fatih/camelcase v1.0.0/go.mod h1:yN2Sb0lFhZJUdVvtELVWefmrXpuZESvPmqwoZc+/fpc=
 github.com/felixge/httpsnoop v1.0.4 h1:NFTV2Zj1bL4mc9sqWACXbQFVBBg2W3GPvqp8/ESS2Wg=
@@ -193,8 +193,8 @@ github.com/json-iterator/go v1.1.12 h1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnr
 github.com/json-iterator/go v1.1.12/go.mod h1:e30LSqwooZae/UwlEbR2852Gd8hjQvJoHmT4TnhNGBo=
 github.com/kisielk/errcheck v1.5.0/go.mod h1:pFxgyoBC7bSaBwPgfKdkLd5X25qrDl4LWUI2bnpBCr8=
 github.com/kisielk/gotool v1.0.0/go.mod h1:XhKaO+MFFWcvkIS/tQcRk01m1F5IRFswLeQ+oQHNcck=
-github.com/klauspost/compress v1.17.11 h1:In6xLpyWOi1+C7tXUUWv2ot1QvBjxevKAaI6IXrJmUc=
-github.com/klauspost/compress v1.17.11/go.mod h1:pMDklpSncoRMuLFrf1W9Ss9KT+0rH90U12bZKk7uwG0=
+github.com/klauspost/compress v1.18.0 h1:c/Cqfb0r+Yi+JtIEq73FWXVkRonBlf0CRNYc8Zttxdo=
+github.com/klauspost/compress v1.18.0/go.mod h1:2Pp+KzxcywXVXMr50+X0Q/Lsb43OQHYWRCY2AiWywWQ=
 github.com/klauspost/cpuid/v2 v2.0.9/go.mod h1:FInQzS24/EEf25PyTYn52gqo7WaD8xa0213Md/qVLRg=
 github.com/klauspost/cpuid/v2 v2.0.10/go.mod h1:g2LTdtYhdyuGPqyWyv7qRAmj1WBqxuObKfj5c0PQa7c=
 github.com/klauspost/cpuid/v2 v2.0.12/go.mod h1:g2LTdtYhdyuGPqyWyv7qRAmj1WBqxuObKfj5c0PQa7c=
