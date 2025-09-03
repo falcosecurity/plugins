@@ -7,7 +7,7 @@ toolchain go1.24.1
 require (
 	github.com/alecthomas/jsonschema v0.0.0-20220216202328-9eeeec9d044b
 	github.com/falcosecurity/plugin-sdk-go v0.7.5
-	github.com/segmentio/kafka-go v0.4.48
+	github.com/segmentio/kafka-go v0.4.49
 	github.com/testcontainers/testcontainers-go v0.37.0
 	github.com/testcontainers/testcontainers-go/modules/kafka v0.37.0
 )
@@ -65,6 +65,6 @@ require (
 	golang.org/x/mod v0.24.0 // indirect
 	golang.org/x/sys v0.32.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250313205543-e70fdf4c4cb4 // indirect
-	google.golang.org/protobuf v1.36.6 // indirect
+	google.golang.org/protobuf v1.36.8 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
