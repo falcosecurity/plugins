@@ -1,8 +1,8 @@
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/falcosecurity/plugin-sdk-go v0.8.2 h1:bc7udsrUXlS2Cmlsk4PoNjJbn7RERdDgQxY0RItUAb8=
-github.com/falcosecurity/plugin-sdk-go v0.8.2/go.mod h1:gEgxjvuopv5VF4wc8s0EHnmT9qrIKBtcJVBnRlEPU1A=
+github.com/falcosecurity/plugin-sdk-go v0.8.3-0.20250904092428-5ae3a6facbe9 h1:V6l9EFR4bI9Y6QxDzuGn8Z11j8EvXza4SeRH61XaXU0=
+github.com/falcosecurity/plugin-sdk-go v0.8.3-0.20250904092428-5ae3a6facbe9/go.mod h1:gEgxjvuopv5VF4wc8s0EHnmT9qrIKBtcJVBnRlEPU1A=
 github.com/mattn/go-runewidth v0.0.9 h1:Lm995f3rfxdpd6TSmuVCHVb/QhupuXlYr8sCI/QdE+0=
 github.com/mattn/go-runewidth v0.0.9/go.mod h1:H031xJmbD/WCDINGzjvQ9THkh0rPKHF+m2gUSrubnMI=
 github.com/olekukonko/tablewriter v0.0.5 h1:P2Ga83D34wi1o9J6Wh1mRuqd4mF/x/lgBS7N7AbDhec=
