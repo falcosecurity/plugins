@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /*
-Copyright (C) 2023 The Falco Authors.
+Copyright (C) 2025 The Falco Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -61,7 +60,7 @@ func replateTag(s string, t string, r string) (string, error) {
 }
 
 func editFile(plugin *loader.Plugin, path string, editors ...EditorFunc) error {
-	bytes, err := ioutil.ReadFile(path)
+	bytes, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
@@ -72,7 +71,7 @@ func editFile(plugin *loader.Plugin, path string, editors ...EditorFunc) error {
 			return err
 		}
 	}
-	return ioutil.WriteFile(path, ([]byte)(edited), 0)
+	return os.WriteFile(path, ([]byte)(edited), 0)
 }
 
 func main() {
