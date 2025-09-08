@@ -3,8 +3,9 @@ github.com/alecthomas/jsonschema v0.0.0-20220216202328-9eeeec9d044b/go.mod h1:/n
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/falcosecurity/plugin-sdk-go v0.7.5 h1:ke/+kTt0PwedM8+IGTKcW3LrUI/xiJNDCSzqTSW+CvI=
 github.com/falcosecurity/plugin-sdk-go v0.7.5/go.mod h1:NP+y22DYOS+G3GDXIXNmzf0CBL3nfPPMoQuHvAzfitQ=
+github.com/falcosecurity/plugin-sdk-go v0.8.2 h1:bc7udsrUXlS2Cmlsk4PoNjJbn7RERdDgQxY0RItUAb8=
+github.com/falcosecurity/plugin-sdk-go v0.8.2/go.mod h1:gEgxjvuopv5VF4wc8s0EHnmT9qrIKBtcJVBnRlEPU1A=
 github.com/falcosecurity/plugins/plugins/k8saudit v0.15.0 h1:H2EHSTK1S2pxFJ1u6oNcit0hFNHdOwJ4EIcbqzEV4MY=
 github.com/falcosecurity/plugins/plugins/k8saudit v0.15.0/go.mod h1:gLUJrRjtEUYMcmTzIj4gnQqNnShWB4YGIDv/nE6n1vA=
 github.com/gorilla/websocket v1.5.3 h1:saDtZ6Pbx/0u+bgYQ3q96pZgCzfhKXGPqt7kZ72aNNg=
