@@ -11,7 +11,7 @@ require (
 	github.com/containers/image/v5 v5.35.0
 	github.com/containers/podman/v5 v5.5.2
 	github.com/docker/docker v28.1.1+incompatible
-	github.com/falcosecurity/plugin-sdk-go v0.7.5
+	github.com/falcosecurity/plugin-sdk-go v0.8.3
 	github.com/google/uuid v1.6.0
 	github.com/opencontainers/runtime-spec v1.2.1
 	github.com/stretchr/testify v1.10.0
