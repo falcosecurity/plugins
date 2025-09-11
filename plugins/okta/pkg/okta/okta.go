@@ -92,17 +92,22 @@ type LogEvent struct {
 				AlternateID string `json:"alternateId,omitempty"`
 				DisplayName string `json:"displayName,omitempty"`
 			} `json:"originalPrincipal,omitempty"`
+			Behaviors           string `json:"behaviors,omitempty"`
+			LogOnlySecurityData string `json:"logOnlySecurityData,omitempty"`
 		} `json:"debugData,omitempty"`
 	} `json:"debugContext,omitempty"`
 	AuthenticationContext struct {
-		AuthenticationStep int    `json:"authenticationStep,omitempty"`
-		ExternalSessionID  string `json:"externalSessionId,omitempty"`
+		AuthenticationStep     int    `json:"authenticationStep,omitempty"`
+		ExternalSessionID      string `json:"externalSessionId,omitempty"`
+		AuthenticationProvider string `json:"authenticationProvider,omitempty"`
+		CredentialProvider     string `json:"credentialProvider,omitempty"`
 	} `json:"authenticationContext,omitempty"`
 	SecurityContext struct {
 		AsNumber int    `json:"asNumber,omitempty"`
 		AsOrg    string `json:"asOrg,omitempty"`
 		ISP      string `json:"isp,omitempty"`
 		Domain   string `json:"domain,omitempty"`
+		IsProxy  string `json:"isProxy,omitempty"`
 	} `json:"securityContext,omitempty"`
 }
 
@@ -177,12 +182,14 @@ func (oktaPlugin *Plugin) Init(config string) error {
 func (oktaPlugin *Plugin) Fields() []sdk.FieldEntry {
 	return []sdk.FieldEntry{
 		{Type: "string", Name: "okta.app", Desc: "Application"},
+		{Type: "string", Name: "okta.behaviors", Desc: "Behaviors"},
 		{Type: "string", Name: "okta.org", Desc: "Organization"},
 		{Type: "string", Name: "okta.evt.type", Desc: "Event Type"},
 		{Type: "string", Name: "okta.evt.legacytype", Desc: "Event Legacy Type"},
 		{Type: "string", Name: "okta.severity", Desc: "Severity"},
 		{Type: "string", Name: "okta.message", Desc: "Message"},
 		{Type: "string", Name: "okta.published", Desc: "Event Source Timestamp"},
+		{Type: "string", Name: "okta.logonlysecuritydata", Desc: "Log Only Security Data"},
 		{Type: "string", Name: "okta.actor.id", Desc: "Actor ID"},
 		{Type: "string", Name: "okta.actor.Type", Desc: "Actor Type"},
 		{Type: "string", Name: "okta.actor.alternateid", Desc: "Actor Alternate ID"},
@@ -211,10 +218,13 @@ func (oktaPlugin *Plugin) Fields() []sdk.FieldEntry {
 		{Type: "string", Name: "okta.principal.name", Desc: "Principal Name"},
 		{Type: "string", Name: "okta.authentication.step", Desc: "Authentication Step"},
 		{Type: "string", Name: "okta.authentication.sessionid", Desc: "External Session ID"},
+		{Type: "string", Name: "okta.authentication.provider", Desc: "Authentication Provider"},
+		{Type: "string", Name: "okta.authentication.credentialprovider", Desc: "Credential Provider"},
 		{Type: "uint64", Name: "okta.security.asnumber", Desc: "Security AS Number"},
 		{Type: "string", Name: "okta.security.asorg", Desc: "Security AS Org"},
 		{Type: "string", Name: "okta.security.isp", Desc: "Security ISP"},
 		{Type: "string", Name: "okta.security.domain", Desc: "Security Domain"},
+		{Type: "string", Name: "okta.security.isproxy", Desc: "Is Proxy"},
 		{Type: "string", Name: "okta.target.user.id", Desc: "Target User ID"},
 		{Type: "string", Name: "okta.target.user.alternateid", Desc: "Target User Alternate ID"},
 		{Type: "string", Name: "okta.target.user.name", Desc: "Target User Name"},
@@ -222,6 +232,7 @@ func (oktaPlugin *Plugin) Fields() []sdk.FieldEntry {
 		{Type: "string", Name: "okta.target.group.alternateid", Desc: "Target Group Alternate ID"},
 		{Type: "string", Name: "okta.target.group.name", Desc: "Target Group Name"},
 		{Type: "string", Name: "okta.target.app.alternateid", Desc: "Target App Alternate ID"},
+		{Type: "string", Name: "okta.target.displayName", Desc: "Target Display Name"},
 		{Type: "uint64", Name: "okta.mfa.failure.countlast", Desc: "Count of MFA failures in last seconds", Arg: sdk.FieldEntryArg{IsRequired: true, IsIndex: true}},
 		{Type: "uint64", Name: "okta.mfa.deny.countlast", Desc: "Count of MFA denies in last seconds", Arg: sdk.FieldEntryArg{IsRequired: true, IsIndex: true}},
 	}
@@ -272,6 +283,8 @@ func (oktaPlugin *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) e
 			s := strings.Split(data.DebugContext.DebugData.RequestURI, "/")
 			req.SetValue(s[2])
 		}
+	case "okta.behaviors":
+		req.SetValue(data.DebugContext.DebugData.Behaviors)
 	case "okta.target.app.alternateid":
 		for _, i := range data.Target {
 			if i.Type == "AppInstance" {
@@ -290,6 +303,8 @@ func (oktaPlugin *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) e
 		req.SetValue(data.DisplayMessage)
 	case "okta.published":
 		req.SetValue(data.Published)
+	case "okta.logonlysecuritydata":
+		req.SetValue(data.DebugContext.DebugData.LogOnlySecurityData)
 	case "okta.actor.id":
 		req.SetValue(data.Actor.ID)
 	case "okta.actor.Type":
@@ -346,6 +361,10 @@ func (oktaPlugin *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) e
 		req.SetValue(data.AuthenticationContext.AuthenticationStep)
 	case "okta.authentication.sessionid":
 		req.SetValue(data.AuthenticationContext.ExternalSessionID)
+	case "okta.authentication.provider":
+		req.SetValue(data.AuthenticationContext.AuthenticationProvider)
+	case "okta.authentication.credentialprovider":
+		req.SetValue(data.AuthenticationContext.CredentialProvider)
 	case "okta.security.asnumber":
 		req.SetValue(data.SecurityContext.AsNumber)
 	case "okta.security.asorg":
@@ -354,6 +373,8 @@ func (oktaPlugin *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) e
 		req.SetValue(data.SecurityContext.ISP)
 	case "okta.security.domain":
 		req.SetValue(data.SecurityContext.Domain)
+	case "okta.security.isproxy":
+		req.SetValue(data.SecurityContext.IsProxy)
 	case "okta.target.user.id":
 		for _, i := range data.Target {
 			if i.Type == "User" {
