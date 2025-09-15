@@ -1,7 +1,7 @@
 github.com/aws/aws-lambda-go v1.49.0 h1:z4VhTqkFZPM3xpEtTqWqRqsRH4TZBMJqTkRiBPYLqIQ=
 github.com/aws/aws-lambda-go v1.49.0/go.mod h1:dpMpZgvWx5vuQJfBt0zqBha60q7Dd7RfgJv23DymV8A=
-github.com/aws/aws-sdk-go-v2 v1.36.4 h1:GySzjhVvx0ERP6eyfAbAuAXLtAda5TEy19E5q5W8I9E=
-github.com/aws/aws-sdk-go-v2 v1.36.4/go.mod h1:LLXuLpgzEbD766Z5ECcRmi8AzSwfZItDtmABVkRLGzg=
+github.com/aws/aws-sdk-go-v2 v1.39.0 h1:xm5WV/2L4emMRmMjHFykqiA4M/ra0DJVSWUkDyBjbg4=
+github.com/aws/aws-sdk-go-v2 v1.39.0/go.mod h1:sDioUELIUO9Znk23YVmIk86/9DOpkbyyVb1i/gUNFXY=
 github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.10 h1:zAybnyUQXIZ5mok5Jqwlf58/TFE7uvd3IAsa1aF9cXs=
 github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.10/go.mod h1:qqvMj6gHLR/EXWZw4ZbqlPbQUyenf4h82UQUlKc+l14=
 github.com/aws/aws-sdk-go-v2/config v1.29.16 h1:XkruGnXX1nEZ+Nyo9v84TzsX+nj86icbFAeust6uo8A=
@@ -38,8 +38,8 @@ github.com/aws/aws-sdk-go-v2/service/ssooidc v1.30.2 h1:XB4z0hbQtpmBnb1FQYvKaCM7
 github.com/aws/aws-sdk-go-v2/service/ssooidc v1.30.2/go.mod h1:hwRpqkRxnQ58J9blRDrB4IanlXCpcKmsC83EhG77upg=
 github.com/aws/aws-sdk-go-v2/service/sts v1.33.21 h1:nyLjs8sYJShFYj6aiyjCBI3EcLn1udWrQTjEF+SOXB0=
 github.com/aws/aws-sdk-go-v2/service/sts v1.33.21/go.mod h1:EhdxtZ+g84MSGrSrHzZiUm9PYiZkrADNja15wtRJSJo=
-github.com/aws/smithy-go v1.22.3 h1:Z//5NuZCSW6R4PhQ93hShNbyBbn8BWCmCVCt+Q8Io5k=
-github.com/aws/smithy-go v1.22.3/go.mod h1:t1ufH5HMublsJYulve2RKmHDC15xu1f26kHCp/HgceI=
+github.com/aws/smithy-go v1.23.0 h1:8n6I3gXzWJB2DxBDnfxgBaSX6oe0d/t10qGz7OKqMCE=
+github.com/aws/smithy-go v1.23.0/go.mod h1:t1ufH5HMublsJYulve2RKmHDC15xu1f26kHCp/HgceI=
 github.com/bahlo/generic-list-go v0.2.0 h1:5sz/EEAK+ls5wF+NeqDpk5+iNdMDXrh3z3nPnH1Wvgk=
 github.com/bahlo/generic-list-go v0.2.0/go.mod h1:2KvAjgMlE5NNynlg/5iLrrCCZ2+5xWbdbCW3pNTGyYg=
 github.com/buger/jsonparser v1.1.1 h1:2PnMjfWD7wBILjqQbt530v576A/cAbQvEW9gGIpYMUs=
