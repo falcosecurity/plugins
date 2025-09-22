@@ -29,7 +29,7 @@ env_logger = { workspace = true }
 falco_plugin = "0.4.3"
 libc = { workspace = true }
 log = { workspace = true }
-serde = "1.0.219"
+serde = "1.0.226"
 tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread", "net", "signal"] }
 hashlru = "0.11.1"
 num_cpus = "1.17.0"
