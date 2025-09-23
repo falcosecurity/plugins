@@ -39,7 +39,8 @@ func main() {
 			 "enabled":true,
 			 "sockets":[
 				"/run/containerd/containerd.sock",
-				"/run/k3s/containerd/containerd.sock"
+				"/run/k3s/containerd/containerd.sock",
+				"/var/snap/microk8s/common/run/containerd.sock"
 			 ]
 		  },
 		  "cri":{
