@@ -158,11 +158,18 @@ func (c *containerdEngine) ctrToInfo(namespacedContext context.Context, containe
 		}
 	}
 
-	isPodSandbox := false
+	// if empty, try getting it from annotations
+	if info.SandboxID == "" {
+		if sandboxId, ok := spec.Annotations["io.kubernetes.cri.sandbox-id"]; ok {
+			info.SandboxID = sandboxId
+		}
+	}
+
+	isPodSandbox := info.Labels["io.cri-containerd.kind"] == "sandbox"
+
 	var podSandboxLabels map[string]string
 	sandbox, _ := c.client.LoadSandbox(namespacedContext, info.SandboxID)
 	if sandbox != nil {
-		isPodSandbox = true
 		sandboxLabels, _ := sandbox.Labels(namespacedContext)
 		if len(sandboxLabels) > 0 {
 			podSandboxLabels = make(map[string]string)
