@@ -205,7 +205,6 @@ func (c *criEngine) ctrToInfo(ctx context.Context, ctr *v1.ContainerStatus, podS
 		})
 	}
 
-	isPodSandbox := podSandboxStatus != nil
 	podSandboxID := ctr.Id
 	if podSandboxStatus == nil {
 		podSandboxStatus = &v1.PodSandboxStatus{
@@ -363,7 +362,6 @@ func (c *criEngine) ctrToInfo(ctx context.Context, ctr *v1.ContainerStatus, podS
 			CreatedTime:      nanoSecondsToUnix(ctr.CreatedAt),
 			Env:              ctrInfo.getEnvs(),
 			FullID:           ctr.Id,
-			IsPodSandbox:     isPodSandbox,
 			Labels:           labels,
 			MemoryLimit:      memoryLimit,
 			SwapLimit:        swapLimit,
@@ -520,8 +518,8 @@ func (c *criEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan even
 				}
 
 				var info event.Info
-				// verbose true to return container.Info
-				ctr, err := c.client.ContainerStatus(ctx, evt.ContainerId, true)
+				returnInfo := true
+				ctr, err := c.client.ContainerStatus(ctx, evt.ContainerId, returnInfo)
 				if err != nil || ctr == nil {
 					info = event.Info{
 						Container: event.Container{
@@ -529,11 +527,12 @@ func (c *criEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan even
 							ID:          shortContainerID(evt.ContainerId),
 							FullID:      evt.ContainerId,
 							CreatedTime: nanoSecondsToUnix(evt.CreatedAt),
+							IsPodSandbox: true,
 						},
 					}
 				} else {
 					cPodSandbox := evt.GetPodSandboxStatus()
-					podSandboxStatus, _ := c.client.PodSandboxStatus(ctx, cPodSandbox.GetId(), false)
+					podSandboxStatus, _ := c.client.PodSandboxStatus(ctx, cPodSandbox.GetId(), returnInfo)
 					if podSandboxStatus == nil {
 						podSandboxStatus = &v1.PodSandboxStatusResponse{}
 					}
