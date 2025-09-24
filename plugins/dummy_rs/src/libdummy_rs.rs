@@ -55,7 +55,7 @@ pub struct DummyRsPlugin {
 
 impl Plugin for DummyRsPlugin {
     const NAME: &'static CStr = c"dummy_rs";
-    const PLUGIN_VERSION: &'static CStr = c"0.1.0";
+    const PLUGIN_VERSION: &'static CStr = c"0.1.1";
     const DESCRIPTION: &'static CStr =
         c"Reference plugin for educational purposes, written in Rust";
     const CONTACT: &'static CStr = c"github.com/falcosecurity/plugins";
