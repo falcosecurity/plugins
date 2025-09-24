@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /*
-Copyright (C) 2024 The Falco Authors.
+Copyright (C) 2025 The Falco Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -54,7 +54,7 @@ func (k *Plugin) Info() *plugins.Info {
 		Name:        pluginName,
 		Description: "Read Kubernetes Audit Events and monitor Kubernetes Clusters",
 		Contact:     "github.com/falcosecurity/plugins",
-		Version:     "0.15.0",
+		Version:     "0.16.0",
 		EventSource: "k8s_audit",
 	}
 }
