@@ -48,7 +48,7 @@ const (
 	PluginName               = "cloudtrail"
 	PluginDescription        = "reads cloudtrail JSON data saved to file in the directory specified in the settings"
 	PluginContact            = "github.com/falcosecurity/plugins/"
-	PluginVersion            = "0.13.0"
+	PluginVersion            = "0.14.0"
 	PluginEventSource        = "aws_cloudtrail"
 )
 
@@ -248,7 +248,7 @@ func (p *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 	if present {
 		req.SetValue(value)
 		if req.WantOffset() {
-			req.SetValueOffset(sdk.PluginEventPayloadOffset + uint32(offset), uint32(length))
+			req.SetValueOffset(sdk.PluginEventPayloadOffset+uint32(offset), uint32(length))
 		}
 	}
 
