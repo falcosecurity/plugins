@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /*
-Copyright (C) 2023 The Falco Authors.
+Copyright (C) 2025 The Falco Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ limitations under the License.
 #define PLUGIN_NAME "dummy_c"
 #define PLUGIN_DESCRIPTION "Reference plugin for educational purposes"
 #define PLUGIN_CONTACT "github.com/falcosecurity/plugins"
-#define PLUGIN_VERSION "0.2.3"
+#define PLUGIN_VERSION "0.3.0"
 #define PLUGIN_SOURCE_NAME "dummy_c"
 
 #define PLUGIN_LOG_PREFIX "[dummy_c]"
