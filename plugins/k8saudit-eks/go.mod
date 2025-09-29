@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/falcosecurity/plugin-sdk-go v0.8.3
-	github.com/falcosecurity/plugins/plugins/k8saudit v0.15.0
+	github.com/falcosecurity/plugins/plugins/k8saudit v0.16.0
 	github.com/falcosecurity/plugins/shared/go/aws/cloudwatchlogs v0.0.0-20250617140945-5d23e77c8bbd
 	github.com/falcosecurity/plugins/shared/go/aws/session v0.0.0-20250617140945-5d23e77c8bbd
 	github.com/invopop/jsonschema v0.13.0
@@ -22,3 +22,5 @@ require (
 	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/valyala/fastjson => github.com/geraldcombs/fastjson v0.0.0-20250801170450-bf39244e60b8
