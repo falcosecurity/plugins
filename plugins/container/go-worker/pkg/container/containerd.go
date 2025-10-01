@@ -2,6 +2,10 @@ package container
 
 import (
 	"context"
+	"strconv"
+	"strings"
+	"sync"
+
 	"github.com/containerd/containerd/api/events"
 	containerd "github.com/containerd/containerd/v2/client"
 	"github.com/containerd/containerd/v2/core/containers"
@@ -11,9 +15,6 @@ import (
 	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/config"
 	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"strconv"
-	"strings"
-	"sync"
 )
 
 func init() {
@@ -48,6 +49,14 @@ func (c *containerdEngine) ctrToInfo(namespacedContext context.Context, containe
 			Process: &specs.Process{},
 			Mounts:  nil,
 		}
+	}
+
+	// Name related
+	var containerName string
+	if name, ok := spec.Annotations["io.kubernetes.cri.container-name"]; ok && name != "" {
+		containerName = name
+	} else {
+		containerName = shortContainerID(container.ID())
 	}
 
 	// Cpu related
@@ -207,7 +216,7 @@ func (c *containerdEngine) ctrToInfo(namespacedContext context.Context, containe
 		Container: event.Container{
 			Type:             typeContainerd.ToCTValue(),
 			ID:               shortContainerID(container.ID()),
-			Name:             shortContainerID(container.ID()),
+			Name:             containerName,
 			Image:            info.Image,
 			ImageDigest:      imageDigest,
 			ImageRepo:        imageRepo,
