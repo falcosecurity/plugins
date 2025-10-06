@@ -551,9 +551,7 @@ bool my_plugin::extract(const falcosecurity::extract_fields_input &in)
                 std::strcmp(ad.get_name(), ASYNC_EVENT_NAME_REMOVED) == 0;
     }
 
-    if(evt_reader.get_type() == PPME_CONTAINER_E ||
-       evt_reader.get_type() == PPME_CONTAINER_JSON_E ||
-       evt_reader.get_type() == PPME_CONTAINER_JSON_2_E ||
+    if(evt_reader.get_type() == PPME_CONTAINER_JSON_2_E ||
        is_container_async_event_create || is_container_async_event_remove)
     {
 

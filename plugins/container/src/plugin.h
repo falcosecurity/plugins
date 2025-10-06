@@ -44,6 +44,7 @@ class my_plugin
     std::string get_description();
     std::string get_contact();
     std::string get_required_api_version();
+    std::string get_required_event_schema_version();
     std::string get_last_error();
     void destroy();
     falcosecurity::init_schema get_init_schema();
@@ -83,8 +84,6 @@ class my_plugin
     std::vector<std::string> get_parse_event_sources();
     std::vector<falcosecurity::event_type> get_parse_event_types();
     bool parse_async_event(const falcosecurity::parse_event_input& in);
-    bool parse_container_event(const falcosecurity::parse_event_input& in);
-    bool parse_container_json_event(const falcosecurity::parse_event_input& in);
     bool
     parse_container_json_2_event(const falcosecurity::parse_event_input& in);
     bool parse_exit_process_event(const falcosecurity::parse_event_input& in);

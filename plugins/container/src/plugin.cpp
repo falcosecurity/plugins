@@ -38,6 +38,11 @@ std::string my_plugin::get_required_api_version()
     return PLUGIN_REQUIRED_API_VERSION;
 }
 
+std::string my_plugin::get_required_event_schema_version()
+{
+    return PLUGIN_REQUIRED_EVENT_SCHEMA_VERSION;
+}
+
 std::string my_plugin::get_last_error() { return m_lasterr; }
 
 void my_plugin::destroy()
