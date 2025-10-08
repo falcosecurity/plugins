@@ -22,16 +22,11 @@ limitations under the License.
 // Sinsp events used in the plugin
 using _et = falcosecurity::event_type;
 constexpr auto PPME_ASYNCEVENT_E = (_et)402;
-constexpr auto PPME_CONTAINER_E = (_et)228;
-constexpr auto PPME_CONTAINER_JSON_E = (_et)272;
 constexpr auto PPME_CONTAINER_JSON_2_E = (_et)324;
 constexpr auto PPME_SYSCALL_CLONE_20_X = (_et)223;
 constexpr auto PPME_SYSCALL_CLONE3_X = (_et)335;
 constexpr auto PPME_SYSCALL_FORK_20_X = (_et)225;
 constexpr auto PPME_SYSCALL_VFORK_20_X = (_et)227;
-constexpr auto PPME_SYSCALL_EXECVE_16_X = (_et)231;
-constexpr auto PPME_SYSCALL_EXECVE_17_X = (_et)283;
-constexpr auto PPME_SYSCALL_EXECVE_18_X = (_et)289;
 constexpr auto PPME_SYSCALL_EXECVE_19_X = (_et)293;
 constexpr auto PPME_SYSCALL_EXECVEAT_X = (_et)331;
 constexpr auto PPME_SYSCALL_CHROOT_X = (_et)267;
