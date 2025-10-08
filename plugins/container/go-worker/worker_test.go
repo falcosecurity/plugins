@@ -6,7 +6,6 @@ import (
 	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
 	"github.com/stretchr/testify/assert"
 	"math"
-	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -15,6 +14,8 @@ import (
 type noopEngine struct {
 	exitAfter  time.Duration
 	eventAfter time.Duration
+	// listeningWaitGroup is used to signal that the noopEngine.Listen internal goroutine terminated its execution.
+	listeningWaitGroup *sync.WaitGroup
 }
 
 func (n *noopEngine) Name() string {
@@ -35,6 +36,7 @@ func (n *noopEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan eve
 	// Random sleep between 5 and 20 ms
 	go func() {
 		defer wg.Done()
+		defer n.listeningWaitGroup.Done()
 		defer close(out)
 		select {
 		case <-ctx.Done():
@@ -50,83 +52,94 @@ func (n *noopEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan eve
 
 func TestWorkerLoop(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	wg := sync.WaitGroup{}
+	defer cancel()
+
 	numEvents := 0
 	// generate some noop containerEngines
-	containerEngines := make([]container.Engine, 0)
+	containerEngines := make([]container.Engine, 0, 10)
+	// listeningWaitGroup accounts for noop engines' internal listening goroutines.
+	listeningWaitGroup := &sync.WaitGroup{}
+	listeningWaitGroup.Add(10)
 	for i := 1; i <= 10; i++ {
 		// Never leave for timeout
 		// Send an event after i ms
 		containerEngines = append(containerEngines, &noopEngine{
-			exitAfter:  time.Duration(math.MaxInt64),
-			eventAfter: time.Duration(i) * time.Millisecond,
+			exitAfter:          time.Duration(math.MaxInt64),
+			eventAfter:         time.Duration(i) * time.Millisecond,
+			listeningWaitGroup: listeningWaitGroup,
 		})
 	}
 
+	// Signal that all noop engines' have produced a value.
+	signalCh := make(chan struct{})
+
 	// Start worker goroutine
-	wg.Add(1)
+	// globalWaitGroup accounts for both workerLoop and noop engines' internal listening goroutines.
+	globalWaitGroup := &sync.WaitGroup{}
+	globalWaitGroup.Add(1)
 	go func() {
-		defer wg.Done()
+		defer globalWaitGroup.Done()
 		workerLoop(ctx, func(jsonEvt string, isCreate bool, _ bool) {
 			numEvents++
-		}, containerEngines, &wg)
+			if numEvents == 10 {
+				// This will only be executed once, because each noop engine produce just 1 event.
+				close(signalCh)
+			}
+		}, containerEngines, globalWaitGroup)
 	}()
 
-	// Give some time to gouroutines to generate events
-	time.Sleep(20 * time.Millisecond)
-
-	// kill the context
-	cancel()
-
-	// Wait on the wg
-	wg.Wait()
-
-	// 1 event for each container engine generated
-	assert.Equal(t, len(containerEngines), numEvents)
+	select {
+	case <-ctx.Done():
+		t.Fatal("Context canceled before all container engine listening goroutines have produced an event")
+	case <-signalCh:
+		assert.Equal(t, len(containerEngines), numEvents)
+	}
 }
 
 func TestWorkerLoopExitBeforeCtxCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	wg := sync.WaitGroup{}
+	defer cancel()
+
 	numEvents := 0
 	// generate some noop containerEngines
-	containerEngines := make([]container.Engine, 0)
-	for i := 15; i <= 25; i++ {
+	containerEngines := make([]container.Engine, 0, 10)
+	// listeningWaitGroup accounts for noop engines' internal listening goroutines.
+	listeningWaitGroup := &sync.WaitGroup{}
+	listeningWaitGroup.Add(10)
+	for i := 15; i < 25; i++ {
 		// Leave after i ms
 		// Never send events
 		containerEngines = append(containerEngines, &noopEngine{
-			exitAfter:  time.Duration(i) * time.Millisecond,
-			eventAfter: time.Duration(math.MaxInt64),
+			exitAfter:          time.Duration(i) * time.Millisecond,
+			eventAfter:         time.Duration(math.MaxInt64),
+			listeningWaitGroup: listeningWaitGroup,
 		})
 	}
 
 	// Start worker goroutine
-	wg.Add(1)
+	// globalWaitGroup accounts for both workerLoop and noop engines' internal listening goroutines.
+	globalWaitGroup := &sync.WaitGroup{}
+	globalWaitGroup.Add(1)
 	go func() {
-		defer wg.Done()
+		defer globalWaitGroup.Done()
 		workerLoop(ctx, func(jsonEvt string, isCreate bool, _ bool) {
 			numEvents++
-		}, containerEngines, &wg)
+		}, containerEngines, globalWaitGroup)
 	}()
 
-	// Wait for goroutines to be spawned
-	time.Sleep(5 * time.Millisecond)
-	numGoroutine := runtime.NumGoroutine()
+	// Signal that all noop engines' internal listening goroutines terminated.
+	signalCh := make(chan struct{})
+	go func() {
+		defer close(signalCh)
+		listeningWaitGroup.Wait()
+	}()
 
-	// Give some time to gouroutines to do their work
-	time.Sleep(20 * time.Millisecond)
-
-	// All worker goroutines left
-	// Use LessOrEqual because our own goroutine that runs workerLoop
-	// might have already left too!
-	assert.LessOrEqual(t, runtime.NumGoroutine(), numGoroutine-10)
-
-	// kill the context
-	cancel()
-
-	// Wait on the wg
-	wg.Wait()
-
-	// No event sent
-	assert.Equal(t, 0, numEvents)
+	select {
+	case <-ctx.Done():
+		t.Fatal("Context canceled before all container engine listening goroutines terminated")
+	case <-signalCh:
+		cancel()
+		globalWaitGroup.Wait()
+		assert.Equal(t, 0, numEvents)
+	}
 }
