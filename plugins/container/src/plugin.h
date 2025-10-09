@@ -122,7 +122,7 @@ class my_plugin
             m_containers;
     // Last container enriched from an async event parsing.
     // Used to extract container info from aforementioned async events.
-    std::shared_ptr<const container_info> m_last_container;
+    std::pair<uint64_t, std::shared_ptr<const container_info>> m_last_container;
     // Cache being asked containers to go-worker through AskForContainerInfo()
     // API. Avoids repeatedly calling the API.
     std::unordered_set<std::string> m_asked_containers;
