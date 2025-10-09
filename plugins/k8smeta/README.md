@@ -125,9 +125,8 @@ sudo apt update -y
 sudo apt install -y cmake build-essential autoconf libtool pkg-config
 git clone https://github.com/falcosecurity/plugins.git
 cd plugins/k8smeta
-mkdir build && cd build
-cmake ..
-make k8smeta -j10
+cmake -S . -B build
+cmake --build build --target k8smeta -j $(nproc)
 ```
 
 To run local tests follow the steps [here](https://github.com/falcosecurity/plugins/blob/main/plugins/k8smeta/test/README.md)
