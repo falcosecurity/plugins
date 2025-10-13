@@ -43,11 +43,22 @@ bool my_plugin::start_async_events(
     m_logger.log("starting async go-worker",
                  falcosecurity::_internal::SS_PLUGIN_LOG_SEV_DEBUG);
     nlohmann::json j(m_cfg);
+
     const char *enabled_engines = nullptr;
+    const char *err = nullptr;
+
     m_async_ctx = StartWorker(generate_async_event<ASYNC_HANDLER_GO_WORKER>,
-                              j.dump().c_str(), &enabled_engines);
+                              j.dump().c_str(), &enabled_engines, &err);
     m_logger.log(fmt::format("attached engine sockets: {}", enabled_engines),
                  falcosecurity::_internal::SS_PLUGIN_LOG_SEV_DEBUG);
+
+    if(err)
+    {
+        m_logger.log(fmt::format("failed to start async go-worker: {}", err),
+                     falcosecurity::_internal::SS_PLUGIN_LOG_SEV_ERROR);
+        free((void *)err);
+    }
+
     free((void *)enabled_engines);
 
     // Merge back pre-existing containers to our cache
