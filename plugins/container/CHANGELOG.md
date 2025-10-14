@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.4.0
+
+* [`790555c`](https://github.com/falcosecurity/plugins/commit/790555cb) chore(plugins/container): bump to v0.4.0
+
+## v0.4.0-rc1
+
+* [`3b0a2f1`](https://github.com/falcosecurity/plugins/commit/3b0a2f1a) chore(plugins/container): bump to v0.4.0-rc1
+
+* [`315ed46`](https://github.com/falcosecurity/plugins/commit/315ed46b) fix(container): cri sandbox detection
+
+* [`c53e51f`](https://github.com/falcosecurity/plugins/commit/c53e51fc) fix(container): containerd sandbox detection
+
+* [`880dc1d`](https://github.com/falcosecurity/plugins/commit/880dc1dc) chore(container): add microk8s to go-worker exe
+
+
 ## v0.3.7
 
 * [`3a40e6e`](https://github.com/falcosecurity/plugins/commit/3a40e6e7) chore(plugins/container): bump to v0.3.7
