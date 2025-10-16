@@ -116,16 +116,30 @@ falco -c falco.yaml -r falco_rules.yaml
 
 ## Local development
 
+### Prerequisites
+
+#### Dependency management
+
+The easiest way to install the required dependencies is to use [vcpkg](https://learn.microsoft.com/en-us/vcpkg/get_started/get-started?pivots=shell-bash).
+
+```bash
+git clone https://github.com/microsoft/vcpkg.git
+cd vcpkg
+./bootstrap-vcpkg.sh
+export VCPKG_ROOT="$(pwd)"
+export PATH=$VCPKG_ROOT:$PATH
+```
+
 ### Build and test
 
-Build the plugin on a fresh `Ubuntu 22.04` machine:
+Build the plugin on a `Ubuntu 22.04` machine:
 
 ```bash
 sudo apt update -y
 sudo apt install -y cmake build-essential autoconf libtool pkg-config
 git clone https://github.com/falcosecurity/plugins.git
 cd plugins/k8smeta
-cmake -S . -B build
+cmake -S . -B build --preset vcpkg-release
 cmake --build build --target k8smeta -j $(nproc)
 ```
 

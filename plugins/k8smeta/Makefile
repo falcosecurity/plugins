@@ -22,8 +22,9 @@ clean:
 	rm -rf build $(OUTPUT)
 
 # This Makefile requies CMake installed on the system
+.PHONY: $(OUTPUT)
 $(OUTPUT):
-	mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release ../ && make k8smeta -j6 && cp ./$(OUTPUT) ../$(OUTPUT)
+	cmake --preset vcpkg-release && cmake --build --preset vcpkg-release --target k8smeta -j$(nproc) && cp ./build/$(OUTPUT) ./$(OUTPUT)
 
 readme:
 	@$(READMETOOL) -p ./$(OUTPUT) -f README.md
