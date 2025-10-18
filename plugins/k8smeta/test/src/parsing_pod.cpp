@@ -38,9 +38,8 @@ TEST_F(sinsp_with_test_input, plugin_k8s_pod_uid_regex)
     open_inspector();
 
     auto &reg = m_inspector.get_table_registry();
-    auto thread_table =
-            dynamic_cast<libsinsp::state::built_in_table<int64_t> *>(
-                    reg->get_table<int64_t>("threads"));
+    auto thread_table = dynamic_cast<libsinsp::state::built_in_table<int64_t>*>(
+        reg->get_table<int64_t>("threads"));
     auto field =
             thread_table->dynamic_fields()->fields().find(POD_UID_FIELD_NAME);
     auto fieldacc = field->second.new_accessor<std::string>();
@@ -136,9 +135,8 @@ TEST_F(sinsp_with_test_input, plugin_k8s_pod_uid_field_existance)
     auto &reg = m_inspector.get_table_registry();
     ASSERT_EQ(reg->tables().size(), 1);
     ASSERT_NE(reg->tables().find(THREAD_TABLE_NAME), reg->tables().end());
-    auto thread_table =
-            dynamic_cast<libsinsp::state::built_in_table<int64_t> *>(
-                    reg->get_table<int64_t>("threads"));
+    auto thread_table = dynamic_cast<libsinsp::state::built_in_table<int64_t>*>(
+        reg->get_table<int64_t>("threads"));
     auto field =
             thread_table->dynamic_fields()->fields().find(POD_UID_FIELD_NAME);
     ASSERT_NE(field, thread_table->dynamic_fields()->fields().end());
@@ -157,10 +155,7 @@ TEST_F(sinsp_with_test_input, plugin_k8s_pod_uid_field_existance)
 }
 
 // Parametrized test for clone/fork events
-class clone_fork_test : public sinsp_with_test_input,
-                        public ::testing::WithParamInterface<ppm_event_code>
-{
-};
+class clone_fork_test : public sinsp_with_test_input, public ::testing::WithParamInterface<ppm_event_code> {};
 
 // Check that clone/fork events are correctly parsed into the plugin and the
 // pod_uid is populated for the new thread!
@@ -175,9 +170,7 @@ TEST_P(clone_fork_test, plugin_k8s_clone_fork_parse)
     open_inspector();
 
     auto &reg = m_inspector.get_table_registry();
-    auto thread_table =
-            dynamic_cast<libsinsp::state::built_in_table<int64_t> *>(
-                    reg->get_table<int64_t>("threads"));
+    auto thread_table = dynamic_cast<libsinsp::state::built_in_table<int64_t>*>(reg->get_table<int64_t>("threads"));
     auto dynamic_fields = thread_table->dynamic_fields();
     auto field = dynamic_fields->fields().find(POD_UID_FIELD_NAME);
     auto fieldacc = field->second.new_accessor<std::string>();
@@ -207,8 +200,8 @@ TEST_P(clone_fork_test, plugin_k8s_clone_fork_parse)
     ASSERT_EQ(pod_uid, "");
 
     evt = generate_clone_x_event(
-            0, p1_tid, p1_pid, p1_ptid, PPM_CL_CHILD_IN_PIDNS, p1_vtid, p1_vpid,
-            "bash",
+            0, p1_tid, p1_pid, p1_ptid, PPM_CL_CHILD_IN_PIDNS, p1_vtid,
+            p1_vpid, "bash",
             {"cpuset=/kubepods/besteffort/pod" + expected_pod_uid +
              "/691e0ffb65010b2b611f3a15b7f76c48466192e673e156f38bd2f8e25acd6b"
              "bc"},
@@ -222,30 +215,29 @@ TEST_P(clone_fork_test, plugin_k8s_clone_fork_parse)
 }
 
 // Define the test parameters
-INSTANTIATE_TEST_SUITE_P(
-        clone_fork_events, clone_fork_test,
-        ::testing::Values(PPME_SYSCALL_CLONE_20_X, PPME_SYSCALL_FORK_20_X,
-                          PPME_SYSCALL_VFORK_20_X, PPME_SYSCALL_CLONE3_X),
-        [](const ::testing::TestParamInfo<ppm_event_code> &info)
-        {
-            switch(info.param)
-            {
-            case PPME_SYSCALL_CLONE_20_X:
-                return "CLONE_20_X";
-            case PPME_SYSCALL_FORK_20_X:
-                return "FORK_20_X";
-            case PPME_SYSCALL_VFORK_20_X:
-                return "VFORK_20_X";
-            case PPME_SYSCALL_CLONE3_X:
-                return "CLONE3_X";
-            default:
-                return "UNKNOWN";
-            }
-        });
+INSTANTIATE_TEST_CASE_P(
+    clone_fork_events,
+    clone_fork_test,
+    ::testing::Values(
+        PPME_SYSCALL_CLONE_20_X,
+        PPME_SYSCALL_FORK_20_X,
+        PPME_SYSCALL_VFORK_20_X,
+        PPME_SYSCALL_CLONE3_X
+    ),
+    [](const ::testing::TestParamInfo<ppm_event_code>& info) {
+        switch(info.param) {
+            case PPME_SYSCALL_CLONE_20_X: return "CLONE_20_X";
+            case PPME_SYSCALL_FORK_20_X: return "FORK_20_X";
+            case PPME_SYSCALL_VFORK_20_X: return "VFORK_20_X";
+            case PPME_SYSCALL_CLONE3_X: return "CLONE3_X";
+            default: return "UNKNOWN";
+        }
+    }
+);
 
 // Check that execve/execveat events are correctly parsed into the plugin and
 // the pod_uid is populated for the new thread!
-// TEST_F(sinsp_with_test_input, plugin_k8s_PPME_SYSCALL_EXECVE_19_X_parse)
+//TEST_F(sinsp_with_test_input, plugin_k8s_PPME_SYSCALL_EXECVE_19_X_parse)
 //{
 //    EXECVE_EXECVEAT_TEST(PPME_SYSCALL_EXECVE_19_X);
 //}
@@ -261,9 +253,7 @@ TEST_F(sinsp_with_test_input, plugin_k8s_PPME_SYSCALL_EXECVEAT_X_parse)
     open_inspector();
 
     auto &reg = m_inspector.get_table_registry();
-    auto thread_table =
-            dynamic_cast<libsinsp::state::built_in_table<int64_t> *>(
-                    reg->get_table<int64_t>("threads"));
+    auto thread_table = dynamic_cast<libsinsp::state::built_in_table<int64_t>*>(reg->get_table<int64_t>("threads"));
     auto dynamic_fields = thread_table->dynamic_fields();
     auto field = dynamic_fields->fields().find(POD_UID_FIELD_NAME);
     auto fieldacc = field->second.new_accessor<std::string>();
@@ -279,16 +269,40 @@ TEST_F(sinsp_with_test_input, plugin_k8s_PPME_SYSCALL_EXECVEAT_X_parse)
     std::string cgroupsv = test_utils::to_null_delimited(cgroups1);
     scap_const_sized_buffer empty_bytebuf = {/*.buf =*/nullptr, /*.size =*/0};
     SCAP_EMPTY_PARAMS_SET(empty_params_set, 27);
-    auto evt = add_event_advance_ts_with_empty_params(
-            increasing_ts(), INIT_TID, PPME_SYSCALL_EXECVEAT_X,
-            &empty_params_set, 30, not_relevant_64, "/bin/test-exe",
-            empty_bytebuf, (uint64_t)1, (uint64_t)1, (uint64_t)1, "<NA>",
-            not_relevant_64, not_relevant_64, not_relevant_64, 0, 0, 0,
+    auto evt = add_event_advance_ts_with_empty_params(increasing_ts(),
+            INIT_TID,
+            PPME_SYSCALL_EXECVEAT_X,
+            &empty_params_set,
+            30,
+            not_relevant_64,
+            "/bin/test-exe",
+            empty_bytebuf,
+            (uint64_t)1,
+            (uint64_t)1,
+            (uint64_t)1,
+            "<NA>",
+            not_relevant_64,
+            not_relevant_64,
+            not_relevant_64,
+            0,
+            0,
+            0,
             "test-exe",
             scap_const_sized_buffer{cgroupsv.data(), cgroupsv.size()},
-            empty_bytebuf, 0, not_relevant_64, 0, 0, not_relevant_64,
-            not_relevant_64, not_relevant_64, not_relevant_64, not_relevant_64,
-            not_relevant_64, not_relevant_32, nullptr, not_relevant_64,
+            empty_bytebuf,
+            0,
+            not_relevant_64,
+            0,
+            0,
+            not_relevant_64,
+            not_relevant_64,
+            not_relevant_64,
+            not_relevant_64,
+            not_relevant_64,
+            not_relevant_64,
+            not_relevant_32,
+            nullptr,
+            not_relevant_64,
             not_relevant_32);
     ASSERT_EQ(evt->get_type(), PPME_SYSCALL_EXECVEAT_X);
 
@@ -310,9 +324,8 @@ TEST_F(sinsp_with_test_input, plugin_k8s_execve_after_clone_event)
     open_inspector();
 
     auto &reg = m_inspector.get_table_registry();
-    auto thread_table =
-            dynamic_cast<libsinsp::state::built_in_table<int64_t> *>(
-                    reg->get_table<int64_t>("threads"));
+    auto thread_table = dynamic_cast<libsinsp::state::built_in_table<int64_t>*>(
+        reg->get_table<int64_t>("threads"));
     auto field =
             thread_table->dynamic_fields()->fields().find(POD_UID_FIELD_NAME);
     auto fieldacc = field->second.new_accessor<std::string>();
@@ -364,9 +377,7 @@ TEST_F(sinsp_with_test_input, plugin_k8s_check_thread_entry_is_removed)
     open_inspector();
 
     auto &reg = m_inspector.get_table_registry();
-    auto thread_table =
-            dynamic_cast<libsinsp::state::built_in_table<int64_t> *>(
-                    reg->get_table<int64_t>("threads"));
+    auto thread_table = dynamic_cast<libsinsp::state::built_in_table<int64_t>*>(reg->get_table<int64_t>("threads"));
     auto dynamic_fields = thread_table->dynamic_fields();
     auto field = dynamic_fields->fields().find(POD_UID_FIELD_NAME);
     auto fieldacc = field->second.new_accessor<std::string>();
@@ -389,8 +400,8 @@ TEST_F(sinsp_with_test_input, plugin_k8s_check_thread_entry_is_removed)
     ASSERT_EQ(evt->get_type(), PPME_SYSCALL_CLONE_20_X);
 
     evt = generate_clone_x_event(
-            0, p1_tid, p1_pid, p1_ptid, PPM_CL_CHILD_IN_PIDNS, p1_vtid, p1_vpid,
-            "bash",
+            0, p1_tid, p1_pid, p1_ptid, PPM_CL_CHILD_IN_PIDNS, p1_vtid,
+            p1_vpid, "bash",
             {"cpuset=/kubepods/besteffort/pod" + expected_pod_uid +
              "/691e0ffb65010b2b611f3a15b7f76c48466192e673e156f38bd2f8e25acd6b"
              "bc"},
@@ -399,7 +410,7 @@ TEST_F(sinsp_with_test_input, plugin_k8s_check_thread_entry_is_removed)
 
     // Check that now we have 2 entries in the thread table
     ASSERT_EQ(thread_table->entries_count(), 2);
-    const auto &thread_manager = m_inspector.m_thread_manager;
+    const auto& thread_manager = m_inspector.m_thread_manager;
     auto p1_tid_tinfo = thread_manager->get_thread_ref(p1_tid, false).get();
     ASSERT_TRUE(p1_tid_tinfo);
 
@@ -422,9 +433,8 @@ TEST_F(sinsp_with_test_input, plugin_k8s_parse_parent_clone)
     open_inspector();
 
     auto &reg = m_inspector.get_table_registry();
-    auto thread_table =
-            dynamic_cast<libsinsp::state::built_in_table<int64_t> *>(
-                    reg->get_table<int64_t>("threads"));
+    auto thread_table = dynamic_cast<libsinsp::state::built_in_table<int64_t>*>(
+        reg->get_table<int64_t>("threads"));
     auto field =
             thread_table->dynamic_fields()->fields().find(POD_UID_FIELD_NAME);
     auto fieldacc = field->second.new_accessor<std::string>();
@@ -495,9 +505,8 @@ TEST_F(sinsp_with_test_input, plugin_listen_cap_poduid)
     open_inspector();
 
     auto &reg = m_inspector.get_table_registry();
-    auto thread_table =
-            dynamic_cast<libsinsp::state::built_in_table<int64_t> *>(
-                    reg->get_table<int64_t>("threads"));
+    auto thread_table = dynamic_cast<libsinsp::state::built_in_table<int64_t>*>(
+        reg->get_table<int64_t>("threads"));
     auto dynamic_fields = thread_table->dynamic_fields();
     auto field = dynamic_fields->fields().find(POD_UID_FIELD_NAME);
     auto fieldacc = field->second.new_accessor<std::string>();
