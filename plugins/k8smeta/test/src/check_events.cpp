@@ -287,13 +287,14 @@ TEST_F(sinsp_with_test_input, plugin_k8s_content_of_async_events)
             ASSERT_EQ(evt->get_tid(), -1);
             ASSERT_EQ(evt->get_source_idx(), 0);
             ASSERT_EQ(std::string(evt->get_source_name()), "syscall");
-            ASSERT_STREQ(evt->get_param(1)->m_val, "k8s");
+            ASSERT_EQ(evt->get_param(1)->as<std::string>(), "k8s");
 
             // Check that the content of the event is right
             // We need to compare the json because the dumped strings could be
             // out of order
             ASSERT_EQ(extractor.get_json_event(num_async_events),
-                      nlohmann::json::parse(evt->get_param(2)->m_val));
+                      nlohmann::json::parse(
+                              evt->get_param(2)->as<std::string>()));
             num_async_events++;
         }
     }
