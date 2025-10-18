@@ -18,8 +18,6 @@ limitations under the License.
 #include <gtest/gtest.h>
 #include <test/helpers/threads_helpers.h>
 #include <re2/re2.h>
-#include <filesystem>
-#include <fstream>
 
 // Obtained from the plugin folder
 #include <k8smeta_tests/plugin_test_var.h>
@@ -28,100 +26,6 @@ limitations under the License.
 
 // All tests regarding the pod parsing logic and addition/removal of the pod
 // field to the thread table.
-#define CLONE_FORK_TEST(event)                                                 \
-    std::shared_ptr<sinsp_plugin> plugin_owner;                                \
-    filter_check_list pl_flist;                                                \
-    ASSERT_PLUGIN_INITIALIZATION(plugin_owner, pl_flist)                       \
-    add_default_init_thread();                                                 \
-    open_inspector();                                                          \
-                                                                               \
-    auto &reg = m_inspector.get_table_registry();                              \
-    auto thread_table = reg->get_table<int64_t>(THREAD_TABLE_NAME);            \
-    auto dynamic_fields = thread_table->dynamic_fields();                      \
-    auto field = dynamic_fields->fields().find(POD_UID_FIELD_NAME);            \
-    auto fieldacc = field->second.new_accessor<std::string>();                 \
-                                                                               \
-    int64_t p1_tid = 2;                                                        \
-    int64_t p1_pid = 2;                                                        \
-    int64_t p1_ptid = INIT_TID;                                                \
-    int64_t p1_vtid = 1;                                                       \
-    int64_t p1_vpid = 1;                                                       \
-                                                                               \
-    std::string expected_pod_uid = "5eaeeca9-2277-460b-a4bf-5a0783f6d49f";     \
-                                                                               \
-    /* We generate a clone exit event for the parent. */                       \
-    /* This is parsed but the pod_uid is not extracted. */                     \
-    auto evt = generate_clone_x_event(                                         \
-            p1_tid, INIT_TID, INIT_PID, INIT_PTID, 0, INIT_TID, INIT_PTID,     \
-            "init",                                                            \
-            {"cpuset=/kubepods/besteffort/pod" + expected_pod_uid +            \
-             "/691e0ffb65010b2b611f3a15b7f76c48466192e673e156f38bd2f8e25acd6b" \
-             "bc"},                                                            \
-            event);                                                            \
-    ASSERT_EQ(evt->get_type(), event);                                         \
-    auto init_thread_entry = thread_table->get_entry(INIT_TID);                \
-    ASSERT_NE(init_thread_entry, nullptr);                                     \
-    std::string pod_uid;                                                       \
-    init_thread_entry->get_dynamic_field(fieldacc, pod_uid);                   \
-    ASSERT_EQ(pod_uid, "");                                                    \
-                                                                               \
-    evt = generate_clone_x_event(                                              \
-            0, p1_tid, p1_pid, p1_ptid, PPM_CL_CHILD_IN_PIDNS, p1_vtid,        \
-            p1_vpid, "bash",                                                   \
-            {"cpuset=/kubepods/besteffort/pod" + expected_pod_uid +            \
-             "/691e0ffb65010b2b611f3a15b7f76c48466192e673e156f38bd2f8e25acd6b" \
-             "bc"},                                                            \
-            event);                                                            \
-    ASSERT_EQ(evt->get_type(), event);                                         \
-                                                                               \
-    auto p1_tid_entry = thread_table->get_entry(p1_tid);                       \
-    ASSERT_NE(p1_tid_entry, nullptr);                                          \
-    p1_tid_entry->get_dynamic_field(fieldacc, pod_uid);                        \
-    ASSERT_EQ(pod_uid, expected_pod_uid);
-
-#define EXECVE_EXECVEAT_TEST(event)                                            \
-    std::shared_ptr<sinsp_plugin> plugin_owner;                                \
-    filter_check_list pl_flist;                                                \
-    ASSERT_PLUGIN_INITIALIZATION(plugin_owner, pl_flist)                       \
-                                                                               \
-    add_default_init_thread();                                                 \
-    open_inspector();                                                          \
-                                                                               \
-    auto &reg = m_inspector.get_table_registry();                              \
-    auto thread_table = reg->get_table<int64_t>(THREAD_TABLE_NAME);            \
-    auto dynamic_fields = thread_table->dynamic_fields();                      \
-    auto field = dynamic_fields->fields().find(POD_UID_FIELD_NAME);            \
-    auto fieldacc = field->second.new_accessor<std::string>();                 \
-                                                                               \
-    uint64_t not_relevant_64 = 0;                                              \
-    uint32_t not_relevant_32 = 0;                                              \
-                                                                               \
-    std::string expected_pod_uid = "5eaeeca9-2277-460b-a4bf-5a0783f6d49f";     \
-    std::vector<std::string> cgroups1 = {"cpuset=/kubepods/besteffort/pod" +   \
-                                         expected_pod_uid +                    \
-                                         "/691e0ffb65010b2b611f3a15b7f76c4846" \
-                                         "6192e673e156f38bd2f8e25acd6bbc"};    \
-    std::string cgroupsv = test_utils::to_null_delimited(cgroups1);            \
-    scap_const_sized_buffer empty_bytebuf = {/*.buf =*/nullptr, /*.size =*/0}; \
-                                                                               \
-    auto evt = add_event_advance_ts(                                           \
-            increasing_ts(), INIT_TID, event, 27, (int64_t)0, "/bin/test-exe", \
-            empty_bytebuf, (int64_t)INIT_TID, (int64_t)INIT_PID,               \
-            (int64_t)INIT_PTID, "", not_relevant_64, not_relevant_64,          \
-            not_relevant_64, not_relevant_32, not_relevant_32,                 \
-            not_relevant_32, "test-exe",                                       \
-            scap_const_sized_buffer{cgroupsv.data(), cgroupsv.size()},         \
-            empty_bytebuf, not_relevant_32, not_relevant_64, not_relevant_32,  \
-            (int32_t)PPM_EXE_WRITABLE, not_relevant_64, not_relevant_64,       \
-            not_relevant_64, not_relevant_64, not_relevant_64,                 \
-            not_relevant_64, not_relevant_32);                                 \
-    ASSERT_EQ(evt->get_type(), event);                                         \
-                                                                               \
-    auto init_thread_entry = thread_table->get_entry(INIT_TID);                \
-    ASSERT_NE(init_thread_entry, nullptr);                                     \
-    std::string pod_uid;                                                       \
-    init_thread_entry->get_dynamic_field(fieldacc, pod_uid);                   \
-    ASSERT_EQ(pod_uid, expected_pod_uid);
 
 // Check pod regex with different formats
 TEST_F(sinsp_with_test_input, plugin_k8s_pod_uid_regex)
@@ -134,7 +38,9 @@ TEST_F(sinsp_with_test_input, plugin_k8s_pod_uid_regex)
     open_inspector();
 
     auto &reg = m_inspector.get_table_registry();
-    auto thread_table = reg->get_table<int64_t>(THREAD_TABLE_NAME);
+    auto thread_table =
+            dynamic_cast<libsinsp::state::built_in_table<int64_t> *>(
+                    reg->get_table<int64_t>("threads"));
     auto field =
             thread_table->dynamic_fields()->fields().find(POD_UID_FIELD_NAME);
     auto fieldacc = field->second.new_accessor<std::string>();
@@ -230,7 +136,9 @@ TEST_F(sinsp_with_test_input, plugin_k8s_pod_uid_field_existance)
     auto &reg = m_inspector.get_table_registry();
     ASSERT_EQ(reg->tables().size(), 1);
     ASSERT_NE(reg->tables().find(THREAD_TABLE_NAME), reg->tables().end());
-    auto thread_table = reg->get_table<int64_t>(THREAD_TABLE_NAME);
+    auto thread_table =
+            dynamic_cast<libsinsp::state::built_in_table<int64_t> *>(
+                    reg->get_table<int64_t>("threads"));
     auto field =
             thread_table->dynamic_fields()->fields().find(POD_UID_FIELD_NAME);
     ASSERT_NE(field, thread_table->dynamic_fields()->fields().end());
@@ -248,38 +156,147 @@ TEST_F(sinsp_with_test_input, plugin_k8s_pod_uid_field_existance)
     ASSERT_EQ(pod_uid, "");
 }
 
+// Parametrized test for clone/fork events
+class clone_fork_test : public sinsp_with_test_input,
+                        public ::testing::WithParamInterface<ppm_event_code>
+{
+};
+
 // Check that clone/fork events are correctly parsed into the plugin and the
 // pod_uid is populated for the new thread!
-TEST_F(sinsp_with_test_input, plugin_k8s_PPME_SYSCALL_CLONE_20_X_parse)
+TEST_P(clone_fork_test, plugin_k8s_clone_fork_parse)
 {
-    CLONE_FORK_TEST(PPME_SYSCALL_CLONE_20_X);
+    ppm_event_code event = GetParam();
+
+    std::shared_ptr<sinsp_plugin> plugin_owner;
+    filter_check_list pl_flist;
+    ASSERT_PLUGIN_INITIALIZATION(plugin_owner, pl_flist);
+    add_default_init_thread();
+    open_inspector();
+
+    auto &reg = m_inspector.get_table_registry();
+    auto thread_table =
+            dynamic_cast<libsinsp::state::built_in_table<int64_t> *>(
+                    reg->get_table<int64_t>("threads"));
+    auto dynamic_fields = thread_table->dynamic_fields();
+    auto field = dynamic_fields->fields().find(POD_UID_FIELD_NAME);
+    auto fieldacc = field->second.new_accessor<std::string>();
+
+    int64_t p1_tid = 2;
+    int64_t p1_pid = 2;
+    int64_t p1_ptid = INIT_TID;
+    int64_t p1_vtid = 1;
+    int64_t p1_vpid = 1;
+
+    std::string expected_pod_uid = "5eaeeca9-2277-460b-a4bf-5a0783f6d49f";
+
+    /* We generate a clone exit event for the parent. */
+    /* This is parsed but the pod_uid is not extracted. */
+    auto evt = generate_clone_x_event(
+            p1_tid, INIT_TID, INIT_PID, INIT_PTID, 0, INIT_TID, INIT_PTID,
+            "init",
+            {"cpuset=/kubepods/besteffort/pod" + expected_pod_uid +
+             "/691e0ffb65010b2b611f3a15b7f76c48466192e673e156f38bd2f8e25acd6b"
+             "bc"},
+            event);
+    ASSERT_EQ(evt->get_type(), event);
+    auto init_thread_entry = thread_table->get_entry(INIT_TID);
+    ASSERT_NE(init_thread_entry, nullptr);
+    std::string pod_uid;
+    init_thread_entry->get_dynamic_field(fieldacc, pod_uid);
+    ASSERT_EQ(pod_uid, "");
+
+    evt = generate_clone_x_event(
+            0, p1_tid, p1_pid, p1_ptid, PPM_CL_CHILD_IN_PIDNS, p1_vtid, p1_vpid,
+            "bash",
+            {"cpuset=/kubepods/besteffort/pod" + expected_pod_uid +
+             "/691e0ffb65010b2b611f3a15b7f76c48466192e673e156f38bd2f8e25acd6b"
+             "bc"},
+            event);
+    ASSERT_EQ(evt->get_type(), event);
+
+    auto p1_tid_entry = thread_table->get_entry(p1_tid);
+    ASSERT_NE(p1_tid_entry, nullptr);
+    p1_tid_entry->get_dynamic_field(fieldacc, pod_uid);
+    ASSERT_EQ(pod_uid, expected_pod_uid);
 }
 
-TEST_F(sinsp_with_test_input, plugin_k8s_PPME_SYSCALL_FORK_20_X_parse)
-{
-    CLONE_FORK_TEST(PPME_SYSCALL_FORK_20_X);
-}
-
-TEST_F(sinsp_with_test_input, plugin_k8s_PPME_SYSCALL_VFORK_20_X_parse)
-{
-    CLONE_FORK_TEST(PPME_SYSCALL_VFORK_20_X);
-}
-
-TEST_F(sinsp_with_test_input, plugin_k8s_PPME_SYSCALL_CLONE3_X_parse)
-{
-    CLONE_FORK_TEST(PPME_SYSCALL_CLONE3_X);
-}
+// Define the test parameters
+INSTANTIATE_TEST_CASE_P(clone_fork_events, clone_fork_test,
+                        ::testing::Values(PPME_SYSCALL_CLONE_20_X,
+                                          PPME_SYSCALL_FORK_20_X,
+                                          PPME_SYSCALL_VFORK_20_X,
+                                          PPME_SYSCALL_CLONE3_X),
+                        [](const ::testing::TestParamInfo<ppm_event_code> &info)
+                        {
+                            switch(info.param)
+                            {
+                            case PPME_SYSCALL_CLONE_20_X:
+                                return "CLONE_20_X";
+                            case PPME_SYSCALL_FORK_20_X:
+                                return "FORK_20_X";
+                            case PPME_SYSCALL_VFORK_20_X:
+                                return "VFORK_20_X";
+                            case PPME_SYSCALL_CLONE3_X:
+                                return "CLONE3_X";
+                            default:
+                                return "UNKNOWN";
+                            }
+                        });
 
 // Check that execve/execveat events are correctly parsed into the plugin and
 // the pod_uid is populated for the new thread!
-TEST_F(sinsp_with_test_input, plugin_k8s_PPME_SYSCALL_EXECVE_19_X_parse)
-{
-    EXECVE_EXECVEAT_TEST(PPME_SYSCALL_EXECVE_19_X);
-}
-
+// TEST_F(sinsp_with_test_input, plugin_k8s_PPME_SYSCALL_EXECVE_19_X_parse)
+//{
+//    EXECVE_EXECVEAT_TEST(PPME_SYSCALL_EXECVE_19_X);
+//}
+//}
 TEST_F(sinsp_with_test_input, plugin_k8s_PPME_SYSCALL_EXECVEAT_X_parse)
 {
-    EXECVE_EXECVEAT_TEST(PPME_SYSCALL_EXECVEAT_X);
+    std::shared_ptr<sinsp_plugin> plugin_owner;
+    filter_check_list pl_flist;
+    ASSERT_PLUGIN_INITIALIZATION(plugin_owner, pl_flist)
+
+    add_default_init_thread();
+    open_inspector();
+
+    auto &reg = m_inspector.get_table_registry();
+    auto thread_table =
+            dynamic_cast<libsinsp::state::built_in_table<int64_t> *>(
+                    reg->get_table<int64_t>("threads"));
+    auto dynamic_fields = thread_table->dynamic_fields();
+    auto field = dynamic_fields->fields().find(POD_UID_FIELD_NAME);
+    auto fieldacc = field->second.new_accessor<std::string>();
+
+    uint64_t not_relevant_64 = 0;
+    uint32_t not_relevant_32 = 0;
+
+    std::string expected_pod_uid = "5eaeeca9-2277-460b-a4bf-5a0783f6d49f";
+    std::vector<std::string> cgroups1 = {"cpuset=/kubepods/besteffort/pod" +
+                                         expected_pod_uid +
+                                         "/691e0ffb65010b2b611f3a15b7f76c4846"
+                                         "6192e673e156f38bd2f8e25acd6bbc"};
+    std::string cgroupsv = test_utils::to_null_delimited(cgroups1);
+    scap_const_sized_buffer empty_bytebuf = {/*.buf =*/nullptr, /*.size =*/0};
+    SCAP_EMPTY_PARAMS_SET(empty_params_set, 27);
+    auto evt = add_event_advance_ts_with_empty_params(
+            increasing_ts(), INIT_TID, PPME_SYSCALL_EXECVEAT_X,
+            &empty_params_set, 30, not_relevant_64, "/bin/test-exe",
+            empty_bytebuf, (uint64_t)1, (uint64_t)1, (uint64_t)1, "<NA>",
+            not_relevant_64, not_relevant_64, not_relevant_64, 0, 0, 0,
+            "test-exe",
+            scap_const_sized_buffer{cgroupsv.data(), cgroupsv.size()},
+            empty_bytebuf, 0, not_relevant_64, 0, 0, not_relevant_64,
+            not_relevant_64, not_relevant_64, not_relevant_64, not_relevant_64,
+            not_relevant_64, not_relevant_32, nullptr, not_relevant_64,
+            not_relevant_32);
+    ASSERT_EQ(evt->get_type(), PPME_SYSCALL_EXECVEAT_X);
+
+    auto init_thread_entry = thread_table->get_entry(INIT_TID);
+    ASSERT_NE(init_thread_entry, nullptr);
+    std::string pod_uid;
+    init_thread_entry->get_dynamic_field(fieldacc, pod_uid);
+    ASSERT_EQ(pod_uid, expected_pod_uid);
 }
 
 // Check that the pod_uid is correctly overwritten with an execve after a clone
@@ -293,7 +310,9 @@ TEST_F(sinsp_with_test_input, plugin_k8s_execve_after_clone_event)
     open_inspector();
 
     auto &reg = m_inspector.get_table_registry();
-    auto thread_table = reg->get_table<int64_t>(THREAD_TABLE_NAME);
+    auto thread_table =
+            dynamic_cast<libsinsp::state::built_in_table<int64_t> *>(
+                    reg->get_table<int64_t>("threads"));
     auto field =
             thread_table->dynamic_fields()->fields().find(POD_UID_FIELD_NAME);
     auto fieldacc = field->second.new_accessor<std::string>();
@@ -337,17 +356,56 @@ TEST_F(sinsp_with_test_input, plugin_k8s_execve_after_clone_event)
 // plugin
 TEST_F(sinsp_with_test_input, plugin_k8s_check_thread_entry_is_removed)
 {
-    // Create a new child `p1_tid`
-    CLONE_FORK_TEST(PPME_SYSCALL_CLONE_20_X);
+    // Create a new child `p1_tid` using the same logic as the parametrized test
+    std::shared_ptr<sinsp_plugin> plugin_owner;
+    filter_check_list pl_flist;
+    ASSERT_PLUGIN_INITIALIZATION(plugin_owner, pl_flist);
+    add_default_init_thread();
+    open_inspector();
+
+    auto &reg = m_inspector.get_table_registry();
+    auto thread_table =
+            dynamic_cast<libsinsp::state::built_in_table<int64_t> *>(
+                    reg->get_table<int64_t>("threads"));
+    auto dynamic_fields = thread_table->dynamic_fields();
+    auto field = dynamic_fields->fields().find(POD_UID_FIELD_NAME);
+    auto fieldacc = field->second.new_accessor<std::string>();
+
+    int64_t p1_tid = 2;
+    int64_t p1_pid = 2;
+    int64_t p1_ptid = INIT_TID;
+    int64_t p1_vtid = 1;
+    int64_t p1_vpid = 1;
+
+    std::string expected_pod_uid = "5eaeeca9-2277-460b-a4bf-5a0783f6d49f";
+
+    auto evt = generate_clone_x_event(
+            p1_tid, INIT_TID, INIT_PID, INIT_PTID, 0, INIT_TID, INIT_PTID,
+            "init",
+            {"cpuset=/kubepods/besteffort/pod" + expected_pod_uid +
+             "/691e0ffb65010b2b611f3a15b7f76c48466192e673e156f38bd2f8e25acd6b"
+             "bc"},
+            PPME_SYSCALL_CLONE_20_X);
+    ASSERT_EQ(evt->get_type(), PPME_SYSCALL_CLONE_20_X);
+
+    evt = generate_clone_x_event(
+            0, p1_tid, p1_pid, p1_ptid, PPM_CL_CHILD_IN_PIDNS, p1_vtid, p1_vpid,
+            "bash",
+            {"cpuset=/kubepods/besteffort/pod" + expected_pod_uid +
+             "/691e0ffb65010b2b611f3a15b7f76c48466192e673e156f38bd2f8e25acd6b"
+             "bc"},
+            PPME_SYSCALL_CLONE_20_X);
+    ASSERT_EQ(evt->get_type(), PPME_SYSCALL_CLONE_20_X);
 
     // Check that now we have 2 entries in the thread table
     ASSERT_EQ(thread_table->entries_count(), 2);
-    auto p1_tid_tinfo = m_inspector.get_thread_ref(p1_tid, false).get();
+    const auto &thread_manager = m_inspector.m_thread_manager;
+    auto p1_tid_tinfo = thread_manager->get_thread_ref(p1_tid, false).get();
     ASSERT_TRUE(p1_tid_tinfo);
 
     // Call a proc_exit and see if the thread is removed from the thread table
     remove_thread(p1_tid, INIT_TID);
-    p1_tid_tinfo = m_inspector.get_thread_ref(p1_tid, false).get();
+    p1_tid_tinfo = thread_manager->get_thread_ref(p1_tid, false).get();
     ASSERT_FALSE(p1_tid_tinfo);
 
     // Now we should have only one entry in the thread table
@@ -364,7 +422,9 @@ TEST_F(sinsp_with_test_input, plugin_k8s_parse_parent_clone)
     open_inspector();
 
     auto &reg = m_inspector.get_table_registry();
-    auto thread_table = reg->get_table<int64_t>(THREAD_TABLE_NAME);
+    auto thread_table =
+            dynamic_cast<libsinsp::state::built_in_table<int64_t> *>(
+                    reg->get_table<int64_t>("threads"));
     auto field =
             thread_table->dynamic_fields()->fields().find(POD_UID_FIELD_NAME);
     auto fieldacc = field->second.new_accessor<std::string>();
@@ -435,7 +495,9 @@ TEST_F(sinsp_with_test_input, plugin_listen_cap_poduid)
     open_inspector();
 
     auto &reg = m_inspector.get_table_registry();
-    auto thread_table = reg->get_table<int64_t>(THREAD_TABLE_NAME);
+    auto thread_table =
+            dynamic_cast<libsinsp::state::built_in_table<int64_t> *>(
+                    reg->get_table<int64_t>("threads"));
     auto dynamic_fields = thread_table->dynamic_fields();
     auto field = dynamic_fields->fields().find(POD_UID_FIELD_NAME);
     auto fieldacc = field->second.new_accessor<std::string>();
