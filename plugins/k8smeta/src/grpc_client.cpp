@@ -18,18 +18,12 @@ limitations under the License.
 #include "grpc_client.h"
 #include "shared_with_tests_consts.h"
 
-#include <iostream>
 #include <memory>
 #include <string>
 #include <google/protobuf/util/json_util.h>
 #include <spdlog/spdlog.h>
 
-using grpc::Channel;
-using grpc::ClientContext;
-using grpc::ClientReader;
-using grpc::Status;
 using metadata::Event;
-using metadata::Selector;
 
 K8sMetaClient::K8sMetaClient(const std::string& node_name,
                              const std::string& ip_port,
@@ -71,11 +65,26 @@ K8sMetaClient::K8sMetaClient(const std::string& node_name,
     StartCall();
 }
 
-void K8sMetaClient::NotifyEnd(grpc::StatusCode c)
+K8sMetaClient::~K8sMetaClient()
+{
+    m_context.TryCancel();
+    // Wait for the call to OnDone callback to be completed, to avoid the
+    // destruction of the client before all callbacks have been processed.
+    constexpr auto max_done_timeout_s = 10;
+    std::unique_lock<std::mutex> l(m_mu);
+    m_cv.wait_for(l, std::chrono::seconds(max_done_timeout_s),
+                  [this] { return m_done; });
+}
+
+void K8sMetaClient::NotifyEnd(grpc::StatusCode c, bool done)
 {
     std::unique_lock<std::mutex> l(m_mu);
     m_status_code = c;
-    m_cv.notify_one();
+    if(done)
+    {
+        m_done = true;
+    }
+    m_cv.notify_all();
 }
 
 void K8sMetaClient::OnReadDone(bool ok)
@@ -93,7 +102,7 @@ void K8sMetaClient::OnReadDone(bool ok)
     if(!status.ok())
     {
         SPDLOG_ERROR("cannot convert message to json: {}", status.ToString());
-        NotifyEnd(grpc::StatusCode::DATA_LOSS);
+        NotifyEnd(grpc::StatusCode::DATA_LOSS, false);
         return;
     }
 
@@ -176,7 +185,7 @@ void K8sMetaClient::OnDone(const grpc::Status& s)
                      int32_t(s.error_code()), s.error_message());
         break;
     }
-    NotifyEnd(s.error_code());
+    NotifyEnd(s.error_code(), true);
 }
 
 // Return true if we need to restart the connection, false if we have done.
