@@ -373,7 +373,7 @@ bool my_plugin::stop_async_events() noexcept
     {
         std::unique_lock<std::mutex> l(m_mu);
         m_async_thread_quit = true;
-        m_cv.notify_one();
+        m_cv.notify_all();
         // Release the lock
     }
 

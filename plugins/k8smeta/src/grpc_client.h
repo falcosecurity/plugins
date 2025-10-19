@@ -34,20 +34,24 @@ class K8sMetaClient : public grpc::ClientReadReactor<metadata::Event>
                   const std::string& ca_PEM_encoding, std::mutex& mu,
                   std::condition_variable& cv, std::atomic<bool>& thread_quit,
                   falcosecurity::async_event_handler& handler);
-    ~K8sMetaClient() { m_context.TryCancel(); }
+    ~K8sMetaClient();
 
     bool Await(uint64_t& backoff_seconds);
 
     private:
     void OnReadDone(bool ok) override;
     void OnDone(const grpc::Status& s) override;
-    void NotifyEnd(grpc::StatusCode c);
+    void NotifyEnd(grpc::StatusCode c, bool done);
 
     std::unique_ptr<metadata::Metadata::Stub> m_stub;
     grpc::ClientContext m_context;
     metadata::Event m_event;
     falcosecurity::events::asyncevent_e_encoder m_enc;
     grpc::StatusCode m_status_code;
+    // m_done is used to notify that the OnDone callback have been processed,
+    // and avoid the destruction of the client before all callbacks have been
+    // processed.
+    bool m_done = false;
 
     // Shared with the thread that manages the async capability
     std::mutex& m_mu;
