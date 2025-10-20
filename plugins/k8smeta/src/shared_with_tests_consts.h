@@ -78,7 +78,7 @@ limitations under the License.
 // Generic plugin consts
 /////////////////////////
 #define PLUGIN_NAME "k8smeta"
-#define PLUGIN_VERSION "0.4.0-rc1"
+#define PLUGIN_VERSION "0.4.0"
 #define PLUGIN_DESCRIPTION                                                     \
     "Enrich syscall events with information about the pod that throws them"
 #define PLUGIN_CONTACT "github.com/falcosecurity/plugins"
