@@ -26,7 +26,7 @@ jobs:
         run: |
           apt update
           apt install -y --no-install-recommends awscli build-essential autoconf libelf-dev libtool autotools-dev \
-            automake zip unzip ninja-build wget lsb-release software-properties-common gnupg
+            automake zip unzip tar git ninja-build wget lsb-release software-properties-common gnupg
 
       - name: Install updated clang version ⛓️
         run: |
@@ -60,6 +60,12 @@ jobs:
         with:
           fetch-depth: 0
           submodules: "recursive"
+
+      - name: Install vcpkg 📦
+        uses: ./.github/actions/install-vcpkg
+        with:
+          # Using a specific commit to avoid unexpected issues
+          vcpkg_version: 2025.09.17
 
       - name: Safe directory
         run: git config --global --add safe.directory $GITHUB_WORKSPACE
