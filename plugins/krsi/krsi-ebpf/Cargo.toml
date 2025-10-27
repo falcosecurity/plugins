@@ -22,7 +22,7 @@ edition = "2021"
 krsi-common = { path = "../krsi-common" }
 krsi-ebpf-core = { path = "../krsi-ebpf-core" }
 
-cfg-if = "1.0.3"
+cfg-if = "1.0.4"
 
 aya-ebpf = { workspace = true }
 aya-log-ebpf = { workspace = true }
