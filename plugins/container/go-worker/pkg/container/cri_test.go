@@ -3,16 +3,20 @@ package container
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/config"
 	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	internalapi "k8s.io/cri-api/pkg/apis"
 	v1 "k8s.io/cri-api/pkg/apis/runtime/v1"
 	remote "k8s.io/cri-client/pkg"
 	"k8s.io/cri-client/pkg/fake"
-	"sync"
-	"testing"
-	"time"
 )
 
 func TestCRIInfoMap(t *testing.T) {
@@ -457,14 +461,193 @@ func testCRI(t *testing.T, withFetcher bool) {
 		IsCreate: false,
 	}
 	for {
-		evt := waitOnChannelOrTimeout(t, listCh)
-		if evt.IsCreate == false {
-			assert.Equal(t, expectedEvent, evt)
-			break
+		select {
+		case evt := <-listCh:
+			if evt.IsCreate == false {
+				assert.Equal(t, expectedEvent, evt)
+				return
+			}
+		case <-time.After(5 * time.Second):
+			t.Error("timed out waiting for channel")
+			return
 		}
 	}
 }
 
 func TestCRI(t *testing.T) {
 	testCRI(t, false)
+}
+
+// mockRuntimeService wraps a RuntimeService and allows injecting events into GetContainerEvents
+type mockRuntimeService struct {
+	internalapi.RuntimeService
+	eventsToSend []*v1.ContainerEventResponse
+}
+
+func (m *mockRuntimeService) GetContainerEvents(ctx context.Context, containerEventsCh chan *v1.ContainerEventResponse, callback func(v1.RuntimeService_GetContainerEventsClient)) error {
+	for _, evt := range m.eventsToSend {
+		select {
+		case containerEventsCh <- evt:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	return nil
+}
+
+func TestCRIListen(t *testing.T) {
+	endpoint, err := fake.GenerateEndpoint()
+	require.NoError(t, err)
+
+	fakeRuntime := fake.NewFakeRemoteRuntime()
+	err = fakeRuntime.Start(endpoint)
+	assert.NoError(t, err)
+	t.Cleanup(func() {
+		fakeRuntime.Stop()
+	})
+
+	// Create engine with fake runtime
+	engine, err := newCriEngine(context.Background(), endpoint)
+	assert.NoError(t, err)
+	criEngine := engine.(*criEngine)
+
+	// Create a test container to get a valid container ID
+	id := uuid.New()
+	podSandboxConfig := &v1.PodSandboxConfig{
+		Metadata: &v1.PodSandboxMetadata{
+			Name:      "test_sandbox",
+			Uid:       id.String(),
+			Namespace: "default",
+			Attempt:   0,
+		},
+	}
+	sandboxResp, err := fakeRuntime.RunPodSandbox(context.Background(), &v1.RunPodSandboxRequest{
+		Config: podSandboxConfig,
+	})
+	assert.NoError(t, err)
+
+	ctr, err := fakeRuntime.CreateContainer(context.Background(), &v1.CreateContainerRequest{
+		Config: &v1.ContainerConfig{
+			Metadata: &v1.ContainerMetadata{
+				Name:    "test_container",
+				Attempt: 0,
+			},
+			Image: &v1.ImageSpec{
+				Image: "alpine:3.20.3",
+			},
+		},
+		PodSandboxId: sandboxResp.PodSandboxId,
+	})
+	assert.NoError(t, err)
+
+	containerID := ctr.ContainerId
+
+	tests := []struct {
+		name          string
+		eventType     v1.ContainerEventType
+		hooks         byte
+		expectEvent   bool
+		validateEvent func(t *testing.T, evt event.Event, containerID string)
+	}{
+		{
+			name:        "filters_container_stopped_events",
+			eventType:   v1.ContainerEventType_CONTAINER_STOPPED_EVENT,
+			hooks:       config.HookCreate | config.HookStart | config.HookRemove,
+			expectEvent: false,
+		},
+		{
+			name:        "processes_container_created_events",
+			eventType:   v1.ContainerEventType_CONTAINER_CREATED_EVENT,
+			hooks:       config.HookCreate | config.HookStart | config.HookRemove,
+			expectEvent: true,
+			validateEvent: func(t *testing.T, evt event.Event, containerID string) {
+				assert.Equal(t, containerID, evt.Info.Container.FullID)
+				assert.True(t, evt.IsCreate)
+			},
+		},
+		{
+			name:        "processes_container_started_events",
+			eventType:   v1.ContainerEventType_CONTAINER_STARTED_EVENT,
+			hooks:       config.HookCreate | config.HookStart | config.HookRemove,
+			expectEvent: true,
+			validateEvent: func(t *testing.T, evt event.Event, containerID string) {
+				assert.Equal(t, containerID, evt.Info.Container.FullID)
+				assert.True(t, evt.IsCreate)
+			},
+		},
+		{
+			name:        "processes_container_deleted_events",
+			eventType:   v1.ContainerEventType_CONTAINER_DELETED_EVENT,
+			hooks:       config.HookCreate | config.HookStart | config.HookRemove,
+			expectEvent: true,
+			validateEvent: func(t *testing.T, evt event.Event, containerID string) {
+				assert.Equal(t, containerID, evt.Info.Container.FullID)
+				assert.False(t, evt.IsCreate)
+			},
+		},
+		{
+			name:        "respects_hook_configuration",
+			eventType:   v1.ContainerEventType_CONTAINER_CREATED_EVENT,
+			hooks:       config.HookStart | config.HookRemove, // HookCreate disabled
+			expectEvent: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set hook configuration for this test
+			config.Load(fmt.Sprintf(`{"hooks": %d}`, tt.hooks))
+
+			mockClient := &mockRuntimeService{
+				RuntimeService: criEngine.client,
+				eventsToSend: []*v1.ContainerEventResponse{{
+					ContainerId:        containerID,
+					ContainerEventType: tt.eventType,
+					CreatedAt:          time.Now().UnixNano(),
+				}},
+			}
+			criEngine.client = mockClient
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			wg := sync.WaitGroup{}
+			outCh, err := criEngine.Listen(ctx, &wg)
+			assert.NoError(t, err)
+
+			if tt.expectEvent {
+				// Verify an event was produced
+				select {
+				case evt, ok := <-outCh:
+					if !ok {
+						t.Error("Channel closed unexpectedly")
+						return
+					}
+					if evt.Info.Container.FullID == "" {
+						t.Error("Received zero-value event")
+						return
+					}
+					if tt.validateEvent != nil {
+						tt.validateEvent(t, evt, containerID)
+					}
+				case <-time.After(1 * time.Second):
+					t.Error("Timeout waiting for event")
+				}
+			} else {
+				// Verify no event was produced
+				select {
+				case evt, ok := <-outCh:
+					if ok && evt.Info.Container.FullID != "" {
+						t.Errorf("Unexpected event produced: %+v", evt)
+					}
+					// If !ok, channel was closed (expected) or zero-value from closed channel
+				case <-time.After(1 * time.Second):
+					// Expected: no event should be produced
+				}
+			}
+
+			cancel()
+			wg.Wait()
+		})
+	}
 }

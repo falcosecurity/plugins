@@ -515,35 +515,41 @@ func (c *criEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan even
 						// Skip
 						continue
 					}
+				default:
+					// Unhandled event type
+					continue
 				}
-
-				var info event.Info
-				returnInfo := true
-				ctr, err := c.client.ContainerStatus(ctx, evt.ContainerId, returnInfo)
-				if err != nil || ctr == nil {
-					info = event.Info{
-						Container: event.Container{
-							Type:        c.runtime,
-							ID:          shortContainerID(evt.ContainerId),
-							FullID:      evt.ContainerId,
-							CreatedTime: nanoSecondsToUnix(evt.CreatedAt),
-							IsPodSandbox: true,
-						},
-					}
-				} else {
-					cPodSandbox := evt.GetPodSandboxStatus()
-					podSandboxStatus, _ := c.client.PodSandboxStatus(ctx, cPodSandbox.GetId(), returnInfo)
-					if podSandboxStatus == nil {
-						podSandboxStatus = &v1.PodSandboxStatusResponse{}
-					}
-					info = c.ctrToInfo(ctx, ctr.GetStatus(), cPodSandbox, ctr.GetInfo(), podSandboxStatus.GetInfo())
-				}
-				outCh <- event.Event{
-					Info:     info,
-					IsCreate: evt.ContainerEventType != v1.ContainerEventType_CONTAINER_DELETED_EVENT,
-				}
+				c.sendAsyncEvent(ctx, evt, outCh)
 			}
 		}
 	}()
 	return outCh, nil
+}
+
+func (c *criEngine) sendAsyncEvent(ctx context.Context, evt *v1.ContainerEventResponse, outCh chan<- event.Event) {
+	var info event.Info
+	returnInfo := true
+	ctr, err := c.client.ContainerStatus(ctx, evt.ContainerId, returnInfo)
+	if err != nil || ctr == nil {
+		info = event.Info{
+			Container: event.Container{
+				Type:         c.runtime,
+				ID:           shortContainerID(evt.ContainerId),
+				FullID:       evt.ContainerId,
+				CreatedTime:  nanoSecondsToUnix(evt.CreatedAt),
+				IsPodSandbox: true,
+			},
+		}
+	} else {
+		cPodSandbox := evt.GetPodSandboxStatus()
+		podSandboxStatus, _ := c.client.PodSandboxStatus(ctx, cPodSandbox.GetId(), returnInfo)
+		if podSandboxStatus == nil {
+			podSandboxStatus = &v1.PodSandboxStatusResponse{}
+		}
+		info = c.ctrToInfo(ctx, ctr.GetStatus(), cPodSandbox, ctr.GetInfo(), podSandboxStatus.GetInfo())
+	}
+	outCh <- event.Event{
+		Info:     info,
+		IsCreate: evt.ContainerEventType != v1.ContainerEventType_CONTAINER_DELETED_EVENT,
+	}
 }
