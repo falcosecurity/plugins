@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.4.1
+
+* [`d95e32c`](https://github.com/falcosecurity/plugins/commit/d95e32c) fix(plugins/container): do not generate async event for CRI CONTAINER_STOPPED_EVENT
+
 ## v0.4.0
 
 * [`790555c`](https://github.com/falcosecurity/plugins/commit/790555cb) chore(plugins/container): bump to v0.4.0
