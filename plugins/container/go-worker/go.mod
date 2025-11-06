@@ -6,7 +6,7 @@ toolchain go1.23.7
 
 require (
 	github.com/containerd/containerd/api v1.9.0
-	github.com/containerd/containerd/v2 v2.1.4
+	github.com/containerd/containerd/v2 v2.1.5
 	github.com/containerd/typeurl/v2 v2.2.3
 	github.com/containers/image/v5 v5.36.2
 	github.com/containers/podman/v5 v5.6.1
