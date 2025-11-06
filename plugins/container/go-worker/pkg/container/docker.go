@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
+
 	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/config"
 	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
 )
@@ -26,21 +28,22 @@ func init() {
 
 type dockerEngine struct {
 	*client.Client
+	logger *slog.Logger
 	socket string
 }
 
-func newDockerEngine(_ context.Context, socket string) (Engine, error) {
+func newDockerEngine(_ context.Context, logger *slog.Logger, socket string) (Engine, error) {
 	cl, err := client.NewClientWithOpts(client.FromEnv,
 		client.WithAPIVersionNegotiation(),
 		client.WithHost(enforceUnixProtocolIfEmpty(socket)))
 	if err != nil {
 		return nil, err
 	}
-	return &dockerEngine{Client: cl, socket: socket}, nil
+	return &dockerEngine{Client: cl, logger: logger, socket: socket}, nil
 }
 
 func (dc *dockerEngine) copy(ctx context.Context) (Engine, error) {
-	return newDockerEngine(ctx, dc.socket)
+	return newDockerEngine(ctx, dc.logger, dc.socket)
 }
 
 type Probe struct {
@@ -398,6 +401,7 @@ func (dc *dockerEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan 
 				)
 				switch msg.Action {
 				case events.ActionCreate, events.ActionStart:
+					dc.logger.LogAttrs(ctx, config.LevelTrace, "container create or start event", slog.String("container_id", msg.Actor.ID))
 					ctrJson, _, err = dc.ContainerInspectWithRaw(ctx, msg.Actor.ID, config.GetWithSize())
 					if err == nil {
 						outCh <- event.Event{
@@ -406,6 +410,7 @@ func (dc *dockerEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan 
 						}
 					}
 				case events.ActionDestroy:
+					dc.logger.LogAttrs(ctx, config.LevelTrace, "container destroy event", slog.String("container_id", msg.Actor.ID))
 					err = errors.New("inspect useless on action destroy")
 				}
 

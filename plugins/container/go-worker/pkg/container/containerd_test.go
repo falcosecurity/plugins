@@ -2,6 +2,11 @@ package container
 
 import (
 	"context"
+	"log/slog"
+	"os/user"
+	"sync"
+	"testing"
+
 	containerd "github.com/containerd/containerd/v2/client"
 	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/containerd/v2/pkg/oci"
@@ -9,9 +14,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/stretchr/testify/assert"
-	"os/user"
-	"sync"
-	"testing"
 )
 
 func testContainerd(t *testing.T, withFetcher bool) {
@@ -27,7 +29,7 @@ func testContainerd(t *testing.T, withFetcher bool) {
 		t.Skip("Socket "+containerdSocket+" mandatory to run containerd tests:", err.Error())
 	}
 
-	engine, err := newContainerdEngine(context.Background(), containerdSocket)
+	engine, err := newContainerdEngine(context.Background(), slog.Default(), containerdSocket)
 	assert.NoError(t, err)
 
 	namespacedCtx := namespaces.WithNamespace(context.Background(), "test_ns")
