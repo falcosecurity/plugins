@@ -6,6 +6,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
+	"strconv"
+	"strings"
+	"sync"
+
 	"github.com/containers/podman/v5/libpod/define"
 	"github.com/containers/podman/v5/pkg/bindings"
 	"github.com/containers/podman/v5/pkg/bindings/containers"
@@ -13,11 +18,9 @@ import (
 	"github.com/containers/podman/v5/pkg/domain/entities/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
+
 	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/config"
 	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
-	"strconv"
-	"strings"
-	"sync"
 )
 
 func init() {
@@ -29,7 +32,7 @@ type podmanEngine struct {
 	socket string
 }
 
-func newPodmanEngine(ctx context.Context, socket string) (Engine, error) {
+func newPodmanEngine(ctx context.Context, _ *slog.Logger, socket string) (Engine, error) {
 	conn, err := bindings.NewConnection(ctx, enforceUnixProtocolIfEmpty(socket))
 	if err != nil {
 		return nil, err
@@ -38,7 +41,8 @@ func newPodmanEngine(ctx context.Context, socket string) (Engine, error) {
 }
 
 func (pc *podmanEngine) copy(ctx context.Context) (Engine, error) {
-	return newPodmanEngine(ctx, pc.socket)
+	// TODO: change to use logger member once handled
+	return newPodmanEngine(ctx, nil, pc.socket)
 }
 
 func (pc *podmanEngine) ctrToInfo(ctr *define.InspectContainerData) event.Info {

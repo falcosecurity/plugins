@@ -55,8 +55,11 @@ bool my_plugin::parse_async_event(const falcosecurity::parse_event_input& in)
 {
     auto& evt = in.get_event_reader();
     falcosecurity::events::asyncevent_e_decoder ad(evt);
-    bool added = std::strcmp(ad.get_name(), ASYNC_EVENT_NAME_ADDED) == 0;
-    bool removed = std::strcmp(ad.get_name(), ASYNC_EVENT_NAME_REMOVED) == 0;
+    auto name = ad.get_name();
+    m_logger.log(fmt::format("Received async event: {}", name),
+                 falcosecurity::_internal::SS_PLUGIN_LOG_SEV_TRACE);
+    bool added = std::strcmp(name, ASYNC_EVENT_NAME_ADDED) == 0;
+    bool removed = std::strcmp(name, ASYNC_EVENT_NAME_REMOVED) == 0;
     if(!added && !removed)
     {
         // We are not interested in parsing async events that are not
@@ -77,6 +80,11 @@ bool my_plugin::parse_async_event(const falcosecurity::parse_event_input& in)
     }
     auto json_event = nlohmann::json::parse(json_charbuf_pointer);
     auto cinfo = json_event.get<container_info::ptr_t>();
+    m_logger.log(fmt::format("Container info: type={}, id={}, name={}, "
+                             "image={}, added={}, removed={}",
+                             to_string(cinfo->m_type), cinfo->m_id,
+                             cinfo->m_name, cinfo->m_image, added, removed),
+                 falcosecurity::_internal::SS_PLUGIN_LOG_SEV_TRACE);
     if(added)
     {
         m_logger.log(fmt::format("Adding container: {}", cinfo->m_id),

@@ -2,18 +2,21 @@ package container
 
 import (
 	"context"
+	"log/slog"
+	"strconv"
+	"strings"
+	"sync"
+
 	"github.com/containerd/containerd/api/events"
 	containerd "github.com/containerd/containerd/v2/client"
 	"github.com/containerd/containerd/v2/core/containers"
 	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/containerd/v2/pkg/oci"
 	"github.com/containerd/typeurl/v2"
+	"github.com/opencontainers/runtime-spec/specs-go"
+
 	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/config"
 	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
-	"github.com/opencontainers/runtime-spec/specs-go"
-	"strconv"
-	"strings"
-	"sync"
 )
 
 func init() {
@@ -25,7 +28,7 @@ type containerdEngine struct {
 	socket string
 }
 
-func newContainerdEngine(_ context.Context, socket string) (Engine, error) {
+func newContainerdEngine(_ context.Context, _ *slog.Logger, socket string) (Engine, error) {
 	client, err := containerd.New(socket)
 	if err != nil {
 		return nil, err
@@ -34,7 +37,8 @@ func newContainerdEngine(_ context.Context, socket string) (Engine, error) {
 }
 
 func (c *containerdEngine) copy(ctx context.Context) (Engine, error) {
-	return newContainerdEngine(ctx, c.socket)
+	// TODO: change to use logger member once handled
+	return newContainerdEngine(ctx, nil, c.socket)
 }
 
 func (c *containerdEngine) ctrToInfo(namespacedContext context.Context, container containerd.Container) event.Info {
