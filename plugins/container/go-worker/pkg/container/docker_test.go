@@ -3,6 +3,7 @@ package container
 import (
 	"context"
 	"io"
+	"log/slog"
 	"runtime"
 	"sync"
 	"testing"
@@ -21,7 +22,7 @@ func testDocker(t *testing.T, withFetcher bool) {
 		t.Skip("Socket "+client.DefaultDockerHost+" mandatory to run docker tests:", err.Error())
 	}
 
-	engine, err := newDockerEngine(context.Background(), client.DefaultDockerHost)
+	engine, err := newDockerEngine(context.Background(), slog.Default(), client.DefaultDockerHost)
 	assert.NoError(t, err)
 
 	if _, err = dockerClient.ImageInspect(context.Background(), "alpine:3.20.3"); client.IsErrNotFound(err) {

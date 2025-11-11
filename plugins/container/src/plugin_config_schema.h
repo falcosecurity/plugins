@@ -29,6 +29,18 @@ const char plugin_schema_string[] = LONG_STRING_CONST(
       "title": "Hooks to be attached.",
       "description": "Hooks to be attached from the engines SDKs. Some fields are not available in 'create' hook. By default, we only attach 'create' that is guaranteed to be notified before first process starts."
     },
+    "log_level": {
+      "type": "string",
+      "enum": [
+        "trace",
+        "debug",
+        "info",
+        "warn",
+        "error"
+      ],
+      "title": "Log level",
+      "description": "Log level for the go-worker. Valid values: trace, debug, info, warn, error. Defaults to 'warn'."
+    },
     "engines": {
       "$ref": "#/definitions/Engines",
       "title": "The plugin per-engine configuration",

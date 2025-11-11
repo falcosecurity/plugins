@@ -37,6 +37,7 @@ void from_json(const nlohmann::json& j, PluginConfig& cfg)
 {
     cfg.label_max_len = j.value("label_max_len", DEFAULT_LABEL_MAX_LEN);
     cfg.with_size = j.value("with_size", false);
+    cfg.log_level = j.value("log_level", std::string{"warn"});
 
     std::vector<std::string> hooks =
             j.value("hooks", std::vector<std::string>{"create"});
@@ -129,5 +130,6 @@ void to_json(nlohmann::json& j, const PluginConfig& cfg)
     j["with_size"] = cfg.with_size;
     j["host_root"] = cfg.host_root;
     j["hooks"] = cfg.hooks;
+    j["log_level"] = cfg.log_level;
     j["engines"] = cfg.engines;
 }

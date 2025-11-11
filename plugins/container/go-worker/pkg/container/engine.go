@@ -4,8 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/config"
-	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
+	"log/slog"
 	"net/netip"
 	"net/url"
 	"os"
@@ -14,6 +13,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/config"
+	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
 )
 
 const (
@@ -51,7 +53,7 @@ func (t engineType) ToCTValue() int {
 	}
 }
 
-type engineGenerator func(context.Context, string) (Engine, error)
+type engineGenerator func(context.Context, *slog.Logger, string) (Engine, error)
 type EngineGenerator func(ctx context.Context) (Engine, error)
 
 // Hooked up by each engine through init()
@@ -74,7 +76,7 @@ func Generators() ([]EngineGenerator, error) {
 			// try to generate an engine for the socket.
 			if _, statErr := os.Stat(socket); !os.IsNotExist(statErr) {
 				generators = append(generators, func(ctx context.Context) (Engine, error) {
-					return engineGen(ctx, socket)
+					return engineGen(ctx, slog.With("engine", engineName), socket)
 				})
 			}
 		}

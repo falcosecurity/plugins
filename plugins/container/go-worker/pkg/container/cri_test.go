@@ -4,12 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/config"
-	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,6 +16,9 @@ import (
 	v1 "k8s.io/cri-api/pkg/apis/runtime/v1"
 	remote "k8s.io/cri-client/pkg"
 	"k8s.io/cri-client/pkg/fake"
+
+	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/config"
+	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
 )
 
 func TestCRIInfoMap(t *testing.T) {
@@ -215,7 +217,7 @@ func testCRIFake(t *testing.T, withFetcher bool) {
 		fakeRuntime.Stop()
 	})
 
-	engine, err := newCriEngine(context.Background(), endpoint)
+	engine, err := newCriEngine(context.Background(), slog.Default(), endpoint)
 	assert.NoError(t, err)
 
 	id := uuid.New()
@@ -326,7 +328,7 @@ func testCRI(t *testing.T, withFetcher bool) {
 		t.Skip("Socket "+criSocket+" mandatory to run cri tests:", err.Error())
 	}
 
-	engine, err := newCriEngine(context.Background(), criSocket)
+	engine, err := newCriEngine(context.Background(), slog.Default(), criSocket)
 	assert.NoError(t, err)
 
 	id := uuid.New()
@@ -507,7 +509,7 @@ func TestCRIListen(t *testing.T) {
 	})
 
 	// Create engine with fake runtime
-	engine, err := newCriEngine(context.Background(), endpoint)
+	engine, err := newCriEngine(context.Background(), slog.Default(), endpoint)
 	assert.NoError(t, err)
 	criEngine := engine.(*criEngine)
 

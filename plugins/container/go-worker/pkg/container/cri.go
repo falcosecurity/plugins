@@ -4,16 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/config"
-	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
 	internalapi "k8s.io/cri-api/pkg/apis"
 	v1 "k8s.io/cri-api/pkg/apis/runtime/v1"
 	remote "k8s.io/cri-client/pkg"
+
+	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/config"
+	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
 )
 
 const maxCNILen = 4096
@@ -23,6 +25,7 @@ func init() {
 }
 
 type criEngine struct {
+	logger  *slog.Logger
 	client  internalapi.RuntimeService
 	runtime int // as CT_FOO value
 	socket  string
@@ -37,7 +40,7 @@ func getRuntime(runtime string) int {
 	return typeCri.ToCTValue()
 }
 
-func newCriEngine(ctx context.Context, socket string) (Engine, error) {
+func newCriEngine(ctx context.Context, logger *slog.Logger, socket string) (Engine, error) {
 	client, err := remote.NewRemoteRuntimeService(socket, 5*time.Second, nil, nil)
 	if err != nil {
 		return nil, err
@@ -47,6 +50,7 @@ func newCriEngine(ctx context.Context, socket string) (Engine, error) {
 		return nil, err
 	}
 	return &criEngine{
+		logger:  logger,
 		client:  client,
 		runtime: getRuntime(version.RuntimeName),
 		socket:  socket,
@@ -54,7 +58,7 @@ func newCriEngine(ctx context.Context, socket string) (Engine, error) {
 }
 
 func (c *criEngine) copy(ctx context.Context) (Engine, error) {
-	return newCriEngine(ctx, c.socket)
+	return newCriEngine(ctx, c.logger, c.socket)
 }
 
 // Structures that maps container.Info() map
@@ -503,22 +507,27 @@ func (c *criEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan even
 				case v1.ContainerEventType_CONTAINER_CREATED_EVENT:
 					if !config.IsHookEnabled(config.HookCreate) {
 						// Skip
+						c.logger.LogAttrs(ctx, config.LevelTrace, "skipping container created event because hook is disabled by configuration", slog.String("container_id", evt.ContainerId))
 						continue
 					}
 				case v1.ContainerEventType_CONTAINER_STARTED_EVENT:
 					if !config.IsHookEnabled(config.HookStart) {
 						// Skip
+						c.logger.LogAttrs(ctx, config.LevelTrace, "skipping container started event because hook is disabled by configuration", slog.String("container_id", evt.ContainerId))
 						continue
 					}
 				case v1.ContainerEventType_CONTAINER_DELETED_EVENT:
 					if !config.IsHookEnabled(config.HookRemove) {
 						// Skip
+						c.logger.LogAttrs(ctx, config.LevelTrace, "skipping container deleted event because hook is disabled by configuration", slog.String("container_id", evt.ContainerId))
 						continue
 					}
 				default:
 					// Unhandled event type
+					c.logger.LogAttrs(ctx, config.LevelTrace, "unhandled event type", slog.String("event_type", evt.ContainerEventType.String()))
 					continue
 				}
+				c.logger.LogAttrs(ctx, config.LevelTrace, "sending container event", slog.String("container_id", evt.ContainerId), slog.String("event_type", evt.ContainerEventType.String()))
 				c.sendAsyncEvent(ctx, evt, outCh)
 			}
 		}

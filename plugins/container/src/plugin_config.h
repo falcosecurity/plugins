@@ -62,6 +62,7 @@ struct PluginConfig
     bool with_size;
     uint8_t hooks;
     std::string host_root;
+    std::string log_level;
     Engines engines;
 
     PluginConfig()
@@ -69,6 +70,7 @@ struct PluginConfig
         label_max_len = DEFAULT_LABEL_MAX_LEN;
         with_size = false;
         hooks = HOOK_CREATE;
+        log_level = "info";
         if(const char* hroot = std::getenv("HOST_ROOT"))
         {
             host_root = hroot;

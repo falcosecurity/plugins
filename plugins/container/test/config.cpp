@@ -136,6 +136,7 @@ TEST(plugin_config, to_json)
   "hooks": 3,
   "host_root": "",
   "label_max_len": 120,
+  "log_level": "trace",
   "with_size": true
 })";
     auto cfg = PluginConfig{};
@@ -157,6 +158,7 @@ TEST(plugin_config, to_json)
     cfg.label_max_len = 120;
     cfg.with_size = true;
     cfg.hooks = HOOK_CREATE | HOOK_START;
+    cfg.log_level = "trace";
 
     nlohmann::json j(cfg);
     EXPECT_EQ(j.dump(2).c_str(), expected_config);

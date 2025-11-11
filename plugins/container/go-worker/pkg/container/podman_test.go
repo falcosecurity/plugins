@@ -5,6 +5,13 @@ package container
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"os/user"
+	"runtime"
+	"sync"
+	"testing"
+	"time"
+
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/podman/v5/pkg/bindings"
 	"github.com/containers/podman/v5/pkg/bindings/containers"
@@ -13,11 +20,6 @@ import (
 	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/stretchr/testify/assert"
-	"os/user"
-	"runtime"
-	"sync"
-	"testing"
-	"time"
 )
 
 func waitOnChannelOrTimeout(t *testing.T, ch <-chan event.Event) event.Event {
@@ -51,7 +53,7 @@ func testPodman(t *testing.T, withFetcher bool) {
 		assert.NoError(t, err)
 	}
 
-	engine, err := newPodmanEngine(context.Background(), podmanSocket)
+	engine, err := newPodmanEngine(context.Background(), slog.Default(), podmanSocket)
 	assert.NoError(t, err)
 
 	privileged := true
