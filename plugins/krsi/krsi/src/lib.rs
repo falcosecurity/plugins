@@ -26,18 +26,13 @@ use std::{
     time::{Duration, SystemTime},
 };
 
+use falco_event_schema::{events::PPME_SYSCALL_CLONE_20_X, fields::types::PT_PID};
 use falco_plugin::{
     anyhow::Error,
     async_event::{AsyncEvent, AsyncEventPlugin, AsyncHandler},
     async_event_plugin,
     base::{Json, Plugin},
-    event::{
-        events::{
-            types::{EventType, PPME_ASYNCEVENT_E, PPME_SYSCALL_CLONE_20_X},
-            Event, EventMetadata,
-        },
-        fields::types::PT_PID,
-    },
+    event::events::{Event, EventMetadata, RawEvent},
     extract::{field, EventInput, ExtractFieldInfo, ExtractPlugin, ExtractRequest},
     extract_plugin,
     parse::{ParseInput, ParsePlugin},
@@ -183,9 +178,9 @@ fn emit_async_event(
     let tid = event.tid;
 
     let event = AsyncEvent {
-        plugin_id: None,
-        name: Some(event_name),
-        data: Some(&serialized),
+        plugin_id: 0,
+        name: event_name,
+        data: serialized.as_slice(),
     };
     let metadata = EventMetadata {
         ts,
@@ -203,18 +198,21 @@ fn emit_async_event(
 
 /// Event Parsing Capability
 impl ParsePlugin for KrsiPlugin {
-    const EVENT_TYPES: &'static [EventType] = &[EventType::ASYNCEVENT_E];
-    const EVENT_SOURCES: &'static [&'static str] = &["syscall"];
+    type Event<'a> = RawEvent<'a>;
 
-    fn parse_event(&mut self, event: &EventInput, parse_input: &ParseInput) -> Result<(), Error> {
-        let event = event.event()?;
+    fn parse_event(
+        &mut self,
+        event: &EventInput<Self::Event<'_>>,
+        parse_input: &ParseInput,
+    ) -> Result<(), Error> {
+        let raw = event.event()?;
 
-        if let Ok(event) = event.load::<AsyncEvent>() {
-            return self.parse_krsi_event(event, parse_input);
+        if let Ok(async_event) = raw.load::<AsyncEvent<&[u8]>>() {
+            return self.parse_krsi_event(async_event, parse_input);
         }
 
-        if let Ok(event) = event.load::<PPME_SYSCALL_CLONE_20_X>() {
-            return self.parse_clone_event(event);
+        if let Ok(clone_event) = raw.load::<PPME_SYSCALL_CLONE_20_X<'_>>() {
+            return self.parse_clone_event(clone_event);
         }
 
         Ok(())
@@ -396,20 +394,16 @@ impl KrsiPlugin {
         Ok(())
     }
 
-    fn parse_krsi_event(
+    fn parse_krsi_event<'a>(
         &mut self,
-        event: Event<PPME_ASYNCEVENT_E>,
+        event: Event<AsyncEvent<'a, &'a [u8]>>,
         parse_input: &ParseInput,
     ) -> Result<(), Error> {
-        if event.params.name != Some(c"krsi") {
+        if event.params.name != c"krsi" {
             return Ok(());
         }
 
-        let Some(buf) = event.params.data else {
-            println!("missing event data");
-            anyhow::bail!("Missing event data");
-        };
-
+        let buf = event.params.data;
         let ev: KrsiEvent = bincode::serde::decode_from_slice(buf, bincode::config::legacy())?.0;
         let tid = ev.tid as i64;
         let pid = ev.pid as i64;
@@ -457,12 +451,12 @@ impl KrsiPlugin {
         }
     }
 
-    fn parse_krsi_open_event(
+    fn parse_krsi_open_event<'a>(
         &self,
         parse_input: &ParseInput,
         _pid: i64,
         tid: i64,
-        mut event: Event<PPME_ASYNCEVENT_E>,
+        mut event: Event<AsyncEvent<'a, &'a [u8]>>,
         data: &OpenData,
     ) -> Result<(), Error> {
         let OpenData {
@@ -511,19 +505,19 @@ impl KrsiPlugin {
             }
         }
 
-        event.params.name = Some(c"krsi_open");
+        event.params.name = c"krsi_open";
         if let Some(handler) = self.async_handler.as_ref() {
             handler.emit(event)?;
         }
         Ok(())
     }
 
-    fn parse_krsi_connect_event(
+    fn parse_krsi_connect_event<'a>(
         &self,
         parse_input: &ParseInput,
         _pid: i64,
         tid: i64,
-        mut event: Event<PPME_ASYNCEVENT_E>,
+        mut event: Event<AsyncEvent<'a, &'a [u8]>>,
         data: &ConnectData,
     ) -> Result<(), Error> {
         let r = &parse_input.reader;
@@ -541,86 +535,89 @@ impl KrsiPlugin {
             fd_entry.set_fd(w, &fd)?;
         }
 
-        event.params.name = Some(c"krsi_connect");
+        event.params.name = c"krsi_connect";
         if let Some(handler) = self.async_handler.as_ref() {
             handler.emit(event)?;
         }
         Ok(())
     }
 
-    fn parse_krsi_mkdirat_event(
+    fn parse_krsi_mkdirat_event<'a>(
         &self,
-        mut event: Event<PPME_ASYNCEVENT_E>,
+        mut event: Event<AsyncEvent<'a, &'a [u8]>>,
         _data: &MkdiratData,
     ) -> Result<(), Error> {
-        event.params.name = Some(c"krsi_mkdirat");
+        event.params.name = c"krsi_mkdirat";
         if let Some(handler) = self.async_handler.as_ref() {
             handler.emit(event)?;
         }
         Ok(())
     }
 
-    fn parse_krsi_socket_event(
+    fn parse_krsi_socket_event<'a>(
         &self,
-        mut event: Event<PPME_ASYNCEVENT_E>,
+        mut event: Event<AsyncEvent<'a, &'a [u8]>>,
         _data: &SocketData,
     ) -> Result<(), Error> {
-        event.params.name = Some(c"krsi_socket");
+        event.params.name = c"krsi_socket";
         if let Some(handler) = self.async_handler.as_ref() {
             handler.emit(event)?;
         }
         Ok(())
     }
 
-    fn parse_krsi_symlinkat_event(
+    fn parse_krsi_symlinkat_event<'a>(
         &self,
-        mut event: Event<PPME_ASYNCEVENT_E>,
+        mut event: Event<AsyncEvent<'a, &'a [u8]>>,
         _data: &SymlinkatData,
     ) -> Result<(), Error> {
-        event.params.name = Some(c"krsi_symlinkat");
+        event.params.name = c"krsi_symlinkat";
         if let Some(handler) = self.async_handler.as_ref() {
             handler.emit(event)?;
         }
         Ok(())
     }
 
-    fn parse_krsi_linkat_event(
+    fn parse_krsi_linkat_event<'a>(
         &self,
-        mut event: Event<PPME_ASYNCEVENT_E>,
+        mut event: Event<AsyncEvent<'a, &'a [u8]>>,
         _data: &LinkatData,
     ) -> Result<(), Error> {
-        event.params.name = Some(c"krsi_linkat");
+        event.params.name = c"krsi_linkat";
         if let Some(handler) = self.async_handler.as_ref() {
             handler.emit(event)?;
         }
         Ok(())
     }
 
-    fn parse_krsi_unlinkat_event(
+    fn parse_krsi_unlinkat_event<'a>(
         &self,
-        mut event: Event<PPME_ASYNCEVENT_E>,
+        mut event: Event<AsyncEvent<'a, &'a [u8]>>,
         _data: &UnlinkatData,
     ) -> Result<(), Error> {
-        event.params.name = Some(c"krsi_unlinkat");
+        event.params.name = c"krsi_unlinkat";
         if let Some(handler) = self.async_handler.as_ref() {
             handler.emit(event)?;
         }
         Ok(())
     }
 
-    fn parse_krsi_renameat_event(
+    fn parse_krsi_renameat_event<'a>(
         &self,
-        mut event: Event<PPME_ASYNCEVENT_E>,
+        mut event: Event<AsyncEvent<'a, &'a [u8]>>,
         _data: &RenameatData,
     ) -> Result<(), Error> {
-        event.params.name = Some(c"krsi_renameat");
+        event.params.name = c"krsi_renameat";
         if let Some(handler) = self.async_handler.as_ref() {
             handler.emit(event)?;
         }
         Ok(())
     }
 
-    fn parse_clone_event(&mut self, event: Event<PPME_SYSCALL_CLONE_20_X>) -> Result<(), Error> {
+    fn parse_clone_event<'a>(
+        &mut self,
+        event: Event<PPME_SYSCALL_CLONE_20_X<'a>>,
+    ) -> Result<(), Error> {
         let Some(PT_PID(child_tid)) = event.params.res else {
             return Ok(());
         };
@@ -639,20 +636,17 @@ impl KrsiPlugin {
         Ok(())
     }
 
-    fn extract_krsi_event<'a>(
+    fn extract_krsi_event<'a, 'r>(
         &self,
         context: &'a mut Option<KrsiEvent>,
-        event: &EventInput,
+        event: &EventInput<'r, RawEvent<'r>>,
     ) -> Result<&'a KrsiEvent, Error> {
         match context {
             Some(parsed_event) => Ok(parsed_event),
             None => {
-                let event = event.event()?;
-                let event = event.load::<AsyncEvent>()?;
-
-                let Some(buf) = event.params.data else {
-                    anyhow::bail!("Missing event data");
-                };
+                let raw = event.event()?;
+                let async_ev = raw.load::<AsyncEvent<&[u8]>>()?;
+                let buf = async_ev.params.data;
 
                 let parsed_event: KrsiEvent =
                     bincode::serde::decode_from_slice(buf, bincode::config::legacy())?.0;
@@ -691,8 +685,7 @@ impl KrsiPlugin {
 }
 
 impl ExtractPlugin for KrsiPlugin {
-    const EVENT_TYPES: &'static [EventType] = &[EventType::ASYNCEVENT_E];
-    const EVENT_SOURCES: &'static [&'static str] = &["syscall"];
+    type Event<'a> = RawEvent<'a>;
     type ExtractContext = Option<KrsiEvent>;
     const EXTRACT_FIELDS: &'static [ExtractFieldInfo<Self>] = &[
         field("krsi.name", &Self::extract_name).with_description(
