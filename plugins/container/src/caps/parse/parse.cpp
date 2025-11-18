@@ -112,6 +112,52 @@ bool my_plugin::parse_async_event(const falcosecurity::parse_event_input& in)
     return true;
 }
 
+bool my_plugin::parse_container_event(
+        const falcosecurity::parse_event_input& in)
+{
+    auto& evt = in.get_event_reader();
+    auto id_param = get_syscall_evt_param(evt.get_buf(), 0);
+    auto type_param = get_syscall_evt_param(evt.get_buf(), 1);
+    auto name_param = get_syscall_evt_param(evt.get_buf(), 2);
+    auto image_param = get_syscall_evt_param(evt.get_buf(), 3);
+
+    std::string id = (char*)id_param.param_pointer;
+    container_type tp = *((container_type*)type_param.param_pointer);
+    std::string name = (char*)name_param.param_pointer;
+    std::string image = (char*)image_param.param_pointer;
+
+    auto cinfo = std::make_shared<container_info>();
+    cinfo->m_id = id;
+    cinfo->m_type = tp;
+    cinfo->m_name = name;
+    cinfo->m_image = image;
+    m_logger.log(fmt::format("Adding container from old container event: {}",
+                             cinfo->m_id),
+                 falcosecurity::_internal::SS_PLUGIN_LOG_SEV_TRACE);
+    m_containers[id] = cinfo;
+    m_last_container = {evt.get_num(), cinfo};
+    return true;
+}
+
+bool my_plugin::parse_container_json_event(
+        const falcosecurity::parse_event_input& in)
+{
+    auto& evt = in.get_event_reader();
+    auto json_param = get_syscall_evt_param(evt.get_buf(), 0);
+
+    std::string json_str = (char*)json_param.param_pointer;
+    auto json_event = nlohmann::json::parse(json_str);
+
+    auto cinfo = json_event.get<container_info::ptr_t>();
+    m_logger.log(
+            fmt::format("Adding container from old container_json event: {}",
+                        cinfo->m_id),
+            falcosecurity::_internal::SS_PLUGIN_LOG_SEV_TRACE);
+    m_containers[cinfo->m_id] = cinfo;
+    m_last_container = {evt.get_num(), cinfo};
+    return true;
+}
+
 bool my_plugin::parse_container_json_2_event(
         const falcosecurity::parse_event_input& in)
 {
@@ -249,6 +295,10 @@ bool my_plugin::parse_event(const falcosecurity::parse_event_input& in)
     {
     case PPME_ASYNCEVENT_E:
         return parse_async_event(in);
+    case PPME_CONTAINER_E:
+        return parse_container_event(in);
+    case PPME_CONTAINER_JSON_E:
+        return parse_container_json_event(in);
     case PPME_CONTAINER_JSON_2_E:
         // large payload
         return parse_container_json_2_event(in);
@@ -256,6 +306,9 @@ bool my_plugin::parse_event(const falcosecurity::parse_event_input& in)
     case PPME_SYSCALL_FORK_20_X:
     case PPME_SYSCALL_VFORK_20_X:
     case PPME_SYSCALL_CLONE3_X:
+    case PPME_SYSCALL_EXECVE_16_X:
+    case PPME_SYSCALL_EXECVE_17_X:
+    case PPME_SYSCALL_EXECVE_18_X:
     case PPME_SYSCALL_EXECVE_19_X:
     case PPME_SYSCALL_EXECVEAT_X:
     case PPME_SYSCALL_CHROOT_X:
