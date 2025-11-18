@@ -558,9 +558,10 @@ bool my_plugin::extract(const falcosecurity::extract_fields_input &in)
                 std::strcmp(ad.get_name(), ASYNC_EVENT_NAME_REMOVED) == 0;
     }
 
-    bool is_container_event{evt_type == PPME_CONTAINER_JSON_2_E ||
-                            is_container_async_event_create ||
-                            is_container_async_event_remove};
+    bool is_container_event{
+            evt_type == PPME_CONTAINER_E || evt_type == PPME_CONTAINER_JSON_E ||
+            evt_type == PPME_CONTAINER_JSON_2_E ||
+            is_container_async_event_create || is_container_async_event_remove};
     // As mentioned above, m_last_container might be null or relative to another
     // event. Check the timestamp.
     if(is_container_event && m_last_container.first == evt_reader.get_num())
