@@ -12,14 +12,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/containers/image/v5/manifest"
 	"github.com/containers/podman/v5/pkg/bindings"
 	"github.com/containers/podman/v5/pkg/bindings/containers"
 	"github.com/containers/podman/v5/pkg/bindings/images"
 	"github.com/containers/podman/v5/pkg/specgen"
-	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/stretchr/testify/assert"
+	"go.podman.io/image/v5/manifest"
+
+	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
 )
 
 func waitOnChannelOrTimeout(t *testing.T, ch <-chan event.Event) event.Event {
