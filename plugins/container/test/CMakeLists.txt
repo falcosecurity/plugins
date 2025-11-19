@@ -12,6 +12,7 @@ configure_file(
 add_executable(test src/extract.cpp
     config.cpp
     container_info_json.cpp
+    lru.cpp
     matchers.cpp
     mounts.cpp
 )

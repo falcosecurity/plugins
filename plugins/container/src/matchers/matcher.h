@@ -2,7 +2,7 @@
 
 #include "../container_info.h"
 #include "../plugin_config.h"
-#include <list>
+#include "../utils.h"
 
 class cgroup_matcher
 {
@@ -29,5 +29,7 @@ class matcher_manager
                       container_info::ptr_t& ctr);
 
     private:
-    std::list<std::shared_ptr<cgroup_matcher>> m_matchers;
+    std::vector<std::shared_ptr<cgroup_matcher>> m_cgroup_matchers;
+    LRU<std::string, std::pair<std::string, std::shared_ptr<cgroup_matcher>>>
+            m_cgroup_cinfo_cache;
 };
