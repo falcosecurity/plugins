@@ -10,7 +10,7 @@ require (
 	github.com/containerd/typeurl/v2 v2.2.3
 	github.com/containers/image/v5 v5.36.2
 	github.com/containers/podman/v5 v5.6.1
-	github.com/docker/docker v28.3.3+incompatible
+	github.com/docker/docker v28.5.2+incompatible
 	github.com/falcosecurity/plugin-sdk-go v0.8.3
 	github.com/google/uuid v1.6.0
 	github.com/opencontainers/runtime-spec v1.2.1
