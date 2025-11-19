@@ -54,7 +54,7 @@ jobs:
       fail-fast: false
       matrix:
         arch: [ amd64, arm64 ]
-    container: golang:1.23-bullseye
+    container: golang:1.24-bullseye
     steps:
       - name: Install plugin deps
         run: apt-get update && apt-get install -y --no-install-recommends zip unzip ninja-build
