@@ -24,7 +24,8 @@ endif
 
 ifeq ($(detected_OS),Windows)
     OUTPUT := $(NAME).dll
-    OUTPUT_FILE := build/Release/$(OUTPUT)
+    # MinGW Makefiles outputs libcontainer.dll
+    OUTPUT_FILE := build/lib$(OUTPUT)
 else ifeq ($(detected_OS),Darwin)
     OUTPUT := lib$(NAME).dylib
     OUTPUT_FILE := build/$(OUTPUT)
@@ -43,7 +44,15 @@ clean:
 # This Makefile requires CMake installed on the system
 .PHONY: $(OUTPUT)
 $(OUTPUT):
+# Forcing the use of MinGW Makefiles to build the plugin on Windows
+ifeq ($(detected_OS),Windows)
+	@echo "Building on Windows with MinGW"
+	@which gcc > /dev/null 2>&1 || (echo "Error: GCC not found. Please install MinGW-w64." && exit 1)
+	@which g++ > /dev/null 2>&1 || (echo "Error: G++ not found. Please install MinGW-w64." && exit 1)
+	cmake -B build -S . -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_BUILD_TYPE=Release -G "MinGW Makefiles" && cmake --build build --target $(NAME) --parallel 6 && cp $(OUTPUT_FILE) $(OUTPUT)
+else
 	cmake -B build -S . -DCMAKE_EXPORT_COMPILE_COMMANDS=ON && cmake --build build --target $(NAME) --parallel 6 --config Release && cp $(OUTPUT_FILE) $(OUTPUT)
+endif
 
 .PHONY: test
 test: $(OUTPUT)
