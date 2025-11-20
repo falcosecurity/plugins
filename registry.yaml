@@ -677,3 +677,25 @@ plugins:
         source: awselb
       extraction:
         supported: true
+  - name: edera
+    description: A Falco plugin for forwarding libscap events out of Edera zones.
+    authors: Edera
+    contact: contact@edera.dev
+    maintainers:
+      - name: Edera
+        email: contact@edera.dev
+    keywords:
+      - edera
+      - containers
+      - audit-events
+      - kubernetes
+    url: https://github.com/edera-dev/falco_plugin/
+    rules_url: https://docs.edera.dev/guides/observability/falco-integration/
+    license: Apache-2.0
+    capabilities:
+      sourcing:
+        supported: true
+        id: 26
+        source: edera_zone
+      extraction:
+        supported: true
