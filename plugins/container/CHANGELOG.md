@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.5.0
+
+* [`5737135`](https://github.com/falcosecurity/plugins/commit/5737135) build(container): use MinGW toolchaing instead of MSVC on windows builds
+
+* [`2c8990d`](https://github.com/falcosecurity/plugins/commit/2c8990d) update(container): build with Go 1.24
+
+* [`cb0d70b`](https://github.com/falcosecurity/plugins/commit/cb0d70b) fix(container): add back support for Falco libs 0.21
+
+* [`61df229`](https://github.com/falcosecurity/plugins/commit/61df229) feat(plugins/container): add logging in go-worker engines
+
 ## v0.4.1
 
 * [`d95e32c`](https://github.com/falcosecurity/plugins/commit/d95e32c) fix(plugins/container): do not generate async event for CRI CONTAINER_STOPPED_EVENT
