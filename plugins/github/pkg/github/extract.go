@@ -35,6 +35,7 @@ func (p *Plugin) Fields() []sdk.FieldEntry {
 		{Type: "string", Name: "github.repo", Display: "Repository", Desc: "(deprecated) URL of the git repository where the event occurred. Github Webhook payloads contain the repository property when the event occurs from activity in a repository."},
 		{Type: "string", Name: "github.repo.url", Display: "Repository URL", Desc: "URL of the git repository where the event occurred. Github Webhook payloads contain the repository property when the event occurs from activity in a repository."},
 		{Type: "string", Name: "github.repo.name", Display: "Repository Name", Desc: "Name of the git repository where the event occurred. Github Webhook payloads contain the repository property when the event occurs from activity in a repository."},
+		{Type: "string", Name: "github.repo.description", Display: "Repository Description", Desc: "Description of the GitHub repository."},
 		{Type: "string", Name: "github.org", Display: "Organization", Desc: "Name of the organization the git repository belongs to."},
 		{Type: "string", Name: "github.owner", Display: "Owner", Desc: "Name of the repository's owner."},
 		{Type: "string", Name: "github.repo.public", Display: "Public", Desc: "'true' if the repository affected by the action is public. 'false' otherwise."},
@@ -145,6 +146,8 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string) {
 	case "github.repo.name":
 		res = string(jdata.Get("repository", "html_url").GetStringBytes())
 		res = strings.TrimPrefix(res, "https://github.com/")
+	case "github.repo.description":
+		res = string(jdata.Get("repository", "description").GetStringBytes())
 	case "github.org":
 		res = string(jdata.Get("organization", "login").GetStringBytes())
 	case "github.owner":
