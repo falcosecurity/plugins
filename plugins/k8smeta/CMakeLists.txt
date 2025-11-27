@@ -13,39 +13,49 @@ project(
 
 # dependencies
 include(FetchContent)
-include(grpc)
-include(spdlog)
 include(plugin-sdk-cpp)
 include(k8s-metacollector)
 
-set(PROTO_PATH "${K8S_METACOLLECTOR_DIR}/metadata/metadata.proto")
+find_package(protobuf CONFIG REQUIRED)
+find_package(gRPC REQUIRED)
+find_package(spdlog REQUIRED)
 
+set(PROTO_PATH "${K8S_METACOLLECTOR_DIR}/metadata/metadata.proto")
 get_filename_component(meta_proto "${PROTO_PATH}" ABSOLUTE)
 get_filename_component(meta_proto_path "${meta_proto}" PATH)
 
-# Generated sources
-set(PROTO_GENERATED_INCLUDE "${CMAKE_BINARY_DIR}/generated")
-if(NOT EXISTS "${PROTO_GENERATED_INCLUDE}")
-  file(MAKE_DIRECTORY "${PROTO_GENERATED_INCLUDE}")
-endif()
+set(PROTO_OUTPUT_DIR "${CMAKE_BINARY_DIR}/generated")
 
-set(meta_proto_srcs "${PROTO_GENERATED_INCLUDE}/metadata.pb.cc")
-set(meta_proto_hdrs "${PROTO_GENERATED_INCLUDE}/metadata.pb.h")
-set(meta_grpc_srcs "${PROTO_GENERATED_INCLUDE}/metadata.grpc.pb.cc")
-set(meta_grpc_hdrs "${PROTO_GENERATED_INCLUDE}/metadata.grpc.pb.h")
-add_custom_command(
-  OUTPUT "${meta_proto_srcs}" "${meta_proto_hdrs}" "${meta_grpc_srcs}"
-         "${meta_grpc_hdrs}"
-  COMMAND
-    ${_PROTOBUF_PROTOC} ARGS --grpc_out "${PROTO_GENERATED_INCLUDE}" --cpp_out
-    "${PROTO_GENERATED_INCLUDE}" -I "${meta_proto_path}"
-    --plugin=protoc-gen-grpc="${_GRPC_CPP_PLUGIN_EXECUTABLE}" "${meta_proto}"
-  DEPENDS "${meta_proto}")
+# generate the protobuf output directory
+file(MAKE_DIRECTORY "${PROTO_OUTPUT_DIR}")
+message(STATUS "Protobuf files will be generated in: ${PROTO_OUTPUT_DIR}")
 
 # project target
-file(GLOB_RECURSE K8S_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
-add_library(k8smeta SHARED ${K8S_SOURCES} ${meta_grpc_srcs} ${meta_grpc_hdrs}
-                           ${meta_proto_srcs} ${meta_proto_hdrs})
+add_library(k8smeta SHARED
+  src/plugin.cpp
+  src/grpc_client.cpp
+)
+
+# Set the output directory for protobuf generation
+set_target_properties(k8smeta PROPERTIES
+  PROTOC_OUT_DIR "${PROTO_OUTPUT_DIR}")
+
+# Generate protobuf files
+protobuf_generate(
+    TARGET k8smeta
+    PROTOS "${meta_proto}"
+    IMPORT_DIRS "${meta_proto_path}"
+    PROTOC_OUT_DIR "${PROTO_OUTPUT_DIR}")
+
+# Generate gRPC files
+protobuf_generate(
+    TARGET k8smeta
+    LANGUAGE grpc
+    GENERATE_EXTENSIONS .grpc.pb.h .grpc.pb.cc
+    PLUGIN "protoc-gen-grpc=$<TARGET_FILE:gRPC::grpc_cpp_plugin>"
+    PROTOS "${meta_proto}"
+    IMPORT_DIRS "${meta_proto_path}"
+    PROTOC_OUT_DIR "${PROTO_OUTPUT_DIR}")
 set_target_properties(k8smeta PROPERTIES CXX_EXTENSIONS OFF)
 
 # project compilation options
@@ -59,12 +69,12 @@ target_compile_features(k8smeta PUBLIC cxx_std_17)
 
 # project includes
 target_include_directories(
-  k8smeta PRIVATE "${PLUGIN_SDK_INLCUDE}" "${PROTO_GENERATED_INCLUDE}"
-                  "${SPDLOG_INLCUDE}")
+  k8smeta PRIVATE "${PLUGIN_SDK_INLCUDE}" "${PROTO_OUTPUT_DIR}")
 
 # project linked libraries
-target_link_libraries(k8smeta ${_REFLECTION} ${_GRPC_GRPCPP}
-                      ${_PROTOBUF_LIBPROTOBUF} re2::re2)
+target_link_libraries(k8smeta
+  spdlog::spdlog
+  gRPC::grpc++)
 
 # Testing
 if(BUILD_TESTS)
