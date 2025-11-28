@@ -10,6 +10,9 @@ on:
       - 'plugins/container/**'
   workflow_dispatch:
 
+permissions:
+  packages: read
+
 jobs:
   build-others:
     strategy:
@@ -139,6 +142,11 @@ jobs:
           path: /usr/share/falco/plugins/
 
       - name: Run falcosecurity/testing Falco tests
+        env:
+          # Authenticate to GitHub Container Registry to pull falcoctl image
+          # This is a mitigation for the ghcr.io rate limiting issue
+          # See https://github.com/falcosecurity/rules/issues/331
+          FALCOCTL_REGISTRY_AUTH_BASIC: ghcr.io,${{ github.actor }},${{ github.token }}
         uses: falcosecurity/testing@main
         with:
           test-falco: 'true'
