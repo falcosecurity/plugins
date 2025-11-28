@@ -10,6 +10,9 @@ on:
       - "registry.yaml"
   workflow_dispatch:
 
+permissions:
+  packages: read
+
 # Checks if any concurrent jobs under the same pull request or branch are being executed
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -19,6 +22,11 @@ jobs:
   check-registry:
     name: check-registry
     runs-on: ubuntu-22.04
+    env:
+      # Authenticate to GitHub Container Registry to pull falcoctl image
+      # This is a mitigation for the ghcr.io rate limiting issue
+      # See https://github.com/falcosecurity/rules/issues/331
+      FALCOCTL_REGISTRY_AUTH_BASIC: ghcr.io,${{ github.actor }},${{ github.token }}
     steps:
       - name: Checkout ⤵️
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
