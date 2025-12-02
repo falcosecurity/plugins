@@ -1,6 +1,6 @@
 module github.com/falcosecurity/plugins/plugins/k8saudit-aks
 
-go 1.23.0
+go 1.24.0
 
 toolchain go1.24.1
 
@@ -11,7 +11,7 @@ require (
 	github.com/falcosecurity/plugins/plugins/k8saudit v0.16.0
 	github.com/falcosecurity/plugins/shared/go/azure/eventhub v0.0.0-20250617140945-5d23e77c8bbd
 	github.com/invopop/jsonschema v0.13.0
-	golang.org/x/time v0.12.0
+	golang.org/x/time v0.14.0
 )
 
 require (
