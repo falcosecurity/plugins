@@ -3,11 +3,19 @@
 #define CONTAINER_TABLE_NAME "containers"
 #define CONTAINER_EXPOSED_FIELD_IP "ip"
 #define CONTAINER_EXPOSED_FIELD_USER "user"
+#define CONTAINER_EXPOSED_FIELD_ID "id"
+#define CONTAINER_EXPOSED_FIELD_IMAGE "image"
+#define CONTAINER_EXPOSED_FIELD_NAME "name"
+#define CONTAINER_EXPOSED_FIELD_TYPE "type"
 
 enum
 {
     CONTAINER_FIELD_IP,
     CONTAINER_FIELD_USER,
+    CONTAINER_FIELD_ID,
+    CONTAINER_FIELD_IMAGE,
+    CONTAINER_FIELD_NAME,
+    CONTAINER_FIELD_TYPE,
     CONTAINER_FIELD_MAX,
 };
 
@@ -16,6 +24,10 @@ using namespace falcosecurity::_internal;
 static std::vector<ss_plugin_table_fieldinfo> fields = {
         {CONTAINER_EXPOSED_FIELD_IP, SS_PLUGIN_ST_STRING, true},
         {CONTAINER_EXPOSED_FIELD_USER, SS_PLUGIN_ST_STRING, true},
+        {CONTAINER_EXPOSED_FIELD_ID, SS_PLUGIN_ST_STRING, true},
+        {CONTAINER_EXPOSED_FIELD_IMAGE, SS_PLUGIN_ST_STRING, true},
+        {CONTAINER_EXPOSED_FIELD_NAME, SS_PLUGIN_ST_STRING, true},
+        {CONTAINER_EXPOSED_FIELD_TYPE, SS_PLUGIN_ST_UINT32, true},
 };
 
 static const char* reader_get_table_name(ss_plugin_table_t* t)
@@ -55,6 +67,18 @@ static ss_plugin_rc reader_read_entry_field(ss_plugin_table_t* t,
         break;
     case CONTAINER_FIELD_USER + 1:
         out->str = ctr->m_container_user.c_str();
+        break;
+    case CONTAINER_FIELD_ID + 1:
+        out->str = ctr->m_id.c_str();
+        break;
+    case CONTAINER_FIELD_NAME + 1:
+        out->str = ctr->m_name.c_str();
+        break;
+    case CONTAINER_FIELD_IMAGE + 1:
+        out->str = ctr->m_image.c_str();
+        break;
+    case CONTAINER_FIELD_TYPE + 1:
+        out->u32 = ctr->m_type;
         break;
     default:
         return SS_PLUGIN_FAILURE;
