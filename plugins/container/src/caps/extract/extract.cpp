@@ -1,4 +1,5 @@
 #include <plugin.h>
+#include <optional>
 
 //////////////////////////
 // Extract capability
@@ -546,7 +547,7 @@ bool my_plugin::extract(const falcosecurity::extract_fields_input &in)
 
     std::shared_ptr<const container_info> cinfo;
     std::string container_id;
-    falcosecurity::table_entry thread_entry;
+    std::optional<falcosecurity::table_entry> thread_entry;
 
     // Async event. Is that produced by us?
     if(evt_type == PPME_ASYNCEVENT_E)
@@ -575,7 +576,8 @@ bool my_plugin::extract(const falcosecurity::extract_fields_input &in)
             // Retrieve the thread entry associated with this thread id
             thread_entry = m_threads_table.get_entry(tr, thread_id);
             // Retrieve container_id from the entry
-            m_container_id_field.read_value(tr, thread_entry, container_id);
+            m_container_id_field.read_value(tr, thread_entry.value(),
+                                            container_id);
         }
         catch(const std::exception &e)
         {
@@ -763,15 +765,18 @@ bool my_plugin::extract(const falcosecurity::extract_fields_input &in)
     case TYPE_CONTAINER_START_TS:
     case TYPE_CONTAINER_DURATION:
     {
-        uint64_t pidns_init_start_ts;
-        try
+        uint64_t pidns_init_start_ts{0};
+        if(thread_entry.has_value())
         {
-            m_threads_field_pidns_init_start_ts.read_value(tr, thread_entry,
-                                                           pidns_init_start_ts);
-        }
-        catch(...)
-        {
-            pidns_init_start_ts = 0;
+            try
+            {
+                m_threads_field_pidns_init_start_ts.read_value(
+                        tr, thread_entry.value(), pidns_init_start_ts);
+            }
+            catch(...)
+            {
+                pidns_init_start_ts = 0;
+            }
         }
         if(pidns_init_start_ts != 0)
         {
@@ -927,48 +932,61 @@ bool my_plugin::extract(const falcosecurity::extract_fields_input &in)
         break;
     case TYPE_IS_CONTAINER_HEALTHCHECK:
     {
-        int16_t category;
+        int16_t category{CAT_NONE};
         // Since we do write thread category only if not NONE for containerized
         // processes
-        try
+        if(thread_entry.has_value())
         {
-            m_threads_field_category.read_value(tr, thread_entry, category);
-        }
-        catch(...)
-        {
-            category = CAT_NONE;
+            try
+            {
+                m_threads_field_category.read_value(tr, thread_entry.value(),
+                                                    category);
+            }
+            catch(...)
+            {
+                category = CAT_NONE;
+            }
         }
         req.set_value(category == CAT_HEALTHCHECK);
         break;
     }
     case TYPE_IS_CONTAINER_LIVENESS_PROBE:
     {
-        int16_t category;
+        int16_t category{CAT_NONE};
         // Since we do write thread category only if not NONE for containerized
         // processes
-        try
+        if(thread_entry.has_value())
         {
-            m_threads_field_category.read_value(tr, thread_entry, category);
-        }
-        catch(...)
-        {
-            category = CAT_NONE;
+            try
+            {
+                m_threads_field_category.read_value(tr, thread_entry.value(),
+                                                    category);
+            }
+            catch(...)
+            {
+                category = CAT_NONE;
+            }
         }
         req.set_value(category == CAT_LIVENESS_PROBE);
         break;
     }
     case TYPE_IS_CONTAINER_READINESS_PROBE:
     {
-        int16_t category;
+        int16_t category{CAT_NONE};
         // Since we do write thread category only if not NONE for containerized
         // processes
-        try
+        if(thread_entry.has_value())
         {
-            m_threads_field_category.read_value(tr, thread_entry, category);
-        }
-        catch(...)
-        {
-            category = CAT_NONE;
+
+            try
+            {
+                m_threads_field_category.read_value(tr, thread_entry.value(),
+                                                    category);
+            }
+            catch(...)
+            {
+                category = CAT_NONE;
+            }
         }
         req.set_value(category == CAT_READINESS_PROBE);
         break;
