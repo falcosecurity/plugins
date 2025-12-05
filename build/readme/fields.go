@@ -19,11 +19,14 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 
 	"github.com/falcosecurity/plugin-sdk-go/pkg/loader"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
 	"github.com/olekukonko/tablewriter"
+	"github.com/olekukonko/tablewriter/renderer"
+	"github.com/olekukonko/tablewriter/tw"
 )
 
 const (
@@ -50,7 +53,7 @@ func fieldsRenderArgRow(a *sdk.FieldEntryArg) string {
 
 // renderNewLines replaces '\n' character with "<br/>" for proper table formatting.
 func renderNewLines(desc string) string {
-    return strings.ReplaceAll(desc, "\n", "<br/>")
+	return strings.ReplaceAll(desc, "\n", "<br/>")
 }
 
 func fieldsEditor(p *loader.Plugin, s string) (string, error) {
@@ -64,14 +67,20 @@ func fieldsEditor(p *loader.Plugin, s string) (string, error) {
 	}
 
 	var buf bytes.Buffer
-	table := tablewriter.NewWriter(&buf)
-	table.SetHeader([]string{"Name", "Type", "Arg", "Description"})
-	table.SetBorders(tablewriter.Border{Left: true, Top: false, Right: true, Bottom: false})
-	table.SetCenterSeparator("|")
-	table.SetRowSeparator("-")
-	table.SetAutoWrapText(false)
+	table := tablewriter.NewTable(&buf,
+		tablewriter.WithRenderer(renderer.NewBlueprint()), // Use Blueprint
+		tablewriter.WithRendition(tw.Rendition{
+			Symbols: tw.NewSymbols(tw.StyleMarkdown),
+			Borders: tw.Border{Left: tw.On, Right: tw.On, Top: tw.Off, Bottom: tw.Off}, // Markdown needs left/right borders
+		}),
+		tablewriter.WithHeaderAlignment(tw.AlignCenter), // Center align headers
+		tablewriter.WithRowAlignment(tw.AlignLeft),      // Common for Markdown
+		tablewriter.WithHeaderAutoWrap(tw.WrapNone),
+		tablewriter.WithRowAutoWrap(tw.WrapNone),
+		tablewriter.WithHeader([]string{"Name", "Type", "Arg", "Description"}),
+	)
 	for _, f := range fields {
-		row := []string{}
+		var row []string
 		row = append(row, "`"+f.Name+"`")
 		if f.IsList {
 			row = append(row, "`"+f.Type+" (list)`")
@@ -80,8 +89,14 @@ func fieldsEditor(p *loader.Plugin, s string) (string, error) {
 		}
 		row = append(row, fieldsRenderArgRow(&f.Arg))
 		row = append(row, renderNewLines(f.Desc))
-		table.Append(row)
+		if err := table.Append(row); err != nil {
+			return "", fmt.Errorf("failed to append field %v to table: %w", f.Name, err)
+		}
 	}
-	table.Render()
+
+	if err := table.Render(); err != nil {
+		return "", fmt.Errorf("failed to render table: %w", err)
+	}
+
 	return replateTag(s, fieldsTag, buf.String())
 }
