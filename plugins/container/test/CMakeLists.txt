@@ -1,12 +1,25 @@
 include(gtest)
+include(libs)
 
-message(STATUS "Unit tests enabled.")
+# Configure the test variables header from template
+set(TEST_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/include")
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/plugin_test_var.h.in"
+    "${TEST_INCLUDE_DIR}/container_tests/plugin_test_var.h"
+    @ONLY
+)
 
-file(GLOB_RECURSE SOURCES *.cpp)
+add_executable(integration_tests src/extract.cpp)
 
-add_executable(test ${SOURCES})
+target_include_directories(integration_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${TEST_INCLUDE_DIR}
+    ${PLUGIN_SDK_DEPS_INCLUDE}
+    ${PLUGIN_SDK_INCLUDE})
 
-# project linked libraries
-target_include_directories(test PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/src/matchers ${PLUGIN_SDK_DEPS_INCLUDE} ${PLUGIN_SDK_INCLUDE})
-
-target_link_libraries(test PRIVATE GTest::gtest GTest::gtest_main fmt::fmt-header-only ReflexLibStatic container)
+target_link_libraries(integration_tests PRIVATE
+    sinsp_test_support
+    GTest::gmock
+    GTest::gmock_main
+    fmt::fmt-header-only
+    container)
