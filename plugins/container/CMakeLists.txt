@@ -68,6 +68,7 @@ target_include_directories(container PRIVATE ${CMAKE_BINARY_DIR}/src/ src/ ${PLU
 target_link_libraries(container PRIVATE fmt::fmt-header-only ReflexLibStatic ${WORKER_DEP} ${WORKER_LIB})
 
 option(ENABLE_TESTS "Enable build of unit tests" ON)
+
 if(ENABLE_TESTS)
     add_subdirectory(${CMAKE_SOURCE_DIR}/test/)
 endif()
