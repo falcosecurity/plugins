@@ -21,7 +21,7 @@ jobs:
       runs-on: ubuntu-22.04
       steps:
         - name: Checkout ⤵️
-          uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+          uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
           with:
             fetch-depth: 0
 
@@ -37,7 +37,7 @@ jobs:
             sudo apt install -y --no-install-recommends cmake build-essential autoconf libtool pkg-config
 
         - name: Initialize CodeQL
-          uses: github/codeql-action/init@fe4161a26a8629af62121b670040955b330f9af2 # v4.31.6
+          uses: github/codeql-action/init@cf1bb45a277cb3c205638b2cd5c984db1c46a412 # v4.31.7
           with:
             languages: cpp
 
@@ -49,7 +49,7 @@ jobs:
             make k8smeta -j6
 
         - name: Perform CodeQL Analysis
-          uses: github/codeql-action/analyze@fe4161a26a8629af62121b670040955b330f9af2 # v4.31.6
+          uses: github/codeql-action/analyze@cf1bb45a277cb3c205638b2cd5c984db1c46a412 # v4.31.7
 
         - name: Build and run tests 🏎️
           run: |
@@ -63,7 +63,7 @@ jobs:
       runs-on: ubuntu-22.04
       steps:
         - name: Checkout code
-          uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+          uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
         - name: Run clang-format style check
           uses: jidicula/clang-format-action@6cd220de46c89139a0365edae93eee8eb30ca8fe #v4.16.0
