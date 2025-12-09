@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.6.0
+
+* [`c8a839a`](https://github.com/falcosecurity/plugins/commit/c8a839a) feat(container): add basic exposed fields
+
+* [`b49ad24`](https://github.com/falcosecurity/plugins/commit/b49ad24) fix: if missing thread_entry, don't attempt to dereference it (iss-1076)
+
 ## v0.5.0
 
 * [`5737135`](https://github.com/falcosecurity/plugins/commit/5737135) build(container): use MinGW toolchaing instead of MSVC on windows builds
