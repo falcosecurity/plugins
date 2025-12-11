@@ -22,7 +22,7 @@ endif()
 if(NOT DEFINED LIBS_VERSION)
     # Using a specific commit because there is no tagged version yet including
     # the target used for the test.
-    set(LIBS_VERSION "35f5e2366cc6075bdc0a51faf2077e7a9c1e03a7")
+    set(LIBS_VERSION "83c6a8361ea9172da6c5a3dc59c89fb44bbed3cc")
 endif()
 
 if(DEFINED LIBS_DIR)

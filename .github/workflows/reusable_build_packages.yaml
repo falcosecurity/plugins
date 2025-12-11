@@ -22,6 +22,15 @@ jobs:
     # binaries that require newer GLIBC version so we need to be based on bullseye for now
     container: golang:1.24-bullseye
     steps:
+      - name: Checkout Plugins ⤵️
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 0
+          submodules: "recursive"
+
+      - name: Safe directory
+        run: git config --global --add safe.directory $GITHUB_WORKSPACE
+
       - name: Install deps
         run: |
           apt update
@@ -36,12 +45,7 @@ jobs:
           ln -s /usr/bin/clang-19 /usr/bin/clang
 
       - name: Install updated cmake version ⛓️
-        run: |
-          curl -L -o /tmp/cmake.tar.gz https://github.com/Kitware/CMake/releases/download/v3.31.4/cmake-3.31.4-linux-$(uname -m).tar.gz
-          gzip -d /tmp/cmake.tar.gz
-          tar -xpf /tmp/cmake.tar --directory=/tmp
-          cp -R /tmp/cmake-3.31.4-linux-$(uname -m)/* /usr
-          rm -rf /tmp/cmake-3.31.4-linux-$(uname -m)
+        uses: ./.github/actions/install-cmake
 
       - name: Install Rust 🦀
         uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
@@ -54,15 +58,6 @@ jobs:
 
       - name: Configure Rust cache
         uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 #v2
-
-      - name: Checkout Plugins ⤵️
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-        with:
-          fetch-depth: 0
-          submodules: "recursive"
-
-      - name: Safe directory
-        run: git config --global --add safe.directory $GITHUB_WORKSPACE
 
       - name: Run build 🏗️
         run: ${{ inputs.makecommand }}

@@ -1,0 +1,23 @@
+name: 'Install CMake'
+description: 'Install a specific version of CMake from GitHub releases'
+
+inputs:
+  version:
+    description: 'CMake version to install'
+    required: false
+    default: '3.31.4'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install cmake ⛓️
+      shell: bash
+      run: |
+        set -eu
+        CMAKE_ARCH=$(uname -m)
+        CMAKE_URL="https://github.com/Kitware/CMake/releases/download/v${{ inputs.version }}/cmake-${{ inputs.version }}-linux-${CMAKE_ARCH}.tar.gz"
+        echo "Downloading CMake from: ${CMAKE_URL}"
+        curl -fsSL --retry 3 --retry-delay 5 -o /tmp/cmake.tar.gz "${CMAKE_URL}"
+        tar -xzf /tmp/cmake.tar.gz --directory=/tmp
+        cp -R /tmp/cmake-${{ inputs.version }}-linux-${CMAKE_ARCH}/* /usr
+        rm -rf /tmp/cmake-${{ inputs.version }}-linux-${CMAKE_ARCH}
