@@ -39,7 +39,7 @@ all: $(OUTPUT)
 .PHONY: clean
 clean:
 	rm -rf build $(OUTPUT)
-	make -C go-worker/ clean
+	$(MAKE) -C go-worker/ clean
 
 # This Makefile requires CMake installed on the system
 .PHONY: $(OUTPUT)
@@ -56,7 +56,8 @@ endif
 
 .PHONY: test
 test: $(OUTPUT)
-	make -C build/ test && build/test/test && make -C go-worker/ test
+	cmake -B build -S . -DENABLE_TESTS=ON && cmake --build build --target test --parallel 6 --config Release && build/test/test
+	$(MAKE) -C go-worker/ test
 
 readme:
 	@$(READMETOOL) -p ./$(OUTPUT) -f README.md

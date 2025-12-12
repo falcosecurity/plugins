@@ -59,17 +59,6 @@ jobs:
         arch: [ amd64, arm64 ]
     container: golang:1.24-bullseye
     steps:
-      - name: Install plugin deps
-        run: apt-get update && apt-get install -y --no-install-recommends zip unzip ninja-build
-
-      - name: Install updated cmake version ⛓️
-        run: |
-          curl -L -o /tmp/cmake.tar.gz https://github.com/Kitware/CMake/releases/download/v3.31.4/cmake-3.31.4-linux-$(uname -m).tar.gz
-          gzip -d /tmp/cmake.tar.gz
-          tar -xpf /tmp/cmake.tar --directory=/tmp
-          cp -R /tmp/cmake-3.31.4-linux-$(uname -m)/* /usr
-          rm -rf /tmp/cmake-3.31.4-linux-$(uname -m)  
-
       - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
@@ -78,6 +67,12 @@ jobs:
 
       - name: Safe directory
         run: git config --global --add safe.directory $GITHUB_WORKSPACE
+
+      - name: Install plugin deps
+        run: apt-get update && apt-get install -y --no-install-recommends zip unzip ninja-build
+
+      - name: Install cmake ⛓️
+        uses: ./.github/actions/install-cmake
 
       - name: Build plugin library
         working-directory: plugins/container

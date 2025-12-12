@@ -4,7 +4,8 @@
 
 #include <libworker.h>
 
-enum async_handler_id {
+enum async_handler_id
+{
     ASYNC_HANDLER_DEFAULT,
     ASYNC_HANDLER_GO_WORKER,
 };
@@ -15,7 +16,7 @@ extern std::unique_ptr<falcosecurity::async_event_handler>
         s_async_handler[ASYNC_HANDLER_MAX];
 
 static std::unordered_map<std::string, std::shared_ptr<const container_info>>
-            s_preexisting_containers;
+        s_preexisting_containers;
 
 template<async_handler_id id>
 void generate_async_event(const char *json, bool added, bool initial_state)
@@ -31,7 +32,8 @@ void generate_async_event(const char *json, bool added, bool initial_state)
         //     * we are called sinchronously
         //     * when our listening CAP will be triggered,
         //       we need pre-existing containers to be already cached.
-        if (initial_state) {
+        if(initial_state)
+        {
             auto json_event = nlohmann::json::parse(json);
             auto cinfo = json_event.get<container_info::ptr_t>();
             s_preexisting_containers[cinfo->m_id] = cinfo;
