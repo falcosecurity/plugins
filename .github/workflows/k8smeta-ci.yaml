@@ -34,7 +34,13 @@ jobs:
         - name: Install deps ⛓️
           run: |
             sudo apt update -y
-            sudo apt install -y --no-install-recommends cmake build-essential autoconf libtool pkg-config
+            sudo apt install -y --no-install-recommends cmake build-essential autoconf libtool pkg-config zip unzip tar git wget
+
+        - name: Install vcpkg 📦
+          uses: ./.github/actions/install-vcpkg
+          with:
+            # Using a specific commit to avoid unexpected issues
+            vcpkg_version: 2025.09.17
 
         - name: Initialize CodeQL
           uses: github/codeql-action/init@cf1bb45a277cb3c205638b2cd5c984db1c46a412 # v4.31.7
@@ -44,20 +50,19 @@ jobs:
         - name: Build k8s meta plugin 🏗️
           run: |
             cd plugins/k8smeta
-            mkdir build
-            cd build && cmake -DCMAKE_BUILD_TYPE=Release ../
-            make k8smeta -j6
+            cmake --preset vcpkg-release
+            cmake --build --preset vcpkg-release --target k8smeta -j$(nproc)
 
         - name: Perform CodeQL Analysis
           uses: github/codeql-action/analyze@cf1bb45a277cb3c205638b2cd5c984db1c46a412 # v4.31.7
 
         - name: Build and run tests 🏎️
           run: |
-            cd plugins/k8smeta/build
-            make build-server
-            make build-tests
-            make run-server &
-            make run-tests
+            cd plugins/k8smeta
+            cmake --build --preset vcpkg-release --target build-server -j$(nproc)
+            cmake --build --preset vcpkg-release --target build-tests -j$(nproc)
+            cmake --build --preset vcpkg-release --target run-server &
+            cmake --build --preset vcpkg-release --target run-tests
 
     formatting-check:
       runs-on: ubuntu-22.04

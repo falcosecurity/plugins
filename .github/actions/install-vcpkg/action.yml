@@ -1,0 +1,42 @@
+name: 'install-vcpkg'
+description: 'Install vcpkg and make it available in PATH.'
+
+outputs:
+  vcpkg_root:
+    description: "VCPKG_ROOT"
+    value: ${{ steps.vcpkg.outputs.vcpkg_root }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Store vcpkg version as local output
+      shell: bash
+      id: store
+      env:
+        VCPKG_VERSION: '2025.09.17'
+      run: |
+        echo "vcpkg_version=${VCPKG_VERSION}" >> "$GITHUB_OUTPUT"
+
+    - name: Download vcpkg
+      shell: bash
+      run: |
+        git clone https://github.com/microsoft/vcpkg.git --branch ${{ steps.store.outputs.vcpkg_version }} --single-branch
+
+    - name: Setup vcpkg
+      shell: bash
+      id: vcpkg
+      run: |
+        # Note, this is a workaround to avoid building debug versions that are not used in the build process
+        # TODO: Find a cleaner way to do this
+        find "$(pwd)/vcpkg/triplets/" -name "*.cmake" -type f -exec sh -c "echo \"set(VCPKG_BUILD_TYPE release)\" >> {}" \;
+        VCPKG_MAX_CONCURRENCY=6 ./vcpkg/bootstrap-vcpkg.sh
+        echo "$(pwd)/vcpkg" >> $GITHUB_PATH
+        echo "VCPKG_ROOT=$(pwd)/vcpkg" >> $GITHUB_ENV
+        # Set the maximum concurrency to 6 to avoid overwhelming the CI system
+        echo "VCPKG_MAX_CONCURRENCY=6" >> $GITHUB_ENV
+
+    - name: Set Outputs
+      id: store-outputs
+      shell: bash
+      run: |
+        echo "vcpkg_root=${VCPKG_ROOT}" >> $GITHUB_OUTPUT
