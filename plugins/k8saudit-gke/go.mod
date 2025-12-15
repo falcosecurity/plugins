@@ -9,8 +9,8 @@ require (
 	github.com/falcosecurity/plugins/plugins/k8saudit v0.16.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	google.golang.org/api v0.257.0
-	k8s.io/api v0.34.2
-	k8s.io/apimachinery v0.34.2
+	k8s.io/api v0.34.3
+	k8s.io/apimachinery v0.34.3
 )
 
 require (
@@ -64,8 +64,8 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20251022142026-3a174f9686a8
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251124214823-79d6a2a48846 // indirect
 	google.golang.org/grpc v1.77.0 // indirect
-	google.golang.org/protobuf v1.36.10
-	k8s.io/apiserver v0.34.2
+	google.golang.org/protobuf v1.36.11
+	k8s.io/apiserver v0.34.3
 )
 
 replace github.com/valyala/fastjson => github.com/geraldcombs/fastjson v0.0.0-20250801170450-bf39244e60b8

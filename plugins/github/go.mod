@@ -7,7 +7,7 @@ require (
 	github.com/falcosecurity/plugin-sdk-go v0.8.3
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/sethvargo/go-password v0.3.1
-	github.com/valyala/fastjson v1.6.4
+	github.com/valyala/fastjson v1.6.7
 	golang.org/x/oauth2 v0.34.0
 )
 
