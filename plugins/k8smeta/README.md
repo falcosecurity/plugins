@@ -59,7 +59,14 @@ The `k8smeta` plugin implements 4 capabilities:
 
 Here's an example of configuration of `falco.yaml`:
 
-> NOTE: Please note that you can provide values to the config as environment variables. So, for example, you can take advantage of the Kubernetes downward API to provide the node name as an env variable `nodename: ${MY_NODE}`.
+> NOTE:
+> The `nodeName` field is required by the plugin and must match the name of the
+> Kubernetes node on which the Falco instance is running.
+>
+> When running Falco as a DaemonSet, this value **must be set dynamically**
+> using the Kubernetes Downward API.
+> Hard-coding the node name will cause metadata enrichment to work only for a
+> single node.
 
 ```yaml
 plugins:
@@ -72,7 +79,20 @@ plugins:
       # hostname exposed by the k8s-metacollector
       collectorHostname: localhost # (required)
       # name of the node on which the Falco instance is running.
-      nodeName: kind-control-plane # (required)
+      nodeName: "${FALCO_K8S_NODE_NAME}" # (required)
+      # name of the node on which the Falco instance is running.
+      # In Kubernetes DaemonSets, you should use an environment variable
+      # that is populated via Downward API so that each Falco pod gets
+      # its own node name dynamically:
+      #
+      #   extra:
+      #     # -- Extra environment variables that will be pass onto Falco containers.
+      #     env:
+      #       - name: FALCO_K8S_NODE_NAME
+      #         valueFrom:
+      #           fieldRef:
+      #             fieldPath: spec.nodeName
+      #
       # verbosity level for the plugin logger
       verbosity: warning # (optional, default: info)
       # path to the PEM encoding of the server root certificates.
