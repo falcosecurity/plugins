@@ -55,6 +55,7 @@ type PluginConfig struct {
 	Shift           uint64 `json:"shift"            jsonschema:"title=shift,description=Time shift in past in seconds (default: 1s),default=1"`
 	PollingInterval uint64 `json:"polling_interval" jsonschema:"title=polling_interval,description=Polling Interval in seconds (default: 5s),default=5"`
 	UseAsync        bool   `json:"use_async"        jsonschema:"title=use_async,description=If true then async extraction optimization is enabled (default: true),default=true"`
+	MaxEventSize    uint64 `json:"max_event_size"   jsonschema:"title=max_event_size,description=Maximum size of single audit event (default: 262144),default=262144"`
 }
 
 func (k *Plugin) Info() *plugins.Info {
@@ -83,6 +84,7 @@ func (p *PluginConfig) Reset() {
 		p.Region = i
 	}
 	p.UseAsync = true
+	p.MaxEventSize = uint64(sdk.DefaultEvtSize)
 	// for PollingInterval, Shift and BufferSize, the default values from the package are used automatically
 }
 
@@ -103,6 +105,9 @@ func (k *Plugin) Init(cfg string) error {
 
 	// setup optional async extraction optimization
 	extract.SetAsync(k.Config.UseAsync)
+
+	// configure base k8saudit plugin with MaxEventSize
+	k.Plugin.Config.MaxEventSize = k.Config.MaxEventSize
 
 	k.Logger = log.New(os.Stderr, "["+pluginName+"] ", log.LstdFlags|log.LUTC|log.Lmsgprefix)
 
@@ -180,5 +185,6 @@ func (p *Plugin) Open(clustername string) (source.Instance, error) {
 	return source.NewPushInstance(
 		pushEventC,
 		source.WithInstanceClose(cancel),
+		source.WithInstanceEventSize(uint32(p.Config.MaxEventSize)),
 	)
 }
