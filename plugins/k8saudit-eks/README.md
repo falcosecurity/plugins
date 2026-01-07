@@ -129,6 +129,8 @@ load_plugins: [k8saudit-eks, json]
  * `polling_interval`: Polling Interval in seconds (default: 5s)
  * `shift`: Time shift in past in seconds (default: 1s)
  * `buffer_size`: Buffer Size (default: 200)
+ * `max_event_size`: Maximum size of single audit event (default: 262144)
+
 
 **Open Parameters**
 A string which contains the name of your EKS Cluster (required).
