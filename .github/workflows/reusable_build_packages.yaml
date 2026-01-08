@@ -20,7 +20,7 @@ jobs:
         arch: [x86_64, aarch64]
     # Upgrading to a newer debian version would make the build process generate
     # binaries that require newer GLIBC version so we need to be based on bullseye for now
-    container: golang:1.24-bullseye
+    container: golang:1.25-bullseye
     steps:
       - name: Checkout Plugins ⤵️
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
