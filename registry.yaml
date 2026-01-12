@@ -707,3 +707,30 @@ plugins:
         source: edera_zone
       extraction:
         supported: true
+  - name: nginx
+    description: |
+      Real-time nginx access log monitoring for security threats.
+      Detects SQL injection, XSS, path traversal, command injection,
+      brute force attacks, and OWASP Top 10 vulnerabilities.
+    authors: takaosgb3
+    contact: https://github.com/takaosgb3/falco-plugin-nginx/issues
+    maintainers:
+      - name: takaosgb3
+    keywords:
+      - nginx
+      - web-security
+      - waf
+      - sqli
+      - xss
+      - owasp
+      - access-log
+    url: https://github.com/takaosgb3/falco-plugin-nginx
+    rules_url: https://github.com/takaosgb3/falco-plugin-nginx/tree/main/rules
+    license: Apache-2.0
+    capabilities:
+      sourcing:
+        supported: true
+        id: 27
+        source: nginx
+      extraction:
+        supported: true
