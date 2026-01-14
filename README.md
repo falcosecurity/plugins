@@ -58,6 +58,10 @@ These comments and the text between them should not be edited by hand -->
 | [collector](https://github.com/falcosecurity/plugins/tree/main/plugins/collector) | **Event Sourcing** <br/>ID: 24 <br/>`collector` | Generic collector to ingest raw payloads into Falco  <br/><br/> Authors: [The Falco Authors](https://falco.org/community) <br/> License: Apache-2.0 |
 | [awselb](https://github.com/yukinakanaka/falco-plugin-aws-elb) | **Event Sourcing** <br/>ID: 25 <br/>`awselb` <br/>**Field Extraction** <br/> `awselb` | AWS Elastic Load Balancer access logs events  <br/><br/> Authors: [Yuki Nakamura](https://github.com/yukinakanaka/falco-plugin-aws-elb/issues) <br/> License: Apache-2.0 |
 | [edera](https://github.com/edera-dev/falco_plugin/) | **Event Sourcing** <br/>ID: 26 <br/>`edera_zone` <br/>**Field Extraction** <br/> `edera_zone` | A Falco plugin for forwarding libscap events out of Edera zones.  <br/><br/> Authors: [Edera](contact@edera.dev) <br/> License: Apache-2.0 |
+| [nginx](https://github.com/takaosgb3/falco-plugin-nginx) | **Event Sourcing** <br/>ID: 27 <br/>`nginx` <br/>**Field Extraction** <br/> `nginx` | Real-time nginx access log monitoring for security threats.
+Detects SQL injection, XSS, path traversal, command injection,
+brute force attacks, and OWASP Top 10 vulnerabilities.
+  <br/><br/> Authors: [takaosgb3](https://github.com/takaosgb3/falco-plugin-nginx/issues) <br/> License: Apache-2.0 |
 
 <!-- REGISTRY:TABLE -->
 
