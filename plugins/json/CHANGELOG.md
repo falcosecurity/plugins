@@ -1,5 +1,35 @@
 # Changelog
 
+## vsecurejson-0.0.2
+
+
+## vsecurejson-0.0.1
+
+
+## plugins/securejson/v0.1.0
+
+
+## plugins/securejson/v0.0.6
+
+
+## plugins/securejson/v0.0.5
+
+
+## plugins/securejson/v0.0.4-api2
+
+
+## plugins/securejson/v0.0.4-api1
+
+
+## plugins/securejson/v0.0.4
+
+
+## plugins/securejson/v0.0.3
+
+
+## plugins/securejson/v0.0.2
+
+
 ## v0.7.3
 
 * [`85f956a`](https://github.com/falcosecurity/plugins/commit/85f956a9) update(plugins/json): upgrade sdk and deps

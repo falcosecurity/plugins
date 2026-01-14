@@ -2,6 +2,14 @@
 
 ## dev build (unreleased)
 
+* [`4ff523e`](https://github.com/falcosecurity/plugins/commit/4ff523e8) build(deps): bump github.com/testcontainers/testcontainers-go/modules/kafka
+
+* [`285071a`](https://github.com/falcosecurity/plugins/commit/285071ad) build(deps): bump golang.org/x/crypto in /plugins/kafka
+
+## v0.1.5
+
+* [`3dea286`](https://github.com/falcosecurity/plugins/commit/3dea2869) update(plugins/kafka): bump to v0.1.5
+
 * [`81b7e1d`](https://github.com/falcosecurity/plugins/commit/81b7e1df) build(deps): bump github.com/testcontainers/testcontainers-go/modules/kafka
 
 * [`5875b85`](https://github.com/falcosecurity/plugins/commit/5875b85f) build(deps): bump github.com/testcontainers/testcontainers-go/modules/kafka
@@ -9,6 +17,7 @@
 * [`471dd90`](https://github.com/falcosecurity/plugins/commit/471dd904) update(plugins/kafka): upgrade deps
 
 * [`6d5a24e`](https://github.com/falcosecurity/plugins/commit/6d5a24e4) build(deps): bump github.com/testcontainers/testcontainers-go/modules/kafka
+
 
 ## v0.1.4
 

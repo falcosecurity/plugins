@@ -1,12 +1,33 @@
 # Changelog
 
-## dev build (unreleased)
+## plugins/securek8saudit/v0.2.0
+
+
+## plugins/securek8saudit/v0.1.2
+
+
+## plugins/securek8saudit/v0.1.1
+
+
+## plugins/securek8saudit/v0.1.0-api2
+
+
+## plugins/securek8saudit/v0.1.0-api1
+
+
+## plugins/securek8saudit/v0.1.0
+
+
+## v0.16.0
+
+* [`8b1d3e2`](https://github.com/falcosecurity/plugins/commit/8b1d3e2b) update(plugins/k8saudit): bump to v0.16.0
 
 * [`f05c6c4`](https://github.com/falcosecurity/plugins/commit/f05c6c4a) update(k8saudit): Add support for field offsets
 
 * [`ba51c07`](https://github.com/falcosecurity/plugins/commit/ba51c07d) docs(plugins/k8saudit): changelog for v0.15.0
 
 * [`ebf9702`](https://github.com/falcosecurity/plugins/commit/ebf97025) docs(plugins/k8saudit): improve README.md
+
 
 ## v0.15.0
 

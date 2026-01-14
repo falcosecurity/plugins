@@ -1,6 +1,8 @@
 # Changelog
 
-## dev build (unreleased)
+## v0.3.0
+
+* [`d889493`](https://github.com/falcosecurity/plugins/commit/d889493a) update(plugins/dummy_c): bump to v0.3.0
 
 * [`08197b7`](https://github.com/falcosecurity/plugins/commit/08197b74) style(dummy_c): adapt dummy_c to the new clang-format
 
@@ -9,6 +11,7 @@
 * [`c4cc4a2`](https://github.com/falcosecurity/plugins/commit/c4cc4a25) plugins(dummy_c): update dummy_c plugin to use the latest sdk
 
 * [`16df816`](https://github.com/falcosecurity/plugins/commit/16df8169) fix(dummy_c): alligned with the dummy go version
+
 
 ## v0.2.2
 

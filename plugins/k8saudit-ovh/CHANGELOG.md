@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.4.0
+
+* [`211f589`](https://github.com/falcosecurity/plugins/commit/211f5892) chore(plugins/k8saudit-ovh): bump to v0.4.0
+
+
 ## v0.3.0
 
 * [`2f09a40`](https://github.com/falcosecurity/plugins/commit/2f09a401) update(plugins/k8saudit-ovh): bump to v0.3.0

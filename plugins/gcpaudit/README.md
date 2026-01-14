@@ -113,6 +113,7 @@ For more details about what Cloud logging log queries, see the [GCP official doc
 | `gcp.resourceType`            | `string` | None | GCP resource type                               |
 | `gcp.resourceLabels`          | `string` | None | GCP resource labels                             |
 | `gcp.storage.bucket`          | `string` | None | GCP bucket name                                 |
+| `gcp.time`                    | `string` | None | Timestamp of the event in RFC3339 format        |
 <!-- /README-PLUGIN-FIELDS -->
 
 # Development

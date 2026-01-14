@@ -1,30 +1,62 @@
 # Changelog
 
+## dev build (unreleased)
+
+* [`3352cc2`](https://github.com/falcosecurity/plugins/commit/3352cc29) docs(plugins/container): add deepskyblue86 as a maintainer
+
+* [`d25b110`](https://github.com/falcosecurity/plugins/commit/d25b110b) chore(plugins/container): fix formatting
+
+* [`b822c11`](https://github.com/falcosecurity/plugins/commit/b822c113) ci(plugins/container): run container plugin integration test in ci
+
+* [`521649a`](https://github.com/falcosecurity/plugins/commit/521649ad) chore(plugins/container): add integration test on extraction capability
+
 ## v0.6.0
 
-* [`c8a839a`](https://github.com/falcosecurity/plugins/commit/c8a839a) feat(container): add basic exposed fields
+* [`9064282`](https://github.com/falcosecurity/plugins/commit/90642825) docs(plugins/container): update changelog for `0.6.0`
 
-* [`b49ad24`](https://github.com/falcosecurity/plugins/commit/b49ad24) fix: if missing thread_entry, don't attempt to dereference it (iss-1076)
+* [`41cdbe1`](https://github.com/falcosecurity/plugins/commit/41cdbe1e) chore(plugins/container): bump to `v0.6.0`
+
+* [`c8a839a`](https://github.com/falcosecurity/plugins/commit/c8a839a3) feat(container): add basic exposed fields
+
 
 ## v0.5.0
 
-* [`5737135`](https://github.com/falcosecurity/plugins/commit/5737135) build(container): use MinGW toolchaing instead of MSVC on windows builds
+* [`cea1ea2`](https://github.com/falcosecurity/plugins/commit/cea1ea28) docs(plugins/container): update changelog for v0.5.0
 
-* [`2c8990d`](https://github.com/falcosecurity/plugins/commit/2c8990d) update(container): build with Go 1.24
+* [`b9784a0`](https://github.com/falcosecurity/plugins/commit/b9784a02) chore(plugins/container): bump to v0.5.0
 
-* [`cb0d70b`](https://github.com/falcosecurity/plugins/commit/cb0d70b) fix(container): add back support for Falco libs 0.21
+* [`5737135`](https://github.com/falcosecurity/plugins/commit/5737135f) build(container): use MinGW toolchaing instead of MSVC on windows builds
 
-* [`61df229`](https://github.com/falcosecurity/plugins/commit/61df229) feat(plugins/container): add logging in go-worker engines
+* [`2c8990d`](https://github.com/falcosecurity/plugins/commit/2c8990d2) update(container): build with Go 1.24
+
+* [`cb0d70b`](https://github.com/falcosecurity/plugins/commit/cb0d70b0) fix(container): add back support for Falco libs 0.21
+
+* [`61df229`](https://github.com/falcosecurity/plugins/commit/61df229a) feat(plugins/container): add logging in go-worker engines
+
+* [`81201c0`](https://github.com/falcosecurity/plugins/commit/81201c0e) fix(container): crash at filter extract
+
 
 ## v0.4.1
 
-* [`d95e32c`](https://github.com/falcosecurity/plugins/commit/d95e32c) fix(plugins/container): do not generate async event for CRI CONTAINER_STOPPED_EVENT
+* [`a9579f7`](https://github.com/falcosecurity/plugins/commit/a9579f76) docs(plugins/container): update changelog for v0.4.1
+
+* [`f411492`](https://github.com/falcosecurity/plugins/commit/f411492a) chore(plugins/container): bump to v0.4.1
+
+* [`d95e32c`](https://github.com/falcosecurity/plugins/commit/d95e32c3) fix(container): do not generate async event for CRI CONTAINER_STOPPED_EVENT
+
+* [`0aa2f52`](https://github.com/falcosecurity/plugins/commit/0aa2f527) docs(plugins/container): update changelog for v0.4.0
+
+* [`025444d`](https://github.com/falcosecurity/plugins/commit/025444d3) chore(plugins/container): bump to v0.4.0
+
+
+## v0.4.0-rc1
+
 
 ## v0.4.0
 
-* [`790555c`](https://github.com/falcosecurity/plugins/commit/790555cb) chore(plugins/container): bump to v0.4.0
+* [`0aa2f52`](https://github.com/falcosecurity/plugins/commit/0aa2f527) docs(plugins/container): update changelog for v0.4.0
 
-## v0.4.0-rc1
+* [`025444d`](https://github.com/falcosecurity/plugins/commit/025444d3) chore(plugins/container): bump to v0.4.0
 
 * [`3b0a2f1`](https://github.com/falcosecurity/plugins/commit/3b0a2f1a) chore(plugins/container): bump to v0.4.0-rc1
 

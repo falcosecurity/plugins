@@ -1,5 +1,25 @@
 # Changelog
 
+## dev build (unreleased)
+
+* [`19a4266`](https://github.com/falcosecurity/plugins/commit/19a42666) docs(k8smeta): clarify dynamic nodeName usage
+
+* [`350c120`](https://github.com/falcosecurity/plugins/commit/350c120d) fix(k8smeta): wait for the client to be done before destroying
+
+* [`11054f2`](https://github.com/falcosecurity/plugins/commit/11054f20) fix(k8smeta): update libs version used in tests to 0.22.1 and fix tests
+
+## v0.4.0-rc1
+
+
+## v0.4.0
+
+* [`e1ac593`](https://github.com/falcosecurity/plugins/commit/e1ac5939) chore(plugins/k8smeta): bump to v0.4.0
+
+* [`c7c0968`](https://github.com/falcosecurity/plugins/commit/c7c09682) chore(k8smeta): update cmake build command in readme file
+
+* [`7bbbfac`](https://github.com/falcosecurity/plugins/commit/7bbbfac6) chore(k8smeta): bump sdk version and implement get_required_event_schema version
+
+
 ## v0.3.1
 
 * [`b029bc3`](https://github.com/falcosecurity/plugins/commit/b029bc39) chore(plugins/k8smeta): drop experimental status.

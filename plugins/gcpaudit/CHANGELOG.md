@@ -2,6 +2,20 @@
 
 ## dev build (unreleased)
 
+* [`97f376d`](https://github.com/falcosecurity/plugins/commit/97f376d2) build(deps): bump google.golang.org/api in /plugins/gcpaudit
+
+* [`20cafb2`](https://github.com/falcosecurity/plugins/commit/20cafb2f) build(deps): bump google.golang.org/api in /plugins/gcpaudit
+
+* [`2c5435e`](https://github.com/falcosecurity/plugins/commit/2c5435e8) build(deps): bump google.golang.org/api in /plugins/gcpaudit
+
+* [`b223df1`](https://github.com/falcosecurity/plugins/commit/b223df1a) build(deps): bump golang.org/x/crypto in /plugins/gcpaudit
+
+* [`114d685`](https://github.com/falcosecurity/plugins/commit/114d685a) build(deps): bump google.golang.org/api in /plugins/gcpaudit
+
+## v0.7.0
+
+* [`e32f2b4`](https://github.com/falcosecurity/plugins/commit/e32f2b40) update(plugins/gcpaudit): bump to v0.7.0
+
 * [`91e1ad8`](https://github.com/falcosecurity/plugins/commit/91e1ad89) update(gcpaudit): Add support for field offsets
 
 * [`f39b719`](https://github.com/falcosecurity/plugins/commit/f39b7194) build(deps): bump google.golang.org/api in /plugins/gcpaudit
@@ -9,6 +23,7 @@
 * [`299d65b`](https://github.com/falcosecurity/plugins/commit/299d65b4) build(deps): bump google.golang.org/api in /plugins/gcpaudit
 
 * [`0e0737e`](https://github.com/falcosecurity/plugins/commit/0e0737ef) build(deps): bump google.golang.org/api in /plugins/gcpaudit
+
 
 ## v0.6.0
 

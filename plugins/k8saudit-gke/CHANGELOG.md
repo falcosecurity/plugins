@@ -2,7 +2,24 @@
 
 ## dev build (unreleased)
 
+* [`e1194bf`](https://github.com/falcosecurity/plugins/commit/e1194bfe) build(deps): bump google.golang.org/api in /plugins/k8saudit-gke
+
+* [`58755ab`](https://github.com/falcosecurity/plugins/commit/58755ab0) build(deps): bump google.golang.org/api in /plugins/k8saudit-gke
+
+* [`4e11379`](https://github.com/falcosecurity/plugins/commit/4e11379b) build(deps): bump google.golang.org/api in /plugins/k8saudit-gke
+
+* [`c0aa33a`](https://github.com/falcosecurity/plugins/commit/c0aa33ad) build(deps): bump k8s.io/apiserver in /plugins/k8saudit-gke
+
+* [`ce0b941`](https://github.com/falcosecurity/plugins/commit/ce0b941f) build(deps): bump google.golang.org/api in /plugins/k8saudit-gke
+
+* [`ba71321`](https://github.com/falcosecurity/plugins/commit/ba713211) build(deps): bump golang.org/x/crypto in /plugins/k8saudit-gke
+
+## v0.7.0
+
+* [`bdfc865`](https://github.com/falcosecurity/plugins/commit/bdfc8659) chore(plugins/k8saudit-gke): bump to v0.7.0
+
 * [`c8f34c5`](https://github.com/falcosecurity/plugins/commit/c8f34c51) build(deps): bump google.golang.org/api in /plugins/k8saudit-gke
+
 
 ## v0.6.0
 

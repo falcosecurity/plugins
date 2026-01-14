@@ -2,6 +2,8 @@
 
 ## dev build (unreleased)
 
+* [`bbb1e95`](https://github.com/falcosecurity/plugins/commit/bbb1e95e) build(deps): bump cargo_metadata from 0.22.0 to 0.23.0 in /plugins/krsi
+
 * [`ef13f88`](https://github.com/falcosecurity/plugins/commit/ef13f887) build(deps): bump slab from 0.4.10 to 0.4.11 in /plugins/krsi
 
 * [`8d44358`](https://github.com/falcosecurity/plugins/commit/8d44358d) build(plugins/krsi): bump `cargo_metadata` from 0.19.0 to 0.20.0

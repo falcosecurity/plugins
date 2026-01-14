@@ -1,10 +1,13 @@
 # Changelog
 
-## dev build (unreleased)
+## v0.1.1
+
+* [`55c41ad`](https://github.com/falcosecurity/plugins/commit/55c41ade) update(plugins/dummy_rs): bump to v0.1.1
 
 * [`17dfd80`](https://github.com/falcosecurity/plugins/commit/17dfd80d) docs(plugins/dummy_rs): update readme
 
 * [`6cce924`](https://github.com/falcosecurity/plugins/commit/6cce9247) fix(plugins/dummy_rs): sync `Cargo.lock`
+
 
 ## v0.1.0
 
