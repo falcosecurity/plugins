@@ -1,5 +1,55 @@
 # Changelog
 
+## vsecure_okta-0.0.1
+
+
+## vsecureokta-0.0.8
+
+
+## vsecureokta-0.0.7
+
+
+## vsecureokta-0.0.6
+
+
+## vsecureokta-0.0.5
+
+* [`3b3abd3`](https://github.com/falcosecurity/plugins/commit/3b3abd3c) chore(okta): update changelog (#52)
+
+
+## vsecureokta-0.0.4
+
+
+## vsecureokta-0.0.3
+
+
+## vsecureokta-0.0.2
+
+
+## vsecureokta-0.0.1
+
+
+## plugins/secureokta/v0.1.0
+
+
+## plugins/secureokta/v0.0.11
+
+
+## plugins/secureokta/v0.0.10
+
+
+## plugins/secureokta/v0.0.9
+
+
+## plugins/secureokta/v0.0.8
+
+* [`3b3abd3`](https://github.com/falcosecurity/plugins/commit/3b3abd3c) chore(okta): update changelog (#52)
+
+* [`5d3072a`](https://github.com/falcosecurity/plugins/commit/5d3072a9) fix(okta): fix version (SSPROD-33178) (#34)
+
+* [`0958630`](https://github.com/falcosecurity/plugins/commit/0958630c) fix(okta): extend okta plugin without unsupported rulesets (SSPROD-33085) (#32)
+
+
 ## v0.11.1
 
 * [`0f93bb4`](https://github.com/falcosecurity/plugins/commit/0f93bb46) update(plugins/okta): upgrade sdk and deps

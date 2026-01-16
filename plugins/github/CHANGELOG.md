@@ -1,10 +1,50 @@
 # Changelog
 
-## dev build (unreleased)
+## vsecuregithub-0.0.4
+
+
+## vsecuregithub-0.0.3
+
+
+## vsecuregithub-0.0.2
+
+* [`34e3f7a`](https://github.com/falcosecurity/plugins/commit/34e3f7ac) feat(github): bump go mod to reference changes in OSS github plugin (#55)
+
+
+## vsecuregithub-0.0.1
+
+
+## plugins/securegithub/v0.0.7
+
+
+## plugins/securegithub/v0.0.6
+
+
+## plugins/securegithub/v0.0.5
+
+
+## plugins/securegithub/v0.0.4
+
+* [`34e3f7a`](https://github.com/falcosecurity/plugins/commit/34e3f7ac) feat(github): bump go mod to reference changes in OSS github plugin (#55)
+
+
+## v0.10.0
+
+* [`63cbb78`](https://github.com/falcosecurity/plugins/commit/63cbb781) chore(github): bump version to 0.10.0
+
+* [`db525fa`](https://github.com/falcosecurity/plugins/commit/db525fa8) build(deps): bump golang.org/x/oauth2 in /plugins/github
+
+* [`9c57643`](https://github.com/falcosecurity/plugins/commit/9c57643e) build(deps): bump golang.org/x/oauth2 in /plugins/github
+
+
+## v0.9.1
+
+* [`306db05`](https://github.com/falcosecurity/plugins/commit/306db05e) update(plugins/github): bump to v0.9.1
 
 * [`6ac5f75`](https://github.com/falcosecurity/plugins/commit/6ac5f758) build(deps): bump golang.org/x/oauth2 in /plugins/github
 
 * [`af547e2`](https://github.com/falcosecurity/plugins/commit/af547e21) docs(plugins/github): update readme
+
 
 ## v0.9.0
 

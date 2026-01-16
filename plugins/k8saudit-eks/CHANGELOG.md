@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.10.0
+
+* [`4c94300`](https://github.com/falcosecurity/plugins/commit/4c943003) chore(plugins/k8saudit-eks): bump to v0.10.0
+
+
 ## v0.9.0
 
 * [`ecadcf8`](https://github.com/falcosecurity/plugins/commit/ecadcf82) update(plugins/k8saudit-eks): bump to v0.9.0

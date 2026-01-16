@@ -2,6 +2,71 @@
 
 ## dev build (unreleased)
 
+* [`b647cd3`](https://github.com/falcosecurity/plugins/commit/b647cd3c) build(deps): bump github.com/aws/aws-lambda-go in /plugins/cloudtrail
+
+* [`fb52206`](https://github.com/falcosecurity/plugins/commit/fb522062) build(deps): bump github.com/aws/aws-sdk-go-v2 in /plugins/cloudtrail
+
+* [`7edf706`](https://github.com/falcosecurity/plugins/commit/7edf7068) build(deps): bump github.com/aws/smithy-go in /plugins/cloudtrail
+
+* [`3859b31`](https://github.com/falcosecurity/plugins/commit/3859b319) build(deps): bump github.com/aws/aws-lambda-go in /plugins/cloudtrail
+
+## vsecurecloudtrail-0.1.6
+
+
+## vsecurecloudtrail-0.1.5
+
+
+## vsecurecloudtrail-0.1.4
+
+* [`195ba5f`](https://github.com/falcosecurity/plugins/commit/195ba5f1) fix(cloudtrail): sync with public plugin, add request,response additional dat...
+
+
+## vsecurecloudtrail-0.1.3
+
+
+## vsecurecloudtrail-0.1.2
+
+* [`382a3f2`](https://github.com/falcosecurity/plugins/commit/382a3f28) fix(cloudtrail): remove checks on user and event name when is a s3 event (SSP...
+
+
+## vsecurecloudtrail-0.1.1
+
+* [`336a61c`](https://github.com/falcosecurity/plugins/commit/336a61c1) fix(cloudtrail): fix plugin id (SSPROD-35888) (#45)
+
+
+## vsecurecloudtrail-0.1.0
+
+
+## plugins/securecloudtrail/v0.1.9
+
+* [`b3f2dad`](https://github.com/falcosecurity/plugins/commit/b3f2dad3) feat(cloudtrail): add targetaccountid field (SSPROD-62445) (#285)
+
+
+## plugins/securecloudtrail/v0.1.8
+
+* [`38c6393`](https://github.com/falcosecurity/plugins/commit/38c6393a) feat(cloudtrail): add ct.db field (SSPROD-59327) (#213)
+
+
+## plugins/securecloudtrail/v0.1.7
+
+* [`b8d5185`](https://github.com/falcosecurity/plugins/commit/b8d51852) feat(cloudtrail): bump go version (#190)
+
+
+## plugins/securecloudtrail/v0.1.6
+
+* [`195ba5f`](https://github.com/falcosecurity/plugins/commit/195ba5f1) fix(cloudtrail): sync with public plugin, add request,response additional dat...
+
+* [`382a3f2`](https://github.com/falcosecurity/plugins/commit/382a3f28) fix(cloudtrail): remove checks on user and event name when is a s3 event (SSP...
+
+* [`336a61c`](https://github.com/falcosecurity/plugins/commit/336a61c1) fix(cloudtrail): fix plugin id (SSPROD-35888) (#45)
+
+* [`7fcb942`](https://github.com/falcosecurity/plugins/commit/7fcb9428) feat(cloudtrail): add private plugin for cloudtrail (SSPROD-35888) (#44)
+
+
+## v0.14.0
+
+* [`72e2a9e`](https://github.com/falcosecurity/plugins/commit/72e2a9ee) update(plugins/cloudtrail): bump to v0.14.0
+
 * [`7111f6b`](https://github.com/falcosecurity/plugins/commit/7111f6b6) fix(cloudtrail): Make sure values are quoted and unquoted directly
 
 * [`7647eba`](https://github.com/falcosecurity/plugins/commit/7647ebad) update(cloudtrail): Use our fastjson fork instead of gjson
@@ -11,6 +76,7 @@
 * [`bc7881a`](https://github.com/falcosecurity/plugins/commit/bc7881a6) feat(cloudtrail): add iam.role and iam.policy fields
 
 * [`a214622`](https://github.com/falcosecurity/plugins/commit/a2146222) build(deps): bump github.com/aws/aws-lambda-go in /plugins/cloudtrail
+
 
 ## v0.13.0
 
