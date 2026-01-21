@@ -101,12 +101,12 @@ void from_json(const nlohmann::json& j, container_info::ptr_t& cinfo)
     info->m_imagetag = container.value("imagetag", "");
     info->m_container_user = container.value("User", "");
     info->m_pod_sandbox_cniresult = container.value("cni_json", "");
-    info->m_cpu_period = container.value("cpu_period", 0);
-    info->m_cpu_quota = container.value("cpu_quota", 0);
-    info->m_cpu_shares = container.value("cpu_shares", 0);
-    info->m_cpuset_cpu_count = container.value("cpuset_cpu_count", 0);
-    info->m_created_time = container.value("created_time", 0);
-    info->m_size_rw_bytes = container.value("size", -1);
+    info->m_cpu_period = container.value("cpu_period", int64_t{0});
+    info->m_cpu_quota = container.value("cpu_quota", int64_t{0});
+    info->m_cpu_shares = container.value("cpu_shares", int64_t{0});
+    info->m_cpuset_cpu_count = container.value("cpuset_cpu_count", int64_t{0});
+    info->m_created_time = container.value("created_time", int64_t{0});
+    info->m_size_rw_bytes = container.value("size", int64_t{-1});
     object_from_json(container, "env", info->m_env);
     info->m_full_id = container.value("full_id", "");
     info->m_host_ipc = container.value("host_ipc", false);
@@ -115,8 +115,8 @@ void from_json(const nlohmann::json& j, container_info::ptr_t& cinfo)
     info->m_container_ip = container.value("ip", "");
     info->m_is_pod_sandbox = container.value("is_pod_sandbox", false);
     object_from_json(container, "labels", info->m_labels);
-    info->m_memory_limit = container.value("memory_limit", 0);
-    info->m_swap_limit = container.value("swap_limit", 0);
+    info->m_memory_limit = container.value("memory_limit", int64_t{0});
+    info->m_swap_limit = container.value("swap_limit", int64_t{0});
     info->m_pod_sandbox_id = container.value("pod_sandbox_id", "");
     info->m_privileged = container.value("privileged", false);
     object_from_json(container, "pod_sandbox_labels",
