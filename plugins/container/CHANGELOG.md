@@ -1,6 +1,14 @@
 # Changelog
 
-## dev build (unreleased)
+## v0.6.1
+
+* [`fb763af`](https://github.com/falcosecurity/plugins/commit/fb763af) fix(container): prevent int64 overflow in JSON deserialization
+
+* [`f4debc9`](https://github.com/falcosecurity/plugins/commit/f4debc9) perf(plugins/container): use string_view to reduce allocations in cgroup matc...
+
+* [`73bdb47`](https://github.com/falcosecurity/plugins/commit/73bdb47) perf(plugins/container): optimize endswih in runc matcher
+
+* [`0021125`](https://github.com/falcosecurity/plugins/commit/0021125) fix(container): don't allocate reflex matcher at every resolve
 
 * [`3352cc2`](https://github.com/falcosecurity/plugins/commit/3352cc2) docs(plugins/container): add deepskyblue86 as a maintainer
 
@@ -9,6 +17,7 @@
 * [`b822c11`](https://github.com/falcosecurity/plugins/commit/b822c11) ci(plugins/container): run container plugin integration test in ci
 
 * [`521649a`](https://github.com/falcosecurity/plugins/commit/521649a) chore(plugins/container): add integration test on extraction capability
+
 
 ## v0.6.0
 
