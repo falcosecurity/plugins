@@ -1,5 +1,7 @@
 #include "runc.h"
 
+#include <string_view>
+
 namespace
 {
 const size_t CONTAINER_ID_LENGTH = 64;
@@ -16,9 +18,10 @@ namespace libsinsp
 namespace runc
 {
 
-inline static bool endswith(const std::string &s, const std::string &suffix)
+inline static bool endswith(std::string_view s, std::string_view suffix)
 {
-    return s.rfind(suffix) == (s.size() - suffix.size());
+    return s.size() >= suffix.size() &&
+           s.compare(s.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
 // check if cgroup ends with <prefix><container_id><suffix>
