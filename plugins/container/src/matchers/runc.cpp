@@ -27,29 +27,43 @@ inline static bool endswith(std::string_view s, std::string_view suffix)
 // check if cgroup ends with <prefix><container_id><suffix>
 // If true, set <container_id> to a truncated version of the id and return true.
 // Otherwise return false and leave container_id unchanged
-bool match_one_container_id(const std::string &cgroup,
-                            const std::string &prefix,
-                            const std::string &suffix,
-                            std::string &container_id, bool is_containerd)
+//
+// Using std::string_view for prefix and suffix avoids temporary std::string
+// allocations when called with const char* from cgroup_layout structs.
+bool match_one_container_id(const std::string &cgroup, std::string_view prefix,
+                            std::string_view suffix, std::string &container_id,
+                            bool is_containerd)
 {
-    size_t start_pos = cgroup.rfind(prefix);
+    size_t start_pos =
+            cgroup.rfind(prefix.data(), std::string::npos, prefix.size());
     if(start_pos == std::string::npos)
     {
         return false;
     }
     start_pos += prefix.size();
 
-    size_t end_pos = cgroup.rfind(suffix);
-    if(end_pos == std::string::npos)
+    // For empty suffix, end_pos should be at the end of the string
+    size_t end_pos;
+    if(suffix.empty())
     {
-        return false;
+        end_pos = cgroup.size();
+    }
+    else
+    {
+        end_pos = cgroup.rfind(suffix.data(), std::string::npos, suffix.size());
+        if(end_pos == std::string::npos)
+        {
+            return false;
+        }
     }
 
     if(end_pos - start_pos == CONTAINER_ID_LENGTH &&
        cgroup.find_first_not_of(CONTAINER_ID_VALID_CHARACTERS, start_pos) >=
                CONTAINER_ID_LENGTH)
     {
-        container_id = cgroup.substr(start_pos, REPORTED_CONTAINER_ID_LENGTH);
+        // Use assign() instead of substr() to potentially reuse existing
+        // capacity in container_id
+        container_id.assign(cgroup, start_pos, REPORTED_CONTAINER_ID_LENGTH);
         return true;
     }
 
@@ -70,7 +84,9 @@ bool match_one_container_id(const std::string &cgroup,
                 end_pos - start_pos >= REPORTED_CONTAINER_ID_LENGTH
                         ? REPORTED_CONTAINER_ID_LENGTH
                         : end_pos - start_pos;
-        container_id = cgroup.substr(start_pos, reported_len);
+        // Use assign() instead of substr() to potentially reuse existing
+        // capacity in container_id
+        container_id.assign(cgroup, start_pos, reported_len);
         return true;
     }
 

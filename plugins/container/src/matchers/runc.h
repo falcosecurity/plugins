@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace libsinsp
@@ -30,6 +31,11 @@ struct cgroup_layout
 
 /**
  * @brief Check if `cgroup` ends with <prefix><64_hex_digits><suffix>
+ * @param cgroup the cgroup path to match
+ * @param prefix the prefix before the container ID (uses string_view to avoid
+ *               allocations when called with const char*)
+ * @param suffix the suffix after the container ID (uses string_view to avoid
+ *               allocations when called with const char*)
  * @param container_id output parameter
  * @return true if `cgroup` matches the pattern
  *
@@ -37,10 +43,9 @@ struct cgroup_layout
  * the truncated hex string (first 12 digits). Otherwise, it will remain
  * unchanged.
  */
-bool match_one_container_id(const std::string &cgroup,
-                            const std::string &prefix,
-                            const std::string &suffix,
-                            std::string &container_id);
+bool match_one_container_id(const std::string &cgroup, std::string_view prefix,
+                            std::string_view suffix, std::string &container_id,
+                            bool is_containerd = false);
 
 /**
  * @brief Match `cgroup` against a list of layouts using
