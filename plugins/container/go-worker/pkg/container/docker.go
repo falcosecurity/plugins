@@ -200,23 +200,23 @@ func (dc *dockerEngine) ctrToInfo(ctx context.Context, ctr container.InspectResp
 	}
 
 	for _, repoTag := range img.RepoTags {
-		repoTagsParts := strings.Split(repoTag, ":")
-		if len(repoTagsParts) != 2 {
+		repo, tag := parseImageRepoTag(repoTag)
+		if repo == "" || tag == "" {
 			// malformed
 			continue
 		}
 		if imageRepo == "" {
-			imageRepo = repoTagsParts[0]
+			imageRepo = repo
 		}
 		if strings.Contains(repoTag, imageRepo) {
-			imageTag = repoTagsParts[1]
+			imageTag = tag
 			break
 		}
 	}
 
 	imgName := ctr.Image
-	if !strings.Contains(imgName, "/") && strings.Contains(imgName, ":") {
-		imageID = strings.Split(imgName, ":")[1]
+	if !strings.Contains(imgName, "/") {
+		_, imageID = parseImageRepoTag(imgName)
 	}
 
 	labels := make(map[string]string)
