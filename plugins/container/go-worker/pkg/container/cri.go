@@ -322,27 +322,18 @@ func (c *criEngine) ctrToInfo(ctx context.Context, ctr *v1.ContainerStatus, podS
 		}
 	}
 
-	imageRepoTag := strings.Split(imageName, ":")
-	imageRepo = imageRepoTag[0]
-	if len(imageRepoTag) == 2 {
-		imageTag = imageRepoTag[1]
-	}
+	imageRepo, imageTag = parseImageRepoTag(imageName)
 
 	if getTagFromImage {
-		imageRepoTag = strings.Split(ctr.GetImage().GetImage(), ":")
-		if len(imageRepoTag) == 2 {
-			imageTag = imageRepoTag[1]
+		_, tag := parseImageRepoTag(ctr.GetImage().GetImage())
+		if tag != "" {
+			imageTag = tag
 			imageName += ":" + imageTag
 		}
 	}
 
 	imageStr := ctrInfo.getImage()
-	imageStrs := strings.Split(imageStr, ":")
-	if len(imageStrs) == 2 {
-		imageID = imageStrs[1]
-	} else {
-		imageID = imageStr
-	}
+	_, imageID = parseImageRepoTag(imageStr)
 	if imageID == "" {
 		imageID = ctr.GetImageId()
 	}
