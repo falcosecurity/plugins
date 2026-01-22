@@ -137,7 +137,7 @@ load_plugins: [k8saudit, json]
 - `http://<host>:<port>/<endpoint>`: Opens an event stream by listening on an HTTP web server
 - `https://<host>:<port>/<endpoint>`: Opens an event stream by listening on an HTTPS web server
 - `tail://<filepath>`: Opens an event stream by continuously watching a file for new audit events, similar to `tail -f`. Handles log rotation (inode changes) and file truncation automatically. Example: `tail:///var/log/kube-apiserver/audit.log`
-- `no scheme`: Opens an event stream by reading the events from a file on the local filesystem. The params string is interpreted as a filepath (one-shot read, exits at EOF)
+- `no scheme`: Opens an event stream by reading the events from a file on the local filesystem. The params string is interpreted as a filepath
 
 
 **NOTE**: There is also a full tutorial on how to run the k8saudit plugin in a Kubernetes cluster using minikube: 
