@@ -28,12 +28,20 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/source"
 	"github.com/valyala/fastjson"
 )
+
+func fileInode(info os.FileInfo) uint64 {
+	if stat, ok := info.Sys().(*syscall.Stat_t); ok {
+		return stat.Ino
+	}
+	return 0
+}
 
 const (
 	webServerShutdownTimeoutSecs = 5
@@ -51,6 +59,8 @@ func (k *Plugin) Open(params string) (source.Instance, error) {
 		return k.OpenWebServer(u.Host, u.Path, false)
 	case "https":
 		return k.OpenWebServer(u.Host, u.Path, true)
+	case "tail":
+		return k.OpenFileTail(u.Path)
 	case "": // by default, fallback to opening a filepath
 		trimmed := strings.TrimSpace(params)
 
@@ -122,6 +132,83 @@ func (k *Plugin) OpenReader(r io.ReadCloser) (source.Instance, error) {
 	return source.NewPushInstance(
 		evtC,
 		source.WithInstanceClose(func() { r.Close() }),
+		source.WithInstanceEventSize(uint32(k.Config.MaxEventSize)))
+}
+
+// OpenFileTail opens a source.Instance that continuously watches a file for
+// new K8S Audit Events, similar to "tail -f". It handles log rotation by
+// detecting file truncation or inode changes.
+func (k *Plugin) OpenFileTail(path string) (source.Instance, error) {
+	ctx, cancelCtx := context.WithCancel(context.Background())
+	evtC := make(chan source.PushEvent)
+
+	go func() {
+		defer close(evtC)
+		var parser fastjson.Parser
+		var offset int64
+		var lastInode uint64
+
+		pollInterval := time.Duration(k.Config.WatchPollIntervalMs) * time.Millisecond
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+
+			file, err := os.Open(path)
+			if err != nil {
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(pollInterval):
+					continue
+				}
+			}
+
+			info, err := file.Stat()
+			if err != nil {
+				file.Close()
+				continue
+			}
+
+			inode := fileInode(info)
+			if lastInode != 0 && inode != lastInode {
+				offset = 0 // file rotated (new inode)
+			} else if info.Size() < offset {
+				offset = 0 // file truncated
+			}
+			lastInode = inode
+
+			if offset > 0 {
+				file.Seek(offset, io.SeekStart)
+			}
+
+			scanner := bufio.NewScanner(file)
+			for scanner.Scan() {
+				line := scanner.Text()
+				if len(line) > 0 {
+					k.parseAuditEventsAndPush(&parser, []byte(line), evtC)
+				}
+			}
+
+			pos, _ := file.Seek(0, io.SeekCurrent)
+			offset = pos
+			file.Close()
+
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(pollInterval):
+			}
+		}
+	}()
+
+	return source.NewPushInstance(
+		evtC,
+		source.WithInstanceContext(ctx),
+		source.WithInstanceClose(cancelCtx),
 		source.WithInstanceEventSize(uint32(k.Config.MaxEventSize)))
 }
 
