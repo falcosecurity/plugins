@@ -182,3 +182,34 @@ func parsePortBindingHostPort(port string) (uint16, error) {
 
 	return uint16(convertedPort), nil
 }
+
+// parseImageRepoTag parses a container image string and returns the repository and tag.
+// It correctly handles registry URLs with port numbers by only splitting on the last colon
+// that appears after the last slash.
+//
+// Examples:
+//   - "registry.example.com:5000/foo/bar:latest" -> ("registry.example.com:5000/foo/bar", "latest")
+//   - "registry.example.com:5000/foo/bar" -> ("registry.example.com:5000/foo/bar", "")
+//   - "foo/bar:latest" -> ("foo/bar", "latest")
+//   - "foo:latest" -> ("foo", "latest")
+func parseImageRepoTag(image string) (repo, tag string) {
+	if image == "" {
+		return "", ""
+	}
+
+	// Find the last slash to separate the registry/path from the image name
+	lastSlash := strings.LastIndex(image, "/")
+
+	// Find the last colon after the last slash (if any)
+	// This colon separates the tag from the repo
+	lastColon := strings.LastIndex(image, ":")
+
+	// If there's no colon, or the colon appears before the last slash
+	// (meaning it's part of a registry port), then there's no tag
+	if lastColon == -1 || (lastSlash != -1 && lastColon < lastSlash) {
+		return image, ""
+	}
+
+	// Split at the last colon
+	return image[:lastColon], image[lastColon+1:]
+}
