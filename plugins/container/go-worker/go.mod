@@ -1,6 +1,6 @@
 module github.com/falcosecurity/plugins/plugins/container/go-worker
 
-go 1.24.2
+go 1.25
 
 require (
 	github.com/containerd/containerd/api v1.9.0

@@ -20,7 +20,7 @@ jobs:
         arch: [x86_64, aarch64]
     # Upgrading to a newer debian version would make the build process generate
     # binaries that require newer GLIBC version so we need to be based on bullseye for now
-    container: golang:1.24-bullseye
+    container: debian:bullseye
     steps:
       - name: Checkout Plugins ⤵️
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
@@ -35,7 +35,12 @@ jobs:
         run: |
           apt update
           apt install -y --no-install-recommends awscli build-essential autoconf libelf-dev libtool autotools-dev \
-            automake zip unzip ninja-build wget lsb-release software-properties-common gnupg
+            automake zip unzip ninja-build wget lsb-release software-properties-common gnupg ca-certificates curl git
+
+      - name: Setup Go
+        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
+        with:
+          go-version: '1.25'
 
       - name: Install updated clang version ⛓️
         run: |
