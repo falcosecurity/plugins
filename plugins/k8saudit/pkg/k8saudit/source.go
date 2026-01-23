@@ -232,6 +232,12 @@ func (k *Plugin) String(evt sdk.EventReader) (string, error) {
 // simply logging them, to ensure consumers don't close the
 // event source with bad or malicious payloads
 func (k *Plugin) parseAuditEventsAndPush(parser *fastjson.Parser, payload []byte, c chan<- source.PushEvent) {
+	// Recover from panics in the JSON parser (e.g., when payload exceeds internal buffer limits)
+	defer func() {
+		if r := recover(); r != nil {
+			k.logger.Printf("JSON parser panic (payload size: %d bytes): %v", len(payload), r)
+		}
+	}()
 	data, err := parser.ParseBytes(payload)
 	if err != nil {
 		k.logger.Println(err.Error())
@@ -261,7 +267,14 @@ func (k *Plugin) parseAuditEventsAndPush(parser *fastjson.Parser, payload []byte
 // still contain an error (source.PushEvent.Err is non-nil). The reason is that
 // if a single event is corrupted, this function still attempts to parse the
 // rest of the events in the payload.
-func (k *Plugin) ParseAuditEventsPayload(payload []byte) ([]*source.PushEvent, error) {
+func (k *Plugin) ParseAuditEventsPayload(payload []byte) (events []*source.PushEvent, err error) {
+	// Recover from panics in the JSON parser (e.g., when payload exceeds internal buffer limits)
+	defer func() {
+		if r := recover(); r != nil {
+			events = nil
+			err = fmt.Errorf("JSON parser panic (payload size: %d bytes): %v", len(payload), r)
+		}
+	}()
 	value, err := fastjson.ParseBytes(payload)
 	if err != nil {
 		return nil, err
