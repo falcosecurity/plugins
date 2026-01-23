@@ -59,6 +59,9 @@ jobs:
         arch: [ amd64, arm64 ]
     container: debian:bullseye
     steps:
+      - name: Install deps
+        run: apt-get update && apt-get install -y --no-install-recommends build-essential zip unzip ninja-build ca-certificates curl git
+
       - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
@@ -67,9 +70,6 @@ jobs:
 
       - name: Safe directory
         run: git config --global --add safe.directory $GITHUB_WORKSPACE
-
-      - name: Install plugin deps
-        run: apt-get update && apt-get install -y --no-install-recommends zip unzip ninja-build ca-certificates curl
 
       - name: Setup Go
         uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
