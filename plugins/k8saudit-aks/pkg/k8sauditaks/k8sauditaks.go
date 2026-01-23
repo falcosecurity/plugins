@@ -84,6 +84,9 @@ func (p *Plugin) Init(cfg string) error {
 		return err
 	}
 
+	// Propagate MaxEventSize to the embedded k8saudit plugin config
+	p.Plugin.Config.MaxEventSize = p.Config.MaxEventSize
+
 	regExpCAuditID, err = regexp.Compile(regExpAuditID)
 	if err != nil {
 		return err
@@ -231,5 +234,6 @@ func (p *Plugin) Open(_ string) (source.Instance, error) {
 			close(eventsC)
 			close(pushEventC)
 		}),
+		source.WithInstanceEventSize(uint32(p.Config.MaxEventSize)),
 	)
 }

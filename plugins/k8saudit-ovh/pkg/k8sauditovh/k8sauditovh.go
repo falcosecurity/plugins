@@ -96,6 +96,13 @@ func (p *Plugin) Info() *plugins.Info {
 func (p *Plugin) Init(config string) error {
 	p.Plugin.Config.Reset()
 	p.Config.Reset()
+	if config != "" {
+		if err := json.Unmarshal([]byte(config), &p.Config); err != nil {
+			return err
+		}
+	}
+	// Propagate MaxEventSize to the embedded k8saudit plugin config
+	p.Plugin.Config.MaxEventSize = p.Config.MaxEventSize
 	p.Logger = log.New(os.Stderr, "["+pluginName+"] ", log.LstdFlags|log.LUTC|log.Lmsgprefix)
 	return nil
 }
@@ -203,5 +210,8 @@ func (p *Plugin) Open(ovhLDPURL string) (source.Instance, error) {
 			}
 		}
 	}()
-	return source.NewPushInstance(eventC)
+	return source.NewPushInstance(
+		eventC,
+		source.WithInstanceEventSize(uint32(p.Config.MaxEventSize)),
+	)
 }
