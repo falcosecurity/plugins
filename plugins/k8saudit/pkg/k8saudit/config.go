@@ -24,7 +24,6 @@ type PluginConfig struct {
 	UseAsync            bool   `json:"useAsync"             jsonschema:"title=Use async extraction,description=If true then async extraction optimization is enabled (Default: true),default=true"`
 	MaxEventSize        uint64 `json:"maxEventSize"         jsonschema:"title=Maximum event size,description=Maximum size of single audit event (Default: 262144),default=262144"`
 	WebhookMaxBatchSize uint64 `json:"webhookMaxBatchSize"  jsonschema:"title=Maximum webhook request size,description=Maximum size of incoming webhook POST request bodies (Default: 12582912),default=12582912"`
-	WatchPollIntervalMs uint64 `json:"watchPollIntervalMs"  jsonschema:"title=Watch poll interval,description=Polling interval in milliseconds when watching a file with tail:// scheme (Default: 250),default=250"`
 }
 
 // Resets sets the configuration to its default values
@@ -39,5 +38,4 @@ func (k *PluginConfig) Reset() {
 	// The following values have been chosen by increasing by ~20% the default
 	// values of the K8S docs
 	k.WebhookMaxBatchSize = 12 * 1024 * 1024
-	k.WatchPollIntervalMs = 250
 }

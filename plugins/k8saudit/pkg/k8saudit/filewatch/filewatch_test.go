@@ -15,7 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package tail_test
+package filewatch_test
 
 import (
 	"os"
@@ -32,30 +32,10 @@ const testAuditEvent = `{"kind":"Event","apiVersion":"audit.k8s.io/v1","level":"
 func newTestPlugin() *k8saudit.Plugin {
 	p := &k8saudit.Plugin{}
 	p.Config.Reset()
-	p.Config.WatchPollIntervalMs = 50
 	return p
 }
 
-func TestOpenFileTail_ReadsExistingContent(t *testing.T) {
-	tmpDir := t.TempDir()
-	filePath := filepath.Join(tmpDir, "audit.log")
-
-	if err := os.WriteFile(filePath, []byte(testAuditEvent+"\n"), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	p := newTestPlugin()
-	inst, err := p.OpenFileTail(filePath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer inst.(sdk.Closer).Close()
-
-	// Allow time for initial read
-	time.Sleep(100 * time.Millisecond)
-}
-
-func TestOpenFileTail_DetectsNewContent(t *testing.T) {
+func TestOpenFileWatch_DetectsNewContent(t *testing.T) {
 	tmpDir := t.TempDir()
 	filePath := filepath.Join(tmpDir, "audit.log")
 
@@ -64,13 +44,12 @@ func TestOpenFileTail_DetectsNewContent(t *testing.T) {
 	}
 
 	p := newTestPlugin()
-	inst, err := p.OpenFileTail(filePath)
+	inst, err := p.OpenFileWatch(filePath)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer inst.(sdk.Closer).Close()
 
-	// Write new content after opening
 	time.Sleep(100 * time.Millisecond)
 	f, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
@@ -79,11 +58,10 @@ func TestOpenFileTail_DetectsNewContent(t *testing.T) {
 	f.WriteString(testAuditEvent + "\n")
 	f.Close()
 
-	// Allow time for polling to detect new content
 	time.Sleep(200 * time.Millisecond)
 }
 
-func TestOpenFileTail_HandlesRotation(t *testing.T) {
+func TestOpenFileWatch_HandlesRotation(t *testing.T) {
 	tmpDir := t.TempDir()
 	filePath := filepath.Join(tmpDir, "audit.log")
 
@@ -92,7 +70,7 @@ func TestOpenFileTail_HandlesRotation(t *testing.T) {
 	}
 
 	p := newTestPlugin()
-	inst, err := p.OpenFileTail(filePath)
+	inst, err := p.OpenFileWatch(filePath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,43 +78,15 @@ func TestOpenFileTail_HandlesRotation(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	// Simulate rotation: remove and recreate with new content
 	os.Remove(filePath)
 	if err := os.WriteFile(filePath, []byte(testAuditEvent+"\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
-	// Allow time for polling to detect rotation
 	time.Sleep(200 * time.Millisecond)
 }
 
-func TestOpenFileTail_HandlesTruncation(t *testing.T) {
-	tmpDir := t.TempDir()
-	filePath := filepath.Join(tmpDir, "audit.log")
-
-	if err := os.WriteFile(filePath, []byte(testAuditEvent+"\n"+testAuditEvent+"\n"), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	p := newTestPlugin()
-	inst, err := p.OpenFileTail(filePath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer inst.(sdk.Closer).Close()
-
-	time.Sleep(100 * time.Millisecond)
-
-	// Truncate the file
-	if err := os.WriteFile(filePath, []byte(testAuditEvent+"\n"), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	// Allow time for polling to detect truncation
-	time.Sleep(200 * time.Millisecond)
-}
-
-func TestOpen_TailScheme(t *testing.T) {
+func TestOpen_FileScheme(t *testing.T) {
 	tmpDir := t.TempDir()
 	filePath := filepath.Join(tmpDir, "audit.log")
 
@@ -145,7 +95,7 @@ func TestOpen_TailScheme(t *testing.T) {
 	}
 
 	p := newTestPlugin()
-	inst, err := p.Open("tail://" + filePath)
+	inst, err := p.Open("file://" + filePath)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -26,22 +26,16 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/source"
+	"github.com/fsnotify/fsnotify"
 	"github.com/valyala/fastjson"
 )
-
-func fileInode(info os.FileInfo) uint64 {
-	if stat, ok := info.Sys().(*syscall.Stat_t); ok {
-		return stat.Ino
-	}
-	return 0
-}
 
 const (
 	webServerShutdownTimeoutSecs = 5
@@ -59,8 +53,8 @@ func (k *Plugin) Open(params string) (source.Instance, error) {
 		return k.OpenWebServer(u.Host, u.Path, false)
 	case "https":
 		return k.OpenWebServer(u.Host, u.Path, true)
-	case "tail":
-		return k.OpenFileTail(u.Path)
+	case "file":
+		return k.OpenFileWatch(u.Path)
 	case "": // by default, fallback to opening a filepath
 		trimmed := strings.TrimSpace(params)
 
@@ -135,72 +129,112 @@ func (k *Plugin) OpenReader(r io.ReadCloser) (source.Instance, error) {
 		source.WithInstanceEventSize(uint32(k.Config.MaxEventSize)))
 }
 
-// OpenFileTail opens a source.Instance that continuously watches a file for
-// new K8S Audit Events, similar to "tail -f". It handles log rotation by
-// detecting file truncation or inode changes.
-func (k *Plugin) OpenFileTail(path string) (source.Instance, error) {
+// OpenFileWatch opens a source.Instance that continuously watches a file for
+// new K8S Audit Events using fsnotify. It watches the parent directory (as
+// recommended by fsnotify) to handle atomic file replacements and log rotation.
+func (k *Plugin) OpenFileWatch(path string) (source.Instance, error) {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get absolute path: %w", err)
+	}
+	dir := filepath.Dir(absPath)
+
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create file watcher: %w", err)
+	}
+
 	ctx, cancelCtx := context.WithCancel(context.Background())
 	evtC := make(chan source.PushEvent)
 
 	go func() {
 		defer close(evtC)
+		defer watcher.Close()
+
 		var parser fastjson.Parser
+		var file *os.File
 		var offset int64
-		var lastInode uint64
 
-		pollInterval := time.Duration(k.Config.WatchPollIntervalMs) * time.Millisecond
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-			}
-
-			file, err := os.Open(path)
-			if err != nil {
-				select {
-				case <-ctx.Done():
-					return
-				case <-time.After(pollInterval):
-					continue
-				}
-			}
-
-			info, err := file.Stat()
-			if err != nil {
+		openFile := func(seekEnd bool) bool {
+			if file != nil {
 				file.Close()
-				continue
+				file = nil
 			}
-
-			inode := fileInode(info)
-			if lastInode != 0 && inode != lastInode {
-				offset = 0 // file rotated (new inode)
-			} else if info.Size() < offset {
-				offset = 0 // file truncated
+			f, err := os.Open(absPath)
+			if err != nil {
+				return false
 			}
-			lastInode = inode
-
-			if offset > 0 {
-				file.Seek(offset, io.SeekStart)
+			file = f
+			if seekEnd {
+				offset, _ = file.Seek(0, io.SeekEnd)
+			} else {
+				offset = 0
 			}
+			return true
+		}
 
+		readNewLines := func() {
+			if file == nil {
+				return
+			}
+			file.Seek(offset, io.SeekStart)
 			scanner := bufio.NewScanner(file)
 			for scanner.Scan() {
 				line := scanner.Text()
+				offset += int64(len(line)) + 1
 				if len(line) > 0 {
 					k.parseAuditEventsAndPush(&parser, []byte(line), evtC)
 				}
 			}
+		}
 
-			pos, _ := file.Seek(0, io.SeekCurrent)
-			offset = pos
-			file.Close()
+		openFile(true)
 
+		if err := watcher.Add(dir); err != nil {
+			if file != nil {
+				file.Close()
+			}
+			evtC <- source.PushEvent{Err: err}
+			return
+		}
+
+		for {
 			select {
 			case <-ctx.Done():
+				if file != nil {
+					file.Close()
+				}
 				return
-			case <-time.After(pollInterval):
+			case event, ok := <-watcher.Events:
+				if !ok {
+					if file != nil {
+						file.Close()
+					}
+					return
+				}
+				if event.Name != absPath {
+					continue
+				}
+				if event.Op&fsnotify.Write == fsnotify.Write {
+					readNewLines()
+				}
+				if event.Op&fsnotify.Create == fsnotify.Create {
+					openFile(false)
+					readNewLines()
+				}
+				if event.Op&(fsnotify.Rename|fsnotify.Remove) != 0 {
+					if file != nil {
+						file.Close()
+						file = nil
+					}
+				}
+			case _, ok := <-watcher.Errors:
+				if !ok {
+					if file != nil {
+						file.Close()
+					}
+					return
+				}
 			}
 		}
 	}()
