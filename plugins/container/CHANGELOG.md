@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.6.2
+
+* [`bff3406`](https://github.com/falcosecurity/plugins/commit/bff3406) perf(container): cache cgroup path to container ID resolution results
+
+* [`365ae0a`](https://github.com/falcosecurity/plugins/commit/365ae0a) deps(plugins/container): update k8s.io/cri-api and k8s.io/cri-client
+
+* [`d1775b1`](https://github.com/falcosecurity/plugins/commit/d1775b1) build(deps): bump github.com/opencontainers/selinux to 1.13.1
+
+* [`a1de12e`](https://github.com/falcosecurity/plugins/commit/a1de12e) chore(plugins/container): bump Go version to 1.25
+
+
 ## v0.6.1
 
 * [`fb763af`](https://github.com/falcosecurity/plugins/commit/fb763af) fix(container): prevent int64 overflow in JSON deserialization
