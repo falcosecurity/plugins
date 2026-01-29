@@ -42,7 +42,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
         with:
-          go-version: "^1.21"
+          go-version-file: build/registry/go.mod
 
       - name: Build registry artifact tool
         working-directory: build/registry
