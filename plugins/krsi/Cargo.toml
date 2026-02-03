@@ -26,7 +26,7 @@ aya-log = { version = "0.2.1", default-features = false }
 aya-log-ebpf = { version = "0.1.1", default-features = false }
 paste = { version = "1.0.15", default-features = false }
 anyhow = { version = "1", default-features = false }
-zerocopy = { version = "0.8.35", default-features = false }
+zerocopy = { version = "0.8.37", default-features = false }
 zerocopy-derive = { version = "0.8.25", default-features = false }
 # `std` feature is currently required to build `clap`.
 #
