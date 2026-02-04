@@ -94,5 +94,8 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Sign the artifacts with GitHub OIDC Token
+      - name: Sign the artifacts with GitHub OIDC Token (OCI 1.1 referrers)
         run: cosign sign --yes ${{ matrix.value.repository.ref }}@${{ matrix.value.artifact.digest }}
+
+      - name: Sign the artifacts with GitHub OIDC Token (legacy tag-based)
+        run: cosign sign --yes --registry-referrers-mode=legacy ${{ matrix.value.repository.ref }}@${{ matrix.value.artifact.digest }}
