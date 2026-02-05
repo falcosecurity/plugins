@@ -182,6 +182,11 @@ func TestParseImageRepoTag(t *testing.T) {
 			expectedRepo: "registry.example.com:5000/foo/bar",
 			expectedTag:  "",
 		},
+		"Both tag and digest": {
+			image:        "registry.example.com:5000/foo/bar:latest@sha256:abc123",
+			expectedRepo: "registry.example.com:5000/foo/bar",
+			expectedTag:  "latest",
+		},
 		"Multi-level path with registry port and tag": {
 			image:        "registry.example.com:5000/org/project/image:v1.2.3",
 			expectedRepo: "registry.example.com:5000/org/project/image",
@@ -190,11 +195,6 @@ func TestParseImageRepoTag(t *testing.T) {
 		"Localhost with port and tag": {
 			image:        "localhost:5000/myimage:latest",
 			expectedRepo: "localhost:5000/myimage",
-			expectedTag:  "latest",
-		},
-		"Registry with port, tag and digest": {
-			image:        "registry.example.com:5000/foo/bar:latest@sha256:digest",
-			expectedRepo: "registry.example.com:5000/foo/bar",
 			expectedTag:  "latest",
 		},
 	}
