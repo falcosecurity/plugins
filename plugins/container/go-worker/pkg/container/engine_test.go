@@ -179,8 +179,8 @@ func TestParseImageRepoTag(t *testing.T) {
 		},
 		"Digest based image": {
 			image:        "registry.example.com:5000/foo/bar@sha256:abc123",
-			expectedRepo: "registry.example.com:5000/foo/bar@sha256",
-			expectedTag:  "abc123",
+			expectedRepo: "registry.example.com:5000/foo/bar",
+			expectedTag:  "",
 		},
 		"Multi-level path with registry port and tag": {
 			image:        "registry.example.com:5000/org/project/image:v1.2.3",
