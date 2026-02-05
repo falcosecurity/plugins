@@ -18,8 +18,10 @@ limitations under the License.
 package k8saudit
 
 import (
+	"log"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -28,10 +30,31 @@ import (
 
 const testAuditEvent = `{"kind":"Event","apiVersion":"audit.k8s.io/v1","level":"Metadata","auditID":"test","stage":"ResponseComplete","requestURI":"/api","verb":"get","user":{"username":"test"},"sourceIPs":["127.0.0.1"],"objectRef":{"resource":"pods","namespace":"default","name":"test"},"responseStatus":{"metadata":{},"code":200},"requestReceivedTimestamp":"2023-01-01T00:00:00.000000Z","stageTimestamp":"2023-01-01T00:00:01.000000Z"}`
 
-func newTestPlugin() *Plugin {
+// safeBuffer is a thread-safe buffer for capturing log output in tests.
+type safeBuffer struct {
+	mu  sync.Mutex
+	buf []byte
+}
+
+func (b *safeBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.buf = append(b.buf, p...)
+	return len(p), nil
+}
+
+func (b *safeBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return string(b.buf)
+}
+
+func newTestPlugin() (*Plugin, *safeBuffer) {
 	p := &Plugin{}
 	p.Config.Reset()
-	return p
+	buf := &safeBuffer{}
+	p.logger = log.New(buf, "", 0)
+	return p, buf
 }
 
 func TestOpenFileWatch_DetectsNewContent(t *testing.T) {
@@ -42,7 +65,7 @@ func TestOpenFileWatch_DetectsNewContent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	p := newTestPlugin()
+	p, logBuf := newTestPlugin()
 	inst, err := p.OpenFileWatch(filePath)
 	if err != nil {
 		t.Fatal(err)
@@ -54,10 +77,16 @@ func TestOpenFileWatch_DetectsNewContent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.WriteString(testAuditEvent + "\n")
+	// Write an invalid line; if the watcher reads the appended content,
+	// parseAuditEventsAndPush logs a parse error proving the content was read.
+	f.WriteString("SENTINEL\n")
 	f.Close()
 
 	time.Sleep(200 * time.Millisecond)
+
+	if logBuf.String() == "" {
+		t.Error("watcher did not process appended file content")
+	}
 }
 
 func TestOpenFileWatch_HandlesRotation(t *testing.T) {
@@ -68,7 +97,7 @@ func TestOpenFileWatch_HandlesRotation(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	p := newTestPlugin()
+	p, logBuf := newTestPlugin()
 	inst, err := p.OpenFileWatch(filePath)
 	if err != nil {
 		t.Fatal(err)
@@ -77,23 +106,29 @@ func TestOpenFileWatch_HandlesRotation(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
+	// Simulate rotation: remove and recreate
 	os.Remove(filePath)
-	if err := os.WriteFile(filePath, []byte(testAuditEvent+"\n"), 0644); err != nil {
+	if err := os.WriteFile(filePath, []byte("SENTINEL\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
 	time.Sleep(200 * time.Millisecond)
+
+	if logBuf.String() == "" {
+		t.Error("watcher did not process rotated file content")
+	}
 }
 
 func TestOpenFileWatch_HandlesTruncation(t *testing.T) {
 	tmpDir := t.TempDir()
 	filePath := filepath.Join(tmpDir, "audit.log")
 
+	// Write two events so the initial offset is large
 	if err := os.WriteFile(filePath, []byte(testAuditEvent+"\n"+testAuditEvent+"\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
-	p := newTestPlugin()
+	p, logBuf := newTestPlugin()
 	inst, err := p.OpenFileWatch(filePath)
 	if err != nil {
 		t.Fatal(err)
@@ -102,12 +137,17 @@ func TestOpenFileWatch_HandlesTruncation(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	// Truncate and rewrite with less data (simulates logrotate copytruncate)
-	if err := os.WriteFile(filePath, []byte(testAuditEvent+"\n"), 0644); err != nil {
+	// Truncate and rewrite with less data (simulates logrotate copytruncate).
+	// Without truncation detection the watcher would seek past EOF and miss this.
+	if err := os.WriteFile(filePath, []byte("SENTINEL\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
 	time.Sleep(200 * time.Millisecond)
+
+	if logBuf.String() == "" {
+		t.Error("watcher did not detect file truncation")
+	}
 }
 
 func TestOpen_FileScheme(t *testing.T) {
@@ -118,7 +158,7 @@ func TestOpen_FileScheme(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	p := newTestPlugin()
+	p, _ := newTestPlugin()
 	inst, err := p.Open("file://" + filePath)
 	if err != nil {
 		t.Fatal(err)
