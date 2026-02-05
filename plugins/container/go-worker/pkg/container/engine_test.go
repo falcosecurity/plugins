@@ -192,6 +192,11 @@ func TestParseImageRepoTag(t *testing.T) {
 			expectedRepo: "localhost:5000/myimage",
 			expectedTag:  "latest",
 		},
+		"Registry with port, tag and digest": {
+			image:        "registry.example.com:5000/foo/bar:latest@sha256:digest",
+			expectedRepo: "registry.example.com:5000/foo/bar",
+			expectedTag:  "latest",
+		},
 	}
 
 	for name, tc := range tCases {

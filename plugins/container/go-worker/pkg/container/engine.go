@@ -186,9 +186,11 @@ func parsePortBindingHostPort(port string) (uint16, error) {
 // parseImageRepoTag parses a container image string and returns the repository and tag.
 // It correctly handles registry URLs with port numbers by only splitting on the last colon
 // that appears after the last slash. If the reference includes a digest (via "@"), the
-// digest portion is ignored and the tag is intentionally left empty.
+// digest portion is removed first, and then the tag is extracted from the remaining string.
 //
 // Examples:
+//   - "registry.example.com:5000/foo/bar:latest@sha256:digest" -> ("registry.example.com:5000/foo/bar", "latest")
+//   - "registry.example.com:5000/foo/bar@sha256:digest" -> ("registry.example.com:5000/foo/bar", "")
 //   - "registry.example.com:5000/foo/bar:latest" -> ("registry.example.com:5000/foo/bar", "latest")
 //   - "registry.example.com:5000/foo/bar" -> ("registry.example.com:5000/foo/bar", "")
 //   - "foo/bar:latest" -> ("foo/bar", "latest")
@@ -198,10 +200,9 @@ func parseImageRepoTag(image string) (repo, tag string) {
 		return "", ""
 	}
 
-	digestRef := false
+	// Remove digest portion (e.g., @sha256:...) if present
 	if at := strings.Index(image, "@"); at != -1 {
 		image = image[:at]
-		digestRef = true
 	}
 
 	// Find the last slash to separate the registry/path from the image name
@@ -217,9 +218,5 @@ func parseImageRepoTag(image string) (repo, tag string) {
 		return image, ""
 	}
 
-	// Split at the last colon
-	if digestRef {
-		return image[:lastColon], ""
-	}
 	return image[:lastColon], image[lastColon+1:]
 }
