@@ -183,12 +183,16 @@ func (k *Plugin) OpenFileWatch(path string) (source.Instance, error) {
 			}
 			file.Seek(offset, io.SeekStart)
 			scanner := bufio.NewScanner(file)
+			scanner.Buffer(nil, int(k.Config.MaxEventSize))
 			for scanner.Scan() {
 				line := scanner.Text()
 				offset += int64(len(line)) + 1
 				if len(line) > 0 {
 					k.parseAuditEventsAndPush(&parser, []byte(line), evtC)
 				}
+			}
+			if err := scanner.Err(); err != nil {
+				k.logger.Println(err.Error())
 			}
 		}
 
@@ -232,13 +236,14 @@ func (k *Plugin) OpenFileWatch(path string) (source.Instance, error) {
 						file = nil
 					}
 				}
-			case _, ok := <-watcher.Errors:
+			case err, ok := <-watcher.Errors:
 				if !ok {
 					if file != nil {
 						file.Close()
 					}
 					return
 				}
+				k.logger.Println("file watcher error:", err)
 			}
 		}
 	}()
