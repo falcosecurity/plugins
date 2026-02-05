@@ -177,6 +177,10 @@ func (k *Plugin) OpenFileWatch(path string) (source.Instance, error) {
 			if file == nil {
 				return
 			}
+			// Detect file truncation (e.g. logrotate copytruncate)
+			if info, err := file.Stat(); err == nil && info.Size() < offset {
+				offset = 0
+			}
 			file.Seek(offset, io.SeekStart)
 			scanner := bufio.NewScanner(file)
 			for scanner.Scan() {
