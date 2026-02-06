@@ -147,11 +147,7 @@ func (c *containerdEngine) ctrToInfo(namespacedContext context.Context, containe
 			imageSize = image.Target().Size
 		}
 	}
-	imageRepoTag := strings.Split(info.Image, ":")
-	if len(imageRepoTag) == 2 {
-		imageRepo = imageRepoTag[0]
-		imageTag = imageRepoTag[1]
-	}
+	imageRepo, imageTag = parseImageRepoTag(info.Image)
 
 	// Network related - TODO
 

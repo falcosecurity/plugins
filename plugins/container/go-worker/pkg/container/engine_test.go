@@ -140,3 +140,70 @@ func TestParsePortBindingHostPort(t *testing.T) {
 		})
 	}
 }
+
+func TestParseImageRepoTag(t *testing.T) {
+	tCases := map[string]struct {
+		image        string
+		expectedRepo string
+		expectedTag  string
+	}{
+		"Registry with port and tag": {
+			image:        "registry.example.com:5000/foo/bar:latest",
+			expectedRepo: "registry.example.com:5000/foo/bar",
+			expectedTag:  "latest",
+		},
+		"Registry with port without tag": {
+			image:        "registry.example.com:5000/foo/bar",
+			expectedRepo: "registry.example.com:5000/foo/bar",
+			expectedTag:  "",
+		},
+		"Simple image with tag": {
+			image:        "foo/bar:latest",
+			expectedRepo: "foo/bar",
+			expectedTag:  "latest",
+		},
+		"Simple image without path with tag": {
+			image:        "foo:latest",
+			expectedRepo: "foo",
+			expectedTag:  "latest",
+		},
+		"Simple image without tag": {
+			image:        "foo/bar",
+			expectedRepo: "foo/bar",
+			expectedTag:  "",
+		},
+		"Empty string": {
+			image:        "",
+			expectedRepo: "",
+			expectedTag:  "",
+		},
+		"Digest based image": {
+			image:        "registry.example.com:5000/foo/bar@sha256:abc123",
+			expectedRepo: "registry.example.com:5000/foo/bar",
+			expectedTag:  "",
+		},
+		"Both tag and digest": {
+			image:        "registry.example.com:5000/foo/bar:latest@sha256:abc123",
+			expectedRepo: "registry.example.com:5000/foo/bar",
+			expectedTag:  "latest",
+		},
+		"Multi-level path with registry port and tag": {
+			image:        "registry.example.com:5000/org/project/image:v1.2.3",
+			expectedRepo: "registry.example.com:5000/org/project/image",
+			expectedTag:  "v1.2.3",
+		},
+		"Localhost with port and tag": {
+			image:        "localhost:5000/myimage:latest",
+			expectedRepo: "localhost:5000/myimage",
+			expectedTag:  "latest",
+		},
+	}
+
+	for name, tc := range tCases {
+		t.Run(name, func(t *testing.T) {
+			repo, tag := parseImageRepoTag(tc.image)
+			assert.Equal(t, tc.expectedRepo, repo)
+			assert.Equal(t, tc.expectedTag, tag)
+		})
+	}
+}

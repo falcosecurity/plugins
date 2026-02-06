@@ -106,11 +106,7 @@ func (pc *podmanEngine) ctrToInfo(ctr *define.InspectContainerData) event.Info {
 		imageRepo string
 		imageTag  string
 	)
-	imageRepoTag := strings.Split(ctr.ImageName, ":")
-	if len(imageRepoTag) == 2 {
-		imageRepo = imageRepoTag[0]
-		imageTag = imageRepoTag[1]
-	}
+	imageRepo, imageTag = parseImageRepoTag(ctr.ImageName)
 
 	labels := make(map[string]string)
 	var (

@@ -182,3 +182,41 @@ func parsePortBindingHostPort(port string) (uint16, error) {
 
 	return uint16(convertedPort), nil
 }
+
+// parseImageRepoTag parses a container image string and returns the repository and tag.
+// It correctly handles registry URLs with port numbers by only splitting on the last colon
+// that appears after the last slash. If the reference includes a digest (via "@"), the
+// digest portion is removed first, and then the tag is extracted from the remaining string.
+//
+// Examples:
+//   - "registry.example.com:5000/foo/bar:latest@sha256:digest" -> ("registry.example.com:5000/foo/bar", "latest")
+//   - "registry.example.com:5000/foo/bar@sha256:digest" -> ("registry.example.com:5000/foo/bar", "")
+//   - "registry.example.com:5000/foo/bar:latest" -> ("registry.example.com:5000/foo/bar", "latest")
+//   - "registry.example.com:5000/foo/bar" -> ("registry.example.com:5000/foo/bar", "")
+//   - "foo/bar:latest" -> ("foo/bar", "latest")
+//   - "foo:latest" -> ("foo", "latest")
+func parseImageRepoTag(image string) (repo, tag string) {
+	if image == "" {
+		return "", ""
+	}
+
+	// Remove digest portion (e.g., @sha256:...) if present
+	if at := strings.Index(image, "@"); at != -1 {
+		image = image[:at]
+	}
+
+	// Find the last slash to separate the registry/path from the image name
+	lastSlash := strings.LastIndex(image, "/")
+
+	// Find the last colon after the last slash (if any)
+	// This colon separates the tag from the repo
+	lastColon := strings.LastIndex(image, ":")
+
+	// If there's no colon, or the colon appears before the last slash
+	// (meaning it's part of a registry port), then there's no tag
+	if lastColon == -1 || (lastSlash != -1 && lastColon < lastSlash) {
+		return image, ""
+	}
+
+	return image[:lastColon], image[lastColon+1:]
+}
