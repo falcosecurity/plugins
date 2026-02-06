@@ -26,12 +26,14 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/source"
+	"github.com/fsnotify/fsnotify"
 	"github.com/valyala/fastjson"
 )
 
@@ -51,6 +53,8 @@ func (k *Plugin) Open(params string) (source.Instance, error) {
 		return k.OpenWebServer(u.Host, u.Path, false)
 	case "https":
 		return k.OpenWebServer(u.Host, u.Path, true)
+	case "file":
+		return k.OpenFileWatch(u.Path)
 	case "": // by default, fallback to opening a filepath
 		trimmed := strings.TrimSpace(params)
 
@@ -122,6 +126,132 @@ func (k *Plugin) OpenReader(r io.ReadCloser) (source.Instance, error) {
 	return source.NewPushInstance(
 		evtC,
 		source.WithInstanceClose(func() { r.Close() }),
+		source.WithInstanceEventSize(uint32(k.Config.MaxEventSize)))
+}
+
+// OpenFileWatch opens a source.Instance that continuously watches a file for
+// new K8S Audit Events using fsnotify. It watches the parent directory (as
+// recommended by fsnotify) to handle atomic file replacements and log rotation.
+func (k *Plugin) OpenFileWatch(path string) (source.Instance, error) {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get absolute path: %w", err)
+	}
+	dir := filepath.Dir(absPath)
+
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create file watcher: %w", err)
+	}
+
+	ctx, cancelCtx := context.WithCancel(context.Background())
+	evtC := make(chan source.PushEvent)
+
+	go func() {
+		defer close(evtC)
+		defer watcher.Close()
+
+		var parser fastjson.Parser
+		var file *os.File
+		var offset int64
+
+		openFile := func(seekEnd bool) bool {
+			if file != nil {
+				file.Close()
+				file = nil
+			}
+			f, err := os.Open(absPath)
+			if err != nil {
+				return false
+			}
+			file = f
+			if seekEnd {
+				offset, _ = file.Seek(0, io.SeekEnd)
+			} else {
+				offset = 0
+			}
+			return true
+		}
+
+		readNewLines := func() {
+			if file == nil {
+				return
+			}
+			// Detect file truncation (e.g. logrotate copytruncate)
+			if info, err := file.Stat(); err == nil && info.Size() < offset {
+				offset = 0
+			}
+			file.Seek(offset, io.SeekStart)
+			scanner := bufio.NewScanner(file)
+			scanner.Buffer(nil, int(k.Config.MaxEventSize))
+			for scanner.Scan() {
+				line := scanner.Text()
+				offset += int64(len(line)) + 1
+				if len(line) > 0 {
+					k.parseAuditEventsAndPush(&parser, []byte(line), evtC)
+				}
+			}
+			if err := scanner.Err(); err != nil {
+				k.logger.Println(err.Error())
+			}
+		}
+
+		openFile(true)
+
+		if err := watcher.Add(dir); err != nil {
+			if file != nil {
+				file.Close()
+			}
+			evtC <- source.PushEvent{Err: err}
+			return
+		}
+
+		for {
+			select {
+			case <-ctx.Done():
+				if file != nil {
+					file.Close()
+				}
+				return
+			case event, ok := <-watcher.Events:
+				if !ok {
+					if file != nil {
+						file.Close()
+					}
+					return
+				}
+				if event.Name != absPath {
+					continue
+				}
+				if event.Op&fsnotify.Write == fsnotify.Write {
+					readNewLines()
+				}
+				if event.Op&fsnotify.Create == fsnotify.Create {
+					openFile(false)
+					readNewLines()
+				}
+				if event.Op&(fsnotify.Rename|fsnotify.Remove) != 0 {
+					if file != nil {
+						file.Close()
+						file = nil
+					}
+				}
+			case err, ok := <-watcher.Errors:
+				if !ok {
+					if file != nil {
+						file.Close()
+					}
+					return
+				}
+				k.logger.Println("file watcher error:", err)
+			}
+		}
+	}()
+
+	return source.NewPushInstance(
+		evtC,
+		source.WithInstanceContext(ctx),
+		source.WithInstanceClose(cancelCtx),
 		source.WithInstanceEventSize(uint32(k.Config.MaxEventSize)))
 }
 
