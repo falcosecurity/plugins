@@ -8,7 +8,7 @@ require (
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/sethvargo/go-password v0.3.1
 	github.com/valyala/fastjson v1.6.7
-	golang.org/x/oauth2 v0.34.0
+	golang.org/x/oauth2 v0.35.0
 )
 
 require (
