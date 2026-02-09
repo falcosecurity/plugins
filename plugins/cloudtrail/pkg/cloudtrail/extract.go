@@ -54,6 +54,9 @@ var supportedFields = []sdk.FieldEntry{
 	{Type: "string", Name: "ct.request.host", Display: "Request Host Name", Desc: "the host included in the request"},
 	{Type: "string", Name: "ct.request.name", Display: "Host Name", Desc: "the name of the entity being acted on in the request."},
 	{Type: "string", Name: "ct.request.policy", Display: "Host Policy", Desc: "the policy included in the request"},
+	{Type: "string", Name: "ct.request.reason", Display: "Request Reason", Desc: "the reason included in the request."},
+	{Type: "string", Name: "ct.request.target", Display: "Request Target", Desc: "the target included in the request."},
+	{Type: "string", Name: "ct.request.documentName", Display: "Request Document Name", Desc: "the document included in the request."},
 	{Type: "string", Name: "ct.request.serialnumber", Display: "Request Serial Number", Desc: "the serial number provided in the request."},
 	{Type: "string", Name: "ct.request.servicename", Display: "Request Service", Desc: "the service name provided in the request."},
 	{Type: "string", Name: "ct.request.subnetid", Display: "Request Subnet ID", Desc: "the subnet ID provided in the request."},
@@ -302,6 +305,12 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string, int, int) {
 		fsval = jdata.Get("requestParameters", "name")
 	case "ct.request.policy":
 		fsval = jdata.Get("requestParameters", "policy")
+	case "ct.request.reason":
+		fsval = jdata.Get("requestParameters", "reason")
+	case "ct.request.target":
+		fsval = jdata.Get("requestParameters", "target")
+	case "ct.request.documentName":
+		fsval = jdata.Get("requestParameters", "documentName")
 	case "ct.request.serialnumber":
 		fsval = jdata.Get("requestParameters", "serialNumber")
 	case "ct.request.servicename":
