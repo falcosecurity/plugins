@@ -26,14 +26,14 @@ aya-log = { version = "0.2.1", default-features = false }
 aya-log-ebpf = { version = "0.1.1", default-features = false }
 paste = { version = "1.0.15", default-features = false }
 anyhow = { version = "1", default-features = false }
-zerocopy = { version = "0.8.37", default-features = false }
+zerocopy = { version = "0.8.39", default-features = false }
 zerocopy-derive = { version = "0.8.25", default-features = false }
 # `std` feature is currently required to build `clap`.
 #
 # See https://github.com/clap-rs/clap/blob/61f5ee5/clap_builder/src/lib.rs#L15.
 clap = { version = "4.5.20", default-features = false, features = ["std"] }
 env_logger = { version = "0.11.8", default-features = false }
-libc = { version = "0.2.180", default-features = false }
+libc = { version = "0.2.181", default-features = false }
 log = { version = "0.4.29", default-features = false }
 tokio = { version = "1.49.0", default-features = false }
 which = { version = "6.0.0", default-features = false }
