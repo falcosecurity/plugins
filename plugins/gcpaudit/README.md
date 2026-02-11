@@ -87,33 +87,33 @@ For more details about what Cloud logging log queries, see the [GCP official doc
 # Supported Fields
 
 <!-- README-PLUGIN-FIELDS -->
-|             NAME              |   TYPE   | ARG  |                   DESCRIPTION                   |
-|-------------------------------|----------|------|-------------------------------------------------|
-| `gcp.user`                    | `string` | None | GCP principal email who committed the action    |
-| `gcp.callerIP`                | `string` | None | GCP principal caller IP                         |
-| `gcp.userAgent`               | `string` | None | GCP principal caller useragent                  |
-| `gcp.authorizationInfo`       | `string` | None | GCP authorization information affected resource |
-| `gcp.serviceName`             | `string` | None | GCP API service name                            |
-| `gcp.policyDelta`             | `string` | None | GCP service resource access policy              |
-| `gcp.request`                 | `string` | None | GCP API raw request                             |
-| `gcp.methodName`              | `string` | None | GCP API service method executed                 |
-| `gcp.cloudfunctions.function` | `string` | None | GCF name                                        |
-| `gcp.cloudsql.databaseId`     | `string` | None | GCP SQL database ID                             |
-| `gcp.compute.instanceId`      | `string` | None | GCE instance ID                                 |
-| `gcp.compute.networkId`       | `string` | None | GCP network ID                                  |
-| `gcp.compute.subnetwork`      | `string` | None | GCP subnetwork name                             |
-| `gcp.compute.subnetworkId`    | `string` | None | GCP subnetwork ID                               |
-| `gcp.dns.zone`                | `string` | None | GCP DNS zoned                                   |
-| `gcp.iam.serviceAccount`      | `string` | None | GCP service account                             |
-| `gcp.iam.serviceAccountId`    | `string` | None | GCP IAM unique ID                               |
-| `gcp.location`                | `string` | None | GCP region                                      |
-| `gcp.logging.sink`            | `string` | None | GCP logging sink                                |
-| `gcp.projectId`               | `string` | None | GCP project ID                                  |
-| `gcp.resourceName`            | `string` | None | GCP resource name                               |
-| `gcp.resourceType`            | `string` | None | GCP resource type                               |
-| `gcp.resourceLabels`          | `string` | None | GCP resource labels                             |
-| `gcp.storage.bucket`          | `string` | None | GCP bucket name                                 |
-| `gcp.time`                    | `string` | None | Timestamp of the event in RFC3339 format        |
+|             NAME              |   TYPE   | ARG  |               DESCRIPTION                |
+|-------------------------------|----------|------|------------------------------------------|
+| `gcp.user`                    | `string` | None | GCP principal, actor of the action       |
+| `gcp.callerIP`                | `string` | None | Actor's IP                               |
+| `gcp.userAgent`               | `string` | None | Actor's User Agent                       |
+| `gcp.authorizationInfo`       | `string` | None | GCP authorization (JSON)                 |
+| `gcp.serviceName`             | `string` | None | GCP API service name                     |
+| `gcp.policyDelta`             | `string` | None | GCP service resource access policy delta |
+| `gcp.request`                 | `string` | None | GCP API raw request (JSON)               |
+| `gcp.methodName`              | `string` | None | GCP API service method executed          |
+| `gcp.cloudfunctions.function` | `string` | None | GCF name                                 |
+| `gcp.cloudsql.databaseId`     | `string` | None | GCP SQL database ID                      |
+| `gcp.compute.instanceId`      | `string` | None | GCE instance ID                          |
+| `gcp.compute.networkId`       | `string` | None | GCP network ID                           |
+| `gcp.compute.subnetwork`      | `string` | None | GCP subnetwork name                      |
+| `gcp.compute.subnetworkId`    | `string` | None | GCP subnetwork ID                        |
+| `gcp.dns.zone`                | `string` | None | GCP DNS zone                             |
+| `gcp.iam.serviceAccount`      | `string` | None | GCP service account                      |
+| `gcp.iam.serviceAccountId`    | `string` | None | GCP IAM unique ID                        |
+| `gcp.location`                | `string` | None | GCP region                               |
+| `gcp.logging.sink`            | `string` | None | GCP logging sink                         |
+| `gcp.projectId`               | `string` | None | GCP project ID                           |
+| `gcp.resourceName`            | `string` | None | GCP resource name                        |
+| `gcp.resourceType`            | `string` | None | GCP resource type                        |
+| `gcp.resourceLabels`          | `string` | None | GCP resource labels (JSON)               |
+| `gcp.storage.bucket`          | `string` | None | GCP bucket name                          |
+| `gcp.time`                    | `string` | None | Timestamp of the event in RFC3339 format |
 <!-- /README-PLUGIN-FIELDS -->
 
 # Development
