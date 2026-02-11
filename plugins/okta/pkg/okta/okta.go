@@ -375,6 +375,10 @@ func (oktaPlugin *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) e
 		req.SetValue(data.SecurityContext.Domain)
 	case "okta.security.isproxy":
 		req.SetValue(data.SecurityContext.IsProxy)
+	case "okta.target.displayName":
+		if len(data.Target) > 0 {
+			req.SetValue(data.Target[0].DisplayName)
+		}
 	case "okta.target.user.id":
 		for _, i := range data.Target {
 			if i.Type == "User" {
