@@ -27,13 +27,13 @@ import (
 
 func (p *Plugin) Fields() []sdk.FieldEntry {
 	return []sdk.FieldEntry{
-		{Type: "string", Name: "gcp.user", Display: "User", Desc: "GCP principal email who committed the action"},
-		{Type: "string", Name: "gcp.callerIP", Display: "Caller IP", Desc: "GCP principal caller IP"},
-		{Type: "string", Name: "gcp.userAgent", Display: "User Agent", Desc: "GCP principal caller useragent"},
-		{Type: "string", Name: "gcp.authorizationInfo", Display: "Authorization Info", Desc: "GCP authorization information affected resource"},
+		{Type: "string", Name: "gcp.user", Display: "User", Desc: "GCP principal, actor of the action"},
+		{Type: "string", Name: "gcp.callerIP", Display: "Caller IP", Desc: "Actor's IP"},
+		{Type: "string", Name: "gcp.userAgent", Display: "User Agent", Desc: "Actor's User Agent"},
+		{Type: "string", Name: "gcp.authorizationInfo", Display: "Authorization Info", Desc: "GCP authorization (JSON)"},
 		{Type: "string", Name: "gcp.serviceName", Display: "Service Name", Desc: "GCP API service name"},
-		{Type: "string", Name: "gcp.policyDelta", Display: "Policy", Desc: "GCP service resource access policy"},
-		{Type: "string", Name: "gcp.request", Display: "Request", Desc: "GCP API raw request"},
+		{Type: "string", Name: "gcp.policyDelta", Display: "Policy", Desc: "GCP service resource access policy delta"},
+		{Type: "string", Name: "gcp.request", Display: "Request", Desc: "GCP API raw request (JSON)"},
 		{Type: "string", Name: "gcp.methodName", Display: "Method", Desc: "GCP API service method executed"},
 		{Type: "string", Name: "gcp.cloudfunctions.function", Display: "Function Name", Desc: "GCF name"},
 		{Type: "string", Name: "gcp.cloudsql.databaseId", Display: "Database ID", Desc: "GCP SQL database ID"},
@@ -41,7 +41,7 @@ func (p *Plugin) Fields() []sdk.FieldEntry {
 		{Type: "string", Name: "gcp.compute.networkId", Display: "Network ID", Desc: "GCP network ID"},
 		{Type: "string", Name: "gcp.compute.subnetwork", Display: "Subnetwork Name", Desc: "GCP subnetwork name"},
 		{Type: "string", Name: "gcp.compute.subnetworkId", Display: "Subnetwork ID", Desc: "GCP subnetwork ID"},
-		{Type: "string", Name: "gcp.dns.zone", Display: "DNS Zone", Desc: "GCP DNS zoned"},
+		{Type: "string", Name: "gcp.dns.zone", Display: "DNS Zone", Desc: "GCP DNS zone"},
 		{Type: "string", Name: "gcp.iam.serviceAccount", Display: "Service Account", Desc: "GCP service account"},
 		{Type: "string", Name: "gcp.iam.serviceAccountId", Display: "Service Account ID", Desc: "GCP IAM unique ID"},
 		{Type: "string", Name: "gcp.location", Display: "Location", Desc: "GCP region"},
@@ -49,7 +49,7 @@ func (p *Plugin) Fields() []sdk.FieldEntry {
 		{Type: "string", Name: "gcp.projectId", Display: "Project ID", Desc: "GCP project ID"},
 		{Type: "string", Name: "gcp.resourceName", Display: "Resource Name", Desc: "GCP resource name"},
 		{Type: "string", Name: "gcp.resourceType", Display: "Resource Type", Desc: "GCP resource type"},
-		{Type: "string", Name: "gcp.resourceLabels", Display: "Resource Labels", Desc: "GCP resource labels"},
+		{Type: "string", Name: "gcp.resourceLabels", Display: "Resource Labels", Desc: "GCP resource labels (JSON)"},
 		{Type: "string", Name: "gcp.storage.bucket", Display: "Bucket Name", Desc: "GCP bucket name"},
 		{Type: "string", Name: "gcp.time", Display: "Timestamp of the event", Desc: "Timestamp of the event in RFC3339 format"},
 	}
