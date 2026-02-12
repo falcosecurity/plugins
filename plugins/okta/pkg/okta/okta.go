@@ -232,7 +232,7 @@ func (oktaPlugin *Plugin) Fields() []sdk.FieldEntry {
 		{Type: "string", Name: "okta.target.group.alternateid", Desc: "Target Group Alternate ID"},
 		{Type: "string", Name: "okta.target.group.name", Desc: "Target Group Name"},
 		{Type: "string", Name: "okta.target.app.alternateid", Desc: "Target App Alternate ID"},
-		{Type: "string", Name: "okta.target.displayName", Desc: "Target Display Name"},
+		{Type: "string", Name: "okta.targets.displayName", Desc: "Targets Display Names", Arg: sdk.FieldEntryArg{IsRequired: false, IsIndex: true}},
 		{Type: "uint64", Name: "okta.mfa.failure.countlast", Desc: "Count of MFA failures in last seconds", Arg: sdk.FieldEntryArg{IsRequired: true, IsIndex: true}},
 		{Type: "uint64", Name: "okta.mfa.deny.countlast", Desc: "Count of MFA denies in last seconds", Arg: sdk.FieldEntryArg{IsRequired: true, IsIndex: true}},
 	}
@@ -375,9 +375,20 @@ func (oktaPlugin *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) e
 		req.SetValue(data.SecurityContext.Domain)
 	case "okta.security.isproxy":
 		req.SetValue(data.SecurityContext.IsProxy)
-	case "okta.target.displayName":
+	case "okta.targets.displayName":
 		if len(data.Target) > 0 {
-			req.SetValue(data.Target[0].DisplayName)
+			if !req.ArgPresent() {
+				var displayNames []string
+                for _, target := range data.Target {
+                    displayNames = append(displayNames, target.DisplayName)
+                }
+                req.SetValue("(" + strings.Join(displayNames, ",") + ")")
+			} else {
+				arg := int(req.ArgIndex())
+				if arg < len(data.Target) {
+					req.SetValue(data.Target[arg].DisplayName)	
+				}
+			}
 		}
 	case "okta.target.user.id":
 		for _, i := range data.Target {
