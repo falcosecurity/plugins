@@ -82,11 +82,6 @@ jobs:
       packages: write
 
     steps:
-      - name: Install Cosign
-        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
-
-      - run: cosign version
-
       - name: Log into ghcr.io
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
@@ -94,8 +89,20 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Sign the artifacts with GitHub OIDC Token (OCI 1.1 referrers)
-        run: cosign sign --yes ${{ matrix.value.repository.ref }}@${{ matrix.value.artifact.digest }}
+      - name: Install Cosign v2
+        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
+        with:
+          cosign-release: v2.6.2
 
       - name: Sign the artifacts with GitHub OIDC Token (legacy tag-based)
-        run: cosign sign --yes --registry-referrers-mode=legacy ${{ matrix.value.repository.ref }}@${{ matrix.value.artifact.digest }}
+        run: |
+          cosign version
+          cosign sign --yes ${{ matrix.value.repository.ref }}@${{ matrix.value.artifact.digest }}
+
+      - name: Install Cosign v3
+        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
+
+      - name: Sign the artifacts with GitHub OIDC Token (OCI 1.1 referrers)
+        run: |
+          cosign version
+          cosign sign --yes ${{ matrix.value.repository.ref }}@${{ matrix.value.artifact.digest }}
