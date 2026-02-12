@@ -129,9 +129,10 @@ func main() {
 	}
 
 	// get commits, optionally filtered by plugin path
+	// exclude CHANGELOG.md so that changelog-only commits are skipped
 	var paths []string
 	if len(plugin) > 0 {
-		paths = []string{"plugins/" + plugin + "/"}
+		paths = []string{"plugins/" + plugin + "/", ":(exclude)plugins/" + plugin + "/CHANGELOG.md"}
 	}
 	commits, err := gitListCommits(from, to, paths)
 	if err != nil {
