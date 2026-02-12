@@ -98,12 +98,16 @@ release/%: clean package/%
 	@echo "$(PLUGIN_NAME) released"
 
 .PHONY: changelogs
+changelogs: CHANGELOG_FLAGS := -r
 changelogs: $(plugins-changelogs)
+
+.PHONY: changelogs-unreleased
+changelogs-unreleased: $(plugins-changelogs)
 
 changelog/%: build/changelog/changelog
 	$(eval PLUGIN_NAME := $(shell basename $@))
 	$(eval CHANGELOG_PATH := plugins/$(PLUGIN_NAME)/CHANGELOG.md)
-	@./changelog-gen.sh $(PLUGIN_NAME) > $(CHANGELOG_PATH)
+	@./changelog-gen.sh $(CHANGELOG_FLAGS) $(PLUGIN_NAME) > $(CHANGELOG_PATH)
 	@echo "$(CHANGELOG_PATH) generated"
 
 .PHONY: check-registry

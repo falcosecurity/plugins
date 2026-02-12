@@ -13,10 +13,19 @@
 # specific language governing permissions and limitations under the License.
 #
 
+skip_dev=false
+while getopts "r" opt; do
+    case $opt in
+        r) skip_dev=true ;;
+    esac
+done
+shift $((OPTIND - 1))
+
 plugin=$1
 
 if [ -z "$plugin" ]; then
-    echo "Usage changelog-gen.sh <plugin_name>"
+    echo "Usage changelog-gen.sh [-r] <plugin_name>"
+    echo "  -r  skip the 'dev build (unreleased)' section (release mode)"
     exit 1
 fi
 
@@ -31,13 +40,15 @@ echo "# Changelog"
 echo ""
 
 # generate entry for upcoming tag, if any
-head="$(git rev-parse HEAD)"
-dev_changelog="$(${tool} --from="" --to=${head} --plugin=${plugin})"
-if [ ! -z "$dev_changelog" ]; then
-    echo "## dev build (unreleased)"
-    echo ""
-    echo "$dev_changelog"
-    echo ""
+if [ "$skip_dev" = false ]; then
+    head="$(git rev-parse HEAD)"
+    dev_changelog="$(${tool} --from="" --to=${head} --plugin=${plugin})"
+    if [ ! -z "$dev_changelog" ]; then
+        echo "## dev build (unreleased)"
+        echo ""
+        echo "$dev_changelog"
+        echo ""
+    fi
 fi
 
 # generate entry for each tag
