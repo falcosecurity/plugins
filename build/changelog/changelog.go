@@ -22,10 +22,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"regexp"
 	"strings"
 
-	"github.com/falcosecurity/plugins/build/registry/pkg/registry"
 	"github.com/spf13/pflag"
 )
 
@@ -66,7 +64,7 @@ func gitGetLatestTagWithMatch(match []string) (string, error) {
 }
 
 // an empty tag lists commit from whole history
-func gitListCommits(from, to string) ([]string, error) {
+func gitListCommits(from, to string, paths []string) ([]string, error) {
 	revRange := ""
 	if len(to) > 0 {
 		revRange = to
@@ -77,26 +75,16 @@ func gitListCommits(from, to string) ([]string, error) {
 		}
 		revRange = from + ".." + revRange
 	}
-	logs, err := git("log", revRange, "--oneline")
+	args := []string{"log", revRange, "--oneline"}
+	if len(paths) > 0 {
+		args = append(args, "--")
+		args = append(args, paths...)
+	}
+	logs, err := git(args...)
 	if err != nil {
 		return nil, err
 	}
 	return logs, nil
-}
-
-func pluginSource(pname string) string {
-	reg, err := registry.LoadRegistryFromFile("registry.yaml")
-	if err != nil {
-		fail(fmt.Errorf("an error occurred while loading registry entries from file %q: %v", "registry.yaml", err))
-	}
-
-	for _, plugin := range reg.Plugins {
-		if plugin.Name == pname && plugin.Capabilities.Sourcing.Supported {
-			return plugin.Capabilities.Sourcing.Source
-		}
-	}
-
-	return ""
 }
 
 func fail(err error) {
@@ -140,32 +128,18 @@ func main() {
 		}
 	}
 
-	// get all commits
-	commits, err := gitListCommits(from, to)
+	// get commits, optionally filtered by plugin path
+	var paths []string
+	if len(plugin) > 0 {
+		paths = []string{"plugins/" + plugin + "/"}
+	}
+	commits, err := gitListCommits(from, to, paths)
 	if err != nil {
 		fail(err)
 	}
 
-	var rgx, rgxSource, rgxDeps *regexp.Regexp
-	if len(plugin) > 0 {
-		// craft a regex to filter all plugin-related commits that follow
-		// the conventional commit format
-		rgx, _ = regexp.Compile("^[a-f0-9]+ [a-zA-Z]+\\(([a-zA-Z\\/]+\\/)?" + plugin + "(\\/[a-zA-Z\\/]+)?\\):.*")
-
-		// use source name of the plugin as well, if it has sourcing capabilities
-		pluginSource := pluginSource(plugin)
-		if pluginSource != "" {
-			rgxSource, _ = regexp.Compile("^[a-f0-9]+ [a-zA-Z]+\\(([a-zA-Z\\/]+\\/)?" + pluginSource + "(\\/[a-zA-Z\\/]+)?\\):.*")
-		}
-
-		// craft a regex to filter all plugin-related dependabot commits
-		rgxDeps, _ = regexp.Compile("^[a-f0-9]+ build\\(deps\\):.*" + plugin + "$")
-	}
-
 	for _, c := range commits {
-		if len(c) > 0 && (rgx == nil || rgx.MatchString(c) ||
-			(rgxSource != nil && rgxSource.MatchString(c)) ||
-			rgxDeps.MatchString(c)) {
+		if len(c) > 0 {
 			fmt.Println(formatCommitLine(c) + "\n")
 		}
 	}
