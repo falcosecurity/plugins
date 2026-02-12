@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.6.3
+
+* [`9a3ee4c`](https://github.com/falcosecurity/plugins/commit/9a3ee4c) fix(plugins/container): correct image parsing with registry port
+
+
 ## v0.6.2
 
 * [`bff3406`](https://github.com/falcosecurity/plugins/commit/bff3406) perf(container): cache cgroup path to container ID resolution results
