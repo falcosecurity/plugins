@@ -1,13 +1,13 @@
 name: Build and test container plugin
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main]
     paths:
-      - 'plugins/container/**'
+      - "plugins/container/**"
   push:
-    branches: [ main ]
+    branches: [main]
     paths:
-      - 'plugins/container/**'
+      - "plugins/container/**"
   workflow_dispatch:
 
 permissions:
@@ -18,21 +18,21 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ windows-latest, macos-latest ]
+        os: [windows-latest, macos-latest]
         include:
           - os: windows-latest
-            artifact-name: 'libcontainer-win'
-            artifact-path: 'plugins/container/container.dll'
+            artifact-name: "libcontainer-win"
+            artifact-path: "plugins/container/container.dll"
           - os: macos-latest
-            artifact-name: 'libcontainer-osx'
-            artifact-path: 'plugins/container/libcontainer.dylib'
+            artifact-name: "libcontainer-osx"
+            artifact-path: "plugins/container/libcontainer.dylib"
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
-          submodules: 'recursive'
+          submodules: "recursive"
 
       - name: Setup Go
         uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
@@ -56,7 +56,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: [ amd64, arm64 ]
+        arch: [amd64, arm64]
     container: debian:bullseye
     steps:
       - name: Install deps
@@ -66,7 +66,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
-          submodules: 'recursive'
+          submodules: "recursive"
 
       - name: Safe directory
         run: git config --global --add safe.directory $GITHUB_WORKSPACE
@@ -88,7 +88,7 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: libcontainer-${{ matrix.arch }}
-          path: 'plugins/container/libcontainer.so'
+          path: "plugins/container/libcontainer.so"
 
   test:
     name: test-${{ matrix.arch }}
@@ -97,7 +97,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: [ amd64, arm64 ]
+        arch: [amd64, arm64]
     steps:
       # libbtrfs: needed by podman package - build dep.
       - name: Install go test deps
@@ -107,7 +107,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
-          submodules: 'recursive'
+          submodules: "recursive"
 
       - name: Setup Go
         uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
@@ -132,7 +132,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: [ amd64, arm64 ]
+        arch: [amd64, arm64]
     container:
       image: falcosecurity/falco:master-debian
     steps:
@@ -150,20 +150,20 @@ jobs:
           FALCOCTL_REGISTRY_AUTH_BASIC: ghcr.io,${{ github.actor }},${{ github.token }}
         uses: falcosecurity/testing@main
         with:
-          test-falco: 'true'
-          test-falcoctl: 'false'
-          test-k8saudit: 'false'
-          test-dummy: 'false'
-          static: 'false'
-          test-drivers: 'false'
-          show-all: 'true'
-          sudo: ''
+          test-falco: "true"
+          test-falcoctl: "false"
+          test-k8saudit: "false"
+          test-dummy: "false"
+          static: "false"
+          test-drivers: "false"
+          show-all: "true"
+          sudo: ""
 
   libs-tests:
     needs: [build-linux]
     uses: falcosecurity/libs/.github/workflows/reusable_e2e_tests.yaml@master
     with:
-      container_plugin_artifact_name: 'libcontainer-amd64'
+      container_plugin_artifact_name: "libcontainer-amd64"
     secrets: inherit
 
   formatting-check:
@@ -172,9 +172,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      - name: Install clang-format
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq clang-format-18
+
       - name: Run clang-format style check
-        uses: jidicula/clang-format-action@6cd220de46c89139a0365edae93eee8eb30ca8fe #v4.16.0
-        with:
-          clang-format-version: '18'
-          check-path: plugins/container
-          exclude-regex: 'plugin_config_schema.h'
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: .github/clang-format-check.sh 18 plugins/container llvm 'plugin_config_schema.h'

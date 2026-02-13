@@ -1,72 +1,76 @@
 name: Build K8smeta plugin
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main]
     paths:
-        - 'plugins/k8smeta/**'
+      - "plugins/k8smeta/**"
   push:
-    branches: [ main ]
+    branches: [main]
     paths:
-        - 'plugins/k8smeta/**'
+      - "plugins/k8smeta/**"
   workflow_dispatch:
 
 # Checks if any concurrent jobs under the same pull request or branch are being executed
 concurrency:
-    group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
-    cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
 
 jobs:
-    build-and-test:
-      name: build-and-test
-      runs-on: ubuntu-22.04
-      steps:
-        - name: Checkout ⤵️
-          uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-          with:
-            fetch-depth: 0
+  build-and-test:
+    name: build-and-test
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout ⤵️
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
 
-        - name: Setup Go
-          uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
-          with:
-            go-version: '1.25'
-            check-latest: true
+      - name: Setup Go
+        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
+        with:
+          go-version: "1.25"
+          check-latest: true
 
-        - name: Install deps ⛓️
-          run: |
-            sudo apt update -y
-            sudo apt install -y --no-install-recommends cmake build-essential autoconf libtool pkg-config
+      - name: Install deps ⛓️
+        run: |
+          sudo apt update -y
+          sudo apt install -y --no-install-recommends cmake build-essential autoconf libtool pkg-config
 
-        - name: Initialize CodeQL
-          uses: github/codeql-action/init@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4.32.2
-          with:
-            languages: cpp
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4.32.2
+        with:
+          languages: cpp
 
-        - name: Build k8s meta plugin 🏗️
-          run: |
-            cd plugins/k8smeta
-            mkdir build
-            cd build && cmake -DCMAKE_BUILD_TYPE=Release ../
-            make k8smeta -j6
+      - name: Build k8s meta plugin 🏗️
+        run: |
+          cd plugins/k8smeta
+          mkdir build
+          cd build && cmake -DCMAKE_BUILD_TYPE=Release ../
+          make k8smeta -j6
 
-        - name: Perform CodeQL Analysis
-          uses: github/codeql-action/analyze@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4.32.2
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4.32.2
 
-        - name: Build and run tests 🏎️
-          run: |
-            cd plugins/k8smeta/build
-            make build-server
-            make build-tests
-            make run-server &
-            make run-tests
+      - name: Build and run tests 🏎️
+        run: |
+          cd plugins/k8smeta/build
+          make build-server
+          make build-tests
+          make run-server &
+          make run-tests
 
-    formatting-check:
-      runs-on: ubuntu-22.04
-      steps:
-        - name: Checkout code
-          uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+  formatting-check:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-        - name: Run clang-format style check
-          uses: jidicula/clang-format-action@6cd220de46c89139a0365edae93eee8eb30ca8fe #v4.16.0
-          with:
-            clang-format-version: '14'
-            check-path: plugins/k8smeta
+      - name: Install clang-format
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq clang-format-14
+
+      - name: Run clang-format style check
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: .github/clang-format-check.sh 14 plugins/k8smeta
