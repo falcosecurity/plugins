@@ -33,7 +33,7 @@ const (
 	PluginName               = "collector"
 	PluginDescription        = "Generic collector to ingest raw payloads"
 	PluginContact            = "github.com/falcosecurity/plugins"
-	PluginVersion            = "0.1.0"
+	PluginVersion            = "0.1.1"
 	PluginEventSource        = "collector"
 )
 
