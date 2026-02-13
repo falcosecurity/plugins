@@ -214,9 +214,8 @@ func (dc *dockerEngine) ctrToInfo(ctx context.Context, ctr container.InspectResp
 		}
 	}
 
-	imgName := ctr.Image
-	if !strings.Contains(imgName, "/") {
-		_, imageID = parseImageRepoTag(imgName)
+	if img.ID != "" {
+		imageID = strings.TrimPrefix(img.ID, "sha256:")
 	}
 
 	labels := make(map[string]string)

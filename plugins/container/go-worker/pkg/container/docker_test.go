@@ -4,7 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
-	"runtime"
+	"strings"
 	"sync"
 	"testing"
 
@@ -51,10 +51,9 @@ func testDocker(t *testing.T, withFetcher bool) {
 	}, nil, nil, "test_container")
 	assert.NoError(t, err)
 
-	imageId := "63b790fccc9078ab8bb913d94a5d869e19fca9b77712b315da3fa45bb8f14636"
-	if runtime.GOARCH == "arm64" {
-		imageId = "511a44083d3a23416fadc62847c45d14c25cbace86e7a72b2b350436978a0450"
-	}
+	imgInspect, err := dockerClient.ImageInspect(context.Background(), "alpine:3.20.3")
+	assert.NoError(t, err)
+	imageId := strings.TrimPrefix(imgInspect.ID, "sha256:")
 
 	expectedEvent := event.Event{
 		Info: event.Info{
