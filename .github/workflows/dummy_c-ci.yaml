@@ -1,56 +1,60 @@
 name: Build dummy_c plugin
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main]
     paths:
-        - 'plugins/dummy_c/**'
+      - "plugins/dummy_c/**"
   push:
-    branches: [ main  ]
+    branches: [main]
     paths:
-        - 'plugins/dummy_c/**'
+      - "plugins/dummy_c/**"
   workflow_dispatch:
 
 # Checks if any concurrent jobs under the same pull request or branch are being executed
 concurrency:
-    group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
-    cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
 
 jobs:
-    build:
-      name: build
-      runs-on: ubuntu-22.04
-      steps:
-        - name: Checkout ⤵️
-          uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-          with:
-            fetch-depth: 0
+  build:
+    name: build
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout ⤵️
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
 
-        - name: Install deps ⛓️
-          run: |
-            sudo apt update -y
-            sudo apt install -y --no-install-recommends build-essential
+      - name: Install deps ⛓️
+        run: |
+          sudo apt update -y
+          sudo apt install -y --no-install-recommends build-essential
 
-        - name: Initialize CodeQL
-          uses: github/codeql-action/init@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4.32.2
-          with:
-            languages: cpp
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4.32.2
+        with:
+          languages: cpp
 
-        - name: Build dummy_c plugin 🏗️
-          run: |
-            cd plugins/dummy_c
-            make libdummy_c.so
+      - name: Build dummy_c plugin 🏗️
+        run: |
+          cd plugins/dummy_c
+          make libdummy_c.so
 
-        - name: Perform CodeQL Analysis
-          uses: github/codeql-action/analyze@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4.32.2
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4.32.2
 
-    formatting-check:
-      runs-on: ubuntu-22.04
-      steps:
-        - name: Checkout code
-          uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+  formatting-check:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-        - name: Run clang-format style check
-          uses: jidicula/clang-format-action@6cd220de46c89139a0365edae93eee8eb30ca8fe #v4.16.0
-          with:
-            clang-format-version: '14'
-            check-path: plugins/dummy_c
+      - name: Install clang-format
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq clang-format-14
+
+      - name: Run clang-format style check
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: .github/clang-format-check.sh 14 plugins/dummy_c
