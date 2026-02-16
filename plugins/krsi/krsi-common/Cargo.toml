@@ -24,7 +24,7 @@ user = ["aya"]
 
 [dependencies]
 aya = { workspace = true, optional = true }
-bitflags = "2.10.0"
+bitflags = "2.11.0"
 zerocopy = { workspace = true }
 zerocopy-derive = { workspace = true }
 
