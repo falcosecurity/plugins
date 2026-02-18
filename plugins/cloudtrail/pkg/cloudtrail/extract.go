@@ -56,7 +56,7 @@ var supportedFields = []sdk.FieldEntry{
 	{Type: "string", Name: "ct.request.policy", Display: "Host Policy", Desc: "the policy included in the request"},
 	{Type: "string", Name: "ct.request.reason", Display: "Request Reason", Desc: "the reason included in the request."},
 	{Type: "string", Name: "ct.request.target", Display: "Request Target", Desc: "the target included in the request."},
-	{Type: "string", Name: "ct.request.documentName", Display: "Request Document Name", Desc: "the document included in the request."},
+	{Type: "string", Name: "ct.request.documentname", Display: "Request Document Name", Desc: "the document name included in the request."},
 	{Type: "string", Name: "ct.request.serialnumber", Display: "Request Serial Number", Desc: "the serial number provided in the request."},
 	{Type: "string", Name: "ct.request.servicename", Display: "Request Service", Desc: "the service name provided in the request."},
 	{Type: "string", Name: "ct.request.subnetid", Display: "Request Subnet ID", Desc: "the subnet ID provided in the request."},
