@@ -270,6 +270,16 @@ func (c *criEngine) ctrToInfo(ctx context.Context, ctr *v1.ContainerStatus, podS
 		}
 	}
 
+	// Extract liveness/readiness probes from the pod-level annotation
+	var (
+		livenessProbe  *event.Probe
+		readinessProbe *event.Probe
+	)
+	containerName := ctr.GetMetadata().GetName()
+	if annotation, ok := podSandboxStatus.GetAnnotations()[k8sLastAppliedConfigAnnotation]; ok {
+		livenessProbe, readinessProbe = parseProbesFromPodAnnotation(annotation, containerName)
+	}
+
 	var size int64 = -1
 	if config.GetWithSize() {
 		stats, _ := c.client.ContainerStats(ctx, ctr.Id)
@@ -365,6 +375,8 @@ func (c *criEngine) ctrToInfo(ctx context.Context, ctr *v1.ContainerStatus, podS
 			PodSandboxLabels: podSandboxLabels,
 			Mounts:           mounts,
 			Size:             size,
+			LivenessProbe:    livenessProbe,
+			ReadinessProbe:   readinessProbe,
 		},
 	}
 
