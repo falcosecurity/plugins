@@ -221,6 +221,7 @@ func testCRIFake(t *testing.T, withFetcher bool) {
 	assert.NoError(t, err)
 
 	id := uuid.New()
+	lastAppliedConfig := `{"spec":{"containers":[{"name":"test_container","livenessProbe":{"exec":{"command":["/bin/healthcheck","--live"]}},"readinessProbe":{"exec":{"command":["/bin/healthcheck","--ready"]}}}]}}`
 	podSandboxConfig := &v1.PodSandboxConfig{
 		Metadata: &v1.PodSandboxMetadata{
 			Name:      "test_sandbox",
@@ -228,11 +229,15 @@ func testCRIFake(t *testing.T, withFetcher bool) {
 			Namespace: "default",
 			Attempt:   0,
 		},
+		Annotations: map[string]string{
+			k8sLastAppliedConfigAnnotation: lastAppliedConfig,
+		},
 	}
-	_, err = fakeRuntime.RunPodSandbox(context.Background(), &v1.RunPodSandboxRequest{
+	sandboxResp, err := fakeRuntime.RunPodSandbox(context.Background(), &v1.RunPodSandboxRequest{
 		Config: podSandboxConfig,
 	})
 	assert.NoError(t, err)
+	sandboxID := sandboxResp.PodSandboxId
 
 	ctr, err := fakeRuntime.CreateContainer(context.Background(), &v1.CreateContainerRequest{
 		Config: &v1.ContainerConfig{
@@ -259,15 +264,18 @@ func testCRIFake(t *testing.T, withFetcher bool) {
 				},
 			},
 		},
-		PodSandboxId: "test_sandbox",
+		PodSandboxId: sandboxID,
 	})
 	assert.NoError(t, err)
 
+	// The fake runtime's BuildSandboxName generates: name_namespace_uid_attempt
+	// Container ID is: sandboxID_containerName_attempt
+	expectedFullID := sandboxID + "_test_container_0"
 	expectedEvent := event.Event{
 		Info: event.Info{
 			Container: event.Container{
 				Type:             typeCri.ToCTValue(),
-				ID:               "test_sandbox",
+				ID:               shortContainerID(expectedFullID),
 				Name:             "test_container",
 				Image:            "alpine:3.20.3",
 				ImageDigest:      "",
@@ -280,13 +288,28 @@ func testCRIFake(t *testing.T, withFetcher bool) {
 				CPUShares:        defaultCpuShares,
 				CPUSetCPUCount:   0,
 				Env:              nil, // not returned in fake mode
-				FullID:           "test_sandbox_test_container_0",
-				Labels:           map[string]string{"foo": "bar", "io.kubernetes.sandbox.id": "test_sandbox_test_container_0"},
-				PodSandboxID:     "test_sandbox_test_container_0",
+				FullID:           expectedFullID,
+				Ip:               "192.168.192.168",
+				Labels: map[string]string{
+					"foo":                         "bar",
+					"io.kubernetes.sandbox.id":    sandboxID,
+					"io.kubernetes.pod.uid":       id.String(),
+					"io.kubernetes.pod.name":      "test_sandbox",
+					"io.kubernetes.pod.namespace": "default",
+				},
+				PodSandboxID:     sandboxID,
 				Privileged:       false,
 				PodSandboxLabels: map[string]string{},
 				Mounts:           []event.Mount{},
 				Size:             -1,
+				LivenessProbe: &event.Probe{
+					Exe:  "/bin/healthcheck",
+					Args: []string{"--live"},
+				},
+				ReadinessProbe: &event.Probe{
+					Exe:  "/bin/healthcheck",
+					Args: []string{"--ready"},
+				},
 			}},
 		IsCreate: true,
 	}
