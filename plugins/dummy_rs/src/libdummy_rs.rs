@@ -20,7 +20,7 @@ use falco_plugin::{
     FailureReason,
     anyhow::Error,
     base::{Json, Plugin},
-    event::events::types::EventType,
+    event::events::RawEvent,
     extract::{EventInput, ExtractFieldInfo, ExtractPlugin, ExtractRequest, field},
     extract_plugin, plugin,
     schemars::JsonSchema,
@@ -117,6 +117,7 @@ impl SourcePluginInstance for DummyRsPluginInstance {
 /// Implement SourcePlugin (event source capability)
 impl SourcePlugin for DummyRsPlugin {
     type Instance = DummyRsPluginInstance;
+    type Event<'a> = RawEvent<'a>;
     const EVENT_SOURCE: &'static CStr = c"dummy_rs";
     const PLUGIN_ID: u32 = 23;
 
@@ -132,16 +133,11 @@ impl SourcePlugin for DummyRsPlugin {
         Err(FailureReason::Failure.into())
     }
 
-    fn event_to_string(&mut self, event: &EventInput) -> Result<CString, Error> {
-        let event = event.event()?;
-        let event = event.load::<PluginEvent>()?;
-        match event.params.event_data {
-            Some(payload) => {
-                let payload = u64::from_le_bytes(payload.try_into()?);
-                Ok(CString::new(format!("{{\"sample\": \"{}\"}}", payload))?)
-            }
-            None => Ok(CString::new("no event data")?),
-        }
+    fn event_to_string(&mut self, event: &EventInput<Self::Event<'_>>) -> Result<CString, Error> {
+        let raw = event.event()?;
+        let event = raw.load::<PluginEvent<&[u8]>>()?;
+        let payload = u64::from_le_bytes(event.params.event_data.try_into()?);
+        Ok(CString::new(format!("{{\"sample\": \"{}\"}}", payload))?)
     }
 }
 
@@ -149,12 +145,11 @@ impl SourcePlugin for DummyRsPlugin {
 impl DummyRsPlugin {
     /// Return the sample value in the event, as a u64
     fn extract_value(&mut self, req: ExtractRequest<Self>) -> Result<u64, Error> {
-        let event = req.event.event()?;
-        let event = event.load::<PluginEvent>()?;
-        match event.params.event_data {
-            Some(payload) => Ok(u64::from_le_bytes(payload.try_into()?)),
-            None => Ok(0),
-        }
+        let raw = req.event.event()?;
+        let event = raw.load::<PluginEvent<&[u8]>>()?;
+        Ok(u64::from_le_bytes(
+            event.params.event_data.try_into().unwrap_or([0u8; 8]),
+        ))
     }
 
     /// Return the sample value in the event, as a string
@@ -166,8 +161,7 @@ impl DummyRsPlugin {
 
 /// Implement ExtractPlugin (extraction capability)
 impl ExtractPlugin for DummyRsPlugin {
-    const EVENT_TYPES: &'static [EventType] = &[];
-    const EVENT_SOURCES: &'static [&'static str] = &["dummy_rs"];
+    type Event<'a> = RawEvent<'a>;
     type ExtractContext = ();
     const EXTRACT_FIELDS: &'static [ExtractFieldInfo<Self>] = &[
         field("dummy.value", &Self::extract_value)
