@@ -9,7 +9,7 @@ Audit events are logged by the API server when almost every cluster management t
 
 This plugin supports consuming Kubernetes Audit Events coming from the [Webhook backend](https://kubernetes.io/docs/tasks/debug/debug-cluster/audit/#webhook-backend) or from a file. For webhooks, the plugin embeds a web server that listens on a configurable port and accepts POST requests. The posted JSON object comprises one or more events. The web server of the plugin can be configured as part of the plugin's init configuration and open parameters. For files, the plugin expects content to be in [JSONL format](https://jsonlines.org/), where each line represents a JSON object, containing one or more audit events.
 
-The expected way of using the plugin with Falco is through a Webhook. File reading support can be used with Stratoshark or testing and development.
+The expected way of using the plugin with Falco is through a Webhook. File reading support can be used with Stratoshark or testing and development. The `file://` scheme enables continuous file watching with log rotation support, useful for reading audit logs written to disk by the API server.
 
 ## Capabilities
 
@@ -135,6 +135,7 @@ load_plugins: [k8saudit, json]
 **Open Parameters**:
 - `http://<host>:<port>/<endpoint>`: Opens an event stream by listening on an HTTP web server
 - `https://<host>:<port>/<endpoint>`: Opens an event stream by listening on an HTTPS web server
+- `file://<filepath>`: Opens an event stream by continuously watching a file for new audit events. Handles log rotation automatically. Example: `file:///var/log/kube-apiserver/audit.log`
 - `no scheme`: Opens an event stream by reading the events from a file on the local filesystem. The params string is interpreted as a filepath
 
 
