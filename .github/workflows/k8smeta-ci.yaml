@@ -26,7 +26,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
           go-version: "1.25"
           check-latest: true
@@ -37,7 +37,7 @@ jobs:
           sudo apt install -y --no-install-recommends cmake build-essential autoconf libtool pkg-config
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@89a39a4e59826350b863aa6b6252a07ad50cf83e # v4.32.4
+        uses: github/codeql-action/init@c793b717bc78562f491db7b0e93a3a178b099162 # v4.32.5
         with:
           languages: cpp
 
@@ -49,7 +49,7 @@ jobs:
           make k8smeta -j6
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@89a39a4e59826350b863aa6b6252a07ad50cf83e # v4.32.4
+        uses: github/codeql-action/analyze@c793b717bc78562f491db7b0e93a3a178b099162 # v4.32.5
 
       - name: Build and run tests 🏎️
         run: |
