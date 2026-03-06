@@ -15,6 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+use crate::GcpAuditPlugin;
 use falco_plugin::anyhow::{anyhow, Error};
 use falco_event::events::RawEvent;
 use falco_plugin::extract::{
@@ -31,33 +32,6 @@ struct GcpAuditContext {
 }
 
 impl GcpAuditPlugin {
-    pub const FIELD_NAMES: &'static [&'static str] = &[
-        // "gcp.user",
-        "gcp.callerIP",
-        "gcp.userAgent",
-        "gcp.authorizationInfo",
-        "gcp.serviceName",
-        "gcp.policyDelta",
-        "gcp.request",
-        "gcp.methodName",
-        "gcp.cloudfunctions.function",
-        "gcp.cloudsql.databaseId",
-        "gcp.compute.instanceId",
-        "gcp.compute.networkId",
-        "gcp.compute.subnetwork",
-        "gcp.compute.subnetworkId",
-        "gcp.dns.zone",
-        "gcp.iam.serviceAccount",
-        "gcp.iam.serviceAccountId",
-        "gcp.location",
-        "gcp.logging.sink",
-        "gcp.projectId",
-        "gcp.resourceName",
-        "gcp.resourceType",
-        "gcp.resourceLabels",
-        "gcp.storage.bucket",
-        "gcp.time",
-    ];
 
     fn parse_event<'a>(&self, context: &'a GcpAuditContext, event: &EventInput<RawEvent<'a>>) -> Result<&serde_json::Value, Error> {
         if event.event_number() != context.last_event_num {
@@ -72,152 +46,6 @@ impl GcpAuditPlugin {
         let json = self.parse_event(context, event)?;
         let value = json.pointer(path).and_then(|v: &Value| v.as_str()).ok_or_else(|| anyhow!("Field not found at path: {}", path))?;
         Ok(CString::new(value)?)
-    }
-
-    fn del_extract_string(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
-        let json = self.parse_event(req)?;
-        let field_str = req.field_name();
-
-        let value = match field_str {
-            "gcp.userAgent" => json
-                .pointer("/protoPayload/requestMetadata/callerSuppliedUserAgent")
-                .and_then(|v| v.as_str()),
-
-            "gcp.authorizationInfo" => json
-                .pointer("/protoPayload/authorizationInfo")
-                .map(|v| v.to_string())
-                .as_deref(),
-
-            "gcp.serviceName" => json
-                .pointer("/protoPayload/serviceName")
-                .and_then(|v| v.as_str()),
-
-            "gcp.request" => json
-                .pointer("/protoPayload/request")
-                .map(|v| v.to_string())
-                .as_deref(),
-
-            "gcp.policyDelta" => {
-                let resource_type = json
-                    .pointer("/resource/type")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("");
-
-                if resource_type == "gcs_bucket" {
-                    json.pointer("/protoPayload/serviceData/policyDelta/bindingDeltas")
-                        .map(|v| v.to_string())
-                        .as_deref()
-                } else {
-                    json.pointer("/protoPayload/metadata/datasetChange/bindingDeltas")
-                        .map(|v| v.to_string())
-                        .as_deref()
-                }
-            }
-
-            "gcp.methodName" => json
-                .pointer("/protoPayload/methodName")
-                .and_then(|v| v.as_str()),
-
-            "gcp.cloudfunctions.function" => json
-                .pointer("/resource/labels/function_name")
-                .and_then(|v| v.as_str()),
-
-            "gcp.cloudsql.databaseId" => json
-                .pointer("/resource/labels/database_id")
-                .and_then(|v| v.as_str()),
-
-            "gcp.compute.instanceId" => json
-                .pointer("/resource/labels/instance_id")
-                .and_then(|v| v.as_str()),
-
-            "gcp.compute.networkId" => json
-                .pointer("/resource/labels/network_id")
-                .and_then(|v| v.as_str()),
-
-            "gcp.compute.subnetwork" => json
-                .pointer("/resource/labels/subnetwork_name")
-                .and_then(|v| v.as_str()),
-
-            "gcp.compute.subnetworkId" => json
-                .pointer("/resource/labels/subnetwork_id")
-                .and_then(|v| v.as_str()),
-
-            "gcp.dns.zone" => json
-                .pointer("/resource/labels/zone_name")
-                .and_then(|v| v.as_str()),
-
-            "gcp.iam.serviceAccount" => json
-                .pointer("/resource/labels/email_id")
-                .and_then(|v| v.as_str()),
-
-            "gcp.iam.serviceAccountId" => json
-                .pointer("/resource/labels/unique_id")
-                .and_then(|v| v.as_str()),
-
-            "gcp.location" => {
-                // Try location first
-                if let Some(val) = json.pointer("/resource/labels/location").and_then(|v| v.as_str()) {
-                    Some(val)
-                } else if let Some(val) = json.pointer("/resource/labels/region").and_then(|v| v.as_str()) {
-                    // Try region
-                    Some(val)
-                } else if let Some(zone) = json.pointer("/resource/labels/zone").and_then(|v| v.as_str()) {
-                    // Try zone and format it
-                    if zone.len() > 2 {
-                        // Remove last two chars for zone format like "us-central1-a"
-                        Some(&zone[..zone.len() - 2])
-                    } else if !zone.is_empty() {
-                        Some(zone)
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            }
-
-            "gcp.logging.sink" => {
-                let resource_type = json
-                    .pointer("/resource/type")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("");
-
-                if resource_type == "logging_sink" {
-                    json.pointer("/resource/labels/name").and_then(|v| v.as_str())
-                } else {
-                    None
-                }
-            }
-
-            "gcp.projectId" => json
-                .pointer("/resource/labels/project_id")
-                .and_then(|v| v.as_str()),
-
-            "gcp.resourceName" => json
-                .pointer("/protoPayload/resourceName")
-                .and_then(|v| v.as_str()),
-
-            "gcp.resourceType" => json
-                .pointer("/resource/type")
-                .and_then(|v| v.as_str()),
-
-            "gcp.resourceLabels" => json
-                .pointer("/resource/labels")
-                .map(|v| v.to_string())
-                .as_deref(),
-
-            "gcp.storage.bucket" => json
-                .pointer("/resource/labels/bucket_name")
-                .and_then(|v| v.as_str()),
-
-            "gcp.time" => json
-                .pointer("/timestamp")
-                .and_then(|v| v.as_str()),
-
-            _ => return Err(anyhow!("Unknown field: {}", field_str)),
-        };
-
-        Ok(value.map(|s| s.to_string()))
     }
 
     fn extract_user(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
@@ -359,10 +187,23 @@ impl GcpAuditPlugin {
     }
 
     fn extract_resource_labels(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
-        let resource_labels = self.extract_string(req, "/resource/labels")?;
-        Ok(resource_labels)
+        let resource_labels = self.extract_string(req, "/resource/labels")?.to_str()?;
+        if resource_labels.len() > 0 {
+            return resource_labels
+        }
+        Err(anyhow!("No resource labels found"))
     }
-    
+
+    fn extract_storage_bucket(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
+        let bucket_name = self.extract_string(req, "/resource/labels/bucket_name")?;
+        Ok(bucket_name)
+    }
+
+    fn extract_time(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
+        let timestamp = self.extract_string(req, "/timestamp")?;
+        Ok(timestamp)
+    }
+
 }
 
 impl ExtractPlugin for GcpAuditPlugin {
@@ -372,43 +213,43 @@ impl ExtractPlugin for GcpAuditPlugin {
     type ExtractContext = Option<serde_json::Value>;
     const EXTRACT_FIELDS: &'static [ExtractFieldInfo<Self>] = &[
         field("gcp.user", &Self::extract_user)
-            .with_display("User").with_description("GCP principal email who committed the action"),
+            .with_display("User").with_description("GCP principal, actor of the action"),
         field("gcp.callerIP", &Self::extract_caller_ip)
-            .with_display("Caller IP").with_description("GCP principal caller IP"),
+            .with_display("Caller IP").with_description("Actor's IP"),
         field("gcp.userAgent", &Self::extract_user_agent)
-            .with_display("User Agent").with_description("GCP principal caller useragent"),
+            .with_display("User Agent").with_description("Actor's User Agent"),
         field("gcp.authorizationInfo", &Self::extract_authorization_info)
-            .with_display("Authorization Info").with_description("GCP authorization information affected resource"),
+            .with_display("Authorization Info").with_description("GCP authorization (JSON)"),
         field("gcp.serviceName", &Self::extract_service_name)
             .with_display("Service Name").with_description("GCP API service name"),
         field("gcp.policyDelta", &Self::extract_policy_delta)
-            .with_display("Policy Delta").with_description("GCP service resource access policy"),
+            .with_display("Policy").with_description("GCP service resource access policy delta"),
         field("gcp.request", &Self::extract_request)
-            .with_display("Request").with_description("GCP API raw request"),
+            .with_display("Request").with_description("GCP API raw request (JSON)"),
         field("gcp.methodName", &Self::extract_method_name)
-            .with_display("Method Name").with_description("GCP API service method executed"),
+            .with_display("Method").with_description("GCP API service method executed"),
         field("gcp.cloudfunctions.function", &Self::extract_cloudfunctions_function)
-            .with_display("Cloud Function").with_description("GCF name"),
+            .with_display("Function Name").with_description("GCF name"),
         field("gcp.cloudsql.databaseId", &Self::extract_cloudsql_database_id)
-            .with_display("Cloud SQL Database ID").with_description("GCP SQL database ID"),
+            .with_display("Database ID").with_description("GCP SQL database ID"),
         field("gcp.compute.instanceId", &Self::extract_compute_instance_id)
-            .with_display("Compute Instance ID").with_description("GCE instance ID"),
+            .with_display("Instance ID").with_description("GCE instance ID"),
         field("gcp.compute.networkId", &Self::extract_compute_network_id)
-            .with_display("Compute Network ID").with_description("GCP network ID"),
+            .with_display("Network ID").with_description("GCP network ID"),
         field("gcp.compute.subnetwork", &Self::extract_compute_subnetwork)
-            .with_display("Compute Subnetwork").with_description("GCP subnetwork name"),
+            .with_display("Subnetwork Name").with_description("GCP subnetwork name"),
         field("gcp.compute.subnetworkId", &Self::extract_compute_subnetwork_id)
-            .with_display("Compute Subnetwork ID").with_description("GCP subnetwork ID"),
+            .with_display("Subnetwork ID").with_description("GCP subnetwork ID"),
         field("gcp.dns.zone", &Self::extract_dns_zone)
             .with_display("DNS Zone").with_description("GCP DNS zone"),
         field("gcp.iam.serviceAccount", &Self::extract_iam_service_account)
-            .with_display("IAM Service Account").with_description("GCP service account"),
+            .with_display("Service Account").with_description("GCP service account"),
         field("gcp.iam.serviceAccountId", &Self::extract_iam_service_account_id)
-            .with_display("IAM Service Account ID").with_description("GCP IAM unique ID"),
+            .with_display("Service Account ID").with_description("GCP IAM unique ID"),
         field("gcp.location", &Self::extract_location)
             .with_display("Location").with_description("GCP region"),
         field("gcp.logging.sink", &Self::extract_logging_sink)
-            .with_display("Logging Sink").with_description("GCP logging sink"),
+            .with_display("Sink").with_description("GCP logging sink"),
         field("gcp.projectId", &Self::extract_project_id)
             .with_display("Project ID").with_description("GCP project ID"),
         field("gcp.resourceName", &Self::extract_resource_name)
@@ -416,39 +257,11 @@ impl ExtractPlugin for GcpAuditPlugin {
         field("gcp.resourceType", &Self::extract_resource_type)
             .with_display("Resource Type").with_description("GCP resource type"),
         field("gcp.resourceLabels", &Self::extract_resource_labels)
-            .with_display("Resource Labels").with_description("GCP resource labels"),
+            .with_display("Resource Labels").with_description("GCP resource labels (JSON)"),
         field("gcp.storage.bucket", &Self::extract_storage_bucket)
-            .with_display("Storage Bucket").with_description("GCP bucket name"),
+            .with_display("Bucket Name").with_description("GCP bucket name"),
         field("gcp.time", &Self::extract_time)
-            .with_display("Event Time").with_description("Timestamp of the event in RFC3339 format"),
+            .with_display("Timestamp of the event").with_description("Timestamp of the event in RFC3339 format"),
     ];
-
-    fn get_fields(&mut self) -> &[ExtractFieldInfo<Self>] {
-        &[
-            ExtractFieldInfo::new("gcp.userAgent", "GCP principal caller useragent"),
-            ExtractFieldInfo::new("gcp.authorizationInfo", "GCP authorization information affected resource"),
-            ExtractFieldInfo::new("gcp.serviceName", "GCP API service name"),
-            ExtractFieldInfo::new("gcp.policyDelta", "GCP service resource access policy"),
-            ExtractFieldInfo::new("gcp.request", "GCP API raw request"),
-            ExtractFieldInfo::new("gcp.methodName", "GCP API service method executed"),
-            ExtractFieldInfo::new("gcp.cloudfunctions.function", "GCF name"),
-            ExtractFieldInfo::new("gcp.cloudsql.databaseId", "GCP SQL database ID"),
-            ExtractFieldInfo::new("gcp.compute.instanceId", "GCE instance ID"),
-            ExtractFieldInfo::new("gcp.compute.networkId", "GCP network ID"),
-            ExtractFieldInfo::new("gcp.compute.subnetwork", "GCP subnetwork name"),
-            ExtractFieldInfo::new("gcp.compute.subnetworkId", "GCP subnetwork ID"),
-            ExtractFieldInfo::new("gcp.dns.zone", "GCP DNS zone"),
-            ExtractFieldInfo::new("gcp.iam.serviceAccount", "GCP service account"),
-            ExtractFieldInfo::new("gcp.iam.serviceAccountId", "GCP IAM unique ID"),
-            ExtractFieldInfo::new("gcp.location", "GCP region"),
-            ExtractFieldInfo::new("gcp.logging.sink", "GCP logging sink"),
-            ExtractFieldInfo::new("gcp.projectId", "GCP project ID"),
-            ExtractFieldInfo::new("gcp.resourceName", "GCP resource name"),
-            ExtractFieldInfo::new("gcp.resourceType", "GCP resource type"),
-            ExtractFieldInfo::new("gcp.resourceLabels", "GCP resource labels"),
-            ExtractFieldInfo::new("gcp.storage.bucket", "GCP bucket name"),
-            ExtractFieldInfo::new("gcp.time", "Timestamp of the event in RFC3339 format"),
-        ]
-    }
 
 }

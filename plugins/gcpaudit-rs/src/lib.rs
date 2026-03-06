@@ -15,10 +15,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-pub mod config;
-mod extract;
-mod source;
-
 use std::ffi::CStr;
 
 use anyhow::{anyhow, Result};
@@ -28,15 +24,24 @@ use config::PluginConfig;
 use falco_plugin::base::{Plugin};
 // use falco_plugin::source::{EventBatch, EventInput, SourcePlugin, SourcePluginInstance};
 use falco_plugin::source::{EventInput, SourcePlugin};
-use falco_plugin::extract::ExtractPlugin;
 use falco_plugin::tables::TablesInput;
 use falco_plugin::{extract_plugin, plugin, source_plugin};
 // use schemars::schema_for;
 // use serde_json::Value;
 use source::GcpAuditInstance;
 
-struct GcpAuditPlugin {
+pub mod config;
+mod extract;
+mod source;
+
+pub struct GcpAuditPlugin {
     config: PluginConfig,
+}
+
+impl GcpAuditPlugin {
+    pub fn new(config: PluginConfig) -> Self {
+        GcpAuditPlugin { config }
+    }
 }
 
 impl Plugin for GcpAuditPlugin {
@@ -74,15 +79,15 @@ impl SourcePlugin for GcpAuditPlugin {
     }
 }
 
-impl ExtractPlugin for GcpAuditPlugin {
-    // const EVENT_SOURCES: &'static [&'static str] = &["gcpaudit"];
-    // const EXTRACT_FIELDS: &'static [&'static str] = FieldExtractor::FIELD_NAMES;
-    // type ExtractContext = FieldExtractor;
+// impl ExtractPlugin for GcpAuditPlugin {
+//     // const EVENT_SOURCES: &'static [&'static str] = &["gcpaudit"];
+//     // const EXTRACT_FIELDS: &'static [&'static str] = FieldExtractor::FIELD_NAMES;
+//     // type ExtractContext = FieldExtractor;
 
-    fn extract_context(&self) -> Self::ExtractContext {
-        FieldExtractor::new()
-    }
-}
+//     fn extract_context(&self) -> Self::ExtractContext {
+//         FieldExtractor::new()
+//     }
+// }
 
 plugin!{GcpAuditPlugin}
 source_plugin!(GcpAuditPlugin);
