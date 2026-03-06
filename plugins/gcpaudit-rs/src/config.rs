@@ -22,20 +22,17 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(default)]
 pub struct PluginConfig {
-    /// A unique identifier for a GCP project
     #[serde(rename = "project_id")]
     #[schemars(title = "Project ID", description = "A unique identifier for a GCP project (Default: empty)")]
     pub project_id: String,
 
-    /// If non-empty overrides the default GCP credentials file
     #[serde(rename = "credentials_file")]
     #[schemars(
         title = "Credentials File",
-        description = "If non-empty overrides the default GCP credentials file (e.g. ~/.config/gcloud/application_default_credentials.json) and env variables such as GOOGLE_APPLICATION_CREDENTIALS (Default: empty)"
+        description = "If non-empty overrides the default GCP credentials file (e.g. ~/.config/gcloud/application_default_credentials.json) and environment variables such as GOOGLE_APPLICATION_CREDENTIALS (Default: empty)"
     )]
     pub credentials_file: String,
 
-    /// The number of goroutines that each datastructure along the Receive path will spawn
     #[serde(rename = "num_goroutines")]
     #[schemars(
         title = "Num Goroutines",
@@ -51,13 +48,12 @@ pub struct PluginConfig {
     )]
     pub max_outstanding_messages: i32,
 
-    // /// If true then async extraction optimization is enabled
-    // #[serde(rename = "useAsync")]
-    // #[schemars(
-    //     title = "Use async extraction",
-    //     description = "If true then async extraction optimization is enabled (Default: true)"
-    // )]
-    // pub use_async: bool,
+    #[serde(rename = "useAsync")]
+    #[schemars(
+        title = "Use async extraction (ignored)",
+        description = "Ignored. This option is present for compatibility with the original Go version of this plugin."
+    )]
+    pub use_async: bool,
 }
 
 impl Default for PluginConfig {
@@ -67,7 +63,7 @@ impl Default for PluginConfig {
             credentials_file: String::new(),
             num_goroutines: 10,
             max_outstanding_messages: 1000,
-            // use_async: true,
+            use_async: true,
         }
     }
 }
