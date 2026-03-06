@@ -17,200 +17,185 @@ limitations under the License.
 
 use crate::GcpAuditPlugin;
 use falco_plugin::anyhow::{anyhow, Error};
-use falco_event::events::RawEvent;
+use falco_plugin::event::{PluginEvent, events::Event};
 use falco_plugin::extract::{
     field, EventInput, ExtractFieldInfo, ExtractPlugin, ExtractRequest,
 };
-use serde_json::Value;
-use std::ffi::{CString};
+use std::ffi::CString;
 
-// use crate::GcpAuditPlugin;
-
-struct GcpAuditContext {
+#[derive(Default)]
+pub struct GcpAuditContext {
     last_event_num: usize,
     json_value: Option<serde_json::Value>,
 }
 
 impl GcpAuditPlugin {
 
-    fn parse_event<'a>(&self, context: &'a GcpAuditContext, event: &EventInput<RawEvent<'a>>) -> Result<&serde_json::Value, Error> {
-        if event.event_number() != context.last_event_num {
-            let raw_event = event.event()?;
-            context.json_value = Some(serde_json::from_slice::<serde_json::Value>(raw_event.payload)?);
-            context.last_event_num = event.event_number();
+    fn ensure_json<'a>(
+        context: &'a mut GcpAuditContext,
+        event: &EventInput<'_, Event<PluginEvent<&'_ [u8]>>>,
+    ) -> Result<&'a serde_json::Value, Error> {
+        let event_num = event.event_number();
+        if event_num != context.last_event_num || context.json_value.is_none() {
+            let evt = event.event()?;
+            context.json_value = Some(serde_json::from_slice(evt.params.event_data)?);
+            context.last_event_num = event_num;
         }
         context.json_value.as_ref().ok_or_else(|| anyhow!("No JSON value parsed"))
     }
 
-    fn extract_string<'a>(&self, context: &'a GcpAuditContext, event: &EventInput<RawEvent<'a>>, path: &str) -> Result<CString, Error> {
-        let json = self.parse_event(context, event)?;
-        let value = json.pointer(path).and_then(|v: &Value| v.as_str()).ok_or_else(|| anyhow!("Field not found at path: {}", path))?;
+    fn do_extract_string(
+        context: &mut GcpAuditContext,
+        event: &EventInput<'_, Event<PluginEvent<&'_ [u8]>>>,
+        path: &str,
+    ) -> Result<CString, Error> {
+        let json = Self::ensure_json(context, event)?;
+        let value = json.pointer(path).and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow!("Field not found at path: {}", path))?;
         Ok(CString::new(value)?)
     }
 
     fn extract_user(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
-        let user = self.extract_string(req, "/protoPayload/authenticationInfo/principalEmail")?;
-        Ok(user)
+        Self::do_extract_string(req.context, req.event, "/protoPayload/authenticationInfo/principalEmail")
     }
 
     fn extract_caller_ip(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
-        let caller_ip = self.extract_string(req, "/protoPayload/requestMetadata/callerIp")?;
-        Ok(caller_ip)
+        Self::do_extract_string(req.context, req.event, "/protoPayload/requestMetadata/callerIp")
     }
 
     fn extract_user_agent(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
-        let user_agent = self.extract_string(req, "/protoPayload/requestMetadata/callerSuppliedUserAgent")?;
-        Ok(user_agent)
+        Self::do_extract_string(req.context, req.event, "/protoPayload/requestMetadata/callerSuppliedUserAgent")
     }
 
     fn extract_authorization_info(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
-        let auth_info = self.extract_string(req, "/protoPayload/authorizationInfo")?;
-        Ok(auth_info)
+        Self::do_extract_string(req.context, req.event, "/protoPayload/authorizationInfo")
     }
 
     fn extract_service_name(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
-        let service_name = self.extract_string(req, "/protoPayload/serviceName")?;
-        Ok(service_name)
+        Self::do_extract_string(req.context, req.event, "/protoPayload/serviceName")
     }
 
     fn extract_policy_delta(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
-        let resource_type = self.extract_string(req, "/resource/type")?.to_str()?;
+        let context = req.context;
+        let event = req.event;
+        let resource_type = Self::do_extract_string(context, event, "/resource/type")?;
+        let resource_type_str = resource_type.to_str().map_err(|e| anyhow!("{}", e))?;
 
-        let path = if resource_type == "gcs_bucket" {
+        let path = if resource_type_str == "gcs_bucket" {
             "/protoPayload/serviceData/policyDelta/bindingDeltas"
         } else {
             "/protoPayload/metadata/datasetChange/bindingDeltas"
         };
 
-        let policy_delta = self.extract_string(req, path)?;
-        Ok(policy_delta)
+        Self::do_extract_string(context, event, path)
     }
 
     fn extract_request(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
-        let request = self.extract_string(req, "/protoPayload/request")?;
-        Ok(request)
+        Self::do_extract_string(req.context, req.event, "/protoPayload/request")
     }
 
     fn extract_method_name(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
-        let method_name = self.extract_string(req, "/protoPayload/methodName")?;
-        Ok(method_name)
+        Self::do_extract_string(req.context, req.event, "/protoPayload/methodName")
     }
 
     fn extract_cloudfunctions_function(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
-        let cloud_function = self.extract_string(req, "/resource/labels/function_name")?;
-        Ok(cloud_function)
+        Self::do_extract_string(req.context, req.event, "/resource/labels/function_name")
     }
 
     fn extract_cloudsql_database_id(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
-        let database_id = self.extract_string(req, "/resource/labels/database_id")?;
-        Ok(database_id)
+        Self::do_extract_string(req.context, req.event, "/resource/labels/database_id")
     }
 
     fn extract_compute_instance_id(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
-        let instance_id = self.extract_string(req, "/resource/labels/instance_id")?;
-        Ok(instance_id)
+        Self::do_extract_string(req.context, req.event, "/resource/labels/instance_id")
     }
 
     fn extract_compute_network_id(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
-        let network_id = self.extract_string(req, "/resource/labels/network_id")?;
-        Ok(network_id)
+        Self::do_extract_string(req.context, req.event, "/resource/labels/network_id")
     }
 
     fn extract_compute_subnetwork(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
-        let subnetwork = self.extract_string(req, "/resource/labels/subnetwork_name")?;
-        Ok(subnetwork)
+        Self::do_extract_string(req.context, req.event, "/resource/labels/subnetwork_name")
     }
 
     fn extract_compute_subnetwork_id(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
-        let subnetwork_id = self.extract_string(req, "/resource/labels/subnetwork_id")?;
-        Ok(subnetwork_id)
+        Self::do_extract_string(req.context, req.event, "/resource/labels/subnetwork_id")
     }
 
     fn extract_dns_zone(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
-        let dns_zone = self.extract_string(req, "/resource/labels/zone_name")?;
-        Ok(dns_zone)
+        Self::do_extract_string(req.context, req.event, "/resource/labels/zone_name")
     }
 
     fn extract_iam_service_account(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
-        let service_account = self.extract_string(req, "/resource/labels/email_id")?;
-        Ok(service_account)
+        Self::do_extract_string(req.context, req.event, "/resource/labels/email_id")
     }
 
     fn extract_iam_service_account_id(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
-        let service_account_id = self.extract_string(req, "/resource/labels/unique_id")?;
-        Ok(service_account_id)
+        Self::do_extract_string(req.context, req.event, "/resource/labels/unique_id")
     }
 
     fn extract_location(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
-        if let location = self.extract_string(req, "/resource/labels/location") {
-            return location
-        } else if let region = self.extract_string(req, "/resource/labels/region") {
-            // if location is not present, check for region
-            return region
-        } else if let zone = self.extract_string(req, "/resource/labels/zone") {
-            // if region is not present, check for zone
-            let zone_str = zone.to_str()?;
+        let context = req.context;
+        let event = req.event;
+        if let Ok(location) = Self::do_extract_string(context, event, "/resource/labels/location") {
+            return Ok(location);
+        }
+        if let Ok(region) = Self::do_extract_string(context, event, "/resource/labels/region") {
+            return Ok(region);
+        }
+        if let Ok(zone) = Self::do_extract_string(context, event, "/resource/labels/zone") {
+            let zone_str = zone.to_str().map_err(|e| anyhow!("{}", e))?;
             if zone_str.len() > 2 {
-                // if in format: "us-central1-a", remove last two chars
-                return Ok(CString::new(&zone_str[..zone_str.len() - 2])?)
+                return Ok(CString::new(&zone_str[..zone_str.len() - 2])?);
             } else if !zone_str.is_empty() {
-                return zone
+                return Ok(zone);
             }
         }
         Err(anyhow!("No location, region, or zone found"))
     }
 
     fn extract_logging_sink(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
-        let resource_type = self.extract_string(req, "/resource/type")?.to_str()?;
+        let context = req.context;
+        let event = req.event;
+        let resource_type = Self::do_extract_string(context, event, "/resource/type")?;
+        let resource_type_str = resource_type.to_str().map_err(|e| anyhow!("{}", e))?;
 
-        if resource_type == "logging_sink" {
-            let logging_sink = self.extract_string(req, "/resource/labels/name")?;
-            Ok(logging_sink)
+        if resource_type_str == "logging_sink" {
+            Self::do_extract_string(context, event, "/resource/labels/name")
         } else {
             Err(anyhow!("Resource type is not logging_sink"))
         }
     }
 
     fn extract_project_id(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
-        let project_id = self.extract_string(req, "/resource/labels/project_id")?;
-        Ok(project_id)
+        Self::do_extract_string(req.context, req.event, "/resource/labels/project_id")
     }
 
     fn extract_resource_name(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
-        let resource_name = self.extract_string(req, "/protoPayload/resourceName")?;
-        Ok(resource_name)
+        Self::do_extract_string(req.context, req.event, "/protoPayload/resourceName")
     }
 
     fn extract_resource_type(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
-        let resource_type = self.extract_string(req, "/resource/type")?;
-        Ok(resource_type)
+        Self::do_extract_string(req.context, req.event, "/resource/type")
     }
 
     fn extract_resource_labels(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
-        let resource_labels = self.extract_string(req, "/resource/labels")?.to_str()?;
-        if resource_labels.len() > 0 {
-            return resource_labels
-        }
-        Err(anyhow!("No resource labels found"))
+        Self::do_extract_string(req.context, req.event, "/resource/labels")
     }
 
     fn extract_storage_bucket(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
-        let bucket_name = self.extract_string(req, "/resource/labels/bucket_name")?;
-        Ok(bucket_name)
+        Self::do_extract_string(req.context, req.event, "/resource/labels/bucket_name")
     }
 
     fn extract_time(&mut self, req: ExtractRequest<Self>) -> Result<CString, Error> {
-        let timestamp = self.extract_string(req, "/timestamp")?;
-        Ok(timestamp)
+        Self::do_extract_string(req.context, req.event, "/timestamp")
     }
 
 }
 
 impl ExtractPlugin for GcpAuditPlugin {
-    type Event<'a> = RawEvent<'a>;
-    // type Plugin = crate::GcpAuditPlugin;
-    // const EVENT_SOURCE: &'static str = crate::PLUGIN_EVENT_SOURCE;
-    type ExtractContext = Option<serde_json::Value>;
+    type Event<'a> = Event<PluginEvent<&'a [u8]>>;
+    type ExtractContext = GcpAuditContext;
     const EXTRACT_FIELDS: &'static [ExtractFieldInfo<Self>] = &[
         field("gcp.user", &Self::extract_user)
             .with_display("User").with_description("GCP principal, actor of the action"),
