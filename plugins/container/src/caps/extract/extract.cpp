@@ -246,28 +246,17 @@ std::vector<falcosecurity::field_info> my_plugin::get_fields()
              " In instances of "
              "userspace container engine lookup delays, this field may not be "
              "available yet."},
-            {ft::FTYPE_STRING, "container.healthcheck", "Health Check",
-             "The container's health check. Will be the null value (\"N/A\") "
-             "if no healthcheck "
-             "configured, \"NONE\" if configured but explicitly not created, "
-             "and the healthcheck "
-             "command line otherwise. In instances of userspace container "
-             "engine lookup delays, this "
-             "field may not be available yet."},
-            {ft::FTYPE_STRING, "container.liveness_probe", "Liveness",
-             "The container's liveness probe. Will be the null value (\"N/A\") "
-             "if no liveness probe "
-             "configured, the liveness probe command line otherwise. In "
-             "instances of userspace "
-             "container engine lookup delays, this field may not be available "
-             "yet."},
-            {ft::FTYPE_STRING, "container.readiness_probe", "Readiness",
-             "The container's readiness probe. Will be the null value "
-             "(\"N/A\") if no readiness probe "
-             "configured, the readiness probe command line otherwise. In "
-             "instances of userspace "
-             "container engine lookup delays, this field may not be available "
-             "yet."},
+            {ft::FTYPE_STRING, "container.healthcheck",
+             "[Deprecated] Health Check",
+             "Deprecated, will be removed in a future version."},
+            {ft::FTYPE_STRING, "container.liveness_probe",
+             "[Deprecated] Liveness",
+             "Deprecated, will be removed in a future version. "
+             "Use `k8smeta` plugin instead."},
+            {ft::FTYPE_STRING, "container.readiness_probe",
+             "[Deprecated] Readiness",
+             "Deprecated, will be removed in a future version. "
+             "Use `k8smeta` plugin instead."},
             {ft::FTYPE_ABSTIME, "container.start_ts", "Container Start",
              "Container start as epoch timestamp in nanoseconds based on "
              "proc.pidns_init_start_ts and "
@@ -313,17 +302,16 @@ std::vector<falcosecurity::field_info> my_plugin::get_fields()
              "Container comma-separated key/value labels. E.g. "
              "'foo1:bar1,foo2:bar2'."},
             {ft::FTYPE_BOOL, "proc.is_container_healthcheck",
-             "Process Is Container Healthcheck",
-             "'true' if this process is running as a part of the container's "
-             "health check."},
+             "[Deprecated] Process Is Container Healthcheck",
+             "Deprecated, will be removed in a future version."},
             {ft::FTYPE_BOOL, "proc.is_container_liveness_probe",
-             "Process Is Container Liveness",
-             "'true' if this process is running as a part of the container's "
-             "liveness probe."},
+             "[Deprecated] Process Is Container Liveness",
+             "Deprecated, will be removed in a future version. "
+             "Use `k8smeta` plugin instead."},
             {ft::FTYPE_BOOL, "proc.is_container_readiness_probe",
-             "Process Is Container Readiness",
-             "'true' if this process is running as a part of the container's "
-             "readiness probe."},
+             "[Deprecated] Process Is Container Readiness",
+             "Deprecated, will be removed in a future version. "
+             "Use `k8smeta` plugin instead."},
             {ft::FTYPE_STRING,
              "k8s.pod.name",
              "Pod Name",
@@ -611,10 +599,7 @@ bool my_plugin::extract(const falcosecurity::extract_fields_input &in)
         }
         if(field_id != TYPE_CONTAINER_ID &&
            field_id != TYPE_CONTAINER_START_TS &&
-           field_id != TYPE_CONTAINER_DURATION &&
-           field_id != TYPE_IS_CONTAINER_HEALTHCHECK &&
-           field_id != TYPE_IS_CONTAINER_LIVENESS_PROBE &&
-           field_id != TYPE_IS_CONTAINER_READINESS_PROBE)
+           field_id != TYPE_CONTAINER_DURATION)
         {
             // Can't return anything but those fields without containers
             // metadata.
@@ -732,36 +717,8 @@ bool my_plugin::extract(const falcosecurity::extract_fields_input &in)
     case TYPE_CONTAINER_HEALTHCHECK:
     case TYPE_CONTAINER_LIVENESS_PROBE:
     case TYPE_CONTAINER_READINESS_PROBE:
-    {
-        std::string tstr = "NONE";
-        bool set = false;
-        for(auto &probe : cinfo->m_health_probes)
-        {
-            if((field_id == TYPE_CONTAINER_HEALTHCHECK &&
-                probe.m_type == container_health_probe::PT_HEALTHCHECK) ||
-               (field_id == TYPE_CONTAINER_LIVENESS_PROBE &&
-                probe.m_type == container_health_probe::PT_LIVENESS_PROBE) ||
-               (field_id == TYPE_CONTAINER_READINESS_PROBE &&
-                probe.m_type == container_health_probe::PT_READINESS_PROBE))
-            {
-                tstr = probe.m_exe;
-
-                for(auto &arg : probe.m_args)
-                {
-                    tstr += " ";
-                    tstr += arg;
-                }
-                req.set_value(tstr);
-                set = true;
-                break;
-            }
-        }
-        if(!set)
-        {
-            req.set_value(tstr);
-        }
+        // Deprecated fields don't extract anything
         break;
-    }
     case TYPE_CONTAINER_START_TS:
     case TYPE_CONTAINER_DURATION:
     {
@@ -931,66 +888,10 @@ bool my_plugin::extract(const falcosecurity::extract_fields_input &in)
         }
         break;
     case TYPE_IS_CONTAINER_HEALTHCHECK:
-    {
-        int16_t category{CAT_NONE};
-        // Since we do write thread category only if not NONE for containerized
-        // processes
-        if(thread_entry.has_value())
-        {
-            try
-            {
-                m_threads_field_category.read_value(tr, thread_entry.value(),
-                                                    category);
-            }
-            catch(...)
-            {
-                category = CAT_NONE;
-            }
-        }
-        req.set_value(category == CAT_HEALTHCHECK);
-        break;
-    }
     case TYPE_IS_CONTAINER_LIVENESS_PROBE:
-    {
-        int16_t category{CAT_NONE};
-        // Since we do write thread category only if not NONE for containerized
-        // processes
-        if(thread_entry.has_value())
-        {
-            try
-            {
-                m_threads_field_category.read_value(tr, thread_entry.value(),
-                                                    category);
-            }
-            catch(...)
-            {
-                category = CAT_NONE;
-            }
-        }
-        req.set_value(category == CAT_LIVENESS_PROBE);
-        break;
-    }
     case TYPE_IS_CONTAINER_READINESS_PROBE:
-    {
-        int16_t category{CAT_NONE};
-        // Since we do write thread category only if not NONE for containerized
-        // processes
-        if(thread_entry.has_value())
-        {
-
-            try
-            {
-                m_threads_field_category.read_value(tr, thread_entry.value(),
-                                                    category);
-            }
-            catch(...)
-            {
-                category = CAT_NONE;
-            }
-        }
-        req.set_value(category == CAT_READINESS_PROBE);
+        // Deprecated fields don't extract anything
         break;
-    }
     case TYPE_K8S_RC_NAME:
     case TYPE_K8S_RC_ID:
     case TYPE_K8S_RC_LABEL:

@@ -401,9 +401,7 @@ TEST_F(sinsp_with_test_input, plugin_container_extract_on_async_event)
     (void)field_has_value(async_evt, "container.duration", pl_flist);
     (void)field_has_value(async_evt, "container.start_ts", pl_flist);
 
-    (void)field_has_value(async_evt, "proc.is_container_healthcheck", pl_flist);
-    (void)field_has_value(async_evt, "proc.is_container_liveness_probe",
-                          pl_flist);
-    (void)field_has_value(async_evt, "proc.is_container_readiness_probe",
-                          pl_flist);
+    // proc.is_container_healthcheck, proc.is_container_liveness_probe,
+    // proc.is_container_readiness_probe are deprecated and no longer extract
+    // values.
 }
