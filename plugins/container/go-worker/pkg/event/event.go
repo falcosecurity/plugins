@@ -16,11 +16,6 @@ type Mount struct {
 	Propagation string `json:"Propagation"`
 }
 
-type Probe struct {
-	Exe  string   `json:"exe"`
-	Args []string `json:"args"`
-}
-
 type Container struct {
 	Type             int               `json:"type"`
 	ID               string            `json:"id"`
@@ -53,9 +48,6 @@ type Container struct {
 	PodSandboxLabels map[string]string `json:"pod_sandbox_labels"` // cri only
 	PortMappings     []PortMapping     `json:"port_mappings"`
 	Mounts           []Mount           `json:"Mounts"`
-	HealthcheckProbe *Probe            `json:"Healthcheck,omitempty"`
-	LivenessProbe    *Probe            `json:"LivenessProbe,omitempty"`
-	ReadinessProbe   *Probe            `json:"ReadinessProbe,omitempty"`
 }
 
 // Info struct wraps Container because we need the `container` struct in the json for backward compatibility.

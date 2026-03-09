@@ -139,7 +139,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.43.0 // indirect
 	go.opentelemetry.io/otel/trace v1.43.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.7.1 // indirect
-	go.podman.io/image/v5 v5.39.2
+	go.podman.io/image/v5 v5.39.2 // indirect
 	go.podman.io/storage v1.62.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	golang.org/x/crypto v0.47.0 // indirect
