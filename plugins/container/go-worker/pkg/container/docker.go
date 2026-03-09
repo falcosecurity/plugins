@@ -3,7 +3,6 @@ package container
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"log/slog"
 	"strings"
@@ -20,7 +19,6 @@ import (
 	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
 )
 
-const k8sLastAppliedConfigLabel = "io.kubernetes.container.last-applied-config"
 
 func init() {
 	engineGenerators[typeDocker] = newDockerEngine
@@ -44,67 +42,6 @@ func newDockerEngine(_ context.Context, logger *slog.Logger, socket string) (Eng
 
 func (dc *dockerEngine) copy(ctx context.Context) (Engine, error) {
 	return newDockerEngine(ctx, dc.logger, dc.socket)
-}
-
-type Probe struct {
-	Exec *struct {
-		Command []string `json:"command"`
-	} `json:"exec"`
-}
-
-type Healthcheck struct {
-	Test []string `json:"Test"`
-}
-
-type k8sPodSpecInfo struct {
-	Spec *struct {
-		Containers []struct {
-			LivenessProbe  *Probe       `json:"livenessProbe"`
-			ReadinessProbe *Probe       `json:"readinessProbe"`
-			Healthcheck    *Healthcheck `json:"healthcheck"`
-		} `json:"containers"`
-	} `json:"spec"`
-}
-
-// normalizeArg removes pairs of leading/trailing " or ' chars, if present
-func normalizeArg(val string) string {
-	strings.TrimPrefix(val, `"`)
-	strings.TrimPrefix(val, `'`)
-	return val
-}
-
-func parseLivenessReadinessProbe(probe *Probe) *event.Probe {
-	if probe == nil || probe.Exec == nil || probe.Exec.Command == nil {
-		return nil
-	}
-	p := event.Probe{}
-	p.Exe = normalizeArg(probe.Exec.Command[0])
-	for _, arg := range probe.Exec.Command[1:] {
-		p.Args = append(p.Args, normalizeArg(arg))
-	}
-	return &p
-}
-
-func parseHealthcheckProbe(hcheck *container.HealthConfig) *event.Probe {
-	if hcheck == nil || len(hcheck.Test) <= 1 {
-		return nil
-	}
-	p := event.Probe{}
-
-	switch hcheck.Test[0] {
-	case "CMD":
-		p.Exe = normalizeArg(hcheck.Test[1])
-		for _, arg := range hcheck.Test[2:] {
-			p.Args = append(p.Args, normalizeArg(arg))
-		}
-	case "CMD-SHELL":
-		p.Exe = "/bin/sh"
-		p.Args = append(p.Args, "-c")
-		p.Args = append(p.Args, hcheck.Test[1])
-	default:
-		return nil
-	}
-	return &p
 }
 
 func (dc *dockerEngine) ctrToInfo(ctx context.Context, ctr container.InspectResponse) event.Info {
@@ -219,29 +156,10 @@ func (dc *dockerEngine) ctrToInfo(ctx context.Context, ctr container.InspectResp
 	}
 
 	labels := make(map[string]string)
-	var (
-		livenessProbe    *event.Probe = nil
-		readinessProbe   *event.Probe = nil
-		healthcheckProbe *event.Probe = nil
-	)
 	for key, val := range cfg.Labels {
 		if len(val) <= config.GetLabelMaxLen() {
 			labels[key] = val
 		}
-		if key == k8sLastAppliedConfigLabel {
-			var k8sPodInfo k8sPodSpecInfo
-			err = json.Unmarshal([]byte(val), &k8sPodInfo)
-			if err == nil {
-				if k8sPodInfo.Spec.Containers[0].LivenessProbe != nil {
-					livenessProbe = parseLivenessReadinessProbe(k8sPodInfo.Spec.Containers[0].LivenessProbe)
-				} else if k8sPodInfo.Spec.Containers[0].ReadinessProbe != nil {
-					readinessProbe = parseLivenessReadinessProbe(k8sPodInfo.Spec.Containers[0].ReadinessProbe)
-				}
-			}
-		}
-	}
-	if livenessProbe == nil && readinessProbe == nil && cfg.Healthcheck != nil {
-		healthcheckProbe = parseHealthcheckProbe(cfg.Healthcheck)
 	}
 
 	ip := netCfg.IPAddress
@@ -304,9 +222,6 @@ func (dc *dockerEngine) ctrToInfo(ctx context.Context, ctr container.InspectResp
 			PortMappings:     portMappings,
 			Mounts:           mounts,
 			Size:             size,
-			LivenessProbe:    livenessProbe,
-			ReadinessProbe:   readinessProbe,
-			HealthcheckProbe: healthcheckProbe,
 		},
 	}
 }

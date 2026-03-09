@@ -39,9 +39,6 @@ func testDocker(t *testing.T, withFetcher bool) {
 		Env:    []string{"env=env"},
 		Image:  "alpine:3.20.3",
 		Labels: map[string]string{"foo": "bar"},
-		Healthcheck: &container.HealthConfig{
-			Test: []string{"CMD", "/tmp/foo", "bar"},
-		},
 	}, &container.HostConfig{
 		Privileged: true,
 		Resources: container.Resources{
@@ -78,10 +75,6 @@ func testDocker(t *testing.T, withFetcher bool) {
 				Mounts:         []event.Mount{},
 				PortMappings:   []event.PortMapping{},
 				Size:           -1,
-				HealthcheckProbe: &event.Probe{
-					Exe:  "/tmp/foo",
-					Args: []string{"bar"},
-				},
 			}},
 		IsCreate: true,
 	}

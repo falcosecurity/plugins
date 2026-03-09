@@ -18,7 +18,6 @@ import (
 	"github.com/containers/podman/v5/pkg/specgen"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/stretchr/testify/assert"
-	"go.podman.io/image/v5/manifest"
 
 	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
 )
@@ -80,11 +79,6 @@ func testPodman(t *testing.T, withFetcher bool) {
 				},
 			},
 		},
-		ContainerHealthCheckConfig: specgen.ContainerHealthCheckConfig{
-			HealthConfig: &manifest.Schema2HealthConfig{
-				Test: []string{"CMD-SHELL", "echo hello world"},
-			},
-		},
 	}, nil)
 	assert.NoError(t, err)
 
@@ -115,10 +109,6 @@ func testPodman(t *testing.T, withFetcher bool) {
 				Mounts:         []event.Mount{},
 				PortMappings:   []event.PortMapping{},
 				Size:           -1,
-				HealthcheckProbe: &event.Probe{
-					Exe:  "/bin/sh",
-					Args: []string{"-c", "echo hello world"},
-				},
 			}},
 		IsCreate: true,
 	}
