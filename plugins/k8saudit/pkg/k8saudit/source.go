@@ -185,14 +185,16 @@ func (k *Plugin) OpenFileWatch(path string) (source.Instance, error) {
 			scanner := bufio.NewScanner(file)
 			scanner.Buffer(nil, int(k.Config.MaxEventSize))
 			for scanner.Scan() {
-				line := scanner.Text()
-				offset += int64(len(line)) + 1
+				line := scanner.Bytes()
 				if len(line) > 0 {
-					k.parseAuditEventsAndPush(&parser, []byte(line), evtC)
+					k.parseAuditEventsAndPush(&parser, line, evtC)
 				}
 			}
 			if err := scanner.Err(); err != nil {
 				k.logger.Println(err.Error())
+			}
+			if pos, err := file.Seek(0, io.SeekCurrent); err == nil {
+				offset = pos
 			}
 		}
 
