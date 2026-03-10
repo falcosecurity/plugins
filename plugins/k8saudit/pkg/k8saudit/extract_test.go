@@ -80,6 +80,18 @@ func (t *testExtractRequest) SetPtr(unsafe.Pointer) {
 
 }
 
+func (t *testExtractRequest) SetOffsetPtrs(_, _ unsafe.Pointer) {
+
+}
+
+func (t *testExtractRequest) WantOffset() bool {
+	return false
+}
+
+func (t *testExtractRequest) SetValueOffset(_, _ uint32) {
+
+}
+
 func fieldEntryToRequest(id uint64, field *sdk.FieldEntry, req *testExtractRequest) {
 	req.fieldID = id
 	req.field = field.Name
