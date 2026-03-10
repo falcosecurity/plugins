@@ -121,10 +121,7 @@ func getUser(jdata *fastjson.Value) (bool, string, int, int) {
 	case "AWSService":
 		jun = jdata.Get("userIdentity", "invokedBy")
 	case "AssumedRole":
-		jun = jdata.Get("userIdentity", "sessionContext", "sessionIssuer", "userName")
-		if jun == nil {
-			return true, "AssumedRole", 0, 0
-		}
+		return getUserFromAssumedRole(jdata)
 	case "AWSAccount":
 		return true, "AWSAccount", 0, 0
 	case "FederatedUser":
@@ -138,6 +135,31 @@ func getUser(jdata *fastjson.Value) (bool, string, int, int) {
 	}
 
 	return false, "<NA>", 0, 0
+}
+
+func getUserFromAssumedRole(jdata *fastjson.Value) (bool, string, int, int) {
+	arn := jdata.Get("userIdentity", "arn")
+	if arn != nil {
+		parts := strings.Split(string(arn.GetStringBytes()), "/")
+		if len(parts) == 3 {
+			return true, parts[len(parts)-1], arn.Offset(), arn.Len()
+		}
+	}
+
+	principal := jdata.Get("userIdentity", "principalId")
+	if principal != nil {
+		parts := strings.Split(string(principal.GetStringBytes()), ":")
+		if len(parts) == 2 {
+			return true, parts[0], principal.Offset(), principal.Len()
+		}
+	}
+
+	userName := jdata.Get("userIdentity", "sessionContext", "sessionIssuer", "userName")
+	if userName != nil {
+		return true, string(userName.GetStringBytes()), userName.Offset(), userName.Len()
+	}
+
+	return true, "AssumedRole", 0, 0
 }
 
 func getEvtInfo(jdata *fastjson.Value) string {
