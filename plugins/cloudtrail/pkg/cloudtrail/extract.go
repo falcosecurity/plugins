@@ -38,7 +38,7 @@ var supportedFields = []sdk.FieldEntry{
 	{Type: "string", Name: "ct.src", Display: "AWS Service", Desc: "the source of the cloudtrail event (eventSource in the json)."},
 	{Type: "string", Name: "ct.shortsrc", Display: "AWS Service", Desc: "the source of the cloudtrail event (eventSource in the json, without the '.amazonaws.com' trailer)."},
 	{Type: "string", Name: "ct.name", Display: "Event Name", Desc: "the name of the cloudtrail event (eventName in the json)."},
-	{Type: "string", Name: "ct.user", Display: "User Name", Desc: "the user of the cloudtrail event (userIdentity.userName in the json).", Properties: []string{"conversation"}},
+	{Type: "string", Name: "ct.user", Display: "User Name", Desc: "the user of the cloudtrail event. For IAMUser/Root events, this is userIdentity.userName. For AssumedRole events, this is the session name extracted from userIdentity.arn, falling back to userIdentity.principalId or userIdentity.sessionContext.sessionIssuer.userName.", Properties: []string{"conversation"}},
 	{Type: "string", Name: "ct.user.accountid", Display: "User Account ID", Desc: "the account id of the user of the cloudtrail event."},
 	{Type: "string", Name: "ct.user.identitytype", Display: "User Identity Type", Desc: "the kind of user identity (e.g. Root, IAMUser,AWSService, etc.)"},
 	{Type: "string", Name: "ct.user.principalid", Display: "User Principal Id", Desc: "A unique identifier for the user that made the request."},
