@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/falcosecurity/plugin-sdk-go v0.8.3
-	github.com/falcosecurity/plugins/plugins/k8saudit v0.16.0
+	github.com/falcosecurity/plugins/plugins/k8saudit v0.16.1
 	github.com/falcosecurity/plugins/shared/go/aws/cloudwatchlogs v0.0.0-20250617140945-5d23e77c8bbd
 	github.com/falcosecurity/plugins/shared/go/aws/session v0.0.0-20250617140945-5d23e77c8bbd
 	github.com/invopop/jsonschema v0.13.0
