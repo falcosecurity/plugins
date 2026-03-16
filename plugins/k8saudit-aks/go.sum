@@ -29,8 +29,8 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/falcosecurity/plugin-sdk-go v0.8.3 h1:KsX7qt83dzC57qcNpZKaBrCjTXqpXgvxDcEXs6Z5sHI=
 github.com/falcosecurity/plugin-sdk-go v0.8.3/go.mod h1:gEgxjvuopv5VF4wc8s0EHnmT9qrIKBtcJVBnRlEPU1A=
-github.com/falcosecurity/plugins/plugins/k8saudit v0.16.0 h1:diXQfoRw3Y3RKbnt2eCP7LiTpMkVLrBl1RUQiXK+AC0=
-github.com/falcosecurity/plugins/plugins/k8saudit v0.16.0/go.mod h1:aXuvIMirc59LeXnh1m7MJbWpmUUE+r19FUjkYTPhHA0=
+github.com/falcosecurity/plugins/plugins/k8saudit v0.16.1 h1:K7D2dOkSB0Sg0grN7Nt++15MoKzRdMSO8dzq7OdEgXo=
+github.com/falcosecurity/plugins/plugins/k8saudit v0.16.1/go.mod h1:aXuvIMirc59LeXnh1m7MJbWpmUUE+r19FUjkYTPhHA0=
 github.com/fortytw2/leaktest v1.3.0 h1:u8491cBMTQ8ft8aeV+adlcytMZylmA5nnwwkRZjI8vw=
 github.com/fortytw2/leaktest v1.3.0/go.mod h1:jDsjWgpAGjm2CA7WthBh/CdZYEPF31XHquHwclZch5g=
 github.com/geraldcombs/fastjson v0.0.0-20250801170450-bf39244e60b8 h1:S2FAMWjJKPRR9fvtgYVWQ5joNsl0qQoRxmxYHKDDtx4=

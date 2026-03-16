@@ -4,7 +4,7 @@ go 1.23.3
 
 require (
 	github.com/falcosecurity/plugin-sdk-go v0.8.3
-	github.com/falcosecurity/plugins/plugins/k8saudit v0.16.0
+	github.com/falcosecurity/plugins/plugins/k8saudit v0.16.1
 	github.com/gorilla/websocket v1.5.3
 )
 

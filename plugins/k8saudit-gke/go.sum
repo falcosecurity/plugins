@@ -43,8 +43,8 @@ github.com/envoyproxy/protoc-gen-validate v1.3.0 h1:TvGH1wof4H33rezVKWSpqKz5NXWg
 github.com/envoyproxy/protoc-gen-validate v1.3.0/go.mod h1:HvYl7zwPa5mffgyeTUHA9zHIH36nmrm7oCbo4YKoSWA=
 github.com/falcosecurity/plugin-sdk-go v0.8.3 h1:KsX7qt83dzC57qcNpZKaBrCjTXqpXgvxDcEXs6Z5sHI=
 github.com/falcosecurity/plugin-sdk-go v0.8.3/go.mod h1:gEgxjvuopv5VF4wc8s0EHnmT9qrIKBtcJVBnRlEPU1A=
-github.com/falcosecurity/plugins/plugins/k8saudit v0.16.0 h1:diXQfoRw3Y3RKbnt2eCP7LiTpMkVLrBl1RUQiXK+AC0=
-github.com/falcosecurity/plugins/plugins/k8saudit v0.16.0/go.mod h1:aXuvIMirc59LeXnh1m7MJbWpmUUE+r19FUjkYTPhHA0=
+github.com/falcosecurity/plugins/plugins/k8saudit v0.16.1 h1:K7D2dOkSB0Sg0grN7Nt++15MoKzRdMSO8dzq7OdEgXo=
+github.com/falcosecurity/plugins/plugins/k8saudit v0.16.1/go.mod h1:aXuvIMirc59LeXnh1m7MJbWpmUUE+r19FUjkYTPhHA0=
 github.com/felixge/httpsnoop v1.0.4 h1:NFTV2Zj1bL4mc9sqWACXbQFVBBg2W3GPvqp8/ESS2Wg=
 github.com/felixge/httpsnoop v1.0.4/go.mod h1:m8KPJKqk1gH5J9DgRY2ASl2lWCfGKXixSwevea8zH2U=
 github.com/fxamacker/cbor/v2 v2.9.0 h1:NpKPmjDBgUfBms6tr6JZkTHtfFGcMKsw3eGcmD/sapM=
