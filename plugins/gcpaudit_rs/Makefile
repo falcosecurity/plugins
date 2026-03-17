@@ -31,6 +31,11 @@ debug:
 	cargo build
 	@cp target/debug/lib$(NAME).so $(OUTPUT) || cp target/debug/lib$(NAME).dylib $(OUTPUT) 2>/dev/null || true
 
+debug-universal:
+	@echo "Building debug version..."
+	cargo build
+	@cp target/debug/lib$(NAME).so $(OUTPUT) || cp target/debug/lib$(NAME).dylib $(OUTPUT) 2>/dev/null || true
+
 clean:
 	cargo clean
 	rm -f $(OUTPUT)
