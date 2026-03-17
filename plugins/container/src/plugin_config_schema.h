@@ -120,8 +120,20 @@ const char plugin_schema_string[] = LONG_STRING_CONST(
         }
       },
       "required": [
-        "enabled",
-        "sockets"
+        "enabled"
+      ],
+      "oneOf": [
+        {
+          "properties": {
+            "enabled": { "enum": [true] }
+          },
+          "required": ["enabled", "sockets"]
+        },
+        {
+          "properties": {
+            "enabled": { "enum": [false] }
+          }
+        }
       ],
       "title": "SocketsContainer"
     },
@@ -143,10 +155,20 @@ const char plugin_schema_string[] = LONG_STRING_CONST(
         }
       },
       "required": [
-        "enabled",
-        "container_id",
-        "container_name",
-        "container_image"
+        "enabled"
+      ],
+      "oneOf": [
+        {
+          "properties": {
+            "enabled": { "enum": [true] }
+          },
+          "required": ["enabled", "container_id", "container_name", "container_image"]
+        },
+        {
+          "properties": {
+            "enabled": { "enum": [false] }
+          }
+        }
       ],
       "title": "StaticContainer"
     }
@@ -156,4 +178,3 @@ const char plugin_schema_string[] = LONG_STRING_CONST(
 }
 
 ); // LONG_STRING_CONST macro
-
