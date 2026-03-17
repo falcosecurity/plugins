@@ -15,7 +15,7 @@ falco_event = "0.5.1"
 falco_plugin = "0.5.1"
 anyhow = "1"
 serde = "1"
-serde_json = "1"
+serde_json = { version = "1", features = ["preserve_order"] }
 serde_spanned = "1"
 schemars = "1"
 google-cloud-pubsub = "0.30.0"
