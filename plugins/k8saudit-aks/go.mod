@@ -18,7 +18,7 @@ require (
 	github.com/Azure/go-amqp v1.4.0 // indirect
 	github.com/alecthomas/jsonschema v0.0.0-20220216202328-9eeeec9d044b // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
-	github.com/buger/jsonparser v1.1.1 // indirect
+	github.com/buger/jsonparser v1.1.2 // indirect
 	github.com/iancoleman/orderedmap v0.3.0 // indirect
 	github.com/mailru/easyjson v0.9.0 // indirect
 	github.com/valyala/fastjson v1.6.4 // indirect
