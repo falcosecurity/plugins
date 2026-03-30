@@ -120,6 +120,9 @@ func DoUpdateOCIRegistry(ctx context.Context, registryFile, pluginsAMD4, plugins
 	if err != nil {
 		return nil, fmt.Errorf("an error occurred while loading registry entries from file %q: %v", registryFile, err)
 	}
+	if err := reg.Validate(); err != nil {
+		return nil, fmt.Errorf("registry file %q is not valid: %v", registryFile, err)
+	}
 
 	artifacts := []registry.ArtifactPushMetadata{}
 
