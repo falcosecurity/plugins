@@ -157,7 +157,7 @@ impl fmt::Display for Connection {
                 dst_ptr,
                 path,
             } => {
-                let s_path = path.to_str().unwrap();
+                let s_path = path.to_string_lossy();
                 let s = format!("{src_ptr:#x}->{dst_ptr:#x} {s_path}");
                 f.write_str(&s)
             }
@@ -197,9 +197,12 @@ impl KrsiEventContent {
     pub fn name(&self) -> Option<CString> {
         match &self {
             KrsiEventContent::Open(OpenData { name, .. }) => name.clone(),
-            KrsiEventContent::Connect(ConnectData { connection, .. }) => connection
-                .as_ref()
-                .map(|c| CString::new(c.to_string()).unwrap()),
+            KrsiEventContent::Connect(ConnectData { connection, .. }) => {
+                connection.as_ref().map(|c| {
+                    let display = c.to_string();
+                    CString::new(display).unwrap_or_else(|_| CString::new("<invalid>").unwrap())
+                })
+            }
             _ => None,
         }
     }
