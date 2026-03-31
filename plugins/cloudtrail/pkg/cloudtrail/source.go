@@ -54,10 +54,9 @@ const (
 )
 
 type listOrigin struct {
-	prefix *string
+	prefix     *string
 	startAfter *string
 }
-
 
 type fileInfo struct {
 	name         string
@@ -162,7 +161,7 @@ func (p *PluginInstance) initS3() error {
 }
 
 func chunkListOrigin(orgList []listOrigin, chunkSize int) [][]listOrigin {
-	if (len(orgList) == 0 || chunkSize < 1) {
+	if len(orgList) == 0 || chunkSize < 1 {
 		return nil
 	}
 	divided := make([][]listOrigin, (len(orgList)+chunkSize-1)/chunkSize)
@@ -185,8 +184,8 @@ func (oCtx *PluginInstance) listKeys(params listOrigin, startTS string, endTS st
 	ctx := context.Background()
 	// Fetch the list of keys
 	paginator := s3.NewListObjectsV2Paginator(oCtx.s3.client, &s3.ListObjectsV2Input{
-		Bucket: &oCtx.s3.bucket,
-		Prefix: params.prefix,
+		Bucket:     &oCtx.s3.bucket,
+		Prefix:     params.prefix,
 		StartAfter: params.startAfter,
 	})
 
@@ -229,7 +228,7 @@ func (oCtx *PluginInstance) openS3(input string) error {
 	oCtx.openMode = s3Mode
 
 	if oCtx.config.S3DownloadConcurrency < 1 {
-		return fmt.Errorf(PluginName + " invalid S3DownloadConcurrency: \"%d\"", oCtx.config.S3DownloadConcurrency)
+		return fmt.Errorf(PluginName+" invalid S3DownloadConcurrency: \"%d\"", oCtx.config.S3DownloadConcurrency)
 	}
 
 	// remove the initial "s3://"
@@ -250,22 +249,21 @@ func (oCtx *PluginInstance) openS3(input string) error {
 		return err
 	}
 
-
 	var inputParams []listOrigin
 	ctx := context.Background()
 	var intervalPrefixList []string
 
 	startTime, endTime, err := ParseInterval(oCtx.config.S3Interval)
 	if err != nil {
-		return fmt.Errorf(PluginName + " invalid interval: \"%s\": %s", oCtx.config.S3Interval, err.Error())
+		return fmt.Errorf(PluginName+" invalid interval: \"%s\": %s", oCtx.config.S3Interval, err.Error())
 
 	}
 
 	s3AccountList := oCtx.config.S3AccountList
 	accountListRE := regexp.MustCompile(`^(?: *\d{12} *,?)*$`)
-	if (! accountListRE.MatchString(s3AccountList)) {
-		return fmt.Errorf(PluginName + " invalid account list: \"%s\"", oCtx.config.S3AccountList)
-}
+	if !accountListRE.MatchString(s3AccountList) {
+		return fmt.Errorf(PluginName+" invalid account list: \"%s\"", oCtx.config.S3AccountList)
+	}
 
 	// CloudTrail logs have the format
 	// bucket_name/prefix_name/AWSLogs/Account ID/CloudTrail/region/YYYY/MM/DD/AccountID_CloudTrail_RegionName_YYYYMMDDTHHmmZ_UniqueString.json.gz
@@ -283,33 +281,33 @@ func (oCtx *PluginInstance) openS3(input string) error {
 	awsLogsRE := regexp.MustCompile(`/AWSLogs/(?:o-[a-z0-9]{10,32}/)?\d{12}/?$`)
 	awsLogsOrgRE := regexp.MustCompile(`/AWSLogs(?:/o-[a-z0-9]{10,32})?/?$`)
 	if awsLogsRE.MatchString(prefix) {
-		if (! strings.HasSuffix(intervalPrefix, "/")) {
+		if !strings.HasSuffix(intervalPrefix, "/") {
 			intervalPrefix += "/"
 		}
 		intervalPrefix += "CloudTrail/"
 		intervalPrefixList = append(intervalPrefixList, intervalPrefix)
 	} else if awsLogsOrgRE.MatchString(prefix) {
-		if (! strings.HasSuffix(intervalPrefix, "/")) {
+		if !strings.HasSuffix(intervalPrefix, "/") {
 			intervalPrefix += "/"
 		}
 		if s3AccountList != "" {
 			// build intervalPrefixList by using the provided S3AccountList
-			accountListArray := strings.Split(s3AccountList , ",")
+			accountListArray := strings.Split(s3AccountList, ",")
 			if len(accountListArray) <= 0 {
-				return fmt.Errorf(PluginName + " invalid account list: \"%s\"", oCtx.config.S3AccountList)
+				return fmt.Errorf(PluginName+" invalid account list: \"%s\"", oCtx.config.S3AccountList)
 			}
 			for i := range accountListArray {
 				accountListArray[i] = strings.TrimSpace(accountListArray[i])
 			}
 			for _, account := range accountListArray {
-				intervalPrefixList = append(intervalPrefixList, intervalPrefix + account + "/CloudTrail/")
+				intervalPrefixList = append(intervalPrefixList, intervalPrefix+account+"/CloudTrail/")
 			}
 		} else {
 			// try to get all available account IDs in the S3 CloudTrail bucket
 			delimiter := "/"
 			paginator := s3.NewListObjectsV2Paginator(oCtx.s3.client, &s3.ListObjectsV2Input{
-				Bucket: &oCtx.s3.bucket,
-				Prefix: &intervalPrefix,
+				Bucket:    &oCtx.s3.bucket,
+				Prefix:    &intervalPrefix,
 				Delimiter: &delimiter,
 			})
 			for paginator.HasMorePages() {
@@ -318,12 +316,12 @@ func (oCtx *PluginInstance) openS3(input string) error {
 					// Try friendlier error sources first.
 					var aErr smithy.APIError
 					if errors.As(err, &aErr) {
-						return fmt.Errorf(PluginName + " plugin error: %s: %s", aErr.ErrorCode(), aErr.ErrorMessage())
+						return fmt.Errorf(PluginName+" plugin error: %s: %s", aErr.ErrorCode(), aErr.ErrorMessage())
 					}
 
 					var oErr *smithy.OperationError
 					if errors.As(err, &oErr) {
-						return fmt.Errorf(PluginName + " plugin error: %s: %s", oErr.Service(), oErr.Unwrap())
+						return fmt.Errorf(PluginName+" plugin error: %s: %s", oErr.Service(), oErr.Unwrap())
 					}
 
 					return fmt.Errorf(PluginName + " plugin error: failed to list accounts: " + err.Error())
@@ -331,7 +329,7 @@ func (oCtx *PluginInstance) openS3(input string) error {
 				for _, commonPrefix := range page.CommonPrefixes {
 					path := commonPrefix.Prefix
 					if awsLogsRE.MatchString(*path) {
-						intervalPrefixList = append(intervalPrefixList, *path + "CloudTrail/")
+						intervalPrefixList = append(intervalPrefixList, *path+"CloudTrail/")
 					}
 				}
 			}
@@ -345,13 +343,13 @@ func (oCtx *PluginInstance) openS3(input string) error {
 			delimiter := "/"
 			// Fetch the list of regions.
 			output, err := oCtx.s3.client.ListObjectsV2(ctx, &s3.ListObjectsV2Input{
-				Bucket: &oCtx.s3.bucket,
-				Prefix: &intervalPrefix,
+				Bucket:    &oCtx.s3.bucket,
+				Prefix:    &intervalPrefix,
 				Delimiter: &delimiter,
 			})
 			if err == nil {
 				for _, commonPrefix := range output.CommonPrefixes {
-					params := listOrigin {prefix: commonPrefix.Prefix}
+					params := listOrigin{prefix: commonPrefix.Prefix}
 					if !startTime.IsZero() {
 						// startAfter doesn't have to be a real key.
 						startAfterSuffix := startTime.Format("2006/01/02/")
@@ -374,13 +372,13 @@ func (oCtx *PluginInstance) openS3(input string) error {
 			if !endTime.IsZero() {
 				endTS = endTime.Format(startAfterFormat)
 				if endTS < startTS {
-					return fmt.Errorf(PluginName + " start time %s must be less than end time %s", startTime.Format(RFC3339Simple), endTime.Format(RFC3339Simple))
+					return fmt.Errorf(PluginName+" start time %s must be less than end time %s", startTime.Format(RFC3339Simple), endTime.Format(RFC3339Simple))
 				}
 			}
 		}
 	} else {
 		// No region prefixes found, just use what we were given.
-		params := listOrigin {prefix: &prefix, startAfter: nil}
+		params := listOrigin{prefix: &prefix, startAfter: nil}
 		inputParams = append(inputParams, params)
 	}
 
@@ -400,12 +398,12 @@ func (oCtx *PluginInstance) openS3(input string) error {
 				// Try friendlier error sources first.
 				var aErr smithy.APIError
 				if errors.As(err, &aErr) {
-					return fmt.Errorf(PluginName + " plugin error: %s: %s", aErr.ErrorCode(), aErr.ErrorMessage())
+					return fmt.Errorf(PluginName+" plugin error: %s: %s", aErr.ErrorCode(), aErr.ErrorMessage())
 				}
 
 				var oErr *smithy.OperationError
 				if errors.As(err, &oErr) {
-					return fmt.Errorf(PluginName + " plugin error: %s: %s", oErr.Service(), oErr.Unwrap())
+					return fmt.Errorf(PluginName+" plugin error: %s: %s", oErr.Service(), oErr.Unwrap())
 				}
 
 				return fmt.Errorf(PluginName + " plugin error: failed to list objects: " + err.Error())
