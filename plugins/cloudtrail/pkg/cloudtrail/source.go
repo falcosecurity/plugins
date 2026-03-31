@@ -615,21 +615,38 @@ func readFileLocal(fileName string) ([]byte, error) {
 
 func extractRecordStrings(jsonStr []byte, res *[][]byte) {
 	indentation := 0
+	inString := false
+	escaped := false
 	var entryStart int
 
 	for pos, char := range jsonStr {
-		if char == '{' {
+		if escaped {
+			escaped = false
+			continue
+		}
+		if inString {
+			switch char {
+			case '\\':
+				escaped = true
+			case '"':
+				inString = false
+			}
+			continue
+		}
+		switch char {
+		case '"':
+			inString = true
+			continue
+		case '{':
 			if indentation == 1 {
 				entryStart = pos
 			}
 			indentation++
-		} else if char == '}' {
+		case '}':
 			indentation--
 			if indentation == 1 {
-				if pos < len(jsonStr)-1 {
-					entry := jsonStr[entryStart : pos+1]
-					*res = append(*res, entry)
-				}
+				entry := jsonStr[entryStart : pos+1]
+				*res = append(*res, entry)
 			}
 		}
 	}
