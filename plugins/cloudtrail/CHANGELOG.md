@@ -1,6 +1,16 @@
 # Changelog
 
+## dev build (unreleased)
+
+* [`c59dc51`](https://github.com/falcosecurity/plugins/commit/c59dc51) fix(cloudtrail): replace ct.user.sessionname with ct.originaluser
+
+* [`0b6aa9f`](https://github.com/falcosecurity/plugins/commit/0b6aa9f) fix(cloudtrail): restore role name for ct.user on AssumedRole events
+
+* [`4047f74`](https://github.com/falcosecurity/plugins/commit/4047f74) build(deps): bump the gomod group across 5 directories with 7 updates
+
 ## v0.15.0
+
+* [`b201d1f`](https://github.com/falcosecurity/plugins/commit/b201d1f) chore(plugins/cloudtrail): bump to `0.15.0`
 
 * [`bfee0e3`](https://github.com/falcosecurity/plugins/commit/bfee0e3) doc(plugins/cloudtrail): Assumed role user from session name, falling back to...
 
@@ -59,6 +69,7 @@
 * [`3143ce4`](https://github.com/falcosecurity/plugins/commit/3143ce4) build(deps): bump the gomod group across 2 directories with 2 updates
 
 * [`a34ed2f`](https://github.com/falcosecurity/plugins/commit/a34ed2f) build(deps): bump the gomod group across 1 directory with 5 updates
+
 
 ## v0.14.0
 
