@@ -39,7 +39,7 @@ var supportedFields = []sdk.FieldEntry{
 	{Type: "string", Name: "ct.shortsrc", Display: "AWS Service", Desc: "the source of the cloudtrail event (eventSource in the json, without the '.amazonaws.com' trailer)."},
 	{Type: "string", Name: "ct.name", Display: "Event Name", Desc: "the name of the cloudtrail event (eventName in the json)."},
 	{Type: "string", Name: "ct.user", Display: "User Name", Desc: "the user of the cloudtrail event (userIdentity.userName in the json). For AssumedRole events, this is the role name from sessionContext.sessionIssuer.userName.", Properties: []string{"conversation"}},
-	{Type: "string", Name: "ct.user.sessionname", Display: "User Session Name", Desc: "the session name for AssumedRole events, extracted from userIdentity.arn or userIdentity.principalId. For SSO users this is typically the email address."},
+	{Type: "string", Name: "ct.originaluser", Display: "Original User Name", Desc: "the user name as seen in CloudTrail. For AssumedRole events, this is the session name extracted from userIdentity.arn or userIdentity.principalId. For all other identity types, this is userIdentity.userName."},
 	{Type: "string", Name: "ct.user.accountid", Display: "User Account ID", Desc: "the account id of the user of the cloudtrail event."},
 	{Type: "string", Name: "ct.user.identitytype", Display: "User Identity Type", Desc: "the kind of user identity (e.g. Root, IAMUser,AWSService, etc.)"},
 	{Type: "string", Name: "ct.user.principalid", Display: "User Principal Id", Desc: "A unique identifier for the user that made the request."},
@@ -295,12 +295,13 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string, int, int) {
 			return false, "", 0, 0
 		}
 		return true, res, offset, length
-	case "ct.user.sessionname":
+	case "ct.originaluser":
 		jutype := jdata.GetStringBytes("userIdentity", "type")
 		if jutype != nil && string(jutype) == "AssumedRole" {
 			return getSessionNameFromAssumedRole(jdata)
 		}
-		return false, "", 0, 0
+		// For all other identity types, return userIdentity.userName
+		fsval = jdata.Get("userIdentity", "userName")
 	case "ct.user.accountid":
 		fsval = jdata.Get("userIdentity", "accountId")
 		if fsval == nil {
