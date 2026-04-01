@@ -454,22 +454,21 @@ func (oCtx *PluginInstance) getMoreSQSFiles() error {
 	// cloudtrail file(s) are available in the s3 bucket. Download
 	// those files.
 
-	var sqsMsg map[string]interface{}
-
-	err = json.Unmarshal([]byte(*msgResult.Messages[0].Body), &sqsMsg)
-
-	if err != nil {
-		return err
+	type snsMsgContents struct {
+		Type    string `json:"Type"`
+		Message string `json:"Message"`
 	}
 
-	messageType, ok := sqsMsg["Type"]
-	if !ok {
-		return fmt.Errorf("received SQS message that did not have a Type property")
+	var msgContents snsMsgContents
+	if err := json.Unmarshal([]byte(*msgResult.Messages[0].Body), &msgContents); err != nil {
+		return fmt.Errorf("failed to parse SQS message contents: %w", err)
 	}
 
-	if messageType.(string) != "Notification" {
+	if msgContents.Type != "Notification" {
 		return fmt.Errorf("received SQS message that was not a SNS Notification")
 	}
+
+	messageBytes := []byte(msgContents.Message)
 
 	if oCtx.config.UseS3SNS {
 		// Process SNS message coming from S3
@@ -479,9 +478,7 @@ func (oCtx *PluginInstance) getMoreSQSFiles() error {
 			lastBucket string
 		)
 
-		err = json.Unmarshal([]byte(sqsMsg["Message"].(string)), &s3Event)
-
-		if err != nil {
+		if err := json.Unmarshal(messageBytes, &s3Event); err != nil {
 			return err
 		}
 
@@ -511,10 +508,7 @@ func (oCtx *PluginInstance) getMoreSQSFiles() error {
 	}
 
 	var notification snsMessage
-
-	err = json.Unmarshal([]byte(sqsMsg["Message"].(string)), &notification)
-
-	if err != nil {
+	if err := json.Unmarshal(messageBytes, &notification); err != nil {
 		return err
 	}
 
