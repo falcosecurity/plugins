@@ -20,12 +20,14 @@ package k8sauditovh
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"text/template"
 	"time"
 
@@ -51,6 +53,15 @@ const (
 
 	// Time allowed to read the next pong message from the client.
 	pongWait = 60 * time.Second
+
+	// Initial wait time before attempting to reconnect after a connection failure.
+	reconnectWaitInitial = 1 * time.Second
+
+	// Maximum wait time between reconnection attempts.
+	reconnectWaitMax = 60 * time.Second
+
+	// Separator used in the template output between the app ID and the message payload.
+	templateSeparator = "> "
 )
 
 type PluginConfig struct {
@@ -113,6 +124,124 @@ func (p *Plugin) OpenParams() ([]sdk.OpenParam, error) {
 	}, nil
 }
 
+// isRecoverable determines if a WebSocket dial failure warrants a retry.
+// Non-recoverable errors (e.g. auth failures, not found) are returned immediately
+// to avoid infinite retry loops on configuration issues.
+func isRecoverable(resp *http.Response, err error) bool {
+	if err == nil {
+		return false
+	}
+
+	if resp != nil {
+		switch resp.StatusCode {
+		case http.StatusUnauthorized,
+			http.StatusForbidden,
+			http.StatusNotFound,
+			http.StatusBadRequest:
+			return false
+		case http.StatusTooManyRequests,
+			http.StatusInternalServerError,
+			http.StatusBadGateway,
+			http.StatusServiceUnavailable,
+			http.StatusGatewayTimeout:
+			return true
+		}
+	}
+
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		if netErr.Timeout() {
+			return true
+		}
+	}
+
+	// Bad handshake with no response often means a proxy/LB dropped the connection.
+	if errors.Is(err, websocket.ErrBadHandshake) && resp == nil {
+		return true
+	}
+
+	return false
+}
+
+// readLoop reads messages from an established WebSocket connection until it breaks.
+// Using a dedicated function allows defer to close the connection at the end of
+// each connection attempt rather than at the end of the goroutine.
+func (p *Plugin) readLoop(wsChan *websocket.Conn, t *template.Template, eventC chan source.PushEvent) {
+	defer wsChan.Close()
+
+	for {
+		//wsChan.SetReadDeadline(time.Now().Add(5 * time.Second))
+		wsChan.SetReadDeadline(time.Now().Add(pongWait))
+		_, msg, err := wsChan.ReadMessage()
+
+		// Keep the WebSocket connection alive
+		if t, ok := err.(net.Error); ok && t.Timeout() {
+			// Timeout, send a Ping && continue
+			if err := wsChan.WriteMessage(websocket.PingMessage, nil); err != nil {
+				p.Logger.Println("The end host probably closed the connection", err.Error())
+				return
+			}
+			continue
+		}
+
+		if err != nil {
+			if websocket.IsUnexpectedCloseError(err,
+				websocket.CloseGoingAway,
+				websocket.CloseAbnormalClosure,
+				websocket.CloseNormalClosure) {
+				p.Logger.Printf("Unexpected WebSocket close error: %s\n", err.Error())
+			}
+			return
+		}
+
+		// Extract Message
+		var logMessage struct {
+			Message string `json:"message"`
+		}
+		if err := json.Unmarshal(msg, &logMessage); err != nil {
+			p.Logger.Printf("Failed to unmarshal log envelope: %s\n", err.Error())
+			continue
+		}
+
+		// Extract infos
+		var message map[string]interface{}
+		if err := json.Unmarshal([]byte(logMessage.Message), &message); err != nil {
+			p.Logger.Printf("Failed to unmarshal log message: %s\n", err.Error())
+			continue
+		}
+
+		var m bytes.Buffer
+		err = t.Execute(&m, message)
+		if err != nil {
+			p.Logger.Println(err)
+			continue
+		}
+
+		// Strip the "{_appID}> " prefix to isolate the audit event payload.
+		// strings.SplitN replaces the previous [12:] magic number that assumed a fixed-length appID.
+		parts := strings.SplitN(m.String(), templateSeparator, 2)
+		if len(parts) != 2 {
+			p.Logger.Printf("Unexpected template output, separator %q not found: %q\n", templateSeparator, m.String())
+			continue
+		}
+
+		// Parse audit events payload thanks to k8saudit extract parse and extract methods
+		values, err := p.Plugin.ParseAuditEventsPayload([]byte(parts[1]))
+		if err != nil {
+			p.Logger.Println(err)
+			continue
+		}
+		for _, j := range values {
+			if j.Err != nil {
+				p.Logger.Println(j.Err)
+				continue
+			}
+
+			eventC <- *j
+		}
+	}
+}
+
 // Open is called by Falco plugin framework for opening a stream of events, we call that an instance
 func (p *Plugin) Open(ovhLDPURL string) (source.Instance, error) {
 	t, err := template.New("template").Funcs(template.FuncMap{
@@ -150,64 +279,36 @@ func (p *Plugin) Open(ovhLDPURL string) (source.Instance, error) {
 
 		headers := make(http.Header)
 		// headers.Set("Origin", "http://mySelf")
-		wsChan, _, err := websocket.DefaultDialer.Dial(v, headers)
-		if err != nil {
-			eventC <- source.PushEvent{Err: err}
-			return
-		}
-		defer wsChan.Close()
 
+		// Exponential backoff for reconnection attempts.
+		wait := reconnectWaitInitial
+
+		// Outer reconnect loop: if the connection drops, we dial again instead of exiting.
 		for {
-			//wsChan.SetReadDeadline(time.Now().Add(5 * time.Second))
-			wsChan.SetReadDeadline(time.Now().Add(pongWait))
-			_, msg, err := wsChan.ReadMessage()
-
-			// Keep the WebSocket connection alive
-			if t, ok := err.(net.Error); ok && t.Timeout() {
-				// Timeout, send a Ping && continue
-				if err := wsChan.WriteMessage(websocket.PingMessage, nil); err != nil {
-					p.Logger.Println("The end host probably closed the connection", err.Error())
+			wsChan, resp, err := websocket.DefaultDialer.Dial(v, headers)
+			if err != nil {
+				if !isRecoverable(resp, err) {
+					p.Logger.Printf("Non-recoverable error connecting to %q: %s. Stopping.\n", u.Host, err.Error())
+					eventC <- source.PushEvent{Err: err}
+					return
+				}
+				p.Logger.Printf("Failed to connect to %q: %s. Will retry after %s...\n", u.Host, err.Error(), wait)
+				time.Sleep(wait)
+				wait *= 2
+				if wait > reconnectWaitMax {
+					wait = reconnectWaitMax
 				}
 				continue
 			}
 
-			if err != nil {
-				p.Logger.Printf("Error while reading from %q: %q. Will try to reconnect after 1s...\n", u.Host, err.Error())
-				time.Sleep(1 * time.Second)
-				break
-			}
+			// Reset backoff on successful connection.
+			wait = reconnectWaitInitial
+			p.Logger.Printf("Connected to %q\n", u.Host)
 
-			// Extract Message
-			var logMessage struct {
-				Message string `json:"message"`
-			}
-			json.Unmarshal(msg, &logMessage)
+			p.readLoop(wsChan, t, eventC)
 
-			// Extract infos
-			var message map[string]interface{}
-			json.Unmarshal([]byte(logMessage.Message), &message)
-
-			var m bytes.Buffer
-			err = t.Execute(&m, message)
-			if err != nil {
-				p.Logger.Println(err)
-				continue
-			}
-
-			// Parse audit events payload thanks to k8saudit extract parse and extract methods
-			values, err := p.Plugin.ParseAuditEventsPayload([]byte(m.String())[12:])
-			if err != nil {
-				p.Logger.Println(err)
-				continue
-			}
-			for _, j := range values {
-				if j.Err != nil {
-					p.Logger.Println(j.Err)
-					continue
-				}
-
-				eventC <- *j
-			}
+			p.Logger.Printf("Disconnected from %q. Will try to reconnect after %s...\n", u.Host, wait)
+			time.Sleep(wait)
 		}
 	}()
 	return source.NewPushInstance(
