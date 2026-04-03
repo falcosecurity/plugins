@@ -134,10 +134,16 @@ The json object has the following properties:
 
 * `sqsDelete`: value is boolean. If true, then the plugin will delete sqs messages from the queue immediately after receiving them. (Default: true)
 * `s3DownloadConcurrency`: value is numeric. Controls the number of background goroutines used to download S3 files. (Default: 1)
-* `S3Interval`: value is string. Download log files matching the specified time interval. Note that this matches log file *names*, not event timestamps. CloudTrail logs usually cover [the previous 5 minutes of activity](https://docs.aws.amazon.com/awscloudtrail/latest/userguide/get-and-view-cloudtrail-log-files.html). See *Time Intervals* below for possible formats.
+* `s3Interval`: value is string. Download log files matching the specified time interval. Note that this matches log file *names*, not event timestamps. CloudTrail logs usually cover [the previous 5 minutes of activity](https://docs.aws.amazon.com/awscloudtrail/latest/userguide/get-and-view-cloudtrail-log-files.html). See *Time Intervals* below for possible formats.
 * `useS3SNS`: value is boolean. If true, then the plugin will expect SNS messages to originate from S3 instead of directly from Cloudtrail (Default: false)
-* `S3AccountList`: value is string. Download log files matching the specified account IDs (in a comma separated list) in an organization trail. See *Read From S3 Bucket Directly* below for more details.
-* `SQSOwnerAccount`: value is string. The AWS account ID that owns the SQS queue in case the queue is owned by a different account. Not required by default.
+* `s3AccountList`: value is string. Download log files matching the specified account IDs (in a comma separated list) in an organization trail. See *Read From S3 Bucket Directly* below for more details.
+* `sqsOwnerAccount`: value is string. The AWS account ID that owns the SQS queue in case the queue is owned by a different account. Not required by default.
+* `aws`: value is object. AWS SDK config override block.
+  * `profile`: value is string. Overrides shared AWS profile (for example default). (Default: empty)
+  * `region`: value is string. Overrides AWS region used by the plugin. (Default: empty)
+  * `config`: value is string. Overrides shared config file path (for example ~/.aws/config). (Default: empty)
+  * `credentials`: value is string. Overrides shared credentials file path (for example ~/.aws/credentials). (Default: empty)
+* `useAsync`: value is boolean. Enables async extraction optimization. (Default: true)
 
 The init string can be the empty string, which is treated identically to `{}`.
 
