@@ -2,9 +2,9 @@
 
 ## dev build (unreleased)
 
-* [`e9c2bd6`](https://github.com/falcosecurity/plugins/commit/e9c2bd6) chore(plugins/k8saudit-ovh): update CHANGELOG for v0.5.0
+* [`9d77db0`](https://github.com/falcosecurity/plugins/commit/9d77db0) chore(plugins/k8saudit-ovh): bump version to v0.4.1 and regenerate CHANGELOG
 
-* [`4b4d981`](https://github.com/falcosecurity/plugins/commit/4b4d981) fix(plugins/k8saudit-ovh): add WebSocket reconnect loop and improve resilience
+* [`e866c41`](https://github.com/falcosecurity/plugins/commit/e866c41) fix(plugins/k8saudit-ovh): add WebSocket reconnect loop and improve resilience
 
 * [`4047f74`](https://github.com/falcosecurity/plugins/commit/4047f74) build(deps): bump the gomod group across 5 directories with 7 updates
 
