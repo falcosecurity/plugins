@@ -29,7 +29,7 @@ use falco_plugin::{
     source_plugin,
     tables::TablesInput,
 };
-use rand::{Rng, rngs::ThreadRng};
+use rand::{RngExt, rngs::ThreadRng};
 use serde_json;
 
 /// Plugin configuration
@@ -64,7 +64,7 @@ impl Plugin for DummyRsPlugin {
     fn new(_input: Option<&TablesInput>, Json(config): Self::ConfigType) -> Result<Self, Error> {
         Ok(Self {
             config,
-            rng: rand::thread_rng(),
+            rng: rand::rng(),
         })
     }
 }
@@ -101,7 +101,7 @@ impl SourcePluginInstance for DummyRsPluginInstance {
         self.counter += 1;
 
         // Increment sample by 1, also add a jitter of [0:jitter]
-        self.sample += 1 + plugin.rng.gen_range(0..plugin.config.jitter + 1);
+        self.sample += 1 + plugin.rng.random_range(0..plugin.config.jitter + 1);
 
         // The representation of a dummy event is the sample as little endian bytes
         let event = self.sample.to_le_bytes().to_vec();
