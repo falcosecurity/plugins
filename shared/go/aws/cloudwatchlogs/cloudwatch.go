@@ -21,9 +21,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	cwlogs "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 )
 
 const (
@@ -42,7 +42,7 @@ type Filter struct {
 
 // Client represents a client for CloudwatchLogs API
 type Client struct {
-	*cloudwatchlogs.CloudWatchLogs
+	*cwlogs.Client
 }
 
 // Options represents options for calls to CloudwatchLogs API
@@ -75,7 +75,7 @@ func (options *Options) setDefault() {
 	}
 }
 
-// CreateFilter returns a Client for retrieving logs from CloudwatchLogs API
+// CreateFilter returns a Filter for CloudwatchLogs API
 func CreateFilter(filterPattern, logGroupName, logStreamNamePrefix string, logStreamNames []string) *Filter {
 	if logStreamNamePrefix == "" {
 		logStreamNamePrefix = "*"
@@ -89,21 +89,21 @@ func CreateFilter(filterPattern, logGroupName, logStreamNamePrefix string, logSt
 	}
 }
 
-// CreateFilter returns a Filter for CloudwatchLogs API
-func CreateClient(sess *session.Session, cfgs *aws.Config) *Client {
+// CreateClient returns a Client for retrieving logs from CloudwatchLogs API
+func CreateClient(cfg aws.Config) *Client {
 	return &Client{
-		CloudWatchLogs: cloudwatchlogs.New(sess, cfgs),
+		Client: cwlogs.NewFromConfig(cfg),
 	}
 }
 
-// Open returns an instance with the functionn called to retrieve logs
-func (client *Client) Open(context context.Context, filter *Filter, options *Options) (chan *cloudwatchlogs.FilteredLogEvent, chan error) {
+// Open returns an instance with the function called to retrieve logs
+func (client *Client) Open(ctx context.Context, filter *Filter, options *Options) (chan *types.FilteredLogEvent, chan error) {
 	if options == nil {
 		options = new(Options)
 		options.setDefault()
 	}
 
-	filters := &cloudwatchlogs.FilterLogEventsInput{
+	input := &cwlogs.FilterLogEventsInput{
 		StartTime:           aws.Int64(time.Now().Add(-1 * options.Shift).UnixMilli()),
 		FilterPattern:       aws.String(filter.FilterPattern),
 		LogGroupName:        aws.String(filter.LogGroupName),
@@ -111,10 +111,10 @@ func (client *Client) Open(context context.Context, filter *Filter, options *Opt
 	}
 
 	if len(filter.LogStreamNamePrefix) == 0 {
-		filters.LogStreamNames = aws.StringSlice(filter.LogStreamNames)
+		input.LogStreamNames = filter.LogStreamNames
 	}
 
-	eventC := make(chan *cloudwatchlogs.FilteredLogEvent, options.BufferSize)
+	eventC := make(chan *types.FilteredLogEvent, options.BufferSize)
 	errC := make(chan error)
 
 	go func() {
@@ -125,30 +125,31 @@ func (client *Client) Open(context context.Context, filter *Filter, options *Opt
 			lastIngestionTime int64
 		)
 		for {
-			err := client.CloudWatchLogs.FilterLogEventsPagesWithContext(aws.Context(context), filters,
-				func(page *cloudwatchlogs.FilterLogEventsOutput, lastPage bool) bool {
-					for _, i := range page.Events {
-						eventC <- i
-						if *filters.StartTime == *i.Timestamp && lastIngestionTime >= *i.IngestionTime {
-							continue
-						}
-						if lastEventTime <= *i.Timestamp {
-							if lastEventTime < *i.Timestamp {
-								lastEventTime = *i.Timestamp
-							}
-							lastIngestionTime = *i.IngestionTime
-						}
+			paginator := cwlogs.NewFilterLogEventsPaginator(client.Client, input)
+			for paginator.HasMorePages() {
+				page, err := paginator.NextPage(ctx)
+				if err != nil {
+					errC <- err
+					return
+				}
+				for _, event := range page.Events {
+					e := event
+					eventC <- &e
+					if *input.StartTime == *e.Timestamp && lastIngestionTime >= *e.IngestionTime {
+						continue
 					}
-					return true
-				})
-			if err != nil {
-				errC <- err
-				return
+					if lastEventTime <= *e.Timestamp {
+						if lastEventTime < *e.Timestamp {
+							lastEventTime = *e.Timestamp
+						}
+						lastIngestionTime = *e.IngestionTime
+					}
+				}
 			}
 
 			time.Sleep(options.PollingInterval)
 			if lastEventTime > 0 {
-				filters.SetStartTime(lastEventTime)
+				input.StartTime = aws.Int64(lastEventTime)
 			}
 		}
 	}()

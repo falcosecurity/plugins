@@ -33,7 +33,7 @@ import (
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/symbols/extract"
 	"github.com/falcosecurity/plugins/plugins/k8saudit/pkg/k8saudit"
 	"github.com/falcosecurity/plugins/shared/go/aws/cloudwatchlogs"
-	"github.com/falcosecurity/plugins/shared/go/aws/session"
+	"github.com/falcosecurity/plugins/shared/go/aws/config"
 	"github.com/invopop/jsonschema"
 )
 
@@ -140,7 +140,11 @@ func (p *Plugin) Open(clustername string) (source.Instance, error) {
 		return nil, fmt.Errorf("cluster name can't be empty")
 	}
 	filter := cloudwatchlogs.CreateFilter("", "/aws/eks/"+clustername+"/cluster", "kube-apiserver-audit", nil)
-	client := cloudwatchlogs.CreateClient(session.CreateSession(p.Config.Region, p.Config.Profile), nil)
+	cfg, err := config.Create(context.Background(), p.Config.Region, p.Config.Profile)
+	if err != nil {
+		return nil, fmt.Errorf("error creating AWS config: %w", err)
+	}
+	client := cloudwatchlogs.CreateClient(cfg)
 	ctx, cancel := context.WithCancel(context.Background())
 	options := cloudwatchlogs.CreateOptions(
 		time.Duration(p.Config.Shift),

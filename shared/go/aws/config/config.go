@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /*
-Copyright (C) 2023 The Falco Authors.
+Copyright (C) 2026 The Falco Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -15,25 +15,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package session
+package config
 
 import (
-	"os"
+	"context"
 
-	awsSession "github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 )
 
-// CreateSession returns a session for AWS API
-func CreateSession(region, profile string) *awsSession.Session {
+// Create returns an AWS config for use with AWS API clients
+func Create(ctx context.Context, region, profile string) (aws.Config, error) {
+	var opts []func(*awsconfig.LoadOptions) error
 	if region != "" {
-		os.Setenv("AWS_REGION", region)
+		opts = append(opts, awsconfig.WithRegion(region))
 	}
 	if profile != "" {
-		os.Setenv("AWS_PROFILE", profile)
+		opts = append(opts, awsconfig.WithSharedConfigProfile(profile))
 	}
-	return awsSession.Must(awsSession.NewSessionWithOptions(
-		awsSession.Options{
-			SharedConfigState: awsSession.SharedConfigEnable,
-		},
-	))
+	return awsconfig.LoadDefaultConfig(ctx, opts...)
 }
