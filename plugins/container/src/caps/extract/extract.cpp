@@ -599,7 +599,10 @@ bool my_plugin::extract(const falcosecurity::extract_fields_input &in)
         }
         if(field_id != TYPE_CONTAINER_ID &&
            field_id != TYPE_CONTAINER_START_TS &&
-           field_id != TYPE_CONTAINER_DURATION)
+           field_id != TYPE_CONTAINER_DURATION &&
+           field_id != TYPE_IS_CONTAINER_HEALTHCHECK &&
+           field_id != TYPE_IS_CONTAINER_LIVENESS_PROBE &&
+           field_id != TYPE_IS_CONTAINER_READINESS_PROBE)
         {
             // Can't return anything but those fields without containers
             // metadata.
