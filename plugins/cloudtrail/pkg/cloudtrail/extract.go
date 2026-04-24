@@ -98,7 +98,8 @@ var supportedFields = []sdk.FieldEntry{
 	{Type: "uint64", Name: "s3.cnt.put", Display: "N Put Ops", Desc: "the number of put operations. This field is 1 for PutObject events, 0 otherwise.", Properties: []string{"hidden"}},
 	{Type: "uint64", Name: "s3.cnt.other", Display: "N Other Ops", Desc: "the number of non I/O operations. This field is 0 for GetObject and PutObject events, 1 for all the other events.", Properties: []string{"hidden"}},
 	{Type: "string", Name: "ec2.name", Display: "Instance Name", Desc: "the name of the ec2 instances, typically stored in the instance tags."},
-	{Type: "string", Name: "ec2.imageid", Display: "Image Id", Desc: "the ID for the image used to run the ec2 instance in the response."},
+	{Type: "string", Name: "ec2.imageid", Display: "Image Id", Desc: "(Deprecated) the ID for the image used to run the ec2 instance in the response. Replace with ec2.imageids[0]."},
+	{Type: "string", Name: "ec2.imageids", Display: "Image Ids", Desc: "the list of image IDs for the ec2 instances involved.", IsList: true, Arg: sdk.FieldEntryArg{IsRequired: false, IsIndex: true}},
 	{Type: "string", Name: "ecr.repository", Display: "ECR Repository name", Desc: "the name of the ecr Repository specified in the request."},
 	{Type: "string", Name: "ecr.imagetag", Display: "Image Tag", Desc: "the tag of the image specified in the request."},
 	{Type: "string", Name: "iam.role", Display: "IAM Role", Desc: "the IAM role specified in the request."},
@@ -257,6 +258,46 @@ func getEvtInfo(jdata *fastjson.Value) string {
 	}
 
 	return info
+}
+
+func imagesFromInstancesSet(fsval *fastjson.Value, argPresent bool, argIndex int) (bool, []string, int, int) {
+	jilist, _ := fsval.Array()
+	var images []string
+	if argPresent {
+		if argIndex >= 0 && argIndex < len(jilist) {
+			idval := jilist[argIndex].Get("imageId")
+			if idval == nil {
+				return false, []string{}, 0, 0
+			}
+			return true, []string{string(idval.GetStringBytes())}, idval.Offset(), idval.Len()
+		}
+		return false, []string{}, 0, 0
+	}
+	for _, item := range jilist {
+		if id := string(item.GetStringBytes("imageId")); id != "" {
+			images = append(images, id)
+		}
+	}
+	if len(images) == 0 {
+		return false, []string{}, 0, 0
+	}
+	return true, images, 0, 0
+}
+
+func getImageIds(jdata *fastjson.Value, argPresent bool, argIndex int) (bool, []string, int, int) {
+	if fsval := jdata.Get("responseElements", "instancesSet", "items"); fsval != nil {
+		return imagesFromInstancesSet(fsval, argPresent, argIndex)
+	}
+	if argPresent && argIndex != 0 {
+		return false, []string{}, 0, 0
+	}
+	if fsval := jdata.Get("requestParameters", "imageId"); fsval != nil {
+		return true, []string{string(fsval.GetStringBytes())}, fsval.Offset(), fsval.Len()
+	}
+	if fsval := jdata.Get("requestParameters", "DescribeFastLaunchImagesRequest", "ImageId", "content"); fsval != nil {
+		return true, []string{string(fsval.GetStringBytes())}, fsval.Offset(), fsval.Len()
+	}
+	return false, []string{}, 0, 0
 }
 
 func getfieldStr(jdata *fastjson.Value, field string) (bool, string, int, int) {
@@ -529,17 +570,11 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string, int, int) {
 		}
 		return true, iname, 0, 0
 	case "ec2.imageid":
-		var imageId = ""
-		jilist := jdata.GetArray("responseElements", "tagSpecificationSet", "items")
-		if jilist == nil || len(jilist) == 0 {
+		present, images, offset, length := getImageIds(jdata, true, 0)
+		if !present {
 			return false, "", 0, 0
 		}
-		item := jilist[0]
-		imageId = string(item.GetStringBytes("imageId"))
-		if imageId == "" {
-			return false, "", 0, 0
-		}
-		return true, imageId, 0, 0
+		return true, images[0], offset, length
 	case "ecr.repository":
 		fsval = jdata.Get("requestParameters", "repositoryName")
 	case "ecr.imagetag":
@@ -557,6 +592,15 @@ func getfieldStr(jdata *fastjson.Value, field string) (bool, string, int, int) {
 	}
 
 	return true, string(fsval.GetStringBytes()), fsval.Offset(), fsval.Len()
+}
+
+func getfieldStrList(jdata *fastjson.Value, field string, argPresent bool, argIndex int) (bool, []string, int, int) {
+	switch field {
+	case "ec2.imageids":
+		return getImageIds(jdata, argPresent, argIndex)
+	default:
+		return false, nil, 0, 0
+	}
 }
 
 func getvalueU64(jvalue *fastjson.Value) uint64 {
