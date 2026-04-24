@@ -243,7 +243,16 @@ func (p *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 	if req.FieldType() == sdk.FieldTypeUint64 {
 		present, value, offset, length = getfieldU64(p.jdata, req.Field())
 	} else {
-		present, value, offset, length = getfieldStr(p.jdata, req.Field())
+		if req.IsList() {
+			var argIndex *int
+			if req.ArgPresent() {
+				idx := int(req.ArgIndex())
+				argIndex = &idx
+			}
+			present, value, offset, length = getfieldStrList(p.jdata, req.Field(), argIndex)
+		} else {
+			present, value, offset, length = getfieldStr(p.jdata, req.Field())
+		}
 	}
 	if present {
 		req.SetValue(value)
