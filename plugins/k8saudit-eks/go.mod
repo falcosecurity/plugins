@@ -7,7 +7,7 @@ require (
 	github.com/falcosecurity/plugins/plugins/k8saudit v0.16.1
 	github.com/falcosecurity/plugins/shared/go/aws/cloudwatchlogs v0.0.0-20250617140945-5d23e77c8bbd
 	github.com/falcosecurity/plugins/shared/go/aws/config v0.0.0-20250617140945-5d23e77c8bbd
-	github.com/invopop/jsonschema v0.13.0
+	github.com/invopop/jsonschema v0.14.0
 )
 
 require (
@@ -29,12 +29,11 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sts v1.42.0 // indirect
 	github.com/aws/smithy-go v1.25.0 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
-	github.com/buger/jsonparser v1.1.1 // indirect
+	github.com/buger/jsonparser v1.1.2 // indirect
 	github.com/iancoleman/orderedmap v0.3.0 // indirect
-	github.com/mailru/easyjson v0.9.0 // indirect
+	github.com/pb33f/ordered-map/v2 v2.3.1 // indirect
 	github.com/valyala/fastjson v1.6.4 // indirect
-	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
+	go.yaml.in/yaml/v4 v4.0.0-rc.2 // indirect
 )
 
 replace (
