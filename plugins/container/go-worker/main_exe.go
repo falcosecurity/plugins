@@ -70,9 +70,10 @@ func main() {
 	fmt.Println("Starting worker")
 	cstr := C.CString(initCfg)
 	enabledSocks := C.CString("")
-	ptr := StartWorker((*[0]byte)(C.echo_cb), cstr, &enabledSocks)
+	errmsg := C.CString("")
+	ptr := StartWorker((*[0]byte)(C.echo_cb), cstr, &enabledSocks, &errmsg)
 	if ptr == nil {
-		fmt.Println("Failed to start worker; nothing configured?")
+		fmt.Println(fmt.Sprintf("Failed to start worker; nothing configured? %s", C.GoString(errmsg)))
 		os.Exit(1)
 	}
 	socks := C.GoString(enabledSocks)
