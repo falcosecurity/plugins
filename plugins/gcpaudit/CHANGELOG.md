@@ -2,6 +2,8 @@
 
 ## v0.8.0
 
+* [`6f94fc3`](https://github.com/falcosecurity/plugins/commit/6f94fc3) chore(plugins/gcpaudit): bump to `0.8.0`
+
 * [`c86c817`](https://github.com/falcosecurity/plugins/commit/c86c817) build(deps): bump google.golang.org/api in /plugins/gcpaudit
 
 * [`a6b58ac`](https://github.com/falcosecurity/plugins/commit/a6b58ac) build(deps): bump google.golang.org/api in /plugins/gcpaudit
@@ -31,6 +33,7 @@
 * [`114d685`](https://github.com/falcosecurity/plugins/commit/114d685) build(deps): bump google.golang.org/api in /plugins/gcpaudit
 
 * [`3143ce4`](https://github.com/falcosecurity/plugins/commit/3143ce4) build(deps): bump the gomod group across 2 directories with 2 updates
+
 
 ## v0.7.0
 

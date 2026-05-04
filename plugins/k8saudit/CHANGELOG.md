@@ -1,10 +1,32 @@
 # Changelog
 
+## v0.17.0
+
+* [`371d2cc`](https://github.com/falcosecurity/plugins/commit/371d2cc) chore(plugins/k8saudit): bump to v0.17.0
+
+* [`6fad65c`](https://github.com/falcosecurity/plugins/commit/6fad65c) fix(k8saudit): fix file watcher offset overshoot when last line lacks trailin...
+
+* [`eaa9f21`](https://github.com/falcosecurity/plugins/commit/eaa9f21) fix(k8saudit): improve error handling and test assertions for file watcher
+
+* [`8928816`](https://github.com/falcosecurity/plugins/commit/8928816) fix(k8saudit): restore truncation handling and relocate watch tests
+
+* [`698d035`](https://github.com/falcosecurity/plugins/commit/698d035) refactor(k8saudit): use event-driven file watching with fsnotify
+
+* [`ccce887`](https://github.com/falcosecurity/plugins/commit/ccce887) Update plugins/k8saudit/pkg/k8saudit/tail/tail_test.go
+
+* [`09aa945`](https://github.com/falcosecurity/plugins/commit/09aa945) docs(k8saudit): correct documentation for default file read
+
+* [`bc83005`](https://github.com/falcosecurity/plugins/commit/bc83005) docs(k8saudit): document tail:// file watching scheme
+
+* [`a3eded4`](https://github.com/falcosecurity/plugins/commit/a3eded4) feat(k8saudit): add file watching support via tail:// scheme
+
+
 ## v0.16.1
 
-* [`3b08092`](https://github.com/falcosecurity/plugins/commit/3b08092) chore(plugins/k8saudit): bump to v0.16.1
+* [`607928c`](https://github.com/falcosecurity/plugins/commit/607928c) chore(plugins/k8saudit): bump to v0.16.1
 
 * [`3a2616d`](https://github.com/falcosecurity/plugins/commit/3a2616d) fix(plugins/k8saudit): handle fastjson panic on large payloads
+
 
 ## v0.16.0
 

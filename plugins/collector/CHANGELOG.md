@@ -2,9 +2,12 @@
 
 ## v0.1.1
 
+* [`cae2ddf`](https://github.com/falcosecurity/plugins/commit/cae2ddf) chore(plugins/collector): bump to 0.1.1
+
 * [`3916d85`](https://github.com/falcosecurity/plugins/commit/3916d85) chore(plugins): bulk update to plugin-sdk-go to v0.8.3
 
 * [`909e234`](https://github.com/falcosecurity/plugins/commit/909e234) build(deps): bump github.com/falcosecurity/plugin-sdk-go
+
 
 ## v0.1.0
 
