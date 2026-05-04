@@ -1,6 +1,10 @@
 # Changelog
 
-## dev build (unreleased)
+## v0.5.0
+
+* [`70216f4`](https://github.com/falcosecurity/plugins/commit/70216f4) chore(plugins/k8saudit-ovh): bump version to `0.5.0`
+
+* [`d63ef62`](https://github.com/falcosecurity/plugins/commit/d63ef62) chore(plugins/k8saudit-ovh): bump `k8saudit` to `v0.17.0`
 
 * [`9d77db0`](https://github.com/falcosecurity/plugins/commit/9d77db0) chore(plugins/k8saudit-ovh): bump version to v0.4.1 and regenerate CHANGELOG
 
@@ -9,6 +13,7 @@
 * [`4047f74`](https://github.com/falcosecurity/plugins/commit/4047f74) build(deps): bump the gomod group across 5 directories with 7 updates
 
 * [`93b499c`](https://github.com/falcosecurity/plugins/commit/93b499c) fix(plugins/k8saudit): fix MaxEventSize config
+
 
 ## v0.4.0
 

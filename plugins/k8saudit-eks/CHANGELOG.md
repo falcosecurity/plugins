@@ -1,10 +1,26 @@
 # Changelog
 
+## v0.11.0
+
+* [`4366124`](https://github.com/falcosecurity/plugins/commit/4366124) chore(plugins/k8saudit-eks): bump version to `0.11.0`
+
+* [`3db6899`](https://github.com/falcosecurity/plugins/commit/3db6899) chore(plugins/k8saudit-eks): bump `k8saudit` to `v0.17.0`
+
+* [`b5c8e23`](https://github.com/falcosecurity/plugins/commit/b5c8e23) build(deps): bump the gomod group across 3 directories with 5 updates
+
+* [`0e3e335`](https://github.com/falcosecurity/plugins/commit/0e3e335) build(deps): bump github.com/invopop/jsonschema in /plugins/k8saudit-eks
+
+* [`009f791`](https://github.com/falcosecurity/plugins/commit/009f791) build(deps): bump the gomod group across 4 directories with 9 updates
+
+* [`3e6168e`](https://github.com/falcosecurity/plugins/commit/3e6168e) feat(shared/go/aws)!: replace `aws-sdk-go` with `aws-sdk-go-v2`
+
+
 ## v0.10.1
 
-* [`bd54720`](https://github.com/falcosecurity/plugins/commit/bd54720) chore(plugins/k8saudit-eks): bump to v0.10.1
+* [`2eb4ceb`](https://github.com/falcosecurity/plugins/commit/2eb4ceb) chore(plugins/k8saudit-eks): bump to v0.10.1
 
-* [`3231b92`](https://github.com/falcosecurity/plugins/commit/3231b92) fix(ci): use cosign v2 for legacy tag-based (.sig) signatures
+* [`db267a1`](https://github.com/falcosecurity/plugins/commit/db267a1) Added config max_event_size to allow larger eks audit logs
+
 
 ## v0.10.0
 

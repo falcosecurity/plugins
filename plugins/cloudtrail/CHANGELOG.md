@@ -1,12 +1,48 @@
 # Changelog
 
+## v0.17.0
+
+* [`1202e23`](https://github.com/falcosecurity/plugins/commit/1202e23) chore(plugins/cloudtrail): bump version to `0.17.0`
+
+* [`5d01545`](https://github.com/falcosecurity/plugins/commit/5d01545) refactor(plugins/cloudtrail): clean `imagesFromInstancesSet()`
+
+* [`60861ea`](https://github.com/falcosecurity/plugins/commit/60861ea) fix(plugins/cloudtrail): ec2.imageid empty for DeregisterImage, DescribeFastL...
+
+* [`a2cb5db`](https://github.com/falcosecurity/plugins/commit/a2cb5db) build(deps): bump the gomod group across 4 directories with 7 updates
+
+* [`b5c8e23`](https://github.com/falcosecurity/plugins/commit/b5c8e23) build(deps): bump the gomod group across 3 directories with 5 updates
+
+* [`c5ffe33`](https://github.com/falcosecurity/plugins/commit/c5ffe33) build(deps): bump github.com/invopop/jsonschema in /plugins/cloudtrail
+
+* [`009f791`](https://github.com/falcosecurity/plugins/commit/009f791) build(deps): bump the gomod group across 4 directories with 9 updates
+
+* [`333d2ed`](https://github.com/falcosecurity/plugins/commit/333d2ed) build(deps): bump the gomod group across 1 directory with 2 updates
+
+* [`e53ecc9`](https://github.com/falcosecurity/plugins/commit/e53ecc9) chore: complete parameters list for plugin config
+
+* [`0c71c74`](https://github.com/falcosecurity/plugins/commit/0c71c74) build(deps): bump the gomod group across 3 directories with 5 updates
+
+
 ## v0.16.0
 
-* [`3801c3d`](https://github.com/falcosecurity/plugins/commit/3801c3d) fix(plugins/cloudtrail): replace ct.user.sessionname with ct.originaluser
+* [`78e3a89`](https://github.com/falcosecurity/plugins/commit/78e3a89) fix(plugins/cloudtrail): replace ct.user.sessionname with ct.originaluser
 
-* [`35c7538`](https://github.com/falcosecurity/plugins/commit/35c7538) fix(plugins/cloudtrail): restore role name for ct.user on AssumedRole events
+* [`07a9f40`](https://github.com/falcosecurity/plugins/commit/07a9f40) fix(plugins/cloudtrail): restore role name for ct.user on AssumedRole events
+
+* [`8608166`](https://github.com/falcosecurity/plugins/commit/8608166) fix(plugins/cloudtrail): prevent panics during sqs message parsing
+
+* [`26a31ea`](https://github.com/falcosecurity/plugins/commit/26a31ea) chore(plugins/cloudtrail): fix formatting of source.go
+
+* [`2f0a3bf`](https://github.com/falcosecurity/plugins/commit/2f0a3bf) fix(plugins/cloudtrail): preserve records when strings contain braces
+
+* [`abbb4dd`](https://github.com/falcosecurity/plugins/commit/abbb4dd) build(deps): bump the gomod group across 1 directory with 5 updates
+
+* [`4e32a94`](https://github.com/falcosecurity/plugins/commit/4e32a94) build(deps): bump the gomod group across 2 directories with 5 updates
+
+* [`8b3fabe`](https://github.com/falcosecurity/plugins/commit/8b3fabe) build(deps): bump github.com/aws/aws-lambda-go in /plugins/cloudtrail
 
 * [`4047f74`](https://github.com/falcosecurity/plugins/commit/4047f74) build(deps): bump the gomod group across 5 directories with 7 updates
+
 
 ## v0.15.0
 

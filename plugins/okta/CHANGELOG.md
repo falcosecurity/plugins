@@ -1,6 +1,6 @@
 # Changelog
 
-## dev build (unreleased)
+## v0.12.0
 
 * [`24ebf63`](https://github.com/falcosecurity/plugins/commit/24ebf63) feat(plugins/okta): refactor okta.target.displayName to okta.targets.displayN...
 
@@ -17,6 +17,7 @@
 * [`103b5b2`](https://github.com/falcosecurity/plugins/commit/103b5b2) update(build,plugins): bump plugin-sdk-go to 0.7.5.
 
 * [`8094fa3`](https://github.com/falcosecurity/plugins/commit/8094fa3) chore(plugins): bulk go mod tidy
+
 
 ## v0.11.1
 
