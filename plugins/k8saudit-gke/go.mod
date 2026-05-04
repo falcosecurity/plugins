@@ -6,7 +6,7 @@ require (
 	cloud.google.com/go/pubsub v1.50.2
 	github.com/alecthomas/jsonschema v0.0.0-20220216202328-9eeeec9d044b
 	github.com/falcosecurity/plugin-sdk-go v0.8.3
-	github.com/falcosecurity/plugins/plugins/k8saudit v0.16.1
+	github.com/falcosecurity/plugins/plugins/k8saudit v0.17.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	google.golang.org/api v0.276.0
 	k8s.io/api v0.35.4
@@ -19,6 +19,7 @@ require (
 	cloud.google.com/go/longrunning v0.9.0 // indirect
 	cloud.google.com/go/pubsub/v2 v2.4.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
