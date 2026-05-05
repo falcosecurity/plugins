@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.11.5
+
+* [`ddd8205`](https://github.com/falcosecurity/plugins/commit/ddd8205) chore(plugins/dummy): bump version to `0.11.5`
+
+* [`3916d85`](https://github.com/falcosecurity/plugins/commit/3916d85) chore(plugins): bulk update to plugin-sdk-go to v0.8.3
+
+* [`8f0129b`](https://github.com/falcosecurity/plugins/commit/8f0129b) build(deps): bump github.com/falcosecurity/plugin-sdk-go
+
+* [`103b5b2`](https://github.com/falcosecurity/plugins/commit/103b5b2) update(build,plugins): bump plugin-sdk-go to 0.7.5.
+
+* [`8094fa3`](https://github.com/falcosecurity/plugins/commit/8094fa3) chore(plugins): bulk go mod tidy
+
+
 ## v0.11.4
 
 * [`e99e98c`](https://github.com/falcosecurity/plugins/commit/e99e98c) update(plugins/dummy): upgrade sdk and deps

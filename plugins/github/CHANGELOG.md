@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.10.1
+
+* [`24389a4`](https://github.com/falcosecurity/plugins/commit/24389a4) chore(plugins/github): bump version to `0.10.1`
+
+* [`9d54407`](https://github.com/falcosecurity/plugins/commit/9d54407) build(deps): bump golang.org/x/oauth2 in /plugins/github
+
+* [`80ec627`](https://github.com/falcosecurity/plugins/commit/80ec627) build(deps): bump the gomod group across 3 directories with 7 updates
+
+* [`c40bc6e`](https://github.com/falcosecurity/plugins/commit/c40bc6e) build(deps): bump golang.org/x/oauth2 in /plugins/github
+
+* [`1d0295a`](https://github.com/falcosecurity/plugins/commit/1d0295a) chore: update docs
+
+
 ## v0.10.0
 
 * [`63cbb78`](https://github.com/falcosecurity/plugins/commit/63cbb78) chore(github): bump version to 0.10.0

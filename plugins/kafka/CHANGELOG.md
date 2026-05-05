@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.1.6
+
+* [`30ea81d`](https://github.com/falcosecurity/plugins/commit/30ea81d) chore(plugins/kafka): bump version to `0.1.6`
+
+* [`b5c8e23`](https://github.com/falcosecurity/plugins/commit/b5c8e23) build(deps): bump the gomod group across 3 directories with 5 updates
+
+* [`f671635`](https://github.com/falcosecurity/plugins/commit/f671635) build(deps): bump github.com/testcontainers/testcontainers-go/modules/kafka
+
+* [`12bcf35`](https://github.com/falcosecurity/plugins/commit/12bcf35) build(deps): bump github.com/testcontainers/testcontainers-go/modules/kafka
+
+* [`fc52dde`](https://github.com/falcosecurity/plugins/commit/fc52dde) build(deps): bump github.com/testcontainers/testcontainers-go
+
+* [`4c1407a`](https://github.com/falcosecurity/plugins/commit/4c1407a) build(deps): bump the gomod group across 3 directories with 3 updates
+
+* [`21f3748`](https://github.com/falcosecurity/plugins/commit/21f3748) build(deps): bump the gomod group across 4 directories with 9 updates
+
+* [`4ff523e`](https://github.com/falcosecurity/plugins/commit/4ff523e) build(deps): bump github.com/testcontainers/testcontainers-go/modules/kafka
+
+* [`3784b35`](https://github.com/falcosecurity/plugins/commit/3784b35) build(deps): bump github.com/testcontainers/testcontainers-go
+
+* [`285071a`](https://github.com/falcosecurity/plugins/commit/285071a) build(deps): bump golang.org/x/crypto in /plugins/kafka
+
+* [`3143ce4`](https://github.com/falcosecurity/plugins/commit/3143ce4) build(deps): bump the gomod group across 2 directories with 2 updates
+
+
 ## v0.1.5
 
 * [`3dea286`](https://github.com/falcosecurity/plugins/commit/3dea286) update(plugins/kafka): bump to v0.1.5

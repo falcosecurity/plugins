@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.8.1
+
+* [`984afe8`](https://github.com/falcosecurity/plugins/commit/984afe8) chore(plugins/gcpaudit): bump version to `0.8.1`
+
+* [`ed26368`](https://github.com/falcosecurity/plugins/commit/ed26368) build(deps): bump google.golang.org/api in /plugins/gcpaudit
+
+* [`03fd984`](https://github.com/falcosecurity/plugins/commit/03fd984) build(deps): bump google.golang.org/api in /plugins/gcpaudit
+
+* [`f4e4853`](https://github.com/falcosecurity/plugins/commit/f4e4853) build(deps): bump google.golang.org/api in /plugins/gcpaudit
+
+* [`59849fb`](https://github.com/falcosecurity/plugins/commit/59849fb) build(deps): bump google.golang.org/api in /plugins/gcpaudit
+
+* [`0c71c74`](https://github.com/falcosecurity/plugins/commit/0c71c74) build(deps): bump the gomod group across 3 directories with 5 updates
+
+* [`b9b55a5`](https://github.com/falcosecurity/plugins/commit/b9b55a5) build(deps): bump google.golang.org/api in /plugins/gcpaudit
+
+* [`8c25314`](https://github.com/falcosecurity/plugins/commit/8c25314) build(deps): bump google.golang.org/api in /plugins/gcpaudit
+
+* [`2ff89c1`](https://github.com/falcosecurity/plugins/commit/2ff89c1) build(deps): bump google.golang.org/grpc in /plugins/gcpaudit
+
+* [`06ea5a9`](https://github.com/falcosecurity/plugins/commit/06ea5a9) build(deps): bump google.golang.org/api in /plugins/gcpaudit
+
+
 ## v0.8.0
 
 * [`6f94fc3`](https://github.com/falcosecurity/plugins/commit/6f94fc3) chore(plugins/gcpaudit): bump to `0.8.0`
