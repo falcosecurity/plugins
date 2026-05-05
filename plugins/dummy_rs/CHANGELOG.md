@@ -1,5 +1,46 @@
 # Changelog
 
+## v0.1.2
+
+* [`1319779`](https://github.com/falcosecurity/plugins/commit/1319779) chore(plugins/dummy_rs): bump version to `0.1.2`
+
+* [`21e21e2`](https://github.com/falcosecurity/plugins/commit/21e21e2) build(deps): bump the cargo group across 1 directory with 3 updates
+
+* [`a1b97a1`](https://github.com/falcosecurity/plugins/commit/a1b97a1) build(deps): bump falco_plugin from 0.4.3 to 0.5.1 in /plugins/dummy_rs
+
+* [`4b0f799`](https://github.com/falcosecurity/plugins/commit/4b0f799) build(deps): bump rand from 0.9.2 to 0.10.1 in /plugins/dummy_rs
+
+* [`a213817`](https://github.com/falcosecurity/plugins/commit/a213817) build(deps): bump the cargo group across 1 directory with 3 updates
+
+* [`8ca0786`](https://github.com/falcosecurity/plugins/commit/8ca0786) build(deps): bump the cargo group across 1 directory with 3 updates
+
+* [`5e5cd03`](https://github.com/falcosecurity/plugins/commit/5e5cd03) build(deps): bump the cargo group across 1 directory with 3 updates
+
+* [`f23b687`](https://github.com/falcosecurity/plugins/commit/f23b687) build(deps): bump the cargo group across 1 directory with 3 updates
+
+* [`54e6ebc`](https://github.com/falcosecurity/plugins/commit/54e6ebc) build(deps): bump cc
+
+* [`2418593`](https://github.com/falcosecurity/plugins/commit/2418593) build(deps): bump the cargo group across 1 directory with 5 updates
+
+* [`15c5def`](https://github.com/falcosecurity/plugins/commit/15c5def) build(deps): bump the cargo group across 1 directory with 2 updates
+
+* [`5e337f0`](https://github.com/falcosecurity/plugins/commit/5e337f0) build(deps): bump anyhow
+
+* [`e31beb9`](https://github.com/falcosecurity/plugins/commit/e31beb9) build(deps): bump the cargo group across 1 directory with 4 updates
+
+* [`f8dd76f`](https://github.com/falcosecurity/plugins/commit/f8dd76f) build(deps): bump the cargo group across 1 directory with 4 updates
+
+* [`a833136`](https://github.com/falcosecurity/plugins/commit/a833136) build(deps): bump the cargo group across 1 directory with 3 updates
+
+* [`8a2b5eb`](https://github.com/falcosecurity/plugins/commit/8a2b5eb) build(deps): bump the cargo group across 2 directories with 10 updates
+
+* [`97ba122`](https://github.com/falcosecurity/plugins/commit/97ba122) build(deps): bump cc
+
+* [`e0b611e`](https://github.com/falcosecurity/plugins/commit/e0b611e) build(deps): bump cc
+
+* [`e7d8524`](https://github.com/falcosecurity/plugins/commit/e7d8524) build(deps): bump the cargo group across 1 directory with 7 updates
+
+
 ## v0.1.1
 
 * [`55c41ad`](https://github.com/falcosecurity/plugins/commit/55c41ad) update(plugins/dummy_rs): bump to v0.1.1

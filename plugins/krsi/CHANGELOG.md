@@ -1,5 +1,146 @@
 # Changelog
 
+## v0.2.0
+
+* [`c1ac9ce`](https://github.com/falcosecurity/plugins/commit/c1ac9ce) chore(plugins/krsi): bump version to `0.2.0`
+
+* [`21e21e2`](https://github.com/falcosecurity/plugins/commit/21e21e2) build(deps): bump the cargo group across 1 directory with 3 updates
+
+* [`aca6f30`](https://github.com/falcosecurity/plugins/commit/aca6f30) build(deps): bump the cargo group across 1 directory with 2 updates
+
+* [`4399627`](https://github.com/falcosecurity/plugins/commit/4399627) build(deps): bump falco_plugin from 0.4.3 to 0.5.1 in /plugins/krsi
+
+* [`a213817`](https://github.com/falcosecurity/plugins/commit/a213817) build(deps): bump the cargo group across 1 directory with 3 updates
+
+* [`8ca0786`](https://github.com/falcosecurity/plugins/commit/8ca0786) build(deps): bump the cargo group across 1 directory with 3 updates
+
+* [`5e5cd03`](https://github.com/falcosecurity/plugins/commit/5e5cd03) build(deps): bump the cargo group across 1 directory with 3 updates
+
+* [`7e5c0ef`](https://github.com/falcosecurity/plugins/commit/7e5c0ef) fix(plugins/krsi): fix non-UTF8 unix socket paths handling
+
+* [`f23b687`](https://github.com/falcosecurity/plugins/commit/f23b687) build(deps): bump the cargo group across 1 directory with 3 updates
+
+* [`54e6ebc`](https://github.com/falcosecurity/plugins/commit/54e6ebc) build(deps): bump cc
+
+* [`2418593`](https://github.com/falcosecurity/plugins/commit/2418593) build(deps): bump the cargo group across 1 directory with 5 updates
+
+* [`15c5def`](https://github.com/falcosecurity/plugins/commit/15c5def) build(deps): bump the cargo group across 1 directory with 2 updates
+
+* [`23eadba`](https://github.com/falcosecurity/plugins/commit/23eadba) fix(krsi): enable real-sys feature for which 8.0.0
+
+* [`0fecf93`](https://github.com/falcosecurity/plugins/commit/0fecf93) build(deps): bump which from 6.0.3 to 8.0.0 in /plugins/krsi
+
+* [`5e337f0`](https://github.com/falcosecurity/plugins/commit/5e337f0) build(deps): bump anyhow
+
+* [`e31beb9`](https://github.com/falcosecurity/plugins/commit/e31beb9) build(deps): bump the cargo group across 1 directory with 4 updates
+
+* [`f8dd76f`](https://github.com/falcosecurity/plugins/commit/f8dd76f) build(deps): bump the cargo group across 1 directory with 4 updates
+
+* [`cb56e66`](https://github.com/falcosecurity/plugins/commit/cb56e66) build(deps): bump bytes from 1.10.1 to 1.11.1 in /plugins/krsi
+
+* [`a833136`](https://github.com/falcosecurity/plugins/commit/a833136) build(deps): bump the cargo group across 1 directory with 3 updates
+
+* [`8a2b5eb`](https://github.com/falcosecurity/plugins/commit/8a2b5eb) build(deps): bump the cargo group across 2 directories with 10 updates
+
+* [`97ba122`](https://github.com/falcosecurity/plugins/commit/97ba122) build(deps): bump cc
+
+* [`e0b611e`](https://github.com/falcosecurity/plugins/commit/e0b611e) build(deps): bump cc
+
+* [`bbb1e95`](https://github.com/falcosecurity/plugins/commit/bbb1e95) build(deps): bump cargo_metadata from 0.22.0 to 0.23.0 in /plugins/krsi
+
+* [`e7d8524`](https://github.com/falcosecurity/plugins/commit/e7d8524) build(deps): bump the cargo group across 1 directory with 7 updates
+
+* [`ec984e6`](https://github.com/falcosecurity/plugins/commit/ec984e6) build(deps): bump the cargo group across 1 directory with 3 updates
+
+* [`ab18c10`](https://github.com/falcosecurity/plugins/commit/ab18c10) build(deps): bump the cargo group across 2 directories with 3 updates
+
+* [`2fb60da`](https://github.com/falcosecurity/plugins/commit/2fb60da) build(deps): bump the cargo group across 2 directories with 6 updates
+
+* [`c7e7cb4`](https://github.com/falcosecurity/plugins/commit/c7e7cb4) build(deps): bump the cargo group across 2 directories with 5 updates
+
+* [`c0b419d`](https://github.com/falcosecurity/plugins/commit/c0b419d) build(deps): bump the cargo group across 2 directories with 5 updates
+
+* [`ef13f88`](https://github.com/falcosecurity/plugins/commit/ef13f88) build(deps): bump slab from 0.4.10 to 0.4.11 in /plugins/krsi
+
+* [`ee25fef`](https://github.com/falcosecurity/plugins/commit/ee25fef) build(deps): bump the cargo group across 2 directories with 4 updates
+
+* [`a76335d`](https://github.com/falcosecurity/plugins/commit/a76335d) build(deps): bump the cargo group across 2 directories with 4 updates
+
+* [`b71146b`](https://github.com/falcosecurity/plugins/commit/b71146b) docs: add `ekoops` as maintainer
+
+* [`de22042`](https://github.com/falcosecurity/plugins/commit/de22042) build(deps): bump cargo_metadata
+
+* [`847bcaf`](https://github.com/falcosecurity/plugins/commit/847bcaf) build(deps): bump the cargo group across 2 directories with 2 updates
+
+* [`89bfe52`](https://github.com/falcosecurity/plugins/commit/89bfe52) build(deps): bump the cargo group across 2 directories with 3 updates
+
+* [`5ff53a6`](https://github.com/falcosecurity/plugins/commit/5ff53a6) build(deps): bump the cargo group across 2 directories with 4 updates
+
+* [`77e6472`](https://github.com/falcosecurity/plugins/commit/77e6472) build(deps): bump the cargo group across 2 directories with 2 updates
+
+* [`8d44358`](https://github.com/falcosecurity/plugins/commit/8d44358) build(plugins/krsi): bump `cargo_metadata` from 0.19.0 to 0.20.0
+
+* [`8c3cbb2`](https://github.com/falcosecurity/plugins/commit/8c3cbb2) build(deps): bump the cargo group across 2 directories with 2 updates
+
+* [`d4e8eb2`](https://github.com/falcosecurity/plugins/commit/d4e8eb2) feat(plugins/krsi): add initial `renameat` parsing/extraction support
+
+* [`9fd1d28`](https://github.com/falcosecurity/plugins/commit/9fd1d28) refactor(plugins/krsi): remove redundant parts and rephrase README.md
+
+* [`56ec9a8`](https://github.com/falcosecurity/plugins/commit/56ec9a8) refactor(plugins/krsi): rename example file as `example_rules.yaml`
+
+* [`c358225`](https://github.com/falcosecurity/plugins/commit/c358225) refactor(plugins/krsi/krsi): split event parsing into dedicated funcs
+
+* [`b56ce0a`](https://github.com/falcosecurity/plugins/commit/b56ce0a) refactor(plugins/krsi/krsi): fix extracted field desc formatting
+
+* [`f697f53`](https://github.com/falcosecurity/plugins/commit/f697f53) refactor(plugins/krsi/krsi-ebpf): use slices in `auxbuf` code
+
+* [`afb97f6`](https://github.com/falcosecurity/plugins/commit/afb97f6) refactor(plugins/krsi/krsi-ebpf): avoid `auxbuf` repetition in paths
+
+* [`dd775b5`](https://github.com/falcosecurity/plugins/commit/dd775b5) build(deps): bump the cargo group across 2 directories with 4 updates
+
+* [`400cdcb`](https://github.com/falcosecurity/plugins/commit/400cdcb) fix(plugins/krsi): properly handle `auxbuf` writing errors
+
+* [`53ba10d`](https://github.com/falcosecurity/plugins/commit/53ba10d) refactor(plugins/krsi): remove `auxbuf` unsafe code using `zerocopy`
+
+* [`994245a`](https://github.com/falcosecurity/plugins/commit/994245a) build(deps): bump the cargo group across 2 directories with 2 updates
+
+* [`bacfc08`](https://github.com/falcosecurity/plugins/commit/bacfc08) refactor(plugins/krsi/krsi-ebpf): move extraction logic out of auxbuf
+
+* [`3f35135`](https://github.com/falcosecurity/plugins/commit/3f35135) refactor(plugins/krsi/krsi-ebpf): reorder `auxbuf` module code
+
+* [`379f998`](https://github.com/falcosecurity/plugins/commit/379f998) refactor(plugins/krsi/krsi-ebpf): remove auxbuf dep on shared_state
+
+* [`40ffcae`](https://github.com/falcosecurity/plugins/commit/40ffcae) refactor(plugins/krsi/krsi-ebpf): introduce auxbuf writer abstraction
+
+* [`730e3fc`](https://github.com/falcosecurity/plugins/commit/730e3fc) refactor(plugins/krsi/krsi-ebpf): remove auxbuf dep on ringbuf
+
+* [`c5f5270`](https://github.com/falcosecurity/plugins/commit/c5f5270) refactor(plugins/krsi/krsi-ebpf): change auxbuf internal naming conv
+
+* [`3a4c46a`](https://github.com/falcosecurity/plugins/commit/3a4c46a) refactor(plugins/krsi/krsi-ebpf): rename `auxmap` to `auxbuf`
+
+* [`54c8287`](https://github.com/falcosecurity/plugins/commit/54c8287) fix(plugins/krsi): use safe ring buffer events parsing logic
+
+* [`2e7dff5`](https://github.com/falcosecurity/plugins/commit/2e7dff5) refactor(plugins/krsi/krsi): use macros for field extraction
+
+* [`3b14447`](https://github.com/falcosecurity/plugins/commit/3b14447) fix(plugins/krsi/krsi-ebpf): send only interesting payload
+
+* [`75e6c2d`](https://github.com/falcosecurity/plugins/commit/75e6c2d) build(deps): bump the cargo group across 2 directories with 7 updates
+
+* [`e53b45e`](https://github.com/falcosecurity/plugins/commit/e53b45e) docs(plugins/krsi): add `ekoops` as maintainer
+
+* [`f91ed60`](https://github.com/falcosecurity/plugins/commit/f91ed60) feat(plugins/krsi): add `protocol` field extraction support
+
+* [`199b754`](https://github.com/falcosecurity/plugins/commit/199b754) perf(plugins/krsi/krsi-ebpf): improve memory mgt by sharing state map
+
+* [`f85ec1b`](https://github.com/falcosecurity/plugins/commit/f85ec1b) refactor(krsi-ebpf): rename `shared_maps` to `shared_state`
+
+* [`212bb3b`](https://github.com/falcosecurity/plugins/commit/212bb3b) chore: add `pre-commit` hooks for enforcing coding style and policies
+
+* [`ae39190`](https://github.com/falcosecurity/plugins/commit/ae39190) build(deps): bump tokio from 1.44.0 to 1.44.2 in /plugins/krsi
+
+* [`eb34920`](https://github.com/falcosecurity/plugins/commit/eb34920) doc: add support for `krsi` plugin field extraction doc auto-gen
+
+
 ## v0.1.0
 
 * [`28618ac`](https://github.com/falcosecurity/plugins/commit/28618ac) fix(plugins/krsi): fix plugin version

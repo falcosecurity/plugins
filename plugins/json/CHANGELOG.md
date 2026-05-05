@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.7.4
+
+* [`fbbf010`](https://github.com/falcosecurity/plugins/commit/fbbf010) chore(plugins/json): bump version to `0.7.4`
+
+* [`80ec627`](https://github.com/falcosecurity/plugins/commit/80ec627) build(deps): bump the gomod group across 3 directories with 7 updates
+
+* [`21f3748`](https://github.com/falcosecurity/plugins/commit/21f3748) build(deps): bump the gomod group across 4 directories with 9 updates
+
+* [`3916d85`](https://github.com/falcosecurity/plugins/commit/3916d85) chore(plugins): bulk update to plugin-sdk-go to v0.8.3
+
+* [`b909159`](https://github.com/falcosecurity/plugins/commit/b909159) build(deps): bump github.com/falcosecurity/plugin-sdk-go
+
+* [`103b5b2`](https://github.com/falcosecurity/plugins/commit/103b5b2) update(build,plugins): bump plugin-sdk-go to 0.7.5.
+
+* [`8094fa3`](https://github.com/falcosecurity/plugins/commit/8094fa3) chore(plugins): bulk go mod tidy
+
+
 ## v0.7.3
 
 * [`85f956a`](https://github.com/falcosecurity/plugins/commit/85f956a) update(plugins/json): upgrade sdk and deps
