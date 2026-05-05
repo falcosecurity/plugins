@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /*
-Copyright (C) 2025 The Falco Authors.
+Copyright (C) 2026 The Falco Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -129,7 +129,7 @@ pub struct Config {
 /// Plugin metadata
 impl Plugin for KrsiPlugin {
     const NAME: &'static CStr = c"krsi";
-    const PLUGIN_VERSION: &'static CStr = c"0.1.0";
+    const PLUGIN_VERSION: &'static CStr = c"0.2.0";
     const DESCRIPTION: &'static CStr = c"Falco support for Kernel Runtime Security Instrumentation";
     const CONTACT: &'static CStr = c"https://falco.org";
     type ConfigType = Json<Config>;
