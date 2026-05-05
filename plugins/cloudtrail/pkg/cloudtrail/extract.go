@@ -262,37 +262,40 @@ func getEvtInfo(jdata *fastjson.Value) string {
 
 func imagesFromInstancesSet(fsval *fastjson.Value, argIndex *int) (bool, []string, int, int) {
 	jilist, _ := fsval.Array()
-	var images []string
-	if argIndex != nil {
-		if *argIndex >= 0 && *argIndex < len(jilist) {
-			idval := jilist[*argIndex].Get("imageId")
-			if idval == nil {
-				return false, []string{}, 0, 0
+	if argIndex == nil {
+		// No index provided. Collect all image IDs.
+		imageIDs := make([]string, 0, len(jilist))
+		for _, item := range jilist {
+			if imageID := string(item.GetStringBytes("imageId")); imageID != "" {
+				imageIDs = append(imageIDs, imageID)
 			}
-			return true, []string{string(idval.GetStringBytes())}, idval.Offset(), idval.Len()
 		}
-		return false, []string{}, 0, 0
+		return len(imageIDs) != 0, imageIDs, 0, 0
 	}
-	for _, item := range jilist {
-		if id := string(item.GetStringBytes("imageId")); id != "" {
-			images = append(images, id)
-		}
+
+	// Check that index is within boundaries.
+	idx := *argIndex
+	if idx < 0 || idx >= len(jilist) {
+		return false, nil, 0, 0
 	}
-	if len(images) == 0 {
-		return false, []string{}, 0, 0
+
+	// Extract image ID at specified index.
+	imageIDVal := jilist[idx].Get("imageId")
+	if imageIDVal == nil {
+		return false, nil, 0, 0
 	}
-	return true, images, 0, 0
+	return true, []string{string(imageIDVal.GetStringBytes())}, imageIDVal.Offset(), imageIDVal.Len()
 }
 
 func getImageIds(jdata *fastjson.Value, argIndex *int) (bool, []string, int, int) {
-	//Handle extraction from arrays
+	// Handle extraction from arrays.
 	if fsval := jdata.Get("responseElements", "instancesSet", "items"); fsval != nil {
 		return imagesFromInstancesSet(fsval, argIndex)
 	}
 
-	//Handle extraction from scalar values - only 0 is supported as argument
+	// Handle extraction from scalar values - only 0 is supported as argument.
 	if argIndex != nil && *argIndex != 0 {
-		return false, []string{}, 0, 0
+		return false, nil, 0, 0
 	}
 	if fsval := jdata.Get("requestParameters", "imageId"); fsval != nil {
 		return true, []string{string(fsval.GetStringBytes())}, fsval.Offset(), fsval.Len()
@@ -300,7 +303,7 @@ func getImageIds(jdata *fastjson.Value, argIndex *int) (bool, []string, int, int
 	if fsval := jdata.Get("requestParameters", "DescribeFastLaunchImagesRequest", "ImageId", "content"); fsval != nil {
 		return true, []string{string(fsval.GetStringBytes())}, fsval.Offset(), fsval.Len()
 	}
-	return false, []string{}, 0, 0
+	return false, nil, 0, 0
 }
 
 func getfieldStr(jdata *fastjson.Value, field string) (bool, string, int, int) {
