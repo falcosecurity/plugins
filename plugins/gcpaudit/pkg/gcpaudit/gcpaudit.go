@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /*
-Copyright (C) 2023 The Falco Authors.
+Copyright (C) 2026 The Falco Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@ const (
 	PluginName               = "gcpaudit"
 	PluginDescription        = "Read GCP Audit Logs"
 	PluginContact            = "github.com/falcosecurity/plugins"
-	PluginVersion            = "0.8.0"
+	PluginVersion            = "0.8.1"
 	PluginEventSource        = "gcp_auditlog"
 )
 
