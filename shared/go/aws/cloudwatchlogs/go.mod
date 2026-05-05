@@ -3,7 +3,7 @@ module github.com/falcosecurity/plugins/shared/go/aws/cloudwatchlogs
 go 1.25.5
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.41.6
+	github.com/aws/aws-sdk-go-v2 v1.41.7
 	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.68.0
 )
 
