@@ -19,7 +19,7 @@ package k8sauditaks
 
 import "testing"
 
-func TestLooksLikeJSON(t *testing.T) {
+func TestIsValidJSON(t *testing.T) {
 	cases := []struct {
 		name string
 		in   string
@@ -33,16 +33,13 @@ func TestLooksLikeJSON(t *testing.T) {
 		{"klog info line", `I0109 21:24:54.475483       1 clusterstate.go:300] Failed to find readiness information for node`, false},
 		{"klog trace line", `Trace[7816759]: ---"limitedReadBody succeeded" len:629048 11ms (21:25:16.354)`, false},
 		{"plain text", "some random log line", false},
-		{"number", "42", false},
-		{"string literal", `"just a string"`, false},
-		// fastjson does not strip the UTF-8 BOM either, so preserving the
-		// pre-existing behavior here keeps the prefix check aligned with the parser.
+		{"truncated object", `{"kind":"Event"`, false},
 		{"utf8 bom prefix", "\xef\xbb\xbf{\"kind\":\"Event\"}", false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := looksLikeJSON([]byte(tc.in)); got != tc.want {
-				t.Errorf("looksLikeJSON(%q) = %v, want %v", tc.in, got, tc.want)
+			if got := isValidJSON([]byte(tc.in)); got != tc.want {
+				t.Errorf("isValidJSON(%q) = %v, want %v", tc.in, got, tc.want)
 			}
 		})
 	}

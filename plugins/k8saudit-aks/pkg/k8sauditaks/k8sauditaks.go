@@ -18,7 +18,6 @@ limitations under the License.
 package k8sauditaks
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"log"
@@ -35,6 +34,7 @@ import (
 	"github.com/falcosecurity/plugins/plugins/k8saudit/pkg/k8saudit"
 	falcoeventhub "github.com/falcosecurity/plugins/shared/go/azure/eventhub"
 	"github.com/invopop/jsonschema"
+	"github.com/valyala/fastjson"
 	"golang.org/x/time/rate"
 )
 
@@ -43,15 +43,12 @@ const regExpAuditID = `"auditID":[ a-z0-9-"]+`
 
 var regExpCAuditID *regexp.Regexp
 
-// looksLikeJSON reports whether b begins with `{` or `[` after leading
-// whitespace. Used to skip non-audit records (e.g., klog text from
-// kube-apiserver or cluster-autoscaler diagnostic categories).
-func looksLikeJSON(b []byte) bool {
-	t := bytes.TrimSpace(b)
-	if len(t) == 0 {
-		return false
-	}
-	return t[0] == '{' || t[0] == '['
+// isValidJSON reports whether b is a valid JSON document. Used to skip
+// non-audit records (e.g., klog text from kube-apiserver or
+// cluster-autoscaler diagnostic categories) before feeding them to the
+// audit event parser, which would otherwise log noisy parse errors.
+func isValidJSON(b []byte) bool {
+	return fastjson.ValidateBytes(b) == nil
 }
 
 type Plugin struct {
@@ -215,7 +212,7 @@ func (p *Plugin) Open(_ string) (source.Instance, error) {
 				// properties.log instead of a JSON audit event. Skip them silently
 				// rather than spamming "cannot parse JSON" errors. See issue #1145.
 				logBytes := []byte(i.Properties.Log)
-				if !looksLikeJSON(logBytes) {
+				if !isValidJSON(logBytes) {
 					continue
 				}
 				values, err := p.Plugin.ParseAuditEventsPayload(logBytes)
