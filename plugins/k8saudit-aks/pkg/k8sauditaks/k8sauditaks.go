@@ -18,6 +18,7 @@ limitations under the License.
 package k8sauditaks
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"log"
@@ -41,6 +42,17 @@ const pluginName = "k8saudit-aks"
 const regExpAuditID = `"auditID":[ a-z0-9-"]+`
 
 var regExpCAuditID *regexp.Regexp
+
+// looksLikeJSON reports whether b begins with `{` or `[` after leading
+// whitespace. Used to skip non-audit records (e.g., klog text from
+// kube-apiserver or cluster-autoscaler diagnostic categories).
+func looksLikeJSON(b []byte) bool {
+	t := bytes.TrimSpace(b)
+	if len(t) == 0 {
+		return false
+	}
+	return t[0] == '{' || t[0] == '['
+}
 
 type Plugin struct {
 	k8saudit.Plugin
@@ -197,7 +209,16 @@ func (p *Plugin) Open(_ string) (source.Instance, error) {
 				if !ok {
 					return
 				}
-				values, err := p.Plugin.ParseAuditEventsPayload([]byte(i.Properties.Log))
+				// AKS diagnostic settings can route categories other than
+				// `kube-audit` to the same EventHub (kube-apiserver, kube-controller-manager,
+				// cluster-autoscaler, etc.). Those records carry klog text in
+				// properties.log instead of a JSON audit event. Skip them silently
+				// rather than spamming "cannot parse JSON" errors. See issue #1145.
+				logBytes := []byte(i.Properties.Log)
+				if !looksLikeJSON(logBytes) {
+					continue
+				}
+				values, err := p.Plugin.ParseAuditEventsPayload(logBytes)
 				if err != nil {
 					p.Logger.Println(err)
 					continue
