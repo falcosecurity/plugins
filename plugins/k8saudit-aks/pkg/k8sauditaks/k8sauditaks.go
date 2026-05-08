@@ -43,14 +43,6 @@ const regExpAuditID = `"auditID":[ a-z0-9-"]+`
 
 var regExpCAuditID *regexp.Regexp
 
-// isValidJSON reports whether b is a valid JSON document. Used to skip
-// non-audit records (e.g., klog text from kube-apiserver or
-// cluster-autoscaler diagnostic categories) before feeding them to the
-// audit event parser, which would otherwise log noisy parse errors.
-func isValidJSON(b []byte) bool {
-	return fastjson.ValidateBytes(b) == nil
-}
-
 type Plugin struct {
 	k8saudit.Plugin
 	Logger *log.Logger
@@ -209,10 +201,10 @@ func (p *Plugin) Open(_ string) (source.Instance, error) {
 				// AKS diagnostic settings can route categories other than
 				// `kube-audit` to the same EventHub (kube-apiserver, kube-controller-manager,
 				// cluster-autoscaler, etc.). Those records carry klog text in
-				// properties.log instead of a JSON audit event. Skip them silently
-				// rather than spamming "cannot parse JSON" errors. See issue #1145.
+				// properties.log instead of a JSON audit event. Pre-validate so
+				// the parser does not spam "cannot parse JSON" errors. See issue #1145.
 				logBytes := []byte(i.Properties.Log)
-				if !isValidJSON(logBytes) {
+				if fastjson.ValidateBytes(logBytes) != nil {
 					continue
 				}
 				values, err := p.Plugin.ParseAuditEventsPayload(logBytes)
