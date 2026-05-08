@@ -41,7 +41,7 @@ pub struct CloudTrailPlugin {
 
 impl Plugin for CloudTrailPlugin {
     const NAME: &'static CStr = c"cloudtrail";
-    const PLUGIN_VERSION: &'static CStr = c"0.14.0";
+    const PLUGIN_VERSION: &'static CStr = c"0.16.0";
     const DESCRIPTION: &'static CStr =
         c"reads cloudtrail JSON data saved to file in the directory specified in the settings";
     const CONTACT: &'static CStr = c"github.com/falcosecurity/plugins/";
