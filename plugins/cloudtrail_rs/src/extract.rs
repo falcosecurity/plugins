@@ -241,6 +241,56 @@ impl CloudTrailPlugin {
         }
     }
 
+    fn extract_originaluser(
+        &mut self,
+        req: ExtractRequest<Self>,
+    ) -> Result<Option<CString>, Error> {
+        let context = req.context;
+        let event = req.event;
+        let _ = Self::ensure_json(context, event);
+
+        let json = match context.json_value.as_ref() {
+            Some(j) => j,
+            None => return Ok(None),
+        };
+
+        let utype = json
+            .pointer("/userIdentity/type")
+            .and_then(|v| v.as_str());
+
+        if utype == Some("AssumedRole") {
+            // Try ARN: split by '/', if 3 parts return last
+            if let Some(arn) = json
+                .pointer("/userIdentity/arn")
+                .and_then(|v| v.as_str())
+            {
+                let parts: Vec<&str> = arn.split('/').collect();
+                if parts.len() == 3 {
+                    return Ok(Some(CString::new(parts[2])?));
+                }
+            }
+
+            // Try principalId: split by ':', if 2 parts return second
+            if let Some(principal) = json
+                .pointer("/userIdentity/principalId")
+                .and_then(|v| v.as_str())
+            {
+                let parts: Vec<&str> = principal.split(':').collect();
+                if parts.len() == 2 {
+                    return Ok(Some(CString::new(parts[1])?));
+                }
+            }
+
+            return Ok(None);
+        }
+
+        // For all other identity types, return userIdentity.userName
+        Self::finish_extract(
+            Self::do_extract_string(context, event, "/userIdentity/userName"),
+            req.offset,
+        )
+    }
+
     fn extract_user_accountid(
         &mut self,
         req: ExtractRequest<Self>,
@@ -1283,7 +1333,10 @@ impl ExtractPlugin for CloudTrailPlugin {
             .with_description("the name of the cloudtrail event (eventName in the json)."),
         field("ct.user", &Self::extract_user)
             .with_display("User Name")
-            .with_description("the user of the cloudtrail event (userIdentity.userName in the json)."),
+            .with_description("the user of the cloudtrail event (userIdentity.userName in the json). For AssumedRole events, this is the role name from sessionContext.sessionIssuer.userName."),
+        field("ct.originaluser", &Self::extract_originaluser)
+            .with_display("Original User Name")
+            .with_description("the user name as seen in CloudTrail. For AssumedRole events, this is the session name extracted from userIdentity.arn or userIdentity.principalId. For all other identity types, this is userIdentity.userName."),
         field("ct.user.accountid", &Self::extract_user_accountid)
             .with_display("User Account ID")
             .with_description("the account id of the user of the cloudtrail event."),

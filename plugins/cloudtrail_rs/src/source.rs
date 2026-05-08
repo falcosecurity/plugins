@@ -100,7 +100,7 @@ fn extract_record_strings(json_str: &[u8], res: &mut Vec<Vec<u8>>) {
             }
             b'}' => {
                 depth -= 1;
-                if depth == 1 && pos < json_str.len() - 1 {
+                if depth == 1 {
                     res.push(json_str[entry_start..=pos].to_vec());
                 }
             }
