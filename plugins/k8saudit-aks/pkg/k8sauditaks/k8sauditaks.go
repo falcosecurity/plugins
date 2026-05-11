@@ -65,7 +65,7 @@ func (p *Plugin) Info() *plugins.Info {
 		Name:        pluginName,
 		Description: "Read Kubernetes Audit Events for AKS from EventHub and use blob storage as checkpoint store",
 		Contact:     "github.com/falcosecurity/plugins",
-		Version:     "0.5.0",
+		Version:     "0.5.1",
 		EventSource: "k8s_audit",
 	}
 }
