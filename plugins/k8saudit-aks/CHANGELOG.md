@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.5.1
+
+* [`6c00adb`](https://github.com/falcosecurity/plugins/commit/6c00adb) chore(plugins/k8saudit-aks): bump version to `0.5.1`
+
+* [`acf91e8`](https://github.com/falcosecurity/plugins/commit/acf91e8) fix(plugins/k8saudit-aks): inline fastjson.ValidateBytes per review
+
+* [`15f528e`](https://github.com/falcosecurity/plugins/commit/15f528e) fix(plugins/k8saudit-aks): use fastjson.ValidateBytes for JSON guard
+
+* [`8ecdb42`](https://github.com/falcosecurity/plugins/commit/8ecdb42) fix(plugins/k8saudit-aks): skip non-JSON records before parsing
+
+
 ## v0.5.0
 
 * [`409744e`](https://github.com/falcosecurity/plugins/commit/409744e) chore(plugins/k8saudit-aks): bump version to `0.5.0`
