@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2025 The Falco Authors.
+# Copyright (C) 2026 The Falco Authors.
 #
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +21,7 @@
 # To trigger the job manually, update the number below (e.g., by replacing it with the current Unix timestamp).
 # It does not need to be secure or unique beyond being different from the previous value.
 # Example: `date +%s` on Unix-like systems will generate a suitable value.
-# 
+#
 # nonce: 1747055710
 
 # This list of data sources is not allowed in plugins since they are already
@@ -732,5 +732,34 @@ plugins:
         supported: true
         id: 27
         source: nginx
+      extraction:
+        supported: true
+  - name: coding_agent
+    description: |
+      Runtime detection for AI coding agents with Falco (part of the Prempti
+      project). Intercepts tool calls (shell commands, file operations, web
+      fetches, MCP calls) before they run and produces allow/deny/ask
+      verdicts via customizable Falco rules, with a full audit trail of
+      agent activity.
+    authors: The Falco Authors
+    contact: https://github.com/falcosecurity/prempti
+    maintainers:
+      - name: The Falco Authors
+        email: cncf-falco-dev@lists.cncf.io
+    keywords:
+      - ai
+      - coding-agent
+      - claude-code
+      - guardrails
+      - policy
+      - audit
+    url: https://github.com/falcosecurity/prempti/tree/main/plugins/coding-agents-plugin
+    rules_url: https://github.com/falcosecurity/prempti/tree/main/rules
+    license: Apache-2.0
+    capabilities:
+      sourcing:
+        supported: true
+        id: 28
+        source: coding_agent
       extraction:
         supported: true
