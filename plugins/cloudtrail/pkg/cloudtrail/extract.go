@@ -303,6 +303,9 @@ func getImageIds(jdata *fastjson.Value, argIndex *int) (bool, []string, int, int
 	if fsval := jdata.Get("requestParameters", "DescribeFastLaunchImagesRequest", "ImageId", "content"); fsval != nil {
 		return true, []string{string(fsval.GetStringBytes())}, fsval.Offset(), fsval.Len()
 	}
+	if fsval := jdata.Get("requestParameters", "launchSpecification", "imageId"); fsval != nil {
+		return true, []string{string(fsval.GetStringBytes())}, fsval.Offset(), fsval.Len()
+	}
 	return false, nil, 0, 0
 }
 
