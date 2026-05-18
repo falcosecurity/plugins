@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.17.1
+
+* [`edc2f90`](https://github.com/falcosecurity/plugins/commit/edc2f90) chore(plugins/cloudtrail): bump version to `0.17.1`
+
+* [`27eff89`](https://github.com/falcosecurity/plugins/commit/27eff89) fix(plugins/cloudtrail): imageid not shown for RequestSpotInstances
+
+* [`455f4a9`](https://github.com/falcosecurity/plugins/commit/455f4a9) build(deps): bump the gomod group across 1 directory with 2 updates
+
+
 ## v0.17.0
 
 * [`1202e23`](https://github.com/falcosecurity/plugins/commit/1202e23) chore(plugins/cloudtrail): bump version to `0.17.0`
