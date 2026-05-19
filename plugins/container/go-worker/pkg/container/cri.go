@@ -240,8 +240,10 @@ func (c *criEngine) ctrToInfo(ctx context.Context, ctr *v1.ContainerStatus, podS
 				if err != nil {
 					cniJson = string(bytes)
 				}
-			} else if val, ok := cniInfo.RuntimeSpec.Annotations["io.kubernetes.cri-o.CNIResult"]; ok {
-				cniJson = val
+			} else if cniInfo.RuntimeSpec != nil {
+				if val, ok := cniInfo.RuntimeSpec.Annotations["io.kubernetes.cri-o.CNIResult"]; ok {
+					cniJson = val
+				}
 			}
 
 			if len(cniJson) > maxCNILen {
