@@ -7,7 +7,7 @@ require (
 	github.com/alecthomas/jsonschema v0.0.0-20220216202328-9eeeec9d044b
 	github.com/falcosecurity/plugin-sdk-go v0.8.3
 	github.com/valyala/fastjson v1.6.4
-	google.golang.org/api v0.278.0
+	google.golang.org/api v0.279.0
 )
 
 require (
