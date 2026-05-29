@@ -165,6 +165,19 @@ INSTANTIATE_TEST_SUITE_P(
                  .expected_container_id = "7951fb549ab9",
                  .should_match = true},
 
+                // nerdctl (containerd backend) with the systemd cgroup driver:
+                // /system.slice/nerdctl-<64-hex-id>.scope . The 64-hex id is
+                // wrapped by the "nerdctl-" prefix and ".scope" suffix and must
+                // be stripped like the cri-containerd / docker systemd scopes.
+                {.name = "nerdctl_systemd_scope",
+                 .cgroup = "/system.slice/"
+                           "nerdctl-"
+                           "0123456789abcdef0123456789abcdef0123456789abcdef012"
+                           "3456789abcdef."
+                           "scope",
+                 .expected_container_id = "0123456789ab",
+                 .should_match = true},
+
                 // Edge cases and failures
                 {.name = "empty_cgroup", .cgroup = "/", .should_match = false},
                 {.name = "container_id_too_long",
