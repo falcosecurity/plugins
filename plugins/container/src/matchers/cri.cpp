@@ -10,6 +10,7 @@ constexpr const cgroup_layout CRI_CGROUP_LAYOUT[] = {
         {"/crio-", ".scope"},           // systemd cri-o
         {":cri-containerd:", ""}, // containerd without "SystemdCgroup = true"
         {"/docker-", ".scope"},   // systemd docker in cri-dockerd scenario
+        {"/nerdctl-", ".scope"},  // systemd nerdctl (managed containerd)
         {nullptr, nullptr}};
 
 bool cri::resolve(const std::string& cgroup, std::string& container_id)
