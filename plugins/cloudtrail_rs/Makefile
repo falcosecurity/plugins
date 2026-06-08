@@ -15,7 +15,7 @@
 .PHONY: all build clean release debug test
 
 NAME := cloudtrail
-OUTPUT := lib$(NAME).so
+OUTPUT := lib$(NAME)_rs.so
 
 all: release
 
