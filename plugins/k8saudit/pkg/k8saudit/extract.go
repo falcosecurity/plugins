@@ -120,7 +120,14 @@ func (e *Plugin) ExtractFromJSON(req sdk.ExtractRequest, jsonValue *fastjson.Val
 	if jsonValue.Get("auditID") == nil {
 		return ErrExtractNotAvailable
 	}
-	switch req.Field() {
+	field := req.Field()
+	// ka.req.pod.{containers,initContainers,ephemeralContainers}.* share one handler.
+	for _, list := range []string{"containers", "initContainers", "ephemeralContainers"} {
+		if prefix := "ka.req.pod." + list + "."; strings.HasPrefix(field, prefix) {
+			return e.extractContainerField(req, jsonValue, list, strings.TrimPrefix(field, prefix))
+		}
+	}
+	switch field {
 	case "ka.auditid":
 		return e.extractFromKeys(req, jsonValue, "auditID")
 	case "ka.stage":
@@ -221,49 +228,14 @@ func (e *Plugin) ExtractFromJSON(req sdk.ExtractRequest, jsonValue *fastjson.Val
 		return e.extractFromKeys(req, jsonValue, "objectRef", "name")
 	case "ka.req.configmap.obj":
 		return e.extractFromKeys(req, jsonValue, "requestObject", "data")
-	case "ka.req.pod.containers.args":
-		indexFilter := e.argIndexFilter(req)
-		args, err := e.readContainerArgs(jsonValue, indexFilter)
-		if err != nil {
-			return err
-		}
-		req.SetValue(args)
-	case "ka.req.pod.containers.command":
-		indexFilter := e.argIndexFilter(req)
-		commands, err := e.readContainerCommands(jsonValue, indexFilter)
-		if err != nil {
-			return err
-		}
-		req.SetValue(commands)
-	case "ka.req.pod.containers.name":
-		indexFilter := e.argIndexFilter(req)
-		images, err := e.readContainerNames(jsonValue, indexFilter)
-		if err != nil {
-			return err
-		}
-		req.SetValue(images)
-	case "ka.req.pod.containers.image":
-		indexFilter := e.argIndexFilter(req)
-		images, err := e.readContainerImages(jsonValue, indexFilter)
-		if err != nil {
-			return err
-		}
-		req.SetValue(images)
-	case "ka.req.pod.containers.image.repository":
-		indexFilter := e.argIndexFilter(req)
-		repos, err := e.readContainerRepositories(jsonValue, indexFilter)
-		if err != nil {
-			return err
-		}
-		req.SetValue(repos)
 	case "ka.req.container.image":
-		images, err := e.readContainerImages(jsonValue, 0)
+		images, err := e.readContainerImages(jsonValue, "containers", 0)
 		if err != nil {
 			return err
 		}
 		req.SetValue(images[0])
 	case "ka.req.container.image.repository":
-		repos, err := e.readContainerRepositories(jsonValue, 0)
+		repos, err := e.readContainerRepositories(jsonValue, "containers", 0)
 		if err != nil {
 			return err
 		}
@@ -276,21 +248,8 @@ func (e *Plugin) ExtractFromJSON(req sdk.ExtractRequest, jsonValue *fastjson.Val
 		return e.extractFromKeys(req, jsonValue, "requestObject", "spec", "hostNetwork")
 	case "ka.req.pod.host_pid":
 		return e.extractFromKeys(req, jsonValue, "requestObject", "spec", "hostPID")
-	case "ka.req.pod.containers.host_port":
-		indexFilter := e.argIndexFilter(req)
-		values, err := e.readContainerHostPorts(jsonValue, indexFilter)
-		if err != nil {
-			return err
-		}
-		req.SetValue(values)
-	case "ka.req.pod.containers.privileged":
-		arr, err := e.getValuesRecursive(jsonValue, e.argIndexFilter(req), "requestObject", "spec", "containers", "securityContext", "privileged")
-		if err != nil {
-			return err
-		}
-		req.SetValue(e.arrayAsStringsSkipNil(arr))
 	case "ka.req.container.privileged":
-		arr, err := e.getValuesRecursive(jsonValue, noIndexFilter, "requestObject", "spec", "containers", "securityContext", "privileged")
+		arr, err := e.getContainerValues(jsonValue, "containers", noIndexFilter, "securityContext", "privileged")
 		if err != nil {
 			return err
 		}
@@ -301,54 +260,10 @@ func (e *Plugin) ExtractFromJSON(req sdk.ExtractRequest, jsonValue *fastjson.Val
 			}
 		}
 		req.SetValue("false")
-	case "ka.req.pod.containers.allow_privilege_escalation":
-		arr, err := e.getValuesRecursive(jsonValue, e.argIndexFilter(req), "requestObject", "spec", "containers", "securityContext", "allowPrivilegeEscalation")
-		if err != nil {
-			return err
-		}
-		req.SetValue(e.arrayAsStringsSkipNil(arr))
-	case "ka.req.pod.containers.read_only_fs":
-		arr, err := e.getValuesRecursive(jsonValue, e.argIndexFilter(req), "requestObject", "spec", "containers", "securityContext", "readOnlyRootFilesystem")
-		if err != nil {
-			return err
-		}
-		req.SetValue(e.arrayAsStringsSkipNil(arr))
 	case "ka.req.pod.run_as_user":
 		return e.extractFromKeys(req, jsonValue, "requestObject", "spec", "securityContext", "runAsUser")
-	case "ka.req.pod.containers.run_as_user":
-		arr, err := e.getValuesRecursive(jsonValue, e.argIndexFilter(req), "requestObject", "spec", "containers", "securityContext", "runAsUser")
-		if err != nil {
-			return err
-		}
-		req.SetValue(e.arrayAsStringsSkipNil(arr))
-	case "ka.req.pod.containers.eff_run_as_user":
-		indexFilter := e.argIndexFilter(req)
-		values, err := e.readFromContainerEffectively(jsonValue, indexFilter, "runAsUser")
-		if err != nil {
-			return err
-		}
-		req.SetValue(values)
 	case "ka.req.pod.run_as_group":
 		return e.extractFromKeys(req, jsonValue, "requestObject", "spec", "securityContext", "runAsGroup")
-	case "ka.req.pod.containers.run_as_group":
-		arr, err := e.getValuesRecursive(jsonValue, e.argIndexFilter(req), "requestObject", "spec", "containers", "securityContext", "runAsGroup")
-		if err != nil {
-			return err
-		}
-		req.SetValue(e.arrayAsStringsSkipNil(arr))
-	case "ka.req.pod.containers.eff_run_as_group":
-		indexFilter := e.argIndexFilter(req)
-		values, err := e.readFromContainerEffectively(jsonValue, indexFilter, "runAsGroup")
-		if err != nil {
-			return err
-		}
-		req.SetValue(values)
-	case "ka.req.pod.containers.proc_mount":
-		arr, err := e.getValuesRecursive(jsonValue, e.argIndexFilter(req), "requestObject", "spec", "containers", "securityContext", "procMount")
-		if err != nil {
-			return err
-		}
-		req.SetValue(e.arrayAsStringsSkipNil(arr))
 	case "ka.req.role.rules":
 		return e.extractFromKeys(req, jsonValue, "requestObject", "rules")
 	case "ka.req.role.rules.apiGroups":
@@ -363,12 +278,6 @@ func (e *Plugin) ExtractFromJSON(req sdk.ExtractRequest, jsonValue *fastjson.Val
 		return e.extractFromKeys(req, jsonValue, "requestObject", "spec", "securityContext", "fsGroup")
 	case "ka.req.pod.supplemental_groups":
 		return e.extractFromKeys(req, jsonValue, "requestObject", "spec", "securityContext", "supplementalGroups")
-	case "ka.req.pod.containers.add_capabilities":
-		arr, err := e.getValuesRecursive(jsonValue, e.argIndexFilter(req), "requestObject", "spec", "containers", "securityContext", "capabilities", "add")
-		if err != nil {
-			return err
-		}
-		req.SetValue(e.arrayAsStringsSkipNil(arr))
 	case "ka.req.service.type":
 		return e.extractFromKeys(req, jsonValue, "requestObject", "spec", "type")
 	case "ka.req.service.ports":
@@ -492,6 +401,112 @@ func (e *Plugin) getValuesRecursive(jsonValue *fastjson.Value, indexFilter int, 
 	return []*fastjson.Value{jsonValue}, nil
 }
 
+// extractContainerField reads a per-container field from the given pod container list.
+func (e *Plugin) extractContainerField(req sdk.ExtractRequest, jsonValue *fastjson.Value, list, field string) error {
+	indexFilter := e.argIndexFilter(req)
+	switch field {
+	case "args":
+		args, err := e.readContainerArgs(jsonValue, list, indexFilter)
+		if err != nil {
+			return err
+		}
+		req.SetValue(args)
+	case "command":
+		commands, err := e.readContainerCommands(jsonValue, list, indexFilter)
+		if err != nil {
+			return err
+		}
+		req.SetValue(commands)
+	case "name":
+		names, err := e.readContainerNames(jsonValue, list, indexFilter)
+		if err != nil {
+			return err
+		}
+		req.SetValue(names)
+	case "image":
+		images, err := e.readContainerImages(jsonValue, list, indexFilter)
+		if err != nil {
+			return err
+		}
+		req.SetValue(images)
+	case "image.repository":
+		repos, err := e.readContainerRepositories(jsonValue, list, indexFilter)
+		if err != nil {
+			return err
+		}
+		req.SetValue(repos)
+	case "host_port":
+		values, err := e.readContainerHostPorts(jsonValue, list, indexFilter)
+		if err != nil {
+			return err
+		}
+		req.SetValue(values)
+	case "privileged":
+		arr, err := e.getContainerValues(jsonValue, list, indexFilter, "securityContext", "privileged")
+		if err != nil {
+			return err
+		}
+		req.SetValue(e.arrayAsStringsSkipNil(arr))
+	case "allow_privilege_escalation":
+		arr, err := e.getContainerValues(jsonValue, list, indexFilter, "securityContext", "allowPrivilegeEscalation")
+		if err != nil {
+			return err
+		}
+		req.SetValue(e.arrayAsStringsSkipNil(arr))
+	case "read_only_fs":
+		arr, err := e.getContainerValues(jsonValue, list, indexFilter, "securityContext", "readOnlyRootFilesystem")
+		if err != nil {
+			return err
+		}
+		req.SetValue(e.arrayAsStringsSkipNil(arr))
+	case "run_as_user":
+		arr, err := e.getContainerValues(jsonValue, list, indexFilter, "securityContext", "runAsUser")
+		if err != nil {
+			return err
+		}
+		req.SetValue(e.arrayAsStringsSkipNil(arr))
+	case "eff_run_as_user":
+		values, err := e.readFromContainerEffectively(jsonValue, list, indexFilter, "runAsUser")
+		if err != nil {
+			return err
+		}
+		req.SetValue(values)
+	case "run_as_group":
+		arr, err := e.getContainerValues(jsonValue, list, indexFilter, "securityContext", "runAsGroup")
+		if err != nil {
+			return err
+		}
+		req.SetValue(e.arrayAsStringsSkipNil(arr))
+	case "eff_run_as_group":
+		values, err := e.readFromContainerEffectively(jsonValue, list, indexFilter, "runAsGroup")
+		if err != nil {
+			return err
+		}
+		req.SetValue(values)
+	case "proc_mount":
+		arr, err := e.getContainerValues(jsonValue, list, indexFilter, "securityContext", "procMount")
+		if err != nil {
+			return err
+		}
+		req.SetValue(e.arrayAsStringsSkipNil(arr))
+	case "add_capabilities":
+		arr, err := e.getContainerValues(jsonValue, list, indexFilter, "securityContext", "capabilities", "add")
+		if err != nil {
+			return err
+		}
+		req.SetValue(e.arrayAsStringsSkipNil(arr))
+	default:
+		return ErrExtractNotAvailable
+	}
+	return nil
+}
+
+// getContainerValues reads a per-container subfield from the given pod container list.
+func (e *Plugin) getContainerValues(jsonValue *fastjson.Value, list string, indexFilter int, subKeys ...string) ([]*fastjson.Value, error) {
+	keys := append([]string{"requestObject", "spec", list}, subKeys...)
+	return e.getValuesRecursive(jsonValue, indexFilter, keys...)
+}
+
 func (e *Plugin) arrayAsStrings(values []*fastjson.Value) ([]string, error) {
 	var res []string
 	for _, v := range values {
@@ -570,16 +585,16 @@ func (e *Plugin) readSubjectNamesByKind(jsonValue *fastjson.Value, kind string) 
 }
 
 // note: this returns an error on nil values
-func (e *Plugin) readContainerNames(jsonValue *fastjson.Value, indexFilter int) ([]string, error) {
-	arr, err := e.getValuesRecursive(jsonValue, indexFilter, "requestObject", "spec", "containers", "name")
+func (e *Plugin) readContainerNames(jsonValue *fastjson.Value, list string, indexFilter int) ([]string, error) {
+	arr, err := e.getContainerValues(jsonValue, list, indexFilter, "name")
 	if err != nil {
 		return nil, err
 	}
 	return e.arrayAsStrings(arr)
 }
 
-func (e *Plugin) readContainerCommands(jsonValue *fastjson.Value, indexFilter int) ([]string, error) {
-	containersCommands, err := e.getValuesRecursive(jsonValue, indexFilter, "requestObject", "spec", "containers", "command")
+func (e *Plugin) readContainerCommands(jsonValue *fastjson.Value, list string, indexFilter int) ([]string, error) {
+	containersCommands, err := e.getContainerValues(jsonValue, list, indexFilter, "command")
 	if err != nil {
 		return nil, err
 	}
@@ -606,8 +621,8 @@ func (e *Plugin) readContainerCommands(jsonValue *fastjson.Value, indexFilter in
 	return commands, nil
 }
 
-func (e *Plugin) readContainerArgs(jsonValue *fastjson.Value, indexFilter int) ([]string, error) {
-	containersArgs, err := e.getValuesRecursive(jsonValue, indexFilter, "requestObject", "spec", "containers", "args")
+func (e *Plugin) readContainerArgs(jsonValue *fastjson.Value, list string, indexFilter int) ([]string, error) {
+	containersArgs, err := e.getContainerValues(jsonValue, list, indexFilter, "args")
 	if err != nil {
 		return nil, err
 	}
@@ -634,16 +649,16 @@ func (e *Plugin) readContainerArgs(jsonValue *fastjson.Value, indexFilter int) (
 	return argsList, nil
 }
 
-func (e *Plugin) readContainerImages(jsonValue *fastjson.Value, indexFilter int) ([]string, error) {
-	arr, err := e.getValuesRecursive(jsonValue, indexFilter, "requestObject", "spec", "containers", "image")
+func (e *Plugin) readContainerImages(jsonValue *fastjson.Value, list string, indexFilter int) ([]string, error) {
+	arr, err := e.getContainerValues(jsonValue, list, indexFilter, "image")
 	if err != nil {
 		return nil, err
 	}
 	return e.arrayAsStrings(arr)
 }
 
-func (e *Plugin) readContainerRepositories(jsonValue *fastjson.Value, indexFilter int) ([]string, error) {
-	images, err := e.readContainerImages(jsonValue, indexFilter)
+func (e *Plugin) readContainerRepositories(jsonValue *fastjson.Value, list string, indexFilter int) ([]string, error) {
+	images, err := e.readContainerImages(jsonValue, list, indexFilter)
 	if err != nil {
 		return nil, err
 	}
@@ -654,8 +669,8 @@ func (e *Plugin) readContainerRepositories(jsonValue *fastjson.Value, indexFilte
 	return repos, nil
 }
 
-func (e *Plugin) readContainerHostPorts(jsonValue *fastjson.Value, indexFilter int) ([]string, error) {
-	containersPorts, err := e.getValuesRecursive(jsonValue, indexFilter, "requestObject", "spec", "containers", "ports")
+func (e *Plugin) readContainerHostPorts(jsonValue *fastjson.Value, list string, indexFilter int) ([]string, error) {
+	containersPorts, err := e.getContainerValues(jsonValue, list, indexFilter, "ports")
 	if err != nil {
 		return nil, err
 	}
@@ -687,7 +702,7 @@ func (e *Plugin) readContainerHostPorts(jsonValue *fastjson.Value, indexFilter i
 	return res, nil
 }
 
-func (e *Plugin) readFromContainerEffectively(jsonValue *fastjson.Value, indexFilter int, keys ...string) ([]string, error) {
+func (e *Plugin) readFromContainerEffectively(jsonValue *fastjson.Value, list string, indexFilter int, keys ...string) ([]string, error) {
 	podID := "0"
 	if value := jsonValue.Get(append([]string{"requestObject", "spec"}, keys...)...); value != nil {
 		var err error
@@ -696,7 +711,7 @@ func (e *Plugin) readFromContainerEffectively(jsonValue *fastjson.Value, indexFi
 			return nil, err
 		}
 	}
-	arr, err := e.getValuesRecursive(jsonValue, indexFilter, append([]string{"requestObject", "spec", "containers"}, keys...)...)
+	arr, err := e.getContainerValues(jsonValue, list, indexFilter, keys...)
 	if err != nil {
 		return nil, err
 	}
@@ -754,7 +769,7 @@ func (e *Plugin) extractFromKeys(req sdk.ExtractRequest, jsonValue *fastjson.Val
 		}
 	}
 	if req.WantOffset() {
-		req.SetValueOffset(sdk.PluginEventPayloadOffset + uint32(jsonValue.Offset()), uint32(jsonValue.Len()))
+		req.SetValueOffset(sdk.PluginEventPayloadOffset+uint32(jsonValue.Offset()), uint32(jsonValue.Len()))
 	}
 	return nil
 }

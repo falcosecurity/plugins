@@ -237,11 +237,18 @@
   source: k8s_audit
   tags: [k8s]
 
+# A privileged container in any of the pod's container lists.
+- macro: any_container_privileged
+  condition: >
+    (ka.req.pod.containers.privileged intersects (true) or
+     ka.req.pod.initContainers.privileged intersects (true) or
+     ka.req.pod.ephemeralContainers.privileged intersects (true))
+
 - rule: Create Privileged Pod
   desc: >
     Detect an attempt to start a pod with a privileged container
-  condition: kevt and pod and kcreate and ka.req.pod.containers.privileged intersects (true) and not ka.req.pod.containers.image.repository in (k8s_audit_privileged_images)
-  output: Pod started with privileged container (user=%ka.user.name pod=%ka.resp.name resource=%ka.target.resource ns=%ka.target.namespace images=%ka.req.pod.containers.image)
+  condition: kevt and pod and kcreate and any_container_privileged and not ka.req.pod.containers.image.repository in (k8s_audit_privileged_images)
+  output: Pod started with privileged container (user=%ka.user.name pod=%ka.resp.name resource=%ka.target.resource ns=%ka.target.namespace images=%ka.req.pod.containers.image init_images=%ka.req.pod.initContainers.image ephemeral_images=%ka.req.pod.ephemeralContainers.image)
   priority: WARNING
   source: k8s_audit
   tags: [k8s]
