@@ -23,7 +23,7 @@ import (
 
 // Fields returns the list of extractor fields exported for K8S Audit events.
 func (k *Plugin) Fields() []sdk.FieldEntry {
-	return []sdk.FieldEntry{
+	fields := []sdk.FieldEntry{
 		{
 			Type: "string",
 			Name: "ka.auditid",
@@ -520,4 +520,42 @@ func (k *Plugin) Fields() []sdk.FieldEntry {
 			Desc: "The name of the k8s cluster",
 		},
 	}
+	// init and ephemeral containers expose the same per-container fields (ephemeral has no ports).
+	fields = append(fields, containerListFields("initContainers", "init containers", true)...)
+	fields = append(fields, containerListFields("ephemeralContainers", "ephemeral containers", false)...)
+	return fields
+}
+
+// containerListFields mirrors the ka.req.pod.containers.* fields for another container list.
+func containerListFields(list, label string, withHostPort bool) []sdk.FieldEntry {
+	prefix := "ka.req.pod." + list + "."
+	entry := func(name, desc string) sdk.FieldEntry {
+		return sdk.FieldEntry{
+			Type:   "string",
+			Name:   prefix + name,
+			Desc:   desc,
+			IsList: true,
+			Arg:    sdk.FieldEntryArg{IsRequired: false, IsIndex: true},
+		}
+	}
+	fields := []sdk.FieldEntry{
+		entry("name", "When the request object refers to a pod, the "+label+" names."),
+		entry("image", "When the request object refers to a pod, the "+label+" images."),
+		entry("image.repository", "The same as "+prefix+"image, but only the repository part (e.g. falcosecurity/falco)."),
+		entry("command", "When the request object refers to a pod, the "+label+" commands."),
+		entry("args", "When the request object refers to a pod, the "+label+" args."),
+		entry("privileged", "When the request object refers to a pod, the value of the privileged flag for all "+label+"."),
+		entry("allow_privilege_escalation", "When the request object refers to a pod, the value of the allowPrivilegeEscalation flag for all "+label+"."),
+		entry("read_only_fs", "When the request object refers to a pod, the value of the readOnlyRootFilesystem flag for all "+label+"."),
+		entry("run_as_user", "When the request object refers to a pod, the runAsUser uid for all "+label+"."),
+		entry("eff_run_as_user", "When the request object refers to a pod, the initial uid that will be used for all "+label+". This combines information from both the pod and container security contexts and uses 0 if no uid is specified."),
+		entry("run_as_group", "When the request object refers to a pod, the runAsGroup gid for all "+label+"."),
+		entry("eff_run_as_group", "When the request object refers to a pod, the initial gid that will be used for all "+label+". This combines information from both the pod and container security contexts and uses 0 if no gid is specified."),
+		entry("proc_mount", "When the request object refers to a pod, the procMount type for all "+label+"."),
+		entry("add_capabilities", "When the request object refers to a pod, the capabilities added for all "+label+"."),
+	}
+	if withHostPort {
+		fields = append(fields, entry("host_port", "When the request object refers to a pod, all "+label+" hostPort values."))
+	}
+	return fields
 }
