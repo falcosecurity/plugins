@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.12.0
+
+* Bump the plugin version to `0.12.0`.
+
+* Bump the `k8saudit` dependency to `v0.18.0`.
+
+* Regenerate the README field table from the updated `k8saudit` extractor.
+
+
 ## v0.11.0
 
 * [`4366124`](https://github.com/falcosecurity/plugins/commit/4366124) chore(plugins/k8saudit-eks): bump version to `0.11.0`
@@ -153,5 +162,4 @@
 * [`da3de15`](https://github.com/falcosecurity/plugins/commit/da3de15) update github.com/falcosecurity/plugins/plugins/k8saudit dep to 0.3.0
 
 * [`d6f938a`](https://github.com/falcosecurity/plugins/commit/d6f938a) creation of a plugin for k8saudit logs of EKS clusters from Cloudwatch Logs
-
 

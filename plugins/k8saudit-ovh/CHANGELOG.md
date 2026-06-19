@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.6.0
+
+* Bump the plugin version to `0.6.0`.
+
+* Bump the `k8saudit` dependency to `v0.18.0`.
+
+* Regenerate the README field table from the updated `k8saudit` extractor.
+
+
 ## v0.5.0
 
 * [`70216f4`](https://github.com/falcosecurity/plugins/commit/70216f4) chore(plugins/k8saudit-ovh): bump version to `0.5.0`
@@ -53,5 +62,4 @@
 * [`7214ed9`](https://github.com/falcosecurity/plugins/commit/7214ed9) update(plugins/k8saudit-*): bump k8saudit plugin dep to v0.12
 
 * [`e7e5531`](https://github.com/falcosecurity/plugins/commit/e7e5531) feat: Add k8saudiovh plugin in falcosecurity repo
-
 

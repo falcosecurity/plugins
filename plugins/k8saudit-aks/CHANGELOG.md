@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.6.0
+
+* Bump the plugin version to `0.6.0`.
+
+* Bump the `k8saudit` dependency to `v0.18.0`.
+
+* Regenerate the README field table from the updated `k8saudit` extractor.
+
+
 ## v0.5.1
 
 * [`6c00adb`](https://github.com/falcosecurity/plugins/commit/6c00adb) chore(plugins/k8saudit-aks): bump version to `0.5.1`
@@ -102,5 +111,4 @@
 * [`d28ea19`](https://github.com/falcosecurity/plugins/commit/d28ea19) feat: refactor to remove print logs, add .envrc to .gitignore, configure prop...
 
 * [`fa29781`](https://github.com/falcosecurity/plugins/commit/fa29781) feat(plugins/aksaudit): add aks audit logs plugin
-
 

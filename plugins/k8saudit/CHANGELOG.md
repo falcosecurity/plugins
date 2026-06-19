@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.18.0
+
+* Add init and ephemeral container field extraction and rules coverage.
+
+* Bump the plugin version to `0.18.0`.
+
+* Update the `k8s_audit` ruleset required plugin versions for `k8saudit` and the cloud plugin alternatives.
+
+
 ## v0.17.0
 
 * [`371d2cc`](https://github.com/falcosecurity/plugins/commit/371d2cc) chore(plugins/k8saudit): bump to v0.17.0
@@ -360,5 +369,4 @@
 * [`b93d09e`](https://github.com/falcosecurity/plugins/commit/b93d09e) update(plugins/k8saudit): improve error handling and resource disposal
 
 * [`059e0d0`](https://github.com/falcosecurity/plugins/commit/059e0d0) new(plugins/k8saudit): initial implementation of K8S audit plugin
-
 

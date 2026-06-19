@@ -2,7 +2,7 @@
 
 - required_plugin_versions:
   - name: k8saudit-gke
-    version: 0.1.0
+    version: 0.9.0
   - name: json
     version: 0.7.0
 
@@ -34,4 +34,3 @@
   priority: NOTICE
   source: k8s_audit
   tags: [k8s]
-

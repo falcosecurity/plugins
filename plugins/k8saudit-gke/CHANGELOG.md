@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.9.0
+
+* Bump the plugin version to `0.9.0`.
+
+* Bump the `k8saudit` dependency to `v0.18.0`.
+
+* Regenerate the README field table from the updated `k8saudit` extractor.
+
+* Update the GKE overlay ruleset required plugin version to `0.9.0`.
+
+
 ## v0.8.0
 
 * [`f3c1f4d`](https://github.com/falcosecurity/plugins/commit/f3c1f4d) chore(plugins/k8saudit-gke): bump version to `0.8.0`
@@ -241,5 +252,4 @@
 * [`c61b4db`](https://github.com/falcosecurity/plugins/commit/c61b4db) fix(k8saudit-gke): prefix resourname with a slash to create uri
 
 * [`d91805f`](https://github.com/falcosecurity/plugins/commit/d91805f) feat(k8saudit-gke): initial k8saudit-gke plugin code
-
 
