@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2025 The Falco Authors.
+# Copyright (C) 2026 The Falco Authors.
 #
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,16 +20,16 @@
 
 - required_plugin_versions:
     - name: k8saudit
-      version: 0.7.0
+      version: 0.18.0
       alternatives:
         - name: k8saudit-aks
-          version: 0.1.0
+          version: 0.6.0
         - name: k8saudit-eks
-          version: 0.4.0
+          version: 0.12.0
         - name: k8saudit-gke
-          version: 0.1.0
+          version: 0.9.0
         - name: k8saudit-ovh
-          version: 0.1.0
+          version: 0.6.0
     - name: json
       version: 0.7.0
 
