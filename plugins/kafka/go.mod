@@ -7,7 +7,7 @@ require (
 	github.com/falcosecurity/plugin-sdk-go v0.8.3
 	github.com/segmentio/kafka-go v0.4.51
 	github.com/testcontainers/testcontainers-go v0.43.0
-	github.com/testcontainers/testcontainers-go/modules/kafka v0.42.0
+	github.com/testcontainers/testcontainers-go/modules/kafka v0.43.0
 )
 
 require (
