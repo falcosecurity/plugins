@@ -92,12 +92,7 @@ func (p *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 
 	case "gcp.policyDelta":
 		resource := string(p.jdata.Get("resource").Get("type").GetStringBytes())
-
-		if resource == "gcs_bucket" {
-			fsval = p.jdata.Get("protoPayload", "serviceData", "policyDelta", "bindingDeltas")
-		} else {
-			fsval = p.jdata.Get("protoPayload", "metadata", "datasetChange", "bindingDeltas")
-		}
+		fsval = p.jdata.Get(policyDeltaPath(resource)...)
 
 	case "gcp.methodName":
 		fsval = p.jdata.Get("protoPayload", "methodName")
@@ -200,4 +195,18 @@ func (p *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 	}
 
 	return nil
+}
+
+// policyDeltaPath returns the JSON path that contains the bindingDeltas array
+// for a SetIamPolicy audit event on the given resource type. The generic IAM
+// AuditData proto (google.iam.v1.PolicyDelta) is emitted under
+// protoPayload.serviceData.policyDelta for every resource type that uses the
+// shared IAM service. BigQuery's dataset.setIamPolicy is the outlier and emits
+// its deltas under protoPayload.metadata.datasetChange as part of the
+// BigQueryAuditMetadata. See issue #1351.
+func policyDeltaPath(resource string) []string {
+	if resource == "bigquery_dataset" {
+		return []string{"protoPayload", "metadata", "datasetChange", "bindingDeltas"}
+	}
+	return []string{"protoPayload", "serviceData", "policyDelta", "bindingDeltas"}
 }
