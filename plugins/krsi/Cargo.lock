@@ -329,9 +329,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.2.66"
+version = "1.2.67"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f5d6cac793997bd970000024b2934968efe83b382de4fdcf4fcb46b6ee4ad996"
+checksum = "e17dd265a7d0f31ef544e1b20e03add05d3b45b491b633b10d67145d2acc1a38"
 dependencies = [
  "find-msvc-tools",
  "shlex 2.0.1",
@@ -701,7 +701,7 @@ dependencies = [
  "serde",
  "thiserror 2.0.18",
  "tokio",
- "zerocopy 0.8.53",
+ "zerocopy 0.8.54",
 ]
 
 [[package]]
@@ -710,8 +710,8 @@ version = "0.1.0"
 dependencies = [
  "aya",
  "bitflags",
- "zerocopy 0.8.53",
- "zerocopy-derive 0.8.53",
+ "zerocopy 0.8.54",
+ "zerocopy-derive 0.8.54",
 ]
 
 [[package]]
@@ -725,7 +725,7 @@ dependencies = [
  "krsi-ebpf-core",
  "paste",
  "which",
- "zerocopy 0.8.53",
+ "zerocopy 0.8.54",
 ]
 
 [[package]]
@@ -1547,11 +1547,11 @@ dependencies = [
 
 [[package]]
 name = "zerocopy"
-version = "0.8.53"
+version = "0.8.54"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75726053136156d419e285b9b7eddaaea9e3fea6ce32eed44a89901f0bd98de1"
+checksum = "b7cbbc0a705a0fd05cc3676525980d2bf5a9bc4adac6d6475209a7887cf59d19"
 dependencies = [
- "zerocopy-derive 0.8.53",
+ "zerocopy-derive 0.8.54",
 ]
 
 [[package]]
@@ -1567,9 +1567,9 @@ dependencies = [
 
 [[package]]
 name = "zerocopy-derive"
-version = "0.8.53"
+version = "0.8.54"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4714fd92cf900833d49538023a9b3915155210801d1c1169eba513b2addefd71"
+checksum = "e2e817b7b52d0c7358d3246da9d69935ebb18116b2b102b4230dac079b4862f5"
 dependencies = [
  "proc-macro2",
  "quote",
