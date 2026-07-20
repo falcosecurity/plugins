@@ -3,7 +3,7 @@ module github.com/falcosecurity/plugins/plugins/gcpaudit
 go 1.25.8
 
 require (
-	cloud.google.com/go/pubsub v1.50.4
+	cloud.google.com/go/pubsub v1.51.0
 	github.com/alecthomas/jsonschema v0.0.0-20220216202328-9eeeec9d044b
 	github.com/falcosecurity/plugin-sdk-go v0.8.3
 	github.com/valyala/fastjson v1.6.4
