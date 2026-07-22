@@ -3,7 +3,7 @@ module github.com/falcosecurity/plugins/plugins/k8saudit-gke
 go 1.26.0
 
 require (
-	cloud.google.com/go/pubsub v1.50.4
+	cloud.google.com/go/pubsub v1.51.0
 	github.com/alecthomas/jsonschema v0.0.0-20220216202328-9eeeec9d044b
 	github.com/falcosecurity/plugin-sdk-go v0.8.3
 	github.com/falcosecurity/plugins/plugins/k8saudit v0.18.0
