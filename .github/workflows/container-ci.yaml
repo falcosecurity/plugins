@@ -119,6 +119,17 @@ jobs:
         working-directory: plugins/container
         run: make -C go-worker exe
 
+      # The runner image ships /etc/containers/registries.conf in the legacy v1
+      # format, which containers/image >= 5.40 rejects outright instead of
+      # converting. Rewrite it in v2 form, matching the upstream runner-images
+      # fix (actions/runner-images@c7871a91). Can be dropped once that fix
+      # reaches the ubuntu-24.04 image.
+      - name: Ensure registries.conf is in v2 format
+        run: |
+          sudo mkdir -p /etc/containers
+          printf 'unqualified-search-registries = ["docker.io", "quay.io"]\n' \
+            | sudo tee /etc/containers/registries.conf
+
       - name: Run tests
         working-directory: plugins/container
         run: |
