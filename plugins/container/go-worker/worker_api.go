@@ -11,13 +11,15 @@ import "C"
 import (
 	"context"
 	"encoding/json"
+	"runtime"
+	"runtime/cgo"
+	"strings"
+	"sync"
+	"unsafe"
+
 	"github.com/falcosecurity/plugin-sdk-go/pkg/ptr"
 	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/config"
 	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/container"
-	"runtime"
-	"runtime/cgo"
-	"sync"
-	"unsafe"
 )
 
 type PluginCtx struct {
@@ -29,7 +31,7 @@ type PluginCtx struct {
 }
 
 //export StartWorker
-func StartWorker(cb C.async_cb, initCfg *C.cchar_t, enabledSocks **C.cchar_t) unsafe.Pointer {
+func StartWorker(cb C.async_cb, initCfg *C.cchar_t, enabledSocks **C.cchar_t, errmsg **C.cchar_t) unsafe.Pointer {
 	var (
 		pluginCtx PluginCtx
 		ctx       context.Context
@@ -61,11 +63,15 @@ func StartWorker(cb C.async_cb, initCfg *C.cchar_t, enabledSocks **C.cchar_t) un
 		return nil
 	}
 
+	var errs strings.Builder
 	containerEngines := make([]container.Engine, 0)
 	enabledEngines := make(map[string][]string)
+
 	for _, generator := range generators {
 		engine, err := generator(ctx)
 		if err != nil {
+			errs.WriteString(err.Error())
+			errs.WriteByte('\n')
 			continue
 		}
 		containerEngines = append(containerEngines, engine)
@@ -80,6 +86,10 @@ func StartWorker(cb C.async_cb, initCfg *C.cchar_t, enabledSocks **C.cchar_t) un
 				goCb(ctr.String(), true, true)
 			}
 		}
+	}
+
+	if errs.Len() > 0 {
+		*errmsg = C.CString(errs.String())
 	}
 
 	pluginCtx.fetchCh = make(chan string, fetchChSize)
