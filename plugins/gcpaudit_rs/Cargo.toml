@@ -1,0 +1,31 @@
+[package]
+name = "gcpaudit"
+version = "0.3.0"
+edition = "2021"
+authors = ["The Falco Authors"]
+license = "Apache-2.0"
+description = "Read GCP Audit Logs"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# falco_plugin = { version = "0.8", features = ["source-plugin", "extract-plugin"] }
+falco_event = "0.5.1"
+falco_plugin = "0.5.1"
+anyhow = "1"
+serde = "1"
+serde_json = { version = "1", features = ["preserve_order"] }
+serde_spanned = "1"
+schemars = "1"
+google-cloud-pubsub = "0.30.0"
+google-cloud-googleapis = "0.16.1"
+tokio = { version = "1.49.0", features = ["rt-multi-thread"] }
+tokio-util = "0.7"
+async-trait = "0.1.89"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true

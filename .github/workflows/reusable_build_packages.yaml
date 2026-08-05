@@ -25,7 +25,7 @@ jobs:
       - name: Install deps
         run: |
           apt update
-          apt install -y --no-install-recommends awscli build-essential autoconf libelf-dev libtool autotools-dev \
+          apt install -y --no-install-recommends awscli build-essential autoconf libelf-dev libtool autotools-dev libssl-dev pkg-config \
             automake zip unzip ninja-build wget lsb-release software-properties-common gnupg ca-certificates curl git
 
       - name: Checkout Plugins ⤵️
