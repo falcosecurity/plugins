@@ -122,9 +122,9 @@ falcosecurity::init_schema my_plugin::get_init_schema()
 			"description": "The port used by the plugin to contact the collector (e.g. '45000')."
 		},
 		"nodeName": {
-			"type": "string",
+			"type": ["string", "integer"],
 			"title": "The node on which Falco is deployed",
-			"description": "The plugin collects k8s metadata only for the node on which Falco is deployed so the node name must be specified."
+			"description": "The plugin collects k8s metadata only for the node on which Falco is deployed so the node name must be specified. A purely numeric node name may be substituted as a JSON integer rather than a string, so both types are accepted here."
 		},
 		"caPEMBundle": {
 			"type": "string",
@@ -187,8 +187,20 @@ void my_plugin::parse_init_config(nlohmann::json& config_json)
     if(config_json.contains(nlohmann::json::json_pointer(NODENAME_PATH)))
     {
         std::string nodename_string = "";
-        config_json.at(nlohmann::json::json_pointer(NODENAME_PATH))
-                .get_to(nodename_string);
+        const auto& nodename_json =
+                config_json.at(nlohmann::json::json_pointer(NODENAME_PATH));
+        if(nodename_json.is_number_integer())
+        {
+            // A purely numeric node name (e.g. "123456") is inferred as a
+            // JSON integer by Falco's downward API env var substitution,
+            // even though the schema now also accepts it here. Convert it
+            // back to a string instead of rejecting it.
+            nodename_string = std::to_string(nodename_json.get<int64_t>());
+        }
+        else
+        {
+            nodename_json.get_to(nodename_string);
+        }
 
         // todo!: Solved in Falco 0.37.0 wait until Falco 0.36.2 is barely used
         // This is just a simple workaround until we solve the Falco issue
