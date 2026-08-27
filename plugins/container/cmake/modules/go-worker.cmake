@@ -25,6 +25,15 @@ if(APPLE)
     find_library(RESOLV resolv REQUIRED)
     find_library(CORE CoreFoundation REQUIRED)
     set(WORKER_DEP ${SECURITY_FRAMEWORK} ${RESOLV} ${CORE})
+elseif(CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
+    # The same Go >= 1.20 cgo-resolver requirement applies on Linux: the net
+    # package references res_search from libresolv. On glibc >= 2.34 the
+    # symbol happens to resolve through libc's compat exports, which masks a
+    # missing dependency; on older glibc (Debian 11, RHEL/Rocky/Alma 8,
+    # Ubuntu 20.04) it lives only in libresolv.so.2, and without a DT_NEEDED
+    # entry the plugin fails to dlopen with:
+    #   undefined symbol: __res_search
+    set(WORKER_DEP resolv)
 endif()
 set(WORKER_LIB ${CMAKE_SOURCE_DIR}/go-worker/libworker.a)
 set(WORKER_INCLUDE ${CMAKE_SOURCE_DIR}/go-worker)

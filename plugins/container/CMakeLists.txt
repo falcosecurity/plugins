@@ -9,7 +9,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
 # project metadata
 project(
         container
-        VERSION 0.7.1
+        VERSION 0.7.2
         DESCRIPTION "Falco container metadata enrichment Plugin"
         LANGUAGES CXX)
 
@@ -65,7 +65,7 @@ endif()
 target_include_directories(container PRIVATE ${CMAKE_BINARY_DIR}/src/ src/ ${PLUGIN_SDK_INCLUDE} ${PLUGIN_SDK_DEPS_INCLUDE} ${WORKER_INCLUDE})
 
 # project linked libraries
-target_link_libraries(container PRIVATE fmt::fmt-header-only ReflexLibStatic ${WORKER_DEP} ${WORKER_LIB})
+target_link_libraries(container PRIVATE fmt::fmt-header-only ReflexLibStatic ${WORKER_LIB} ${WORKER_DEP})
 
 option(ENABLE_TESTS "Enable build of unit tests" ON)
 
