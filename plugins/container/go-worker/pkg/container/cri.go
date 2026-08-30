@@ -20,6 +20,13 @@ import (
 
 const maxCNILen = 4096
 
+// How long to wait before resubscribing to the container events stream, and the
+// ceiling the wait doubles up to. Variables so the tests can shorten them.
+var (
+	minResubscribeBackoff = 1 * time.Second
+	maxResubscribeBackoff = 30 * time.Second
+)
+
 func init() {
 	engineGenerators[typeCri] = newCriEngine
 }
@@ -454,20 +461,42 @@ func (c *criEngine) List(ctx context.Context) ([]event.Event, error) {
 // an error will be captured and passed to the caller.
 func (c *criEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan event.Event, error) {
 	containerEventsCh := make(chan *v1.ContainerEventResponse)
-	containerEventsErrorCh := make(chan error, 1) // Buffered to prevent blocking
+	// Buffered to prevent blocking; only the first subscription reports through it.
+	containerEventsErrorCh := make(chan error, 1)
 	wg.Add(1)
 	go func() {
 		defer close(containerEventsCh)
-		defer close(containerEventsErrorCh)
 		defer wg.Done()
-		containerEventsErrorCh <- c.client.GetContainerEvents(ctx, containerEventsCh, nil)
+		backoff := minResubscribeBackoff
+		for first := true; ; first = false {
+			err := c.client.GetContainerEvents(ctx, containerEventsCh, nil)
+			if first {
+				containerEventsErrorCh <- err
+			}
+			if ctx.Err() != nil {
+				return
+			}
+			// The stream ended without the context being cancelled, which is what
+			// a runtime restart looks like from here. Nothing resubscribes for us,
+			// so retry until the context goes away.
+			c.logger.LogAttrs(ctx, slog.LevelInfo, "container events stream ended, resubscribing",
+				slog.String("socket", c.socket), slog.Duration("backoff", backoff), slog.Any("err", err))
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(backoff):
+			}
+			backoff = min(backoff*2, maxResubscribeBackoff)
+		}
 	}()
 
 	// Catch error on initialization containerEventsErrorCh
 	const containerEventsErrorTimeout = 10 * time.Millisecond
 	select {
 	case err := <-containerEventsErrorCh:
-		return nil, err
+		if err != nil {
+			return nil, err
+		}
 	case <-time.After(containerEventsErrorTimeout):
 		break
 	}
@@ -481,15 +510,10 @@ func (c *criEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan even
 			select {
 			case <-ctx.Done():
 				return
-			case _, ok := <-containerEventsErrorCh:
-				if !ok {
-					// containerEventsErrorCh has been closed - block further reads from channel
-					containerEventsErrorCh = nil
-				}
 			case evt, ok := <-containerEventsCh:
 				if !ok {
 					// containerEventsCh has been closed - kill the goroutine.
-					// It happens only if the producer goroutine leaves because of errors.
+					// It happens only once the producer goroutine is done retrying.
 					return
 				}
 				if evt == nil {

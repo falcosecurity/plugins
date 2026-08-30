@@ -3,6 +3,7 @@ package container
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -652,4 +653,109 @@ func TestCRIListen(t *testing.T) {
 			wg.Wait()
 		})
 	}
+}
+
+// restartingRuntimeService serves one batch of events per call to
+// GetContainerEvents, then ends the stream the way a runtime restart does.
+type restartingRuntimeService struct {
+	internalapi.RuntimeService
+	mu     sync.Mutex
+	rounds [][]*v1.ContainerEventResponse
+	calls  int
+}
+
+func (r *restartingRuntimeService) GetContainerEvents(ctx context.Context, containerEventsCh chan *v1.ContainerEventResponse, _ func(v1.RuntimeService_GetContainerEventsClient)) error {
+	r.mu.Lock()
+	call := r.calls
+	r.calls++
+	var events []*v1.ContainerEventResponse
+	if call < len(r.rounds) {
+		events = r.rounds[call]
+	}
+	r.mu.Unlock()
+
+	for _, evt := range events {
+		select {
+		case containerEventsCh <- evt:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	if call == 0 {
+		return errors.New("rpc error: code = Unavailable desc = error reading from server: EOF")
+	}
+	<-ctx.Done()
+	return ctx.Err()
+}
+
+func TestCRIListenResubscribes(t *testing.T) {
+	endpoint, err := fake.GenerateEndpoint()
+	require.NoError(t, err)
+
+	fakeRuntime := fake.NewFakeRemoteRuntime()
+	require.NoError(t, fakeRuntime.Start(endpoint))
+	t.Cleanup(fakeRuntime.Stop)
+
+	engine, err := newCriEngine(context.Background(), slog.Default(), endpoint)
+	require.NoError(t, err)
+	criEngine := engine.(*criEngine)
+
+	config.Load(fmt.Sprintf(`{"hooks": %d}`, config.HookCreate|config.HookStart|config.HookRemove))
+
+	// Keep the test from waiting out the production backoff.
+	minResubscribeBackoff, maxResubscribeBackoff = time.Millisecond, time.Millisecond
+	t.Cleanup(func() {
+		minResubscribeBackoff, maxResubscribeBackoff = time.Second, 30*time.Second
+	})
+
+	before, after := containerFor(t, fakeRuntime, "before_restart"), containerFor(t, fakeRuntime, "after_restart")
+	criEngine.client = &restartingRuntimeService{
+		RuntimeService: criEngine.client,
+		rounds: [][]*v1.ContainerEventResponse{
+			{{ContainerId: before, ContainerEventType: v1.ContainerEventType_CONTAINER_CREATED_EVENT, CreatedAt: time.Now().UnixNano()}},
+			{{ContainerId: after, ContainerEventType: v1.ContainerEventType_CONTAINER_CREATED_EVENT, CreatedAt: time.Now().UnixNano()}},
+		},
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	wg := sync.WaitGroup{}
+	outCh, err := criEngine.Listen(ctx, &wg)
+	require.NoError(t, err)
+
+	for _, want := range []string{before, after} {
+		select {
+		case evt, ok := <-outCh:
+			require.True(t, ok, "event channel closed instead of resubscribing after the stream ended")
+			assert.Equal(t, want, evt.Info.Container.FullID)
+		case <-time.After(5 * time.Second):
+			t.Fatalf("timeout waiting for the event for container %s", want)
+		}
+	}
+
+	cancel()
+	wg.Wait()
+}
+
+func containerFor(t *testing.T, fakeRuntime *fake.RemoteRuntime, name string) string {
+	t.Helper()
+	sandbox, err := fakeRuntime.RunPodSandbox(context.Background(), &v1.RunPodSandboxRequest{
+		Config: &v1.PodSandboxConfig{
+			Metadata: &v1.PodSandboxMetadata{
+				Name:      name + "_sandbox",
+				Uid:       uuid.New().String(),
+				Namespace: "default",
+			},
+		},
+	})
+	require.NoError(t, err)
+	ctr, err := fakeRuntime.CreateContainer(context.Background(), &v1.CreateContainerRequest{
+		Config: &v1.ContainerConfig{
+			Metadata: &v1.ContainerMetadata{Name: name},
+			Image:    &v1.ImageSpec{Image: "alpine:3.20.3"},
+		},
+		PodSandboxId: sandbox.PodSandboxId,
+	})
+	require.NoError(t, err)
+	return ctr.ContainerId
 }
