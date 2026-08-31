@@ -3,7 +3,7 @@ module github.com/falcosecurity/plugins/plugins/gcpaudit
 go 1.25.8
 
 require (
-	cloud.google.com/go/pubsub v1.51.0
+	cloud.google.com/go/pubsub v1.51.1
 	github.com/alecthomas/jsonschema v0.0.0-20220216202328-9eeeec9d044b
 	github.com/falcosecurity/plugin-sdk-go v0.8.3
 	github.com/valyala/fastjson v1.6.4
@@ -44,7 +44,7 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20260630182238-925bb5da69e7 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260807164820-c8921c73eeea // indirect
 	google.golang.org/grpc v1.83.0 // indirect
-	google.golang.org/protobuf v1.36.11 // indirect
+	google.golang.org/protobuf v1.36.12 // indirect
 )
 
 replace github.com/valyala/fastjson => github.com/geraldcombs/fastjson v0.0.0-20250801170450-bf39244e60b8
