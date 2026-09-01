@@ -53,9 +53,9 @@ jobs:
         uses: ./.github/actions/install-cmake
 
       - name: Install Rust 🦀
-        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
+        uses: dtolnay/rust-toolchain@0f44b27771c32bda9f458f75a1e241b09791b331 # v1
         with:
-          toolchain: "1.88.0"
+          toolchain: "1.91.1"
 
       - name: Install bpf-linker
         run: |
