@@ -14,6 +14,7 @@ import (
 
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/stretchr/testify/assert"
+	"go.podman.io/podman/v6/libpod/define"
 	"go.podman.io/podman/v6/pkg/bindings"
 	"go.podman.io/podman/v6/pkg/bindings/containers"
 	"go.podman.io/podman/v6/pkg/bindings/images"
@@ -78,6 +79,14 @@ func testPodman(t *testing.T, withFetcher bool) {
 					Cpus:  "0-1",
 				},
 			},
+		},
+		// Mirror the defaults set by specgen.NewSpecGenerator(): these fields are
+		// serialized without omitempty, and Podman >= 5.5.0 rejects an empty
+		// HealthLogDestination at container creation.
+		ContainerHealthCheckConfig: specgen.ContainerHealthCheckConfig{
+			HealthLogDestination: define.DefaultHealthCheckLocalDestination,
+			HealthMaxLogCount:    define.DefaultHealthMaxLogCount,
+			HealthMaxLogSize:     define.DefaultHealthMaxLogSize,
 		},
 	}, nil)
 	assert.NoError(t, err)
