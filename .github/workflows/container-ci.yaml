@@ -84,6 +84,40 @@ jobs:
         working-directory: plugins/container
         run: make
 
+      # Issue #1500 shipped because no job both built against an old glibc and
+      # loaded the result: this one builds on bullseye but never dlopen'd it,
+      # and falco-tests dlopens inside Debian 12 (glibc 2.36), where a missing
+      # DT_NEEDED on libresolv cannot fail. This job is already on bullseye
+      # (glibc 2.31), so both checks cost nothing but the steps themselves.
+      - name: Check libcontainer.so links libresolv
+        working-directory: plugins/container
+        run: |
+          readelf -d libcontainer.so | grep -q 'NEEDED.*libresolv\.so\.2' || {
+            echo "libcontainer.so has no DT_NEEDED entry for libresolv.so.2."
+            echo "It will fail to load on hosts with glibc < 2.34. See #1500."
+            readelf -d libcontainer.so | grep NEEDED
+            exit 1
+          }
+
+      - name: Load libcontainer.so on glibc < 2.34
+        working-directory: plugins/container
+        run: |
+          cat > /tmp/dlopen_check.c <<'EOF'
+          #include <dlfcn.h>
+          #include <stdio.h>
+          int main(int argc, char **argv) {
+            void *handle = dlopen(argv[1], RTLD_NOW);
+            if (!handle) {
+              fprintf(stderr, "dlopen failed: %s\n", dlerror());
+              return 1;
+            }
+            return 0;
+          }
+          EOF
+          gcc -o /tmp/dlopen_check /tmp/dlopen_check.c -ldl
+          /tmp/dlopen_check ./libcontainer.so
+          echo "loaded against $(ldd --version | head -n1)"
+
       - name: Upload artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
