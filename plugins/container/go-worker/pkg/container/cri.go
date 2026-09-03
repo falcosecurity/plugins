@@ -456,6 +456,17 @@ func (c *criEngine) List(ctx context.Context) ([]event.Event, error) {
 	return evts, nil
 }
 
+// resubscribeWait returns how long to wait before the next subscription
+// attempt. A subscription that outlived the ceiling was healthy, so the wait
+// starts over from the minimum instead of inheriting a backoff grown by
+// earlier restarts; otherwise the caller's current value stands.
+func resubscribeWait(current, lived time.Duration) time.Duration {
+	if lived > maxResubscribeBackoff {
+		return minResubscribeBackoff
+	}
+	return current
+}
+
 // Listen set up container created event loop by call to GetContainerEvents of the criEngine client
 // In case events have been disabled in the criEngine,
 // an error will be captured and passed to the caller.
@@ -469,6 +480,7 @@ func (c *criEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan even
 		defer wg.Done()
 		backoff := minResubscribeBackoff
 		for first := true; ; first = false {
+			started := time.Now()
 			err := c.client.GetContainerEvents(ctx, containerEventsCh, nil)
 			if first {
 				containerEventsErrorCh <- err
@@ -476,10 +488,17 @@ func (c *criEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan even
 			if ctx.Err() != nil {
 				return
 			}
+			backoff = resubscribeWait(backoff, time.Since(started))
 			// The stream ended without the context being cancelled, which is what
 			// a runtime restart looks like from here. Nothing resubscribes for us,
-			// so retry until the context goes away.
-			c.logger.LogAttrs(ctx, slog.LevelInfo, "container events stream ended, resubscribing",
+			// so retry until the context goes away. Only the first attempt is
+			// worth an operator's attention; a runtime that stays away would
+			// otherwise log every backoff period forever.
+			level := config.LevelTrace
+			if first {
+				level = slog.LevelInfo
+			}
+			c.logger.LogAttrs(ctx, level, "container events stream ended, resubscribing",
 				slog.String("socket", c.socket), slog.Duration("backoff", backoff), slog.Any("err", err))
 			select {
 			case <-ctx.Done():

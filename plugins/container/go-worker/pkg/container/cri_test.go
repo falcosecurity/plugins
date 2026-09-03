@@ -703,9 +703,10 @@ func TestCRIListenResubscribes(t *testing.T) {
 	config.Load(fmt.Sprintf(`{"hooks": %d}`, config.HookCreate|config.HookStart|config.HookRemove))
 
 	// Keep the test from waiting out the production backoff.
+	origMin, origMax := minResubscribeBackoff, maxResubscribeBackoff
 	minResubscribeBackoff, maxResubscribeBackoff = time.Millisecond, time.Millisecond
 	t.Cleanup(func() {
-		minResubscribeBackoff, maxResubscribeBackoff = time.Second, 30*time.Second
+		minResubscribeBackoff, maxResubscribeBackoff = origMin, origMax
 	})
 
 	before, after := containerFor(t, fakeRuntime, "before_restart"), containerFor(t, fakeRuntime, "after_restart")
@@ -758,4 +759,38 @@ func containerFor(t *testing.T, fakeRuntime *fake.RemoteRuntime, name string) st
 	})
 	require.NoError(t, err)
 	return ctr.ContainerId
+}
+
+func TestResubscribeWait(t *testing.T) {
+	origMin, origMax := minResubscribeBackoff, maxResubscribeBackoff
+	minResubscribeBackoff, maxResubscribeBackoff = time.Second, 30*time.Second
+	t.Cleanup(func() {
+		minResubscribeBackoff, maxResubscribeBackoff = origMin, origMax
+	})
+
+	for name, tc := range map[string]struct {
+		current time.Duration
+		lived   time.Duration
+		want    time.Duration
+	}{
+		"stream died immediately keeps the grown backoff": {
+			current: 16 * time.Second,
+			lived:   time.Millisecond,
+			want:    16 * time.Second,
+		},
+		"stream that outlived the ceiling starts over": {
+			current: 30 * time.Second,
+			lived:   31 * time.Second,
+			want:    time.Second,
+		},
+		"stream shorter than the ceiling is not healthy yet": {
+			current: 8 * time.Second,
+			lived:   29 * time.Second,
+			want:    8 * time.Second,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			require.Equal(t, tc.want, resubscribeWait(tc.current, tc.lived))
+		})
+	}
 }
