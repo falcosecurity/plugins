@@ -4,10 +4,12 @@ on:
     branches: [main]
     paths:
       - "plugins/container/**"
+      - ".github/workflows/container-ci.yaml"
   push:
     branches: [main]
     paths:
       - "plugins/container/**"
+      - ".github/workflows/container-ci.yaml"
   workflow_dispatch:
 
 permissions:
@@ -114,7 +116,14 @@ jobs:
             return 0;
           }
           EOF
-          gcc -o /tmp/dlopen_check /tmp/dlopen_check.c -ldl
+          # The plugin pulls pthread_* and dl* from the Go runtime but declares
+          # no DT_NEEDED for them; under Falco they resolve from the global
+          # scope, because the Falco binary links both via libsinsp. Link the
+          # probe the same way so it fails on a genuinely missing dependency
+          # rather than on one Falco would have supplied. --no-as-needed is
+          # required because bullseye's gcc would otherwise drop libpthread,
+          # which the probe's own code never calls.
+          gcc -o /tmp/dlopen_check /tmp/dlopen_check.c -Wl,--no-as-needed -lpthread -ldl
           /tmp/dlopen_check ./libcontainer.so
           echo "loaded against $(ldd --version | head -n1)"
 
