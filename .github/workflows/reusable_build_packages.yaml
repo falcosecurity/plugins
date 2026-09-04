@@ -44,6 +44,10 @@ jobs:
 
       - name: Install updated clang version ⛓️
         run: |
+          # Debian 11 reached end of life on August 31st, 2026: the clang-19 binaries were
+          # removed from the bullseye-security pool while the index still lists them, so apt
+          # gets 404s. Prefer the packages from apt.llvm.org, which are still available.
+          printf 'Package: *\nPin: origin apt.llvm.org\nPin-Priority: 1001\n' > /etc/apt/preferences.d/99-apt-llvm-org
           wget https://apt.llvm.org/llvm.sh
           chmod u+x llvm.sh
           ./llvm.sh 19
