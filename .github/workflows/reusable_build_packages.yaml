@@ -24,6 +24,14 @@ jobs:
     steps:
       - name: Install deps
         run: |
+          # Debian 11 reached end of life on August 31st, 2026: the Debian archive is removing
+          # the bullseye-security binaries while its index still lists them, so apt gets 404s.
+          # Take bullseye-security from the snapshot.debian.org mirror the image was built from
+          # (the image ships the URL as a commented line) and accept its expired Release file.
+          sed -i -e 's|^# \(deb http://snapshot.debian.org/archive/debian-security/[^ ]* bullseye-security main\)|\1|' \
+                 -e '\|^deb http://deb.debian.org/debian-security|d' /etc/apt/sources.list
+          grep -q '^deb http://snapshot.debian.org/archive/debian-security/' /etc/apt/sources.list
+          echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99snapshot
           apt update
           apt install -y --no-install-recommends awscli build-essential autoconf libelf-dev libtool autotools-dev \
             automake zip unzip ninja-build wget lsb-release software-properties-common gnupg ca-certificates curl git
