@@ -93,6 +93,22 @@ TEST_F(sinsp_with_test_input, plugin_k8s_env_variable)
     ASSERT_EQ(err, "");
 }
 
+TEST_F(sinsp_with_test_input, plugin_k8s_with_numeric_node_name)
+{
+    auto plugin_owner = m_inspector.register_plugin(PLUGIN_PATH);
+    ASSERT_TRUE(plugin_owner.get());
+    std::string err;
+
+    // A purely numeric Kubernetes node name (e.g. "123456") is inferred as a
+    // JSON integer rather than a string by Falco's downward API env var
+    // substitution. The schema and parser must accept it rather than
+    // rejecting it with a schema validation error.
+    ASSERT_NO_THROW(plugin_owner->init(R"(
+{"collectorHostname":"localhost","collectorPort":45000,"nodeName":123456})",
+                                       err));
+    ASSERT_EQ(err, "");
+}
+
 TEST_F(sinsp_with_test_input, plugin_k8s_with_host_proc)
 {
     auto plugin_owner = m_inspector.register_plugin(PLUGIN_PATH);
