@@ -91,13 +91,17 @@ func (p *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 		fsval = p.jdata.Get("protoPayload", "request")
 
 	case "gcp.policyDelta":
-		resource := string(p.jdata.Get("resource").Get("type").GetStringBytes())
-
-		if resource == "gcs_bucket" {
-			fsval = p.jdata.Get("protoPayload", "serviceData", "policyDelta", "bindingDeltas")
-		} else {
-			fsval = p.jdata.Get("protoPayload", "metadata", "datasetChange", "bindingDeltas")
+		fsval = policyDelta(p.jdata)
+		if fsval != nil {
+			bindingDeltas := fsval.MarshalTo(nil)
+			if len(bindingDeltas) > 0 {
+				req.SetValue(string(bindingDeltas))
+				if req.WantOffset() {
+					req.SetValueOffset(sdk.PluginEventPayloadOffset+uint32(fsval.Offset()), uint32(fsval.Len()))
+				}
+			}
 		}
+		return nil
 
 	case "gcp.methodName":
 		fsval = p.jdata.Get("protoPayload", "methodName")
@@ -175,7 +179,7 @@ func (p *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 			if len(resourceLabels) > 0 {
 				req.SetValue(string(resourceLabels))
 				if req.WantOffset() {
-					req.SetValueOffset(sdk.PluginEventPayloadOffset + uint32(fsval.Offset()), uint32(fsval.Len()))
+					req.SetValueOffset(sdk.PluginEventPayloadOffset+uint32(fsval.Offset()), uint32(fsval.Len()))
 				}
 			}
 		}
@@ -196,8 +200,49 @@ func (p *Plugin) Extract(req sdk.ExtractRequest, evt sdk.EventReader) error {
 
 	req.SetValue(string(fsval.GetStringBytes()))
 	if req.WantOffset() {
-		req.SetValueOffset(sdk.PluginEventPayloadOffset + uint32(fsval.Offset()), uint32(fsval.Len()))
+		req.SetValueOffset(sdk.PluginEventPayloadOffset+uint32(fsval.Offset()), uint32(fsval.Len()))
 	}
 
+	return nil
+}
+
+// policyDeltaPaths lists, in priority order, the locations that can carry the
+// bindingDeltas array of a SetIamPolicy audit event.
+//
+// protoPayload.serviceData.policyDelta is the documented location for the
+// services that still populate the legacy serviceData field. Google's audit
+// log reference currently lists IAM and Cloud Storage (both
+// google.iam.v1.logging.AuditData) and App Engine, which between them cover
+// the project, folder, organization, service_account and gcs_bucket resource
+// types from #1351.
+//
+// protoPayload.metadata.datasetChange is BigQuery's BigQueryAuditMetadata.
+//
+// protoPayload.metadata.policyDelta covers services that emit the same IAM
+// AuditData under the newer metadata field, which is the migration Google
+// recommends now that serviceData carries a deprecation notice.
+//
+// Probing by payload shape rather than switching on resource.type means new
+// resource types work without a code change, and a serviceData that arrived
+// stripped or empty falls through to metadata instead of yielding an empty
+// field. See issue #1351.
+var policyDeltaPaths = [][]string{
+	{"protoPayload", "serviceData", "policyDelta", "bindingDeltas"},
+	{"protoPayload", "metadata", "datasetChange", "bindingDeltas"},
+	{"protoPayload", "metadata", "policyDelta", "bindingDeltas"},
+}
+
+// policyDelta returns the first non-empty bindingDeltas array found in evt, or
+// nil when none of the known locations carry one.
+func policyDelta(evt *fastjson.Value) *fastjson.Value {
+	for _, path := range policyDeltaPaths {
+		deltas := evt.Get(path...)
+		if deltas == nil {
+			continue
+		}
+		if arr, err := deltas.Array(); err == nil && len(arr) > 0 {
+			return deltas
+		}
+	}
 	return nil
 }
