@@ -1,9 +1,9 @@
 module github.com/falcosecurity/plugins/plugins/cloudtrail
 
-go 1.24
+go 1.26
 
 require (
-	github.com/aws/aws-lambda-go v1.54.0
+	github.com/aws/aws-lambda-go v1.55.0
 	github.com/aws/aws-sdk-go-v2 v1.46.0
 	github.com/aws/aws-sdk-go-v2/config v1.33.3
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.22.43
