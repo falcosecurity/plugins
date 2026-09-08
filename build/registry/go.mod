@@ -7,7 +7,7 @@ require (
 	github.com/falcosecurity/falcoctl v0.14.0
 	github.com/falcosecurity/plugin-sdk-go v0.8.3
 	github.com/onsi/ginkgo/v2 v2.32.1
-	github.com/onsi/gomega v1.42.1
+	github.com/onsi/gomega v1.43.0
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
