@@ -15,11 +15,11 @@ limitations under the License.
 
 */
 
+#include <asked_containers.h>
 #include <consts.h>
 #include <macros.h>
 #include <matchers/matcher.h>
 #include <unordered_map>
-#include <unordered_set>
 
 enum command_category
 {
@@ -125,9 +125,10 @@ class my_plugin
     // Last container enriched from an async event parsing.
     // Used to extract container info from aforementioned async events.
     std::pair<uint64_t, std::shared_ptr<const container_info>> m_last_container;
-    // Cache being asked containers to go-worker through AskForContainerInfo()
-    // API. Avoids repeatedly calling the API.
-    std::unordered_set<std::string> m_asked_containers;
+    // Containers asked to the go-worker through the AskForContainerInfo()
+    // API. Avoids asking again while a request may be in flight, and lets a
+    // container be asked again once the go-worker has given up on it.
+    asked_containers m_asked_containers;
 
     std::vector<falcosecurity::metric> m_metrics;
 

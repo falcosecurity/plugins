@@ -10,6 +10,7 @@ configure_file(
 )
 
 add_executable(test src/extract.cpp
+    asked_containers.cpp
     config.cpp
     container_info_json.cpp
     lru.cpp
