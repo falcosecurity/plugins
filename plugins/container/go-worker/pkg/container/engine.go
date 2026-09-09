@@ -107,10 +107,10 @@ func WithEngineTimeout(ctx context.Context) (context.Context, context.CancelFunc
 // partial metadata: their IDs are reported, for the caller to look them up
 // later, in the background (see NewFetcherEngine).
 type ListIncompleteError struct {
-	// NotInspected holds the IDs, in the short form the plugin uses, of the
-	// enumerated containers that were not inspected. Containers the engine
-	// had not enumerated yet when ctx expired, if any, are not listed.
-	NotInspected []string
+	// NotInspected retains the full runtime identity of the enumerated
+	// containers that were not inspected. Containers the engine had not
+	// enumerated yet when ctx expired, if any, are not listed.
+	NotInspected []ContainerRef
 	// Err is the error of the context that cut the listing.
 	Err error
 }
@@ -121,12 +121,25 @@ func (e *ListIncompleteError) Error() string {
 
 func (e *ListIncompleteError) Unwrap() error { return e.Err }
 
-// notInspectedFrom returns the short IDs of the containers from index from to
-// n-1 of an enumeration, given the ID of its i-th container.
-func notInspectedFrom(n, from int, id func(i int) string) []string {
-	ids := make([]string, 0, n-from)
+// ContainerRef identifies a container in its runtime, before conversion to
+// the short ID used by the plugin cache. Namespace is used by containerd.
+type ContainerRef struct {
+	ID        string
+	Namespace string
+}
+
+// DeferredContainers retains the engine that enumerated these containers.
+// Recovery uses a copy of that engine, without probing unrelated runtimes.
+type DeferredContainers struct {
+	Engine     Engine
+	Containers []ContainerRef
+}
+
+// notInspectedFrom returns the full IDs from index from to n-1.
+func notInspectedFrom(n, from int, id func(i int) string) []ContainerRef {
+	ids := make([]ContainerRef, 0, n-from)
 	for i := from; i < n; i++ {
-		ids = append(ids, shortContainerID(id(i)))
+		ids = append(ids, ContainerRef{ID: id(i)})
 	}
 	return ids
 }

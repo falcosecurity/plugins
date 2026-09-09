@@ -243,16 +243,21 @@ func (c *containerdEngine) get(ctx context.Context, containerId string) (*event.
 		return nil, err
 	}
 	for _, namespace := range namespacesList {
-		namespacedContext := namespaces.WithNamespace(ctx, namespace)
-		container, err := c.client.LoadContainer(namespacedContext, containerId)
-		if err == nil {
-			return &event.Event{
-				Info:     c.ctrToInfo(namespacedContext, container),
-				IsCreate: true,
-			}, nil
+		if evt, err := c.getInNamespace(ctx, namespace, containerId); err == nil {
+			return evt, nil
 		}
 	}
 	return nil, nil
+}
+
+// getInNamespace preserves the identity obtained during startup enumeration.
+func (c *containerdEngine) getInNamespace(ctx context.Context, namespace, containerID string) (*event.Event, error) {
+	ctx = namespaces.WithNamespace(ctx, namespace)
+	ctr, err := c.client.LoadContainer(ctx, containerID)
+	if err != nil {
+		return nil, err
+	}
+	return &event.Event{Info: c.ctrToInfo(ctx, ctr), IsCreate: true}, nil
 }
 
 func (c *containerdEngine) Name() string {
@@ -272,13 +277,18 @@ func (c *containerdEngine) List(ctx context.Context) ([]event.Event, error) {
 	// that a listing cut by the caller can report the ones not inspected.
 	type namespaced struct {
 		ctx       context.Context
+		namespace string
 		container containerd.Container
 	}
 	enumerated := make([]namespaced, 0)
 	// incomplete reports the enumerated containers from index from on as not
 	// inspected.
 	incomplete := func(from int, cut error) *ListIncompleteError {
-		return &ListIncompleteError{NotInspected: notInspectedFrom(len(enumerated), from, func(i int) string { return enumerated[i].container.ID() }), Err: cut}
+		refs := make([]ContainerRef, 0, len(enumerated)-from)
+		for _, nc := range enumerated[from:] {
+			refs = append(refs, ContainerRef{ID: nc.container.ID(), Namespace: nc.namespace})
+		}
+		return &ListIncompleteError{NotInspected: refs, Err: cut}
 	}
 	for _, namespace := range namespacesList {
 		namespacedContext := namespaces.WithNamespace(ctx, namespace)
@@ -293,7 +303,7 @@ func (c *containerdEngine) List(ctx context.Context) ([]event.Event, error) {
 			continue
 		}
 		for _, container := range containersList {
-			enumerated = append(enumerated, namespaced{ctx: namespacedContext, container: container})
+			enumerated = append(enumerated, namespaced{ctx: namespacedContext, namespace: namespace, container: container})
 		}
 	}
 	evts := make([]event.Event, 0, len(enumerated))

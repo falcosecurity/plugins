@@ -85,8 +85,8 @@ func TestDockerListStopsInspectingOnceTheContextIsDone(t *testing.T) {
 	var incomplete *ListIncompleteError
 	require.ErrorAs(t, err, &incomplete)
 	assert.ErrorIs(t, err, context.DeadlineExceeded)
-	// The containers left are reported, by short ID, for the background lookups.
-	assert.Equal(t, []string{"000000000003", "000000000004", "000000000005", "000000000006"}, incomplete.NotInspected)
+	// The containers left retain their full runtime IDs for background lookups.
+	assert.Equal(t, []ContainerRef{{ID: fakeDockerID(3)}, {ID: fakeDockerID(4)}, {ID: fakeDockerID(5)}, {ID: fakeDockerID(6)}}, incomplete.NotInspected)
 	require.Len(t, evts, 2)
 	for i, evt := range evts {
 		assert.Equal(t, shortContainerID(fakeDockerID(i+1)), evt.ID)

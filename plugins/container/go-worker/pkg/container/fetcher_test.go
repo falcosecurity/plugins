@@ -129,16 +129,16 @@ func startFetcher(t *testing.T, g getter, backoff []time.Duration, maxPending in
 // given retry backoff, pending bound and deferred containers.
 func newTestFetcher(g getter, fetchCh chan string, backoff []time.Duration, maxPending int, deferred []string) *fetcher {
 	f := &fetcher{
-		getters:      []getter{g},
-		ctx:          context.Background(),
-		fetcherChan:  fetchCh,
-		retryBackoff: backoff,
-		maxPending:   maxPending,
-		deferred:     append([]string(nil), deferred...),
-		deferredSet:  make(map[string]struct{}, len(deferred)),
+		getters:         []getter{g},
+		ctx:             context.Background(),
+		fetcherChan:     fetchCh,
+		retryBackoff:    backoff,
+		maxPending:      maxPending,
+		deferred:        append([]string(nil), deferred...),
+		deferredLookups: make(map[string]deferredFetch, len(deferred)),
 	}
 	for _, id := range deferred {
-		f.deferredSet[id] = struct{}{}
+		f.deferredLookups[id] = deferredFetch{engine: g, ref: ContainerRef{ID: id}, queued: true}
 	}
 	return f
 }
@@ -505,9 +505,11 @@ func (selfEngine) Listen(context.Context, *sync.WaitGroup) (<-chan event.Event, 
 func (e selfEngine) copy(context.Context) (Engine, error) { return e, nil }
 
 func TestNewFetcherEngineDeduplicatesTheDeferredContainers(t *testing.T) {
-	f := NewFetcherEngine(context.Background(), make(chan string), []Engine{selfEngine{}}, []string{"a", "b", "", "a", "c", "b"}).(*fetcher)
+	engine := selfEngine{}
+	refs := []ContainerRef{{ID: "a"}, {ID: "b"}, {}, {ID: "a"}, {ID: "c"}, {ID: "b"}}
+	f := NewFetcherEngine(context.Background(), make(chan string), []Engine{engine}, []DeferredContainers{{Engine: engine, Containers: refs}}).(*fetcher)
 	assert.Equal(t, []string{"a", "b", "c"}, f.deferred)
-	assert.Len(t, f.deferredSet, 3)
+	assert.Len(t, f.deferredLookups, 3)
 	assert.Len(t, f.getters, 1)
 }
 

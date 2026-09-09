@@ -54,10 +54,26 @@ type fetcher struct {
 	maxPending int
 	// The containers the startup listing enumerated but did not inspect
 	// within the engine timeout, waiting for their lookup in the order given,
-	// and the set of them: one found meanwhile through a request leaves the
-	// set and is skipped. Both are only touched by the serving goroutine.
-	deferred    []string
-	deferredSet map[string]struct{}
+	// and their runtime identities. A successful request removes the identity
+	// so its deferred slot is skipped. A miss retains it through retries.
+	// Both are only touched by the serving goroutine.
+	deferred        []string
+	deferredLookups map[string]deferredFetch
+}
+
+// deferredFetch keeps runtime identity until lookup succeeds or retries end.
+// Process requests use the same short-ID key, so they share this lookup too.
+type deferredFetch struct {
+	engine getter
+	ref    ContainerRef
+	queued bool // its background slot has not been consumed yet
+}
+
+func (d deferredFetch) get(ctx context.Context) (*event.Event, error) {
+	if c, ok := d.engine.(*containerdEngine); ok {
+		return c.getInNamespace(ctx, d.ref.Namespace, d.ref.ID)
+	}
+	return d.engine.get(ctx, d.ref.ID)
 }
 
 // NewFetcherEngine returns a fetcher engine.
@@ -65,7 +81,7 @@ type fetcher struct {
 // trying all container engines enabled. Once listening, it also looks up the
 // deferred containers, the ones the startup listing enumerated but did not
 // inspect in time (see ListIncompleteError), in the background.
-func NewFetcherEngine(_ context.Context, fetcherChan chan string, containerEngines []Engine, deferred []string) Engine {
+func NewFetcherEngine(_ context.Context, fetcherChan chan string, containerEngines []Engine, deferred []DeferredContainers) Engine {
 	f := fetcher{
 		getters: make([]getter, 0, len(containerEngines)),
 		// Since podman relies upon context to store
@@ -76,15 +92,18 @@ func NewFetcherEngine(_ context.Context, fetcherChan chan string, containerEngin
 		fetcherChan:  fetcherChan,
 		retryBackoff: containerFetchRetryBackoff,
 		maxPending:   maxPendingFetches,
-		deferred:     make([]string, 0, len(deferred)),
-		deferredSet:  make(map[string]struct{}, len(deferred)),
 	}
-	for _, id := range deferred {
-		if _, dup := f.deferredSet[id]; id == "" || dup {
-			continue
+	// Only construction needs the engine index. The serving goroutine uses
+	// direct getter references, including for normal short-ID requests.
+	var copied map[[2]string]getter
+	if len(deferred) > 0 {
+		copied = make(map[[2]string]getter, len(containerEngines))
+		count := 0
+		for _, group := range deferred {
+			count += len(group.Containers)
 		}
-		f.deferredSet[id] = struct{}{}
-		f.deferred = append(f.deferred, id)
+		f.deferred = make([]string, 0, count)
+		f.deferredLookups = make(map[string]deferredFetch, count)
 	}
 	for _, engine := range containerEngines {
 		copyEngine, ok := engine.(copier)
@@ -101,7 +120,29 @@ func NewFetcherEngine(_ context.Context, fetcherChan chan string, containerEngin
 			continue
 		}
 		// No type check since Engine interface extends getter.
-		f.getters = append(f.getters, e.(getter))
+		g := e.(getter)
+		f.getters = append(f.getters, g)
+		if copied != nil {
+			copied[[2]string{engine.Name(), engine.Sock()}] = g
+		}
+	}
+	for _, group := range deferred {
+		g := copied[[2]string{group.Engine.Name(), group.Engine.Sock()}]
+		if g == nil {
+			// The failed engine copy was logged above.
+			continue
+		}
+		for _, ref := range group.Containers {
+			id := shortContainerID(ref.ID)
+			if _, dup := f.deferredLookups[id]; id == "" || dup {
+				continue
+			}
+			f.deferredLookups[id] = deferredFetch{engine: g, ref: ref, queued: true}
+			f.deferred = append(f.deferred, id)
+		}
+	}
+	if len(f.deferred) == 0 {
+		f.deferred, f.deferredLookups = nil, nil
 	}
 	return &f
 }
@@ -124,10 +165,10 @@ func (f *fetcher) List(_ context.Context) ([]event.Event, error) {
 // the lookup is retried after each delay of the retry backoff, then given up.
 // On success, publish event on output channel.
 // A single goroutine and a single timer serve the requests, the retries and
-// the deferred containers of the startup listing: the requests first, then
-// one retry or one deferred lookup per wake-up, so that a request never waits
-// behind the others. At most maxPending containers wait for a retry and each
-// deferred container is looked up once: neither goroutines nor memory grow
+// the deferred containers of the startup listing. Requests and due retries
+// share the foreground; one deferred lookup runs when neither is ready.
+// At most maxPending containers wait for a retry and each deferred container
+// is looked up once: neither goroutines nor memory grow
 // with the misses.
 func (f *fetcher) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan event.Event, error) {
 	outCh := make(chan event.Event)
@@ -168,9 +209,8 @@ func (f *fetcher) serve(ctx context.Context, outCh chan<- event.Event) {
 				f.serveRetry(ctx, now, retries, outCh)
 			}
 		} else {
-			// While deferred containers wait, a request goes first: the
-			// process that asked is running now, the leftovers of the startup
-			// listing can wait for one more lookup.
+			// Live requests and their due retries both precede background
+			// startup work. A busy request channel must not starve retries.
 			select {
 			case <-ctx.Done():
 				return
@@ -179,6 +219,8 @@ func (f *fetcher) serve(ctx context.Context, outCh chan<- event.Event) {
 					return
 				}
 				f.serveRequest(ctx, containerId, retries, outCh)
+			case now := <-timerC:
+				f.serveRetry(ctx, now, retries, outCh)
 			default:
 				select {
 				case <-ctx.Done():
@@ -194,6 +236,9 @@ func (f *fetcher) serve(ctx context.Context, outCh chan<- event.Event) {
 					f.serveDeferred(ctx, retries, outCh)
 				}
 			}
+		}
+		if len(f.deferred) == 0 && len(f.deferredLookups) == 0 {
+			f.deferredLookups = nil
 		}
 		// Arm the timer on the earliest retry, if any.
 		if p, _, ok := retries.peek(); ok {
@@ -220,10 +265,13 @@ func (f *fetcher) scheduleRetry(ctx context.Context, containerId string, retries
 	if retries.len() >= f.maxPending {
 		slog.Default().LogAttrs(ctx, slog.LevelDebug, "too many containers waiting for a retry, dropping the request",
 			slog.String("container", containerId), slog.Int("pending", retries.len()))
+		f.forgetFailedDeferred(containerId)
 		return
 	}
 	now := time.Now()
-	retries.add(pendingFetch{id: containerId, since: now}, 0, now)
+	if !retries.add(pendingFetch{id: containerId, since: now}, 0, now) {
+		f.forgetFailedDeferred(containerId)
+	}
 }
 
 // serveRetry looks up the earliest retry due at now, if any, and schedules
@@ -243,6 +291,7 @@ func (f *fetcher) serveRetry(ctx context.Context, now time.Time, retries *retryQ
 	// that a runtime slow to answer gets the whole delay.
 	now = time.Now()
 	if !retries.add(p, step+1, now) {
+		f.forgetFailedDeferred(p.id)
 		slog.Default().LogAttrs(ctx, slog.LevelDebug, "no container engine knows the container, giving up",
 			slog.String("container", p.id), slog.Int("lookups", step+2), slog.Duration("elapsed", now.Sub(p.since)))
 	}
@@ -256,10 +305,13 @@ func (f *fetcher) serveDeferred(ctx context.Context, retries *retryQueue, outCh 
 	id := f.deferred[0]
 	f.deferred[0] = "" // do not retain the id
 	f.deferred = f.deferred[1:]
-	_, waiting := f.deferredSet[id]
-	delete(f.deferredSet, id)
+	d, waiting := f.deferredLookups[id]
+	if waiting {
+		d.queued = false
+		f.deferredLookups[id] = d
+	}
 	if len(f.deferred) == 0 {
-		f.deferred, f.deferredSet = nil, nil
+		f.deferred = nil
 		slog.Default().LogAttrs(ctx, slog.LevelDebug, "looked up every container the startup listing did not inspect in time")
 	}
 	if !waiting || retries.contains(id) || f.lookup(ctx, id, outCh) {
@@ -268,16 +320,31 @@ func (f *fetcher) serveDeferred(ctx context.Context, retries *retryQueue, outCh 
 	f.scheduleRetry(ctx, id, retries)
 }
 
-// lookup asks each engine about the container and publishes the first
-// answer. It reports whether an engine knew the container, which then needs
-// no deferred lookup either.
+// A failed process request must not discard the background attempt still
+// waiting in the startup slice. Once that slot runs, only retries retain it.
+func (f *fetcher) forgetFailedDeferred(id string) {
+	if !f.deferredLookups[id].queued {
+		delete(f.deferredLookups, id)
+	}
+}
+
+// lookup uses the known runtime identity of a deferred container, or probes
+// the engines for an unknown ID. Success publishes the event and releases
+// any deferred identity.
 func (f *fetcher) lookup(ctx context.Context, containerId string, outCh chan<- event.Event) bool {
-	for _, e := range f.getters {
-		evt, _ := e.get(f.ctx, containerId)
-		if evt == nil {
-			continue
+	var evt *event.Event
+	if d, ok := f.deferredLookups[containerId]; ok {
+		evt, _ = d.get(f.ctx)
+	} else {
+		for _, e := range f.getters {
+			evt, _ = e.get(f.ctx, containerId)
+			if evt != nil {
+				break
+			}
 		}
-		delete(f.deferredSet, containerId)
+	}
+	if evt != nil {
+		delete(f.deferredLookups, containerId)
 		select {
 		case outCh <- *evt:
 		case <-ctx.Done():
