@@ -424,13 +424,17 @@ func (c *criEngine) List(ctx context.Context) ([]event.Event, error) {
 	if err != nil {
 		return nil, err
 	}
+	// incomplete reports the containers from index from on as not inspected.
+	incomplete := func(from int, cut error) *ListIncompleteError {
+		return &ListIncompleteError{NotInspected: notInspectedFrom(len(ctrs), from, func(i int) string { return ctrs[i].Id }), Err: cut}
+	}
 	evts := make([]event.Event, 0, len(ctrs))
 	for idx, ctr := range ctrs {
 		// Once the caller's context is done every request fails: leave the
-		// remaining containers to the lookups on their first event instead of
-		// returning them with partial metadata.
+		// remaining containers to the background lookups instead of returning
+		// them with partial metadata.
 		if cut := listCut(ctx); cut != nil {
-			return evts, &ListIncompleteError{Remaining: len(ctrs) - idx, Err: cut}
+			return evts, incomplete(idx, cut)
 		}
 		// verbose true to return container.Info
 		container, err := c.client.ContainerStatus(ctx, ctr.Id, true)
@@ -463,7 +467,7 @@ func (c *criEngine) List(ctx context.Context) ([]event.Event, error) {
 		// context done meanwhile is such an error, so do not return this
 		// container either.
 		if cut := listCut(ctx); cut != nil {
-			return evts, &ListIncompleteError{Remaining: len(ctrs) - idx, Err: cut}
+			return evts, incomplete(idx, cut)
 		}
 		evts = append(evts, evt)
 	}

@@ -252,13 +252,17 @@ func (dc *dockerEngine) List(ctx context.Context) ([]event.Event, error) {
 		return nil, err
 	}
 
+	// incomplete reports the containers from index from on as not inspected.
+	incomplete := func(from int, cut error) *ListIncompleteError {
+		return &ListIncompleteError{NotInspected: notInspectedFrom(len(containers), from, func(i int) string { return containers[i].ID }), Err: cut}
+	}
 	evts := make([]event.Event, 0, len(containers))
 	for idx, ctr := range containers {
 		// Once the caller's context is done every request fails: leave the
-		// remaining containers to the lookups on their first event instead of
-		// returning them with partial metadata.
+		// remaining containers to the background lookups instead of returning
+		// them with partial metadata.
 		if cut := listCut(ctx); cut != nil {
-			return evts, &ListIncompleteError{Remaining: len(containers) - idx, Err: cut}
+			return evts, incomplete(idx, cut)
 		}
 		ctrJson, _, err := dc.ContainerInspectWithRaw(ctx, ctr.ID, config.GetWithSize())
 		var evt event.Event
@@ -287,7 +291,7 @@ func (dc *dockerEngine) List(ctx context.Context) ([]event.Event, error) {
 		// partial metadata on error: a context done meanwhile is such an
 		// error, so do not return this container either.
 		if cut := listCut(ctx); cut != nil {
-			return evts, &ListIncompleteError{Remaining: len(containers) - idx, Err: cut}
+			return evts, incomplete(idx, cut)
 		}
 		evts = append(evts, evt)
 	}
