@@ -228,8 +228,19 @@ func (pc *podmanEngine) List(ctx context.Context) ([]event.Event, error) {
 	if err != nil {
 		return nil, err
 	}
-	for _, c := range cList {
+	for idx, c := range cList {
+		// Once the caller's context is done every request fails, but only
+		// after the three attempts and the fixed pauses of the podman client:
+		// stop here rather than paying them for each remaining container, and
+		// leave those containers to the lookups on their first event instead
+		// of returning them with partial metadata.
+		if cut := listCut(ctx); cut != nil {
+			return evts, &ListIncompleteError{Remaining: len(cList) - idx, Err: cut}
+		}
 		ctrInfo, err := containers.Inspect(ctx, c.ID, &containers.InspectOptions{Size: &size})
+		if cut := listCut(ctx); cut != nil {
+			return evts, &ListIncompleteError{Remaining: len(cList) - idx, Err: cut}
+		}
 		if err != nil {
 			evts = append(evts, event.Event{
 				Info: event.Info{

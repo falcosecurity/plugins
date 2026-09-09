@@ -252,12 +252,19 @@ func (dc *dockerEngine) List(ctx context.Context) ([]event.Event, error) {
 		return nil, err
 	}
 
-	evts := make([]event.Event, len(containers))
+	evts := make([]event.Event, 0, len(containers))
 	for idx, ctr := range containers {
+		// Once the caller's context is done every request fails: leave the
+		// remaining containers to the lookups on their first event instead of
+		// returning them with partial metadata.
+		if cut := listCut(ctx); cut != nil {
+			return evts, &ListIncompleteError{Remaining: len(containers) - idx, Err: cut}
+		}
 		ctrJson, _, err := dc.ContainerInspectWithRaw(ctx, ctr.ID, config.GetWithSize())
+		var evt event.Event
 		if err != nil {
 			// Minimum set of infos
-			evts[idx] = event.Event{
+			evt = event.Event{
 				Info: event.Info{
 					Container: event.Container{
 						Type:        typeDocker.ToCTValue(),
@@ -271,11 +278,18 @@ func (dc *dockerEngine) List(ctx context.Context) ([]event.Event, error) {
 				IsCreate: true,
 			}
 		} else {
-			evts[idx] = event.Event{
+			evt = event.Event{
 				Info:     dc.ctrToInfo(ctx, ctrJson),
 				IsCreate: true,
 			}
 		}
+		// The inspections (ctrToInfo inspects the image too) fall back to
+		// partial metadata on error: a context done meanwhile is such an
+		// error, so do not return this container either.
+		if cut := listCut(ctx); cut != nil {
+			return evts, &ListIncompleteError{Remaining: len(containers) - idx, Err: cut}
+		}
+		evts = append(evts, evt)
 	}
 	return evts, nil
 }

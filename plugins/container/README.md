@@ -161,7 +161,9 @@ plugins:
 load_plugins: [container]
 ```
 
-At startup, the plugin connects to each enabled engine socket and lists the pre-existing containers. An engine that does not answer within `engine_timeout` seconds (default: 10) is skipped with a warning, so that an unresponsive runtime socket (for example a socket-activated service whose backend is gone) cannot block Falco's startup. Setting `engine_timeout` to `0` disables the timeout: the plugin then waits for each engine indefinitely.
+At startup, the plugin connects to each enabled engine socket and lists the pre-existing containers. An engine that does not answer within `engine_timeout` seconds (default: 10) is skipped with a warning, so that an unresponsive runtime socket (for example a socket-activated service whose backend is gone) cannot block Falco's startup. An engine that answers but does not finish listing its containers in time is kept: the containers inspected so far are loaded, and the others are looked up on their first event, like any container the plugin does not know yet, rather than being loaded with partial metadata. Setting `engine_timeout` to `0` disables the timeout: the plugin then waits for each engine indefinitely.
+
+N.B. With podman the timeout can be exceeded by up to about 0.6 seconds, since the podman client retries a failed request three times with fixed pauses in between.
 
 ### Rules
 

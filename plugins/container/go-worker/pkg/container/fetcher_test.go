@@ -289,6 +289,48 @@ func TestFetcherBoundedUnderManyMisses(t *testing.T) {
 		containers, sent, float64(containers)/sent.Seconds(), settled, retried, dropped, total, maxInFlight)
 }
 
+// slowGetter never knows a container and takes delay to say so, like a
+// runtime under load. It records when each lookup started.
+type slowGetter struct {
+	mu     sync.Mutex
+	delay  time.Duration
+	starts []time.Time
+}
+
+func (g *slowGetter) get(context.Context, string) (*event.Event, error) {
+	g.mu.Lock()
+	g.starts = append(g.starts, time.Now())
+	g.mu.Unlock()
+	time.Sleep(g.delay)
+	return nil, errors.New("no such container")
+}
+
+// lookups returns a copy of the lookup start times.
+func (g *slowGetter) lookups() []time.Time {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return append([]time.Time(nil), g.starts...)
+}
+
+// TestFetcherPacesRetriesFromTheEndOfTheLookup checks that the time a lookup
+// takes does not eat into the delay before the next one: a runtime slow to
+// answer gets the whole backoff of rest between two lookups.
+func TestFetcherPacesRetriesFromTheEndOfTheLookup(t *testing.T) {
+	backoff := []time.Duration{20 * time.Millisecond, 40 * time.Millisecond}
+	g := &slowGetter{delay: 30 * time.Millisecond}
+	fetchCh, outCh := startFetcher(t, g, backoff, maxPendingFetches)
+
+	fetchCh <- "slow"
+	assert.Eventually(t, func() bool { return len(g.lookups()) == len(backoff)+1 }, time.Second, time.Millisecond)
+	assertNoEvent(t, outCh, 50*time.Millisecond)
+
+	starts := g.lookups()
+	require.Len(t, starts, len(backoff)+1)
+	for i, delay := range backoff {
+		assert.GreaterOrEqual(t, starts[i+1].Sub(starts[i]), g.delay+delay, "lookup %d started less than its delay after the end of lookup %d", i+1, i)
+	}
+}
+
 type nopGetter struct{}
 
 func (nopGetter) get(context.Context, string) (*event.Event, error) {

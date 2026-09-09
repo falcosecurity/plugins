@@ -100,6 +100,34 @@ func WithEngineTimeout(ctx context.Context) (context.Context, context.CancelFunc
 	return context.WithCancel(ctx)
 }
 
+// ListIncompleteError is returned by List, together with the containers it
+// did inspect, when ctx expired while the containers the engine had
+// enumerated were being inspected: the engine answers, it just did not finish
+// in time. The remaining containers are neither inspected nor returned with
+// partial metadata; they are looked up on their first event, like any
+// container the plugin does not know yet.
+type ListIncompleteError struct {
+	// Remaining is how many enumerated containers were not inspected, as far
+	// as the engine could tell.
+	Remaining int
+	// Err is the error of the context that cut the listing.
+	Err error
+}
+
+func (e *ListIncompleteError) Error() string {
+	return fmt.Sprintf("listing cut by the caller, %d containers not inspected: %v", e.Remaining, e.Err)
+}
+
+func (e *ListIncompleteError) Unwrap() error { return e.Err }
+
+// listCut returns the cause of ctx being done, or nil while it is not.
+func listCut(ctx context.Context) error {
+	if ctx.Err() != nil {
+		return context.Cause(ctx)
+	}
+	return nil
+}
+
 type getter interface {
 	// get returns info about a single container
 	get(ctx context.Context, containerId string) (*event.Event, error)
