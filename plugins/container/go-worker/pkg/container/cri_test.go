@@ -788,9 +788,10 @@ func TestCRIListStopsInspectingOnceTheContextIsDone(t *testing.T) {
 		assert.True(t, ids[evt.ID], "unknown container %q returned", evt.ID)
 		delete(ids, evt.ID)
 	}
-	// The containers left are reported, by short ID, for the background lookups.
+	// The containers left retain their full runtime IDs for background lookups.
 	require.Len(t, incomplete.NotInspected, 4)
-	for _, id := range incomplete.NotInspected {
+	for _, ref := range incomplete.NotInspected {
+		id := shortContainerID(ref.ID)
 		assert.True(t, ids[id], "container %q reported as not inspected was returned or never existed", id)
 		delete(ids, id)
 	}

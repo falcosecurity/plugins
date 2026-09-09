@@ -25,7 +25,7 @@ type listEngine struct {
 	unresponsive bool
 	// notInspected, when set, makes List wait for the context to be done and
 	// return the events with a ListIncompleteError for these containers.
-	notInspected []string
+	notInspected []container.ContainerRef
 }
 
 func (e *listEngine) Name() string { return e.name }
@@ -97,7 +97,7 @@ func TestBootstrapEnginesSkipsUnresponsiveEngine(t *testing.T) {
 func TestBootstrapEnginesKeepsEngineWithIncompleteListing(t *testing.T) {
 	setEngineTimeout(t, 1)
 
-	notInspected := []string{"def456def456", "0123456789ab", "fedcba987654", "aabbccddeeff"}
+	notInspected := []container.ContainerRef{{ID: "def456def456"}, {ID: "0123456789ab"}, {ID: "fedcba987654"}, {ID: "aabbccddeeff"}}
 	slow := &listEngine{name: "podman", socket: "/run/podman/podman.sock", events: []event.Event{
 		{Info: event.Info{Container: event.Container{ID: "abc123abc123", Name: "inspected"}}, IsCreate: true},
 	}, notInspected: notInspected}
@@ -118,7 +118,9 @@ func TestBootstrapEnginesKeepsEngineWithIncompleteListing(t *testing.T) {
 	assert.Equal(t, map[string][]string{"podman": {"/run/podman/podman.sock"}}, sockets)
 	require.Len(t, delivered, 1)
 	assert.Contains(t, delivered[0], "abc123abc123")
-	assert.Equal(t, notInspected, deferred)
+	require.Len(t, deferred, 1)
+	assert.Same(t, slow, deferred[0].Engine)
+	assert.Equal(t, notInspected, deferred[0].Containers)
 }
 
 func TestBootstrapEnginesKeepsEngineFailingToList(t *testing.T) {

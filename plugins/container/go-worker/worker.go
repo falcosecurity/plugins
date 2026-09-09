@@ -38,10 +38,10 @@ type asyncCb func(string, bool, bool)
 // metadata for good, since a cached container is never asked again.
 // The generators receive the long-lived ctx unbounded on purpose, since an
 // engine keeps it for its whole lifetime; they bound their own connection.
-func bootstrapEngines(ctx context.Context, generators []container.EngineGenerator, cb asyncCb) ([]container.Engine, map[string][]string, []string) {
+func bootstrapEngines(ctx context.Context, generators []container.EngineGenerator, cb asyncCb) ([]container.Engine, map[string][]string, []container.DeferredContainers) {
 	engines := make([]container.Engine, 0, len(generators))
 	sockets := make(map[string][]string)
-	var deferred []string
+	var deferred []container.DeferredContainers
 	for _, generator := range generators {
 		engine, err := generator(ctx)
 		if err != nil {
@@ -58,7 +58,7 @@ func bootstrapEngines(ctx context.Context, generators []container.EngineGenerato
 		case errors.As(err, &incomplete):
 			logger.LogAttrs(ctx, slog.LevelWarn, "listing containers hit the engine timeout: the containers not inspected in time are looked up in the background, their events carry no metadata until then",
 				slog.Duration("timeout", config.GetEngineTimeout()), slog.Int("inspected", len(containers)), slog.Int("not_inspected", len(incomplete.NotInspected)))
-			deferred = append(deferred, incomplete.NotInspected...)
+			deferred = append(deferred, container.DeferredContainers{Engine: engine, Containers: incomplete.NotInspected})
 		case err != nil && timedOut:
 			logger.LogAttrs(ctx, slog.LevelWarn, "container engine did not answer within the engine timeout, skipping it for the rest of this run: its containers will have no metadata",
 				slog.Duration("timeout", config.GetEngineTimeout()), slog.Any("err", err))

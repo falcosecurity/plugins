@@ -35,7 +35,7 @@ func TestPodmanDeferredContainersAreLookedUpAfterTheCutListing(t *testing.T) {
 	require.Len(t, incomplete.NotInspected, count)
 
 	fetchCh := make(chan string, 100)
-	f := NewFetcherEngine(context.Background(), fetchCh, []Engine{engine}, incomplete.NotInspected)
+	f := NewFetcherEngine(context.Background(), fetchCh, []Engine{engine}, []DeferredContainers{{Engine: engine, Containers: incomplete.NotInspected}})
 	ctx, stop := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 	outCh, err := f.Listen(ctx, &wg)
@@ -56,7 +56,8 @@ func TestPodmanDeferredContainersAreLookedUpAfterTheCutListing(t *testing.T) {
 			t.Fatalf("only %d of %d deferred containers were looked up", len(recovered), count)
 		}
 	}
-	for _, id := range incomplete.NotInspected {
+	for _, ref := range incomplete.NotInspected {
+		id := shortContainerID(ref.ID)
 		evt, ok := recovered[id]
 		require.True(t, ok, "container %s was not looked up", id)
 		assert.Equal(t, "healthy-"+id, evt.Name)
