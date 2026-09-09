@@ -2,9 +2,11 @@ package container
 
 import (
 	"context"
-	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
+	"log/slog"
 	"sync"
 	"time"
+
+	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/event"
 )
 
 /*
@@ -26,7 +28,7 @@ type fetcher struct {
 // trying all container engines enabled.
 func NewFetcherEngine(_ context.Context, fetcherChan chan string, containerEngines []Engine) Engine {
 	f := fetcher{
-		getters: make([]getter, len(containerEngines)),
+		getters: make([]getter, 0, len(containerEngines)),
 		// Since podman relies upon context to store
 		// connection-related info,
 		// we need a unique context for fetcher
@@ -34,17 +36,22 @@ func NewFetcherEngine(_ context.Context, fetcherChan chan string, containerEngin
 		ctx:         context.Background(),
 		fetcherChan: fetcherChan,
 	}
-	for i, engine := range containerEngines {
+	for _, engine := range containerEngines {
 		copyEngine, ok := engine.(copier)
 		if !ok {
 			// We need all engines to implement the copier interface to be copied by fetcher.
 			panic("not a copier")
 		}
-		e, _ := copyEngine.copy(f.ctx)
-		if e != nil {
-			// No type check since Engine interface extends getter.
-			f.getters[i] = e.(getter)
+		e, err := copyEngine.copy(f.ctx)
+		if e == nil {
+			// Leave the engine out rather than storing a nil getter, which
+			// would make Listen panic on the first lookup.
+			slog.Default().LogAttrs(f.ctx, slog.LevelWarn, "cannot copy container engine for on-demand lookups, skipping it",
+				slog.String("engine", engine.Name()), slog.String("socket", engine.Sock()), slog.Any("err", err))
+			continue
 		}
+		// No type check since Engine interface extends getter.
+		f.getters = append(f.getters, e.(getter))
 	}
 	return &f
 }

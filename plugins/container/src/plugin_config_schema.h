@@ -41,6 +41,12 @@ const char plugin_schema_string[] = LONG_STRING_CONST(
       "title": "Log level",
       "description": "Log level for the go-worker. Valid values: trace, debug, info, warn, error. Defaults to 'warn'."
     },
+    "engine_timeout": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Container engine timeout",
+      "description": "Seconds to wait for a container engine to answer while connecting to it and listing the pre-existing containers at startup. An engine that does not answer in time is skipped, so that an unresponsive runtime socket cannot block Falco's startup. 0 disables the timeout. Defaults to 10."
+    },
     "engines": {
       "$ref": "#/definitions/Engines",
       "title": "The plugin per-engine configuration",

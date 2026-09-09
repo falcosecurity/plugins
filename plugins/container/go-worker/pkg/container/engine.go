@@ -76,12 +76,28 @@ func Generators() ([]EngineGenerator, error) {
 			// try to generate an engine for the socket.
 			if _, statErr := os.Stat(socket); !os.IsNotExist(statErr) {
 				generators = append(generators, func(ctx context.Context) (Engine, error) {
-					return engineGen(ctx, slog.With("engine", engineName), socket)
+					logger := slog.With("engine", engineName)
+					engine, err := engineGen(ctx, logger, socket)
+					if err != nil {
+						logger.LogAttrs(ctx, slog.LevelWarn, "container engine unavailable, skipping it",
+							slog.String("socket", socket), slog.Any("err", err))
+					}
+					return engine, err
 				})
 			}
 		}
 	}
 	return generators, nil
+}
+
+// WithEngineTimeout returns a copy of ctx that expires after the configured
+// engine timeout, so that a container runtime which accepts connections but
+// never answers cannot block the caller. A zero timeout leaves ctx unbounded.
+func WithEngineTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
+	if timeout := config.GetEngineTimeout(); timeout > 0 {
+		return context.WithTimeout(ctx, timeout)
+	}
+	return context.WithCancel(ctx)
 }
 
 type getter interface {

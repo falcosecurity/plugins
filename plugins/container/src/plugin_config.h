@@ -5,6 +5,9 @@
 #include <falcosecurity/sdk.h>
 
 #define DEFAULT_LABEL_MAX_LEN 100
+// Seconds a container engine gets to answer while the plugin connects to it
+// and lists the pre-existing containers at startup. 0 disables the timeout.
+#define DEFAULT_ENGINE_TIMEOUT 10
 
 #define HOOK_CREATE 1
 #define HOOK_START 2
@@ -61,6 +64,7 @@ struct PluginConfig
     int label_max_len;
     bool with_size;
     uint8_t hooks;
+    int engine_timeout;
     std::string host_root;
     std::string log_level;
     Engines engines;
@@ -70,6 +74,7 @@ struct PluginConfig
         label_max_len = DEFAULT_LABEL_MAX_LEN;
         with_size = false;
         hooks = HOOK_CREATE;
+        engine_timeout = DEFAULT_ENGINE_TIMEOUT;
         log_level = "info";
         if(const char* hroot = std::getenv("HOST_ROOT"))
         {

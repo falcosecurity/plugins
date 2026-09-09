@@ -37,6 +37,14 @@ void from_json(const nlohmann::json& j, PluginConfig& cfg)
 {
     cfg.label_max_len = j.value("label_max_len", DEFAULT_LABEL_MAX_LEN);
     cfg.with_size = j.value("with_size", false);
+    cfg.engine_timeout = j.value("engine_timeout", DEFAULT_ENGINE_TIMEOUT);
+    // libs already rejects a negative value through the init config schema
+    // (minimum: 0 in plugin_config_schema.h). Defensive only: a negative value
+    // would otherwise disable the timeout like 0 does.
+    if(cfg.engine_timeout < 0)
+    {
+        cfg.engine_timeout = DEFAULT_ENGINE_TIMEOUT;
+    }
     cfg.log_level = j.value("log_level", std::string{"warn"});
 
     std::vector<std::string> hooks =
@@ -128,6 +136,7 @@ void to_json(nlohmann::json& j, const PluginConfig& cfg)
 {
     j["label_max_len"] = cfg.label_max_len;
     j["with_size"] = cfg.with_size;
+    j["engine_timeout"] = cfg.engine_timeout;
     j["host_root"] = cfg.host_root;
     j["hooks"] = cfg.hooks;
     j["log_level"] = cfg.log_level;
