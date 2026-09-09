@@ -106,6 +106,7 @@ bool my_plugin::parse_async_event(const falcosecurity::parse_event_input& in)
         // event to extract metadata for the being-removed container.
         m_last_container = {evt.get_num(), cinfo};
         m_containers.erase(cinfo->m_id);
+        m_asked_containers.erase(cinfo->m_id);
     }
 
     // Update n_containers metric

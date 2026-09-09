@@ -383,10 +383,12 @@ void my_plugin::on_new_process(const falcosecurity::table_entry& thread_entry,
                                      container_id),
                          falcosecurity::_internal::SS_PLUGIN_LOG_SEV_DEBUG);
 #ifdef _HAS_ASYNC
-            // Check if already asked
+            // Check if already asked. A request expires once the go-worker
+            // has given up on the container (it retries for a few seconds,
+            // see fetcher.go), so a container the engines did not know in
+            // time is asked again.
             if(m_async_ctx != nullptr &&
-               m_asked_containers.find(container_id) ==
-                       m_asked_containers.end())
+               !m_asked_containers.pending(container_id))
             {
                 m_logger.log(
                         fmt::format("asking the go-worker to fetch info for "
@@ -396,7 +398,7 @@ void my_plugin::on_new_process(const falcosecurity::table_entry& thread_entry,
                 // Implemented by GO worker.go
                 if(AskForContainerInfo(m_async_ctx, container_id.c_str()))
                 {
-                    m_asked_containers.insert(container_id);
+                    m_asked_containers.add(container_id);
                 }
                 else
                 {
