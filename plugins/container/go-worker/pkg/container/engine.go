@@ -104,21 +104,32 @@ func WithEngineTimeout(ctx context.Context) (context.Context, context.CancelFunc
 // did inspect, when ctx expired while the containers the engine had
 // enumerated were being inspected: the engine answers, it just did not finish
 // in time. The remaining containers are neither inspected nor returned with
-// partial metadata; they are looked up on their first event, like any
-// container the plugin does not know yet.
+// partial metadata: their IDs are reported, for the caller to look them up
+// later, in the background (see NewFetcherEngine).
 type ListIncompleteError struct {
-	// Remaining is how many enumerated containers were not inspected, as far
-	// as the engine could tell.
-	Remaining int
+	// NotInspected holds the IDs, in the short form the plugin uses, of the
+	// enumerated containers that were not inspected. Containers the engine
+	// had not enumerated yet when ctx expired, if any, are not listed.
+	NotInspected []string
 	// Err is the error of the context that cut the listing.
 	Err error
 }
 
 func (e *ListIncompleteError) Error() string {
-	return fmt.Sprintf("listing cut by the caller, %d containers not inspected: %v", e.Remaining, e.Err)
+	return fmt.Sprintf("listing cut by the caller, %d containers not inspected: %v", len(e.NotInspected), e.Err)
 }
 
 func (e *ListIncompleteError) Unwrap() error { return e.Err }
+
+// notInspectedFrom returns the short IDs of the containers from index from to
+// n-1 of an enumeration, given the ID of its i-th container.
+func notInspectedFrom(n, from int, id func(i int) string) []string {
+	ids := make([]string, 0, n-from)
+	for i := from; i < n; i++ {
+		ids = append(ids, shortContainerID(id(i)))
+	}
+	return ids
+}
 
 // listCut returns the cause of ctx being done, or nil while it is not.
 func listCut(ctx context.Context) error {

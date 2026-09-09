@@ -24,8 +24,8 @@ type listEngine struct {
 	err          error
 	unresponsive bool
 	// notInspected, when set, makes List wait for the context to be done and
-	// return the events with a ListIncompleteError for that many containers.
-	notInspected int
+	// return the events with a ListIncompleteError for these containers.
+	notInspected []string
 }
 
 func (e *listEngine) Name() string { return e.name }
@@ -37,9 +37,9 @@ func (e *listEngine) List(ctx context.Context) ([]event.Event, error) {
 		<-ctx.Done()
 		return nil, ctx.Err()
 	}
-	if e.notInspected > 0 {
+	if len(e.notInspected) > 0 {
 		<-ctx.Done()
-		return e.events, &container.ListIncompleteError{Remaining: e.notInspected, Err: context.Cause(ctx)}
+		return e.events, &container.ListIncompleteError{NotInspected: e.notInspected, Err: context.Cause(ctx)}
 	}
 	return e.events, e.err
 }
@@ -78,7 +78,7 @@ func TestBootstrapEnginesSkipsUnresponsiveEngine(t *testing.T) {
 
 	var delivered []string
 	start := time.Now()
-	engines, sockets := bootstrapEngines(context.Background(), generators, func(json string, added, initialState bool) {
+	engines, sockets, deferred := bootstrapEngines(context.Background(), generators, func(json string, added, initialState bool) {
 		assert.True(t, added)
 		assert.True(t, initialState)
 		delivered = append(delivered, json)
@@ -91,18 +91,20 @@ func TestBootstrapEnginesSkipsUnresponsiveEngine(t *testing.T) {
 	assert.Equal(t, []container.Engine{healthy}, engines)
 	assert.Equal(t, map[string][]string{"docker": {"/var/run/docker.sock"}}, sockets)
 	assert.Len(t, delivered, 2)
+	assert.Empty(t, deferred)
 }
 
 func TestBootstrapEnginesKeepsEngineWithIncompleteListing(t *testing.T) {
 	setEngineTimeout(t, 1)
 
+	notInspected := []string{"def456def456", "0123456789ab", "fedcba987654", "aabbccddeeff"}
 	slow := &listEngine{name: "podman", socket: "/run/podman/podman.sock", events: []event.Event{
 		{Info: event.Info{Container: event.Container{ID: "abc123abc123", Name: "inspected"}}, IsCreate: true},
-	}, notInspected: 4}
+	}, notInspected: notInspected}
 
 	var delivered []string
 	start := time.Now()
-	engines, sockets := bootstrapEngines(context.Background(), []container.EngineGenerator{generatorOf(slow)}, func(json string, added, initialState bool) {
+	engines, sockets, deferred := bootstrapEngines(context.Background(), []container.EngineGenerator{generatorOf(slow)}, func(json string, added, initialState bool) {
 		assert.True(t, added)
 		assert.True(t, initialState)
 		delivered = append(delivered, json)
@@ -110,23 +112,25 @@ func TestBootstrapEnginesKeepsEngineWithIncompleteListing(t *testing.T) {
 	elapsed := time.Since(start)
 
 	// The engine answers, so it stays in use: the containers it inspected in
-	// time are delivered, the others wait for their first event.
+	// time are delivered, the others are deferred to the fetcher.
 	assert.GreaterOrEqual(t, elapsed, time.Second)
 	assert.Equal(t, []container.Engine{slow}, engines)
 	assert.Equal(t, map[string][]string{"podman": {"/run/podman/podman.sock"}}, sockets)
 	require.Len(t, delivered, 1)
 	assert.Contains(t, delivered[0], "abc123abc123")
+	assert.Equal(t, notInspected, deferred)
 }
 
 func TestBootstrapEnginesKeepsEngineFailingToList(t *testing.T) {
 	failing := &listEngine{name: "containerd", socket: "/run/containerd/containerd.sock", err: errors.New("permission denied")}
 
 	delivered := 0
-	engines, sockets := bootstrapEngines(context.Background(), []container.EngineGenerator{generatorOf(failing)}, func(string, bool, bool) {
+	engines, sockets, deferred := bootstrapEngines(context.Background(), []container.EngineGenerator{generatorOf(failing)}, func(string, bool, bool) {
 		delivered++
 	})
 
 	assert.Equal(t, []container.Engine{failing}, engines)
 	assert.Equal(t, map[string][]string{"containerd": {"/run/containerd/containerd.sock"}}, sockets)
 	assert.Zero(t, delivered)
+	assert.Empty(t, deferred)
 }

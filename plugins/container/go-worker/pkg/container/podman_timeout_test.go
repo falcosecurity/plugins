@@ -124,7 +124,8 @@ func TestPodmanListStopsInspectingOnceTheContextIsDone(t *testing.T) {
 	var incomplete *ListIncompleteError
 	require.ErrorAs(t, err, &incomplete)
 	assert.ErrorIs(t, err, context.DeadlineExceeded)
-	assert.Equal(t, 4, incomplete.Remaining)
+	// The containers left are reported for the background lookups.
+	assert.Equal(t, []string{"000000000003", "000000000004", "000000000005", "000000000006"}, incomplete.NotInspected)
 	require.Len(t, evts, 2)
 	for i, evt := range evts {
 		assert.Equal(t, fmt.Sprintf("%012d", i+1), evt.ID)

@@ -268,35 +268,52 @@ func (c *containerdEngine) List(ctx context.Context) ([]event.Event, error) {
 	if err != nil {
 		return nil, err
 	}
-	evts := make([]event.Event, 0)
+	// Enumerate the containers of every namespace before inspecting any, so
+	// that a listing cut by the caller can report the ones not inspected.
+	type namespaced struct {
+		ctx       context.Context
+		container containerd.Container
+	}
+	enumerated := make([]namespaced, 0)
+	// incomplete reports the enumerated containers from index from on as not
+	// inspected.
+	incomplete := func(from int, cut error) *ListIncompleteError {
+		return &ListIncompleteError{NotInspected: notInspectedFrom(len(enumerated), from, func(i int) string { return enumerated[i].container.ID() }), Err: cut}
+	}
 	for _, namespace := range namespacesList {
 		namespacedContext := namespaces.WithNamespace(ctx, namespace)
 		containersList, err := c.client.Containers(namespacedContext)
-		// Once the caller's context is done every request fails: leave the
-		// remaining containers to the lookups on their first event instead of
-		// returning them with partial metadata, or skipping whole namespaces.
+		// Once the caller's context is done every request fails: the
+		// containers enumerated so far are left to the background lookups,
+		// those of the namespaces not enumerated yet to their first event.
 		if cut := listCut(ctx); cut != nil {
-			return evts, &ListIncompleteError{Err: cut}
+			return nil, incomplete(0, cut)
 		}
 		if err != nil {
 			continue
 		}
-		for idx, container := range containersList {
-			if cut := listCut(ctx); cut != nil {
-				return evts, &ListIncompleteError{Remaining: len(containersList) - idx, Err: cut}
-			}
-			evt := event.Event{
-				Info:     c.ctrToInfo(namespacedContext, container),
-				IsCreate: true,
-			}
-			// ctrToInfo falls back to an empty info and spec on error: a
-			// context done meanwhile is such an error, so do not return this
-			// container either.
-			if cut := listCut(ctx); cut != nil {
-				return evts, &ListIncompleteError{Remaining: len(containersList) - idx, Err: cut}
-			}
-			evts = append(evts, evt)
+		for _, container := range containersList {
+			enumerated = append(enumerated, namespaced{ctx: namespacedContext, container: container})
 		}
+	}
+	evts := make([]event.Event, 0, len(enumerated))
+	for idx, nc := range enumerated {
+		// Leave the remaining containers to the background lookups instead of
+		// returning them with partial metadata.
+		if cut := listCut(ctx); cut != nil {
+			return evts, incomplete(idx, cut)
+		}
+		evt := event.Event{
+			Info:     c.ctrToInfo(nc.ctx, nc.container),
+			IsCreate: true,
+		}
+		// ctrToInfo falls back to an empty info and spec on error: a context
+		// done meanwhile is such an error, so do not return this container
+		// either.
+		if cut := listCut(ctx); cut != nil {
+			return evts, incomplete(idx, cut)
+		}
+		evts = append(evts, evt)
 	}
 	return evts, nil
 }

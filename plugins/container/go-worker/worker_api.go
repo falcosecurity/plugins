@@ -62,14 +62,16 @@ func StartWorker(cb C.async_cb, initCfg *C.cchar_t, enabledSocks **C.cchar_t) un
 	}
 
 	// Create the engines and deliver all pre-existing containers through
-	// `goCb`. This runs synchronously on the caller's thread, hence bounded.
-	containerEngines, enabledEngines := bootstrapEngines(ctx, generators, goCb)
+	// `goCb`. This runs synchronously on the caller's thread, hence bounded:
+	// the containers not inspected in time are deferred to the fetcher.
+	containerEngines, enabledEngines, deferred := bootstrapEngines(ctx, generators, goCb)
 
 	pluginCtx.fetchCh = make(chan string, fetchChSize)
 
 	// Always append the dummy engine that is required to
 	// be able to fetch container infos on the fly given other enabled engines.
-	containerEngines = append(containerEngines, container.NewFetcherEngine(ctx, pluginCtx.fetchCh, containerEngines))
+	// It also looks up the deferred containers in the background.
+	containerEngines = append(containerEngines, container.NewFetcherEngine(ctx, pluginCtx.fetchCh, containerEngines, deferred))
 
 	// Store json of attached sockets in `enabledSocks`
 	bytes, _ := json.Marshal(enabledEngines)

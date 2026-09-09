@@ -765,12 +765,13 @@ func TestCRIListStopsInspectingOnceTheContextIsDone(t *testing.T) {
 	engine, err := newCriEngine(context.Background(), slog.Default(), endpoint)
 	require.NoError(t, err)
 	criEngine := engine.(*criEngine)
+	ids := make(map[string]bool)
 	for i := 0; i < 6; i++ {
-		containerFor(t, fakeRuntime, fmt.Sprintf("ctr%d", i))
+		ids[shortContainerID(containerFor(t, fakeRuntime, fmt.Sprintf("ctr%d", i)))] = true
 	}
 	// Six containers, the third status request never answers: with a 200ms
 	// deadline the listing returns the two containers inspected so far, with
-	// their whole metadata, and leaves the other four to their first event.
+	// their whole metadata, and leaves the other four to the background lookups.
 	stalling := &stallingRuntimeService{RuntimeService: criEngine.client, stallAt: 2}
 	criEngine.client = stalling
 
@@ -781,10 +782,17 @@ func TestCRIListStopsInspectingOnceTheContextIsDone(t *testing.T) {
 	var incomplete *ListIncompleteError
 	require.ErrorAs(t, err, &incomplete)
 	assert.ErrorIs(t, err, context.DeadlineExceeded)
-	assert.Equal(t, 4, incomplete.Remaining)
 	require.Len(t, evts, 2)
 	for _, evt := range evts {
 		assert.NotEmpty(t, evt.Name, "a container returned without its status")
+		assert.True(t, ids[evt.ID], "unknown container %q returned", evt.ID)
+		delete(ids, evt.ID)
+	}
+	// The containers left are reported, by short ID, for the background lookups.
+	require.Len(t, incomplete.NotInspected, 4)
+	for _, id := range incomplete.NotInspected {
+		assert.True(t, ids[id], "container %q reported as not inspected was returned or never existed", id)
+		delete(ids, id)
 	}
 	// The containers left are not inspected at all.
 	assert.EqualValues(t, 3, stalling.calls.Load())

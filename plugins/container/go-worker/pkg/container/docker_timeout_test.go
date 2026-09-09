@@ -17,6 +17,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// fakeDockerID returns a 64-character container ID whose short form is i.
+func fakeDockerID(i int) string {
+	return fmt.Sprintf("%012d", i) + strings.Repeat("0", 52)
+}
+
 // newStallingDockerAPI serves a Docker Engine API on a unix socket that lists
 // count containers at once, then answers every inspection but the one at
 // index stallAt, in request order, which hangs until the request is
@@ -39,7 +44,7 @@ func newStallingDockerAPI(t *testing.T, count, stallAt int) (string, *atomic.Int
 		case strings.HasSuffix(r.URL.Path, "/containers/json"):
 			ctrs := make([]map[string]any, count)
 			for i := range ctrs {
-				ctrs[i] = map[string]any{"Id": fmt.Sprintf("%064d", i+1), "Image": "alpine:latest", "ImageID": imageID, "Created": 1757376000}
+				ctrs[i] = map[string]any{"Id": fakeDockerID(i + 1), "Image": "alpine:latest", "ImageID": imageID, "Created": 1757376000}
 			}
 			_ = json.NewEncoder(w).Encode(ctrs)
 		case strings.Contains(r.URL.Path, "/images/"):
@@ -80,10 +85,11 @@ func TestDockerListStopsInspectingOnceTheContextIsDone(t *testing.T) {
 	var incomplete *ListIncompleteError
 	require.ErrorAs(t, err, &incomplete)
 	assert.ErrorIs(t, err, context.DeadlineExceeded)
-	assert.Equal(t, 4, incomplete.Remaining)
+	// The containers left are reported, by short ID, for the background lookups.
+	assert.Equal(t, []string{"000000000003", "000000000004", "000000000005", "000000000006"}, incomplete.NotInspected)
 	require.Len(t, evts, 2)
 	for i, evt := range evts {
-		assert.Equal(t, shortContainerID(fmt.Sprintf("%064d", i+1)), evt.ID)
+		assert.Equal(t, shortContainerID(fakeDockerID(i+1)), evt.ID)
 		assert.Equal(t, "healthy-"+evt.ID, evt.Name)
 		assert.True(t, evt.Privileged)
 		assert.Equal(t, map[string]string{"app": "critical"}, evt.Labels)
