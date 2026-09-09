@@ -61,26 +61,9 @@ func StartWorker(cb C.async_cb, initCfg *C.cchar_t, enabledSocks **C.cchar_t) un
 		return nil
 	}
 
-	containerEngines := make([]container.Engine, 0)
-	enabledEngines := make(map[string][]string)
-	for _, generator := range generators {
-		engine, err := generator(ctx)
-		if err != nil {
-			continue
-		}
-		containerEngines = append(containerEngines, engine)
-		if _, ok := enabledEngines[engine.Name()]; !ok {
-			enabledEngines[engine.Name()] = make([]string, 0)
-		}
-		enabledEngines[engine.Name()] = append(enabledEngines[engine.Name()], engine.Sock())
-		// List all pre-existing containers and run `goCb` on all of them
-		containers, err := engine.List(ctx)
-		if err == nil {
-			for _, ctr := range containers {
-				goCb(ctr.String(), true, true)
-			}
-		}
-	}
+	// Create the engines and deliver all pre-existing containers through
+	// `goCb`. This runs synchronously on the caller's thread, hence bounded.
+	containerEngines, enabledEngines := bootstrapEngines(ctx, generators, goCb)
 
 	pluginCtx.fetchCh = make(chan string, fetchChSize)
 

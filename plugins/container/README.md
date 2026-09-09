@@ -137,6 +137,7 @@ plugins:
       label_max_len: 100 # (optional, default: 100; container labels larger than this won't be reported)
       with_size: false # (optional, default: false; whether to enable container size inspection, which is inherently slow)
       hooks: ['create', 'start'] # (optional, default: 'create'. Some fields might not be available in create hook, but we are guaranteed that it gets triggered before first process gets started)
+      engine_timeout: 10 # (optional, default: 10; seconds to wait for a container engine to answer at startup, 0 disables the timeout)
       engines:
         docker:
           enabled: true
@@ -159,6 +160,8 @@ plugins:
 
 load_plugins: [container]
 ```
+
+At startup, the plugin connects to each enabled engine socket and lists the pre-existing containers. An engine that does not answer within `engine_timeout` seconds (default: 10) is skipped with a warning, so that an unresponsive runtime socket (for example a socket-activated service whose backend is gone) cannot block Falco's startup. Setting `engine_timeout` to `0` disables the timeout: the plugin then waits for each engine indefinitely.
 
 ### Rules
 

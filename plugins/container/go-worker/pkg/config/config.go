@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"os"
+	"time"
 )
 
 const (
@@ -13,6 +14,9 @@ const (
 	HookRemove
 
 	defaultLabelMaxLen = 100
+	// defaultEngineTimeout is how many seconds a container runtime gets to
+	// answer while the worker connects to it and lists the existing containers.
+	defaultEngineTimeout = 10
 )
 
 type SocketsEngine struct {
@@ -27,6 +31,9 @@ type EngineCfg struct {
 	HostRoot       string                   `json:"host_root"`
 	Hooks          byte                     `json:"hooks"`
 	LogLevel       logLevel                 `json:"log_level"`
+	// EngineTimeout bounds, in seconds, each connection to a container runtime
+	// and the listing of its containers at startup. Zero disables the bound.
+	EngineTimeout int `json:"engine_timeout"`
 }
 
 // logLevel wraps slog.Level to support JSON unmarshaling from string
@@ -71,6 +78,7 @@ func init() {
 	// By default, for go-worker executable (make exe) and go-worker tests,
 	// we attach remove hook too.
 	c.Hooks = HookCreate | HookRemove
+	c.EngineTimeout = defaultEngineTimeout
 	// Set default slog handler with Falco log format
 	// Format: Thu Nov 06 11:46:17 2025: [container-engine] [info]: message
 	updateSlogHandler()
@@ -101,6 +109,15 @@ func GetWithSize() bool {
 
 func GetHostRoot() string {
 	return c.HostRoot
+}
+
+// GetEngineTimeout returns how long a container runtime gets to answer while
+// the worker connects to it and lists its containers. Zero means no bound.
+func GetEngineTimeout() time.Duration {
+	if c.EngineTimeout <= 0 {
+		return 0
+	}
+	return time.Duration(c.EngineTimeout) * time.Second
 }
 
 func IsHookEnabled(hook byte) bool {

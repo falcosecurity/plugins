@@ -2,8 +2,10 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -106,7 +108,8 @@ func TestEngineCfg_UnmarshalJSON(t *testing.T) {
 				"with_size": true,
 				"host_root": "/host",
 				"hooks": 7,
-				"log_level": "trace"
+				"log_level": "trace",
+				"engine_timeout": 5
 			}`,
 			wantCfg: EngineCfg{
 				SocketsEngines: map[string]SocketsEngine{
@@ -115,11 +118,12 @@ func TestEngineCfg_UnmarshalJSON(t *testing.T) {
 						Sockets: []string{"/var/run/cri.sock"},
 					},
 				},
-				LabelMaxLen: 200,
-				WithSize:    true,
-				HostRoot:    "/host",
-				Hooks:       7,
-				LogLevel:    logLevel(LevelTrace),
+				LabelMaxLen:   200,
+				WithSize:      true,
+				HostRoot:      "/host",
+				Hooks:         7,
+				LogLevel:      logLevel(LevelTrace),
+				EngineTimeout: 5,
 			},
 			wantError: false,
 		},
@@ -224,6 +228,9 @@ func TestEngineCfg_UnmarshalJSON(t *testing.T) {
 				if len(tt.wantCfg.SocketsEngines) > 0 {
 					assert.Equal(t, tt.wantCfg.SocketsEngines, cfg.SocketsEngines)
 				}
+				if tt.wantCfg.EngineTimeout != 0 {
+					assert.Equal(t, tt.wantCfg.EngineTimeout, cfg.EngineTimeout)
+				}
 			}
 		})
 	}
@@ -257,4 +264,27 @@ func TestLogLevel_Level(t *testing.T) {
 			assert.Equal(t, tt.want, tt.logLevel.Level())
 		})
 	}
+}
+
+func TestGetEngineTimeout(t *testing.T) {
+	t.Cleanup(func() {
+		require.NoError(t, Load(fmt.Sprintf(`{"engine_timeout": %d, "label_max_len": %d}`, defaultEngineTimeout, defaultLabelMaxLen)))
+	})
+
+	// Default.
+	require.NoError(t, Load(fmt.Sprintf(`{"engine_timeout": %d}`, defaultEngineTimeout)))
+	assert.Equal(t, time.Duration(defaultEngineTimeout)*time.Second, GetEngineTimeout())
+
+	// Seconds from the config.
+	require.NoError(t, Load(`{"engine_timeout": 3}`))
+	assert.Equal(t, 3*time.Second, GetEngineTimeout())
+
+	// Zero disables the bound.
+	require.NoError(t, Load(`{"engine_timeout": 0}`))
+	assert.Equal(t, time.Duration(0), GetEngineTimeout())
+
+	// A config that leaves the key out keeps the current value.
+	require.NoError(t, Load(`{"engine_timeout": 7}`))
+	require.NoError(t, Load(`{"label_max_len": 50}`))
+	assert.Equal(t, 7*time.Second, GetEngineTimeout())
 }

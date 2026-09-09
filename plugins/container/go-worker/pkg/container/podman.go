@@ -31,8 +31,25 @@ type podmanEngine struct {
 }
 
 func newPodmanEngine(ctx context.Context, _ *slog.Logger, socket string) (Engine, error) {
-	conn, err := bindings.NewConnection(ctx, enforceUnixProtocolIfEmpty(socket))
+	// bindings.NewConnection pings the service and returns a context that
+	// carries the connection; every later request derives from it, so a
+	// deadline on ctx itself would expire the whole engine. Bound the ping
+	// only: cancel the connection context if the engine timeout elapses first,
+	// then detach it once the service has answered.
+	connCtx, cancelConn := context.WithCancelCause(ctx)
+	pingCtx, cancelPing := WithEngineTimeout(ctx)
+	defer cancelPing()
+	stop := context.AfterFunc(pingCtx, func() {
+		cancelConn(context.Cause(pingCtx))
+	})
+	conn, err := bindings.NewConnection(connCtx, enforceUnixProtocolIfEmpty(socket))
+	if !stop() && err == nil {
+		// The timeout fired while the service was answering: the connection
+		// context is cancelled and the engine would never work.
+		err = context.Cause(pingCtx)
+	}
 	if err != nil {
+		cancelConn(err)
 		return nil, err
 	}
 	return &podmanEngine{pCtx: conn, socket: socket}, nil
@@ -41,6 +58,20 @@ func newPodmanEngine(ctx context.Context, _ *slog.Logger, socket string) (Engine
 func (pc *podmanEngine) copy(ctx context.Context) (Engine, error) {
 	// TODO: change to use logger member once handled
 	return newPodmanEngine(ctx, nil, pc.socket)
+}
+
+// requestCtx derives a request context from the connection context, which is
+// what carries the podman client, and ties it to the caller's context so that
+// the deadline and cancellation set by the caller are honoured.
+func (pc *podmanEngine) requestCtx(ctx context.Context) (context.Context, context.CancelFunc) {
+	reqCtx, cancel := context.WithCancelCause(pc.pCtx)
+	stop := context.AfterFunc(ctx, func() {
+		cancel(context.Cause(ctx))
+	})
+	return reqCtx, func() {
+		stop()
+		cancel(nil)
+	}
 }
 
 func (pc *podmanEngine) ctrToInfo(ctr *define.InspectContainerData) event.Info {
@@ -164,9 +195,11 @@ func (pc *podmanEngine) ctrToInfo(ctr *define.InspectContainerData) event.Info {
 	}
 }
 
-func (pc *podmanEngine) get(_ context.Context, containerId string) (*event.Event, error) {
+func (pc *podmanEngine) get(ctx context.Context, containerId string) (*event.Event, error) {
+	ctx, cancel := pc.requestCtx(ctx)
+	defer cancel()
 	size := config.GetWithSize()
-	ctrInfo, err := containers.Inspect(pc.pCtx, containerId, &containers.InspectOptions{Size: &size})
+	ctrInfo, err := containers.Inspect(ctx, containerId, &containers.InspectOptions{Size: &size})
 	if err != nil {
 		return nil, err
 	}
@@ -185,16 +218,18 @@ func (pc *podmanEngine) Sock() string {
 	return pc.socket
 }
 
-func (pc *podmanEngine) List(_ context.Context) ([]event.Event, error) {
+func (pc *podmanEngine) List(ctx context.Context) ([]event.Event, error) {
+	ctx, cancel := pc.requestCtx(ctx)
+	defer cancel()
 	evts := make([]event.Event, 0)
 	all := true
 	size := config.GetWithSize()
-	cList, err := containers.List(pc.pCtx, &containers.ListOptions{All: &all})
+	cList, err := containers.List(ctx, &containers.ListOptions{All: &all})
 	if err != nil {
 		return nil, err
 	}
 	for _, c := range cList {
-		ctrInfo, err := containers.Inspect(pc.pCtx, c.ID, &containers.InspectOptions{Size: &size})
+		ctrInfo, err := containers.Inspect(ctx, c.ID, &containers.InspectOptions{Size: &size})
 		if err != nil {
 			evts = append(evts, event.Event{
 				Info: event.Info{

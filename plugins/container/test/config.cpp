@@ -39,7 +39,8 @@ TEST(plugin_config, from_json)
   },
   "label_max_len": 120,
   "with_size": true,
-  "hooks": ["start"]
+  "hooks": ["start"],
+  "engine_timeout": 5
 })";
     auto config_json = nlohmann::json::parse(config);
 
@@ -56,6 +57,7 @@ TEST(plugin_config, from_json)
     EXPECT_TRUE(cfg.with_size);
     EXPECT_EQ(cfg.label_max_len, 120);
     EXPECT_EQ(cfg.hooks, HOOK_START);
+    EXPECT_EQ(cfg.engine_timeout, 5);
 }
 
 TEST(plugin_config, from_json_missing_engines)
@@ -101,11 +103,27 @@ TEST(plugin_config, from_json_empty_json)
     EXPECT_FALSE(cfg.with_size);
     EXPECT_EQ(cfg.label_max_len, DEFAULT_LABEL_MAX_LEN);
     EXPECT_EQ(cfg.hooks, HOOK_CREATE);
+    EXPECT_EQ(cfg.engine_timeout, DEFAULT_ENGINE_TIMEOUT);
+}
+
+TEST(plugin_config, from_json_engine_timeout_bounds)
+{
+    // 0 disables the timeout and is kept as is.
+    auto cfg = nlohmann::json::parse(R"({"engine_timeout": 0})")
+                       .get<PluginConfig>();
+    EXPECT_EQ(cfg.engine_timeout, 0);
+
+    // A negative value is rejected by the init config schema; from_json falls
+    // back to the default anyway instead of disabling the timeout.
+    cfg = nlohmann::json::parse(R"({"engine_timeout": -5})")
+                  .get<PluginConfig>();
+    EXPECT_EQ(cfg.engine_timeout, DEFAULT_ENGINE_TIMEOUT);
 }
 
 TEST(plugin_config, to_json)
 {
     std::string expected_config = R"({
+  "engine_timeout": 10,
   "engines": {
     "containerd": {
       "enabled": true,
