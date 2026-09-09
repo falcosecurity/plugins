@@ -23,6 +23,9 @@ type listEngine struct {
 	events       []event.Event
 	err          error
 	unresponsive bool
+	// notInspected, when set, makes List wait for the context to be done and
+	// return the events with a ListIncompleteError for that many containers.
+	notInspected int
 }
 
 func (e *listEngine) Name() string { return e.name }
@@ -33,6 +36,10 @@ func (e *listEngine) List(ctx context.Context) ([]event.Event, error) {
 	if e.unresponsive {
 		<-ctx.Done()
 		return nil, ctx.Err()
+	}
+	if e.notInspected > 0 {
+		<-ctx.Done()
+		return e.events, &container.ListIncompleteError{Remaining: e.notInspected, Err: context.Cause(ctx)}
 	}
 	return e.events, e.err
 }
@@ -84,6 +91,31 @@ func TestBootstrapEnginesSkipsUnresponsiveEngine(t *testing.T) {
 	assert.Equal(t, []container.Engine{healthy}, engines)
 	assert.Equal(t, map[string][]string{"docker": {"/var/run/docker.sock"}}, sockets)
 	assert.Len(t, delivered, 2)
+}
+
+func TestBootstrapEnginesKeepsEngineWithIncompleteListing(t *testing.T) {
+	setEngineTimeout(t, 1)
+
+	slow := &listEngine{name: "podman", socket: "/run/podman/podman.sock", events: []event.Event{
+		{Info: event.Info{Container: event.Container{ID: "abc123abc123", Name: "inspected"}}, IsCreate: true},
+	}, notInspected: 4}
+
+	var delivered []string
+	start := time.Now()
+	engines, sockets := bootstrapEngines(context.Background(), []container.EngineGenerator{generatorOf(slow)}, func(json string, added, initialState bool) {
+		assert.True(t, added)
+		assert.True(t, initialState)
+		delivered = append(delivered, json)
+	})
+	elapsed := time.Since(start)
+
+	// The engine answers, so it stays in use: the containers it inspected in
+	// time are delivered, the others wait for their first event.
+	assert.GreaterOrEqual(t, elapsed, time.Second)
+	assert.Equal(t, []container.Engine{slow}, engines)
+	assert.Equal(t, map[string][]string{"podman": {"/run/podman/podman.sock"}}, sockets)
+	require.Len(t, delivered, 1)
+	assert.Contains(t, delivered[0], "abc123abc123")
 }
 
 func TestBootstrapEnginesKeepsEngineFailingToList(t *testing.T) {

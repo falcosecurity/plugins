@@ -12,6 +12,7 @@ import "C"
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"reflect"
 	"sync"
@@ -30,6 +31,11 @@ type asyncCb func(string, bool, bool)
 // StartWorker runs it on the caller's thread, so no runtime socket may stall
 // it: each engine gets at most the configured engine timeout to list its
 // containers, and one that does not answer in time is logged and left out.
+// An engine that answers but does not finish inspecting its containers in
+// time is kept: only the containers it did inspect are delivered, the others
+// are looked up on their first event. Delivering them with partial metadata
+// would cache that metadata for good, since a cached container is never asked
+// again.
 // The generators receive the long-lived ctx unbounded on purpose, since an
 // engine keeps it for its whole lifetime; they bound their own connection.
 func bootstrapEngines(ctx context.Context, generators []container.EngineGenerator, cb asyncCb) ([]container.Engine, map[string][]string) {
@@ -46,16 +52,17 @@ func bootstrapEngines(ctx context.Context, generators []container.EngineGenerato
 		timedOut := listCtx.Err() != nil
 		cancel()
 		logger := slog.With("engine", engine.Name(), "socket", engine.Sock())
+		var incomplete *container.ListIncompleteError
 		switch {
+		case errors.As(err, &incomplete):
+			logger.LogAttrs(ctx, slog.LevelWarn, "listing containers hit the engine timeout: the containers not inspected in time will be looked up on their first event",
+				slog.Duration("timeout", config.GetEngineTimeout()), slog.Int("inspected", len(containers)), slog.Int("not_inspected", incomplete.Remaining))
 		case err != nil && timedOut:
 			logger.LogAttrs(ctx, slog.LevelWarn, "container engine did not answer within the engine timeout, skipping it for the rest of this run: its containers will have no metadata",
 				slog.Duration("timeout", config.GetEngineTimeout()), slog.Any("err", err))
 			continue
 		case err != nil:
 			logger.LogAttrs(ctx, slog.LevelWarn, "cannot list containers", slog.Any("err", err))
-		case timedOut:
-			logger.LogAttrs(ctx, slog.LevelWarn, "listing containers hit the engine timeout, some of them may carry partial metadata",
-				slog.Duration("timeout", config.GetEngineTimeout()))
 		}
 		engines = append(engines, engine)
 		sockets[engine.Name()] = append(sockets[engine.Name()], engine.Sock())

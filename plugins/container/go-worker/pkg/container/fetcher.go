@@ -150,7 +150,12 @@ func (f *fetcher) serve(ctx context.Context, outCh chan<- event.Event) {
 			retries.pop(step)
 			if f.lookup(ctx, p.id, outCh) {
 				retries.remove(p.id)
-			} else if !retries.add(p, step+1, now) {
+				break
+			}
+			// Pace the next lookup from the end of this one, as for a first
+			// miss, so that a runtime slow to answer gets the whole delay.
+			now = time.Now()
+			if !retries.add(p, step+1, now) {
 				slog.Default().LogAttrs(ctx, slog.LevelDebug, "no container engine knows the container, giving up",
 					slog.String("container", p.id), slog.Int("lookups", step+2), slog.Duration("elapsed", now.Sub(p.since)))
 			}

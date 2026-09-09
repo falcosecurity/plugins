@@ -424,12 +424,19 @@ func (c *criEngine) List(ctx context.Context) ([]event.Event, error) {
 	if err != nil {
 		return nil, err
 	}
-	evts := make([]event.Event, len(ctrs))
+	evts := make([]event.Event, 0, len(ctrs))
 	for idx, ctr := range ctrs {
+		// Once the caller's context is done every request fails: leave the
+		// remaining containers to the lookups on their first event instead of
+		// returning them with partial metadata.
+		if cut := listCut(ctx); cut != nil {
+			return evts, &ListIncompleteError{Remaining: len(ctrs) - idx, Err: cut}
+		}
 		// verbose true to return container.Info
 		container, err := c.client.ContainerStatus(ctx, ctr.Id, true)
+		var evt event.Event
 		if err != nil || container.Status == nil {
-			evts[idx] = event.Event{
+			evt = event.Event{
 				IsCreate: true,
 				Info: event.Info{
 					Container: event.Container{
@@ -447,11 +454,18 @@ func (c *criEngine) List(ctx context.Context) ([]event.Event, error) {
 			if podSandboxStatus == nil {
 				podSandboxStatus = &v1.PodSandboxStatusResponse{}
 			}
-			evts[idx] = event.Event{
+			evt = event.Event{
 				IsCreate: true,
 				Info:     c.ctrToInfo(ctx, container.Status, podSandboxStatus.GetStatus(), container.GetInfo(), podSandboxStatus.GetInfo()),
 			}
 		}
+		// The status requests fall back to partial metadata on error: a
+		// context done meanwhile is such an error, so do not return this
+		// container either.
+		if cut := listCut(ctx); cut != nil {
+			return evts, &ListIncompleteError{Remaining: len(ctrs) - idx, Err: cut}
+		}
+		evts = append(evts, evt)
 	}
 	return evts, nil
 }

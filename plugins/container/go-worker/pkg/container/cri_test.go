@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -736,6 +737,57 @@ func TestCRIListenResubscribes(t *testing.T) {
 
 	cancel()
 	wg.Wait()
+}
+
+// stallingRuntimeService wraps a RuntimeService and hangs the status request
+// at index stallAt, in call order, until its context is done.
+type stallingRuntimeService struct {
+	internalapi.RuntimeService
+	stallAt int
+	calls   atomic.Int32
+}
+
+func (s *stallingRuntimeService) ContainerStatus(ctx context.Context, containerID string, verbose bool) (*v1.ContainerStatusResponse, error) {
+	if int(s.calls.Add(1)) == s.stallAt+1 {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+	return s.RuntimeService.ContainerStatus(ctx, containerID, verbose)
+}
+
+func TestCRIListStopsInspectingOnceTheContextIsDone(t *testing.T) {
+	endpoint, err := fake.GenerateEndpoint()
+	require.NoError(t, err)
+	fakeRuntime := fake.NewFakeRemoteRuntime()
+	require.NoError(t, fakeRuntime.Start(endpoint))
+	t.Cleanup(fakeRuntime.Stop)
+
+	engine, err := newCriEngine(context.Background(), slog.Default(), endpoint)
+	require.NoError(t, err)
+	criEngine := engine.(*criEngine)
+	for i := 0; i < 6; i++ {
+		containerFor(t, fakeRuntime, fmt.Sprintf("ctr%d", i))
+	}
+	// Six containers, the third status request never answers: with a 200ms
+	// deadline the listing returns the two containers inspected so far, with
+	// their whole metadata, and leaves the other four to their first event.
+	stalling := &stallingRuntimeService{RuntimeService: criEngine.client, stallAt: 2}
+	criEngine.client = stalling
+
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	evts, err := engine.List(ctx)
+
+	var incomplete *ListIncompleteError
+	require.ErrorAs(t, err, &incomplete)
+	assert.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.Equal(t, 4, incomplete.Remaining)
+	require.Len(t, evts, 2)
+	for _, evt := range evts {
+		assert.NotEmpty(t, evt.Name, "a container returned without its status")
+	}
+	// The containers left are not inspected at all.
+	assert.EqualValues(t, 3, stalling.calls.Load())
 }
 
 func containerFor(t *testing.T, fakeRuntime *fake.RemoteRuntime, name string) string {

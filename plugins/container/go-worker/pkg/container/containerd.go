@@ -272,14 +272,30 @@ func (c *containerdEngine) List(ctx context.Context) ([]event.Event, error) {
 	for _, namespace := range namespacesList {
 		namespacedContext := namespaces.WithNamespace(ctx, namespace)
 		containersList, err := c.client.Containers(namespacedContext)
+		// Once the caller's context is done every request fails: leave the
+		// remaining containers to the lookups on their first event instead of
+		// returning them with partial metadata, or skipping whole namespaces.
+		if cut := listCut(ctx); cut != nil {
+			return evts, &ListIncompleteError{Err: cut}
+		}
 		if err != nil {
 			continue
 		}
-		for _, container := range containersList {
-			evts = append(evts, event.Event{
+		for idx, container := range containersList {
+			if cut := listCut(ctx); cut != nil {
+				return evts, &ListIncompleteError{Remaining: len(containersList) - idx, Err: cut}
+			}
+			evt := event.Event{
 				Info:     c.ctrToInfo(namespacedContext, container),
 				IsCreate: true,
-			})
+			}
+			// ctrToInfo falls back to an empty info and spec on error: a
+			// context done meanwhile is such an error, so do not return this
+			// container either.
+			if cut := listCut(ctx); cut != nil {
+				return evts, &ListIncompleteError{Remaining: len(containersList) - idx, Err: cut}
+			}
+			evts = append(evts, evt)
 		}
 	}
 	return evts, nil
