@@ -25,7 +25,8 @@ type listEngine struct {
 	unresponsive bool
 	// notInspected, when set, makes List wait for the context to be done and
 	// return the events with a ListIncompleteError for these containers.
-	notInspected []container.ContainerRef
+	notInspected  []container.ContainerRef
+	notEnumerated []string
 }
 
 func (e *listEngine) Name() string { return e.name }
@@ -37,9 +38,9 @@ func (e *listEngine) List(ctx context.Context) ([]event.Event, error) {
 		<-ctx.Done()
 		return nil, ctx.Err()
 	}
-	if len(e.notInspected) > 0 {
+	if len(e.notInspected) > 0 || len(e.notEnumerated) > 0 {
 		<-ctx.Done()
-		return e.events, &container.ListIncompleteError{NotInspected: e.notInspected, Err: context.Cause(ctx)}
+		return e.events, &container.ListIncompleteError{NotInspected: e.notInspected, NotEnumerated: e.notEnumerated, Err: context.Cause(ctx)}
 	}
 	return e.events, e.err
 }
@@ -135,4 +136,17 @@ func TestBootstrapEnginesKeepsEngineFailingToList(t *testing.T) {
 	assert.Equal(t, map[string][]string{"containerd": {"/run/containerd/containerd.sock"}}, sockets)
 	assert.Zero(t, delivered)
 	assert.Empty(t, deferred)
+}
+
+func TestBootstrapEnginesKeepsUnenumeratedNamespaces(t *testing.T) {
+	setEngineTimeout(t, 1)
+	slow := &listEngine{name: "containerd", socket: "/run/containerd/containerd.sock", notEnumerated: []string{"alpha", "beta"}}
+	engines, _, deferred := bootstrapEngines(context.Background(), []container.EngineGenerator{generatorOf(slow)}, func(string, bool, bool) {
+		t.Fatal("an unenumerated container must not be published at startup")
+	})
+	assert.Equal(t, []container.Engine{slow}, engines)
+	require.Len(t, deferred, 1)
+	assert.Same(t, slow, deferred[0].Engine)
+	assert.Empty(t, deferred[0].Containers)
+	assert.Equal(t, slow.notEnumerated, deferred[0].Namespaces)
 }

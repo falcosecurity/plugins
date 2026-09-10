@@ -56,9 +56,9 @@ func bootstrapEngines(ctx context.Context, generators []container.EngineGenerato
 		var incomplete *container.ListIncompleteError
 		switch {
 		case errors.As(err, &incomplete):
-			logger.LogAttrs(ctx, slog.LevelWarn, "listing containers hit the engine timeout: the containers not inspected in time are looked up in the background, their events carry no metadata until then",
-				slog.Duration("timeout", config.GetEngineTimeout()), slog.Int("inspected", len(containers)), slog.Int("not_inspected", len(incomplete.NotInspected)))
-			deferred = append(deferred, container.DeferredContainers{Engine: engine, Containers: incomplete.NotInspected})
+			logger.LogAttrs(ctx, slog.LevelWarn, "initial container listing interrupted: unfinished containers and namespaces will be recovered in the background, their events carry no metadata until then",
+				slog.Duration("timeout", config.GetEngineTimeout()), slog.Int("inspected", len(containers)), slog.Int("not_inspected", len(incomplete.NotInspected)), slog.Int("namespaces_not_enumerated", len(incomplete.NotEnumerated)))
+			deferred = append(deferred, container.DeferredContainers{Engine: engine, Containers: incomplete.NotInspected, Namespaces: incomplete.NotEnumerated})
 		case err != nil && timedOut:
 			logger.LogAttrs(ctx, slog.LevelWarn, "container engine did not answer within the engine timeout, skipping it for the rest of this run: its containers will have no metadata",
 				slog.Duration("timeout", config.GetEngineTimeout()), slog.Any("err", err))

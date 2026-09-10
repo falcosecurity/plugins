@@ -37,7 +37,7 @@ var containerFetchRetryBackoff = []time.Duration{
 const maxPendingFetches = 1024
 
 // ready is a closed channel: receiving from it never blocks. It stands for
-// the deferred containers in the select of serve, while there are some.
+// the deferred startup work in the select of serve, while there is some.
 var ready = func() chan struct{} {
 	ch := make(chan struct{})
 	close(ch)
@@ -59,6 +59,21 @@ type fetcher struct {
 	// Both are only touched by the serving goroutine.
 	deferred        []string
 	deferredLookups map[string]deferredFetch
+	// Namespace enumeration left over from startup, attempted one at a time
+	// after known containers. Failed attempts use the same timer and retry
+	// queue; their count is bounded by the namespaces discovered at startup.
+	namespaces []*deferredNamespace
+}
+
+type namespaceEngine interface {
+	getter
+	listNamespace(context.Context, string) ([]ContainerRef, error)
+}
+
+type deferredNamespace struct {
+	engine namespaceEngine
+	name   string
+	step   int // next backoff step if enumeration fails
 }
 
 // deferredFetch keeps runtime identity until lookup succeeds or retries end.
@@ -79,8 +94,8 @@ func (d deferredFetch) get(ctx context.Context) (*event.Event, error) {
 // NewFetcherEngine returns a fetcher engine.
 // The fetcher engine is responsible to allow us to get() single container
 // trying all container engines enabled. Once listening, it also looks up the
-// deferred containers, the ones the startup listing enumerated but did not
-// inspect in time (see ListIncompleteError), in the background.
+// containers and namespaces the startup listing did not finish in time
+// (see ListIncompleteError), in the background.
 func NewFetcherEngine(_ context.Context, fetcherChan chan string, containerEngines []Engine, deferred []DeferredContainers) Engine {
 	f := fetcher{
 		getters: make([]getter, 0, len(containerEngines)),
@@ -132,19 +147,33 @@ func NewFetcherEngine(_ context.Context, fetcherChan chan string, containerEngin
 			// The failed engine copy was logged above.
 			continue
 		}
-		for _, ref := range group.Containers {
-			id := shortContainerID(ref.ID)
-			if _, dup := f.deferredLookups[id]; id == "" || dup {
-				continue
+		f.addDeferred(g, group.Containers)
+		if e, ok := g.(namespaceEngine); ok {
+			for _, namespace := range group.Namespaces {
+				f.namespaces = append(f.namespaces, &deferredNamespace{engine: e, name: namespace})
 			}
-			f.deferredLookups[id] = deferredFetch{engine: g, ref: ref, queued: true}
-			f.deferred = append(f.deferred, id)
 		}
 	}
 	if len(f.deferred) == 0 {
 		f.deferred, f.deferredLookups = nil, nil
 	}
 	return &f
+}
+
+// addDeferred is used both at construction and by background enumeration.
+// Retain full runtime identities before process requests or retries run.
+func (f *fetcher) addDeferred(engine getter, refs []ContainerRef) {
+	if len(refs) > 0 && f.deferredLookups == nil {
+		f.deferredLookups = make(map[string]deferredFetch, len(refs))
+	}
+	for _, ref := range refs {
+		id := shortContainerID(ref.ID)
+		if _, dup := f.deferredLookups[id]; id == "" || dup {
+			continue
+		}
+		f.deferredLookups[id] = deferredFetch{engine: engine, ref: ref, queued: true}
+		f.deferred = append(f.deferred, id)
+	}
 }
 
 func (f *fetcher) Name() string {
@@ -196,7 +225,7 @@ func (f *fetcher) serve(ctx context.Context, outCh chan<- event.Event) {
 			slog.Int("containers", len(f.deferred)))
 	}
 	for {
-		if len(f.deferred) == 0 {
+		if len(f.deferred) == 0 && len(f.namespaces) == 0 {
 			select {
 			case <-ctx.Done():
 				return
@@ -283,6 +312,14 @@ func (f *fetcher) serveRetry(ctx context.Context, now time.Time, retries *retryQ
 		return
 	}
 	retries.pop(step)
+	if p.namespace != nil {
+		// A due namespace retry rejoins the background queue. Executing it
+		// here would let slow failing namespaces keep retries perpetually
+		// due and starve both healthy namespaces and container inspections.
+		p.namespace.step = step + 1
+		f.namespaces = append(f.namespaces, p.namespace)
+		return
+	}
 	if f.lookup(ctx, p.id, outCh) {
 		retries.remove(p.id)
 		return
@@ -302,6 +339,18 @@ func (f *fetcher) serveRetry(ctx context.Context, now time.Time, retries *retryQ
 // enumerated the container at startup, so it usually knows it, but it may be
 // gone by now.
 func (f *fetcher) serveDeferred(ctx context.Context, retries *retryQueue, outCh chan<- event.Event) {
+	if len(f.deferred) == 0 {
+		namespace := f.namespaces[0]
+		f.namespaces[0] = nil
+		f.namespaces = f.namespaces[1:]
+		if len(f.namespaces) == 0 {
+			f.namespaces = nil
+		}
+		if !f.enumerateNamespace(ctx, namespace) && ctx.Err() == nil {
+			retries.add(pendingFetch{namespace: namespace}, namespace.step, time.Now())
+		}
+		return
+	}
 	id := f.deferred[0]
 	f.deferred[0] = "" // do not retain the id
 	f.deferred = f.deferred[1:]
@@ -318,6 +367,22 @@ func (f *fetcher) serveDeferred(ctx context.Context, retries *retryQueue, outCh 
 		return
 	}
 	f.scheduleRetry(ctx, id, retries)
+}
+
+// enumerateNamespace only discovers IDs. Each network attempt is bounded and
+// cancelled with the worker; inspecting the returned containers remains one
+// lookup per iteration, alongside the existing requests and retries.
+func (f *fetcher) enumerateNamespace(ctx context.Context, namespace *deferredNamespace) bool {
+	listCtx, cancel := WithEngineTimeout(ctx)
+	defer cancel()
+	refs, err := namespace.engine.listNamespace(listCtx, namespace.name)
+	if err != nil {
+		slog.Default().LogAttrs(ctx, slog.LevelDebug, "cannot enumerate deferred containerd namespace, retrying",
+			slog.String("namespace", namespace.name), slog.Any("err", err))
+		return false
+	}
+	f.addDeferred(namespace.engine, refs)
+	return true
 }
 
 // A failed process request must not discard the background attempt still
@@ -354,15 +419,20 @@ func (f *fetcher) lookup(ctx context.Context, containerId string, outCh chan<- e
 	return false
 }
 
-// pendingFetch is a container whose lookup missed and waits for a retry.
+// pendingFetch is a failed container lookup or namespace enumeration waiting
+// for a retry.
 type pendingFetch struct {
 	id    string
 	since time.Time // first lookup
 	due   time.Time // next lookup
+	// Non-nil for namespace enumeration instead of a container lookup. There
+	// is no short-ID fallback for an undiscovered containerd ID, so these
+	// finite startup jobs retry until enumeration succeeds or capture stops.
+	namespace *deferredNamespace
 }
 
 // retryQueue holds the pending fetches, in one FIFO per step of the backoff.
-// Time is monotonic and every container in a step waits the same delay, so
+// Time is monotonic and every entry in a step waits the same delay, so
 // each FIFO is sorted by due time and the earliest retry overall is the
 // earliest of the heads. Every operation is O(1) in the number of pending
 // fetches.
@@ -391,17 +461,26 @@ func (q *retryQueue) contains(id string) bool {
 	return ok
 }
 
-// add schedules the given step of the backoff for a container that missed at
-// now. It reports false, and forgets the container, when the backoff has no
-// such step: the container is given up.
+// add schedules the given step of the backoff after an attempt at now.
+// Containers exhaust their retries after the last step; namespace jobs keep
+// retrying at the final delay until enumeration succeeds.
 func (q *retryQueue) add(p pendingFetch, step int, now time.Time) bool {
+	if p.namespace != nil && len(q.steps) > 0 {
+		// Namespace failures keep retrying at the final delay. Fixed delays
+		// within each step preserve the FIFO ordering by due time.
+		step = min(step, len(q.steps)-1)
+	}
 	if step >= len(q.steps) {
-		delete(q.ids, p.id)
+		if p.namespace == nil {
+			delete(q.ids, p.id)
+		}
 		return false
 	}
 	p.due = now.Add(q.backoff[step])
 	q.steps[step] = append(q.steps[step], p)
-	q.ids[p.id] = struct{}{}
+	if p.namespace == nil {
+		q.ids[p.id] = struct{}{}
+	}
 	return true
 }
 
