@@ -42,13 +42,15 @@ func (c *containerdEngine) copy(ctx context.Context) (Engine, error) {
 	return newContainerdEngine(ctx, nil, c.socket)
 }
 
-func (c *containerdEngine) ctrToInfo(namespacedContext context.Context, container containerd.Container) event.Info {
-	info, err := container.Info(namespacedContext)
-	if err != nil {
+// ctrToInfo retains best-effort metadata on error. Return inspection errors too:
+// an RPC can report a deadline before the caller's context observes it.
+func (c *containerdEngine) ctrToInfo(namespacedContext context.Context, container containerd.Container) (event.Info, error) {
+	info, infoErr := container.Info(namespacedContext)
+	if infoErr != nil {
 		info = containers.Container{}
 	}
-	spec, err := container.Spec(namespacedContext)
-	if err != nil {
+	spec, specErr := container.Spec(namespacedContext)
+	if specErr != nil {
 		spec = &oci.Spec{
 			Process: &specs.Process{},
 			Mounts:  nil,
@@ -235,7 +237,7 @@ func (c *containerdEngine) ctrToInfo(namespacedContext context.Context, containe
 			Mounts:           mounts,
 			Size:             imageSize,
 		},
-	}
+	}, errors.Join(infoErr, specErr)
 }
 
 func (c *containerdEngine) get(ctx context.Context, containerId string) (*event.Event, error) {
@@ -258,7 +260,11 @@ func (c *containerdEngine) getInNamespace(ctx context.Context, namespace, contai
 	if err != nil {
 		return nil, err
 	}
-	return &event.Event{Info: c.ctrToInfo(ctx, ctr), IsCreate: true}, nil
+	info, err := c.ctrToInfo(ctx, ctr)
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		return nil, err
+	}
+	return &event.Event{Info: info, IsCreate: true}, nil
 }
 
 func (c *containerdEngine) Name() string {
@@ -335,17 +341,15 @@ func (c *containerdEngine) List(ctx context.Context) ([]event.Event, error) {
 		if cut := listCut(ctx); cut != nil {
 			return evts, incomplete(idx, cut)
 		}
-		evt := event.Event{
-			Info:     c.ctrToInfo(nc.ctx, nc.container),
-			IsCreate: true,
+		info, err := c.ctrToInfo(nc.ctx, nc.container)
+		cut := listCut(ctx)
+		if cut == nil && (errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled)) {
+			cut = err
 		}
-		// ctrToInfo falls back to an empty info and spec on error: a context
-		// done meanwhile is such an error, so do not return this container
-		// either.
-		if cut := listCut(ctx); cut != nil {
+		if cut != nil {
 			return evts, incomplete(idx, cut)
 		}
-		evts = append(evts, evt)
+		evts = append(evts, event.Event{Info: info, IsCreate: true})
 	}
 	return evts, nil
 }
@@ -421,7 +425,7 @@ func (c *containerdEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-ch
 						},
 					}
 				} else {
-					info = c.ctrToInfo(namespacedContext, container)
+					info, _ = c.ctrToInfo(namespacedContext, container)
 				}
 				outCh <- event.Event{
 					Info:     info,
