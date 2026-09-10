@@ -2,6 +2,7 @@ package container
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"strconv"
 	"strings"
@@ -268,6 +269,21 @@ func (c *containerdEngine) Sock() string {
 	return c.socket
 }
 
+// listNamespace discovers the full identities that a cut startup listing
+// could not enumerate. Inspection remains separate so requests and retries
+// can run between containers.
+func (c *containerdEngine) listNamespace(ctx context.Context, namespace string) ([]ContainerRef, error) {
+	ctrs, err := c.client.Containers(namespaces.WithNamespace(ctx, namespace))
+	if err != nil {
+		return nil, err
+	}
+	refs := make([]ContainerRef, 0, len(ctrs))
+	for _, ctr := range ctrs {
+		refs = append(refs, ContainerRef{ID: ctr.ID(), Namespace: namespace})
+	}
+	return refs, nil
+}
+
 func (c *containerdEngine) List(ctx context.Context) ([]event.Event, error) {
 	namespacesList, err := c.client.NamespaceService().List(ctx)
 	if err != nil {
@@ -290,14 +306,20 @@ func (c *containerdEngine) List(ctx context.Context) ([]event.Event, error) {
 		}
 		return &ListIncompleteError{NotInspected: refs, Err: cut}
 	}
-	for _, namespace := range namespacesList {
+	for idx, namespace := range namespacesList {
 		namespacedContext := namespaces.WithNamespace(ctx, namespace)
 		containersList, err := c.client.Containers(namespacedContext)
-		// Once the caller's context is done every request fails: the
-		// containers enumerated so far are left to the background lookups,
-		// those of the namespaces not enumerated yet to their first event.
-		if cut := listCut(ctx); cut != nil {
-			return nil, incomplete(0, cut)
+		// The RPC can report a deadline before ctx.Err() observes it. Keep
+		// both known IDs and unfinished namespaces for background recovery:
+		// process events only carry short IDs, which containerd cannot load.
+		cut := listCut(ctx)
+		if cut == nil && (errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled)) {
+			cut = err
+		}
+		if cut != nil {
+			pending := incomplete(0, cut)
+			pending.NotEnumerated = namespacesList[idx:]
+			return nil, pending
 		}
 		if err != nil {
 			continue

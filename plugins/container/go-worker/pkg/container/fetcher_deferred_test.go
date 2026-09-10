@@ -2,7 +2,9 @@ package container
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -16,6 +18,130 @@ type lookupFunc func(context.Context, string) (*event.Event, error)
 
 func (f lookupFunc) get(ctx context.Context, id string) (*event.Event, error) {
 	return f(ctx, id)
+}
+
+type namespaceLookup struct {
+	lookupFunc
+	list func(context.Context, string) ([]ContainerRef, error)
+}
+
+func (e namespaceLookup) listNamespace(ctx context.Context, namespace string) ([]ContainerRef, error) {
+	return e.list(ctx, namespace)
+}
+
+func TestFetcherRetriesNamespacesWithoutDroppingOtherWork(t *testing.T) {
+	var recovered atomic.Bool
+	g := namespaceLookup{
+		lookupFunc: func(_ context.Context, id string) (*event.Event, error) {
+			return &event.Event{Info: event.Info{Container: event.Container{ID: id}}}, nil
+		},
+		list: func(_ context.Context, namespace string) ([]ContainerRef, error) {
+			if namespace == "slow" && !recovered.Load() {
+				return nil, errors.New("temporarily unavailable")
+			}
+			if namespace == "empty" {
+				return nil, nil
+			}
+			return []ContainerRef{{ID: namespace}}, nil
+		},
+	}
+	// A namespace job must survive even with no container retry slots. Empty
+	// namespaces finish normally, and a failing namespace cannot stall others.
+	f := newTestFetcher(g, make(chan string), fastBackoff, 0, nil)
+	for _, ns := range []string{"slow", "empty", "healthy"} {
+		f.namespaces = append(f.namespaces, &deferredNamespace{engine: g, name: ns})
+	}
+	out := runFetcher(t, f)
+	assert.Equal(t, "healthy", waitOnChannelOrTimeout(t, out).ID)
+	recovered.Store(true)
+	assert.Equal(t, "slow", waitOnChannelOrTimeout(t, out).ID)
+	assertNoEvent(t, out, 2*sumDurations(fastBackoff))
+}
+
+func TestFetcherSlowNamespaceRetriesDoNotStarveLaterNamespaces(t *testing.T) {
+	g := namespaceLookup{
+		lookupFunc: func(_ context.Context, id string) (*event.Event, error) {
+			return &event.Event{Info: event.Info{Container: event.Container{ID: id}}}, nil
+		},
+		list: func(ctx context.Context, namespace string) ([]ContainerRef, error) {
+			if namespace == "healthy" {
+				return []ContainerRef{{ID: namespace}}, nil
+			}
+			// Each failure takes longer than the maximum retry delay. If
+			// retries run ahead of the background queue, these two jobs keep
+			// one another due and the healthy namespace never gets a turn.
+			timer := time.NewTimer(15 * time.Millisecond)
+			defer timer.Stop()
+			select {
+			case <-timer.C:
+				return nil, errors.New("slow failure")
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		},
+	}
+	f := newTestFetcher(g, make(chan string), []time.Duration{time.Millisecond, 2 * time.Millisecond}, maxPendingFetches, nil)
+	for _, ns := range []string{"slow-one", "slow-two", "healthy"} {
+		f.namespaces = append(f.namespaces, &deferredNamespace{engine: g, name: ns})
+	}
+	assert.Equal(t, "healthy", waitOnChannelOrTimeout(t, runFetcher(t, f)).ID)
+}
+
+func TestFetcherCancelsNamespaceEnumeration(t *testing.T) {
+	for _, timeout := range []int{0, 1} {
+		t.Run(fmt.Sprintf("timeout=%d", timeout), func(t *testing.T) {
+			setEngineTimeout(t, timeout)
+			entered := make(chan context.Context, 1)
+			g := namespaceLookup{list: func(ctx context.Context, _ string) ([]ContainerRef, error) {
+				entered <- ctx
+				<-ctx.Done()
+				return nil, ctx.Err()
+			}}
+			f := newTestFetcher(g, make(chan string), fastBackoff, maxPendingFetches, nil)
+			f.namespaces = []*deferredNamespace{{engine: g, name: "stalled"}}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			done := make(chan struct{})
+			go func() {
+				defer close(done)
+				f.serve(ctx, make(chan event.Event))
+			}()
+			select {
+			case requestCtx := <-entered:
+				_, bounded := requestCtx.Deadline()
+				assert.Equal(t, timeout > 0, bounded)
+			case <-time.After(time.Second):
+				t.Fatal("namespace enumeration did not start")
+			}
+			cancel()
+			select {
+			case <-done:
+			case <-time.After(time.Second):
+				t.Fatal("namespace enumeration ignored shutdown")
+			}
+		})
+	}
+}
+
+func TestFetcherBoundsNamespaceEnumeration(t *testing.T) {
+	setEngineTimeout(t, 1)
+	calls := 0
+	g := namespaceLookup{list: func(ctx context.Context, _ string) ([]ContainerRef, error) {
+		calls++
+		if calls == 1 {
+			<-ctx.Done()
+			return nil, ctx.Err()
+		}
+		return []ContainerRef{{ID: "recovered"}}, nil
+	}, lookupFunc: func(context.Context, string) (*event.Event, error) {
+		return &event.Event{Info: event.Info{Container: event.Container{ID: "recovered"}}}, nil
+	}}
+	f := newTestFetcher(g, make(chan string), fastBackoff, maxPendingFetches, nil)
+	f.namespaces = []*deferredNamespace{{engine: g, name: "stalled"}}
+	start := time.Now()
+	out := runFetcher(t, f)
+	assert.Equal(t, "recovered", waitOnChannelOrTimeout(t, out).ID)
+	assert.GreaterOrEqual(t, time.Since(start), time.Second)
 }
 
 func TestFetcherRetriesWhileRequestsAndDeferredWorkWait(t *testing.T) {

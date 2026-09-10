@@ -101,22 +101,24 @@ func WithEngineTimeout(ctx context.Context) (context.Context, context.CancelFunc
 }
 
 // ListIncompleteError is returned by List, together with the containers it
-// did inspect, when ctx expired while the containers the engine had
-// enumerated were being inspected: the engine answers, it just did not finish
-// in time. The remaining containers are neither inspected nor returned with
-// partial metadata: their IDs are reported, for the caller to look them up
-// later, in the background (see NewFetcherEngine).
+// did inspect, when a deadline or cancellation interrupted listing. The
+// engine answers, but did not finish. Remaining full IDs and unfinished
+// containerd namespaces are retained for background recovery, without
+// publishing partial metadata (see NewFetcherEngine).
 type ListIncompleteError struct {
 	// NotInspected retains the full runtime identity of the enumerated
 	// containers that were not inspected. Containers the engine had not
 	// enumerated yet when ctx expired, if any, are not listed.
 	NotInspected []ContainerRef
-	// Err is the error of the context that cut the listing.
+	// NotEnumerated retains containerd namespaces whose container listing did
+	// not finish. Their full IDs must be discovered before they can be fetched.
+	NotEnumerated []string
+	// Err is the context or RPC error that cut the listing.
 	Err error
 }
 
 func (e *ListIncompleteError) Error() string {
-	return fmt.Sprintf("listing cut by the caller, %d containers not inspected: %v", len(e.NotInspected), e.Err)
+	return fmt.Sprintf("listing interrupted, %d containers not inspected, %d namespaces not enumerated: %v", len(e.NotInspected), len(e.NotEnumerated), e.Err)
 }
 
 func (e *ListIncompleteError) Unwrap() error { return e.Err }
@@ -128,11 +130,12 @@ type ContainerRef struct {
 	Namespace string
 }
 
-// DeferredContainers retains the engine that enumerated these containers.
+// DeferredContainers retains the engine and its unfinished startup work.
 // Recovery uses a copy of that engine, without probing unrelated runtimes.
 type DeferredContainers struct {
 	Engine     Engine
 	Containers []ContainerRef
+	Namespaces []string
 }
 
 // notInspectedFrom returns the full IDs from index from to n-1.
