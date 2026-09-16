@@ -9,6 +9,12 @@ For more details about what Audit logs are, see the [README of k8saudit plugin](
 
 This plugin supports consuming Kubernetes Audit Events stored in Azure Event Hub for the AKS Clusters, see [Azure official documentation](https://learn.microsoft.com/en-us/azure/aks/monitor-aks#aks-control-planeresource-logs) for details.
 
+It can read the Event Hub over either of its two protocols:
+* **AMQP** (default): the native Event Hubs SDK, checkpointing progress to a Blob Storage container.
+* **Kafka**: the [Kafka-compatible endpoint](https://learn.microsoft.com/en-us/azure/event-hubs/azure-event-hubs-kafka-overview) Event Hubs exposes on port 9093. Event Hubs tracks Kafka consumer-group offsets itself, so no Blob Storage container is needed with this protocol.
+
+Both protocols support the same four authentication mechanisms: a shared access key connection string (the default), or an Azure AD (Microsoft Entra ID) credential — environment (client secret or certificate), managed identity (system- or user-assigned), or workload identity.
+
 ## Capabilities
 
 The `k8saudit-aks` uses the field extraction methods of the [`k8saudit`](https://github.com/falcosecurity/plugins/tree/main/plugins/k8saudit) plugin as the format for the Audit Logs is same.
@@ -130,7 +136,39 @@ Here is the current set of supported fields (from `k8saudit` plugin's extractor)
 
 ### Configuration
 
-Here's an example of configuration of `falco.yaml`:
+The plugin reads events over one of two protocols (`protocol`), authenticating with one of four mechanisms (`auth.type`) — every combination of the two is supported. `environment` and `managed_identity` each cover two variants (client secret vs. client certificate; system-assigned vs. user-assigned), for six auth variants in total:
+
+| | `amqp` | `kafka` |
+|---|---|---|
+| `connection_string` (default) | [example](#amqp-protocol--connection-string-default) | [example](#kafka-protocol--connection-string) |
+| `environment` — client secret | [example](#amqp-protocol--environment-credential-client-secret) | [example](#kafka-protocol--environment-credential-client-secret) |
+| `environment` — client certificate | [example](#amqp-protocol--environment-credential-client-certificate) | [example](#kafka-protocol--environment-credential-client-certificate) |
+| `managed_identity` — system-assigned | [example](#amqp-protocol--system-assigned-managed-identity) | [example](#kafka-protocol--system-assigned-managed-identity) |
+| `managed_identity` — user-assigned | [example](#amqp-protocol--user-assigned-managed-identity) | [example](#kafka-protocol--user-assigned-managed-identity) |
+| `workload_identity` | [example](#amqp-protocol--workload-identity) | [example](#kafka-protocol--workload-identity) |
+
+**Initialization Config**:
+* `protocol` (optional, default `amqp`): The transport used to read events from Event Hub, `amqp` or `kafka`
+* `auth.type` (optional, default `connection_string`): The auth mechanism, one of `connection_string`, `environment`, `managed_identity`, `workload_identity`. `workload_identity` is always sourced from the environment (`AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_FEDERATED_TOKEN_FILE`, as injected by the AKS workload identity webhook) and has no `init_config` fields of its own
+* `auth.managed_identity_client_id` (optional): Client ID of a user-assigned managed identity. Only used when `auth.type` is `managed_identity`; leave empty for the system-assigned identity. Falls back to the `AZURE_CLIENT_ID` environment variable
+* `auth.tenant_id`, `auth.client_id`, `auth.client_secret`, `auth.client_certificate_path`, `auth.client_certificate_password`, `auth.client_send_certificate_chain` (optional): Service principal credentials used when `auth.type` is `environment`. `tenant_id` and `client_id` are always required (here or via `AZURE_TENANT_ID` / `AZURE_CLIENT_ID`); set either `client_secret` (or `AZURE_CLIENT_SECRET`) for a client-secret service principal, or `client_certificate_path` (or `AZURE_CLIENT_CERTIFICATE_PATH`) for a client-certificate one. For the certificate case, `client_certificate_password` (or `AZURE_CLIENT_CERTIFICATE_PASSWORD`) is optional and only needed if the certificate's private key is encrypted, and `client_send_certificate_chain` (or `AZURE_CLIENT_SEND_CERTIFICATE_CHAIN`, `"1"`/`"true"`) is an optional boolean, default `false`, that sends the certificate chain for Subject Name/Issuer (SNI) authentication. Any of these left empty in `init_config` is read from the matching environment variable instead, so credentials can come from config, environment, or a mix of both
+* `event_hub_namespace_connection_string` (required when `auth.type` is `connection_string`): The connection string of the EventHub Namespace to read from
+* `event_hub_namespace` (required for `protocol: kafka`, and for any `auth.type` other than `connection_string`): The fully qualified EventHub namespace, e.g. `my-namespace.servicebus.windows.net`. With `protocol: kafka` and `auth.type: connection_string` it can be left empty — it's derived from `event_hub_namespace_connection_string`
+* `event_hub_name` (required): The name of the EventHub to read from
+* `consumer_group` (optional, default `$Default`): The EventHub consumer group (`amqp`) or Kafka consumer group id (`kafka`)
+* `blob_storage_connection_string` (required for `protocol: amqp` with `auth.type: connection_string`): The connection string of the Blob Storage to use as checkpoint store
+* `blob_storage_account_url` (required for `protocol: amqp` with a non-`connection_string` `auth.type`): The Blob Storage account URL, e.g. `https://myaccount.blob.core.windows.net`
+* `blob_storage_container_name` (required for `protocol: amqp`): The name of the Blob Storage container to use as checkpoint store. Not used by `protocol: kafka` — Event Hubs tracks Kafka consumer-group offsets itself
+* `rate_limit_events_per_second` (optional): The rate limit of events per second to read from EventHub
+* `rate_limit_burst` (optional): The rate limit burst of events to read from EventHub
+
+A non-`connection_string` `auth.type` requires the identity (service principal, managed identity, or federated workload identity) to have:
+* the **Azure Event Hubs Data Receiver** role on the Event Hub namespace (or the specific hub)
+* for `protocol: amqp`, the **Storage Blob Data Contributor** role on the Blob Storage checkpoint container
+
+#### AMQP protocol — connection string (default)
+
+This is the default configuration, unchanged from before `protocol` and `auth` existed — any existing `init_config` that only sets the fields below keeps working as-is:
 
 ```yaml
 plugins:
@@ -151,13 +189,166 @@ plugins:
 load_plugins: [k8saudit-aks, json]
 ```
 
-**Initialization Config**:
-* `event_hub_namespace_connection_string` (required): The connection string of the EventHub Namespace to read from
-* `event_hub_name` (required) : The name of the EventHub to read from
-* `blob_storage_connection_string` (required): The connection string of the Blob Storage to use as checkpoint store
-* `blob_storage_container_name` (required): The name of the Blob Storage container to use as checkpoint store
-* `rate_limit_events_per_second` (optional): The rate limit of events per second to read from EventHub
-* `rate_limit_burst` (optional): The rate limit burst of events to read from EventHub
+#### AMQP protocol — environment credential (client secret)
+
+Either put the service principal's credentials in `init_config`:
+
+```yaml
+init_config:
+  protocol: amqp
+  auth:
+    type: environment
+    tenant_id: "<tenant-id>"
+    client_id: "<client-id>"
+    client_secret: "<client-secret>"
+  event_hub_namespace: "my-namespace.servicebus.windows.net"
+  event_hub_name: "<my-hub>"
+  blob_storage_account_url: "https://mystorage.blob.core.windows.net"
+  blob_storage_container_name: "<container-name>"
+```
+
+or leave `auth` empty besides `type` and set `AZURE_TENANT_ID` / `AZURE_CLIENT_ID` / `AZURE_CLIENT_SECRET` on the Falco process/container — any field left out of `init_config` is read from its environment variable. The two can also be mixed, e.g. `client_id` in config with `AZURE_CLIENT_SECRET` from the environment.
+
+#### AMQP protocol — environment credential (client certificate)
+
+```yaml
+init_config:
+  protocol: amqp
+  auth:
+    type: environment
+    tenant_id: "<tenant-id>"
+    client_id: "<client-id>"
+    client_certificate_path: "/etc/falco/azure-client-cert.pem"
+    client_certificate_password: "<certificate-password>"       # optional, only if the key is encrypted
+    client_send_certificate_chain: true                          # optional, only for SNI authentication; default false
+  event_hub_namespace: "my-namespace.servicebus.windows.net"
+  event_hub_name: "<my-hub>"
+  blob_storage_account_url: "https://mystorage.blob.core.windows.net"
+  blob_storage_container_name: "<container-name>"
+```
+
+or, equivalently, set `AZURE_TENANT_ID` / `AZURE_CLIENT_ID` / `AZURE_CLIENT_CERTIFICATE_PATH` on the Falco process/container, plus optionally `AZURE_CLIENT_CERTIFICATE_PASSWORD` and/or `AZURE_CLIENT_SEND_CERTIFICATE_CHAIN`.
+
+#### AMQP protocol — system-assigned managed identity
+
+```yaml
+init_config:
+  protocol: amqp
+  auth:
+    type: managed_identity
+  event_hub_namespace: "my-namespace.servicebus.windows.net"
+  event_hub_name: "<my-hub>"
+  blob_storage_account_url: "https://mystorage.blob.core.windows.net"
+  blob_storage_container_name: "<container-name>"
+```
+
+#### AMQP protocol — user-assigned managed identity
+
+```yaml
+init_config:
+  protocol: amqp
+  auth:
+    type: managed_identity
+    managed_identity_client_id: "11111111-1111-1111-1111-111111111111"
+  event_hub_namespace: "my-namespace.servicebus.windows.net"
+  event_hub_name: "<my-hub>"
+  blob_storage_account_url: "https://mystorage.blob.core.windows.net"
+  blob_storage_container_name: "<container-name>"
+```
+
+#### AMQP protocol — workload identity
+
+For a Falco pod running in AKS with [workload identity](https://learn.microsoft.com/en-us/azure/aks/workload-identity-overview) configured (the AKS webhook injects `AZURE_CLIENT_ID`, `AZURE_TENANT_ID` and `AZURE_FEDERATED_TOKEN_FILE` automatically). There is no config equivalent — workload identity is always sourced from the environment:
+
+```yaml
+init_config:
+  protocol: amqp
+  auth:
+    type: workload_identity
+  event_hub_namespace: "my-namespace.servicebus.windows.net"
+  event_hub_name: "<my-hub>"
+  blob_storage_account_url: "https://mystorage.blob.core.windows.net"
+  blob_storage_container_name: "<container-name>"
+```
+
+#### Kafka protocol — connection string
+
+```yaml
+init_config:
+  protocol: kafka
+  event_hub_namespace_connection_string: "xxxx"
+  event_hub_name: "<my-hub>"
+```
+
+#### Kafka protocol — environment credential (client secret)
+
+```yaml
+init_config:
+  protocol: kafka
+  auth:
+    type: environment
+    tenant_id: "<tenant-id>"
+    client_id: "<client-id>"
+    client_secret: "<client-secret>"
+  event_hub_namespace: "my-namespace.servicebus.windows.net"
+  event_hub_name: "<my-hub>"
+```
+
+or leave `auth` empty besides `type` and set `AZURE_TENANT_ID` / `AZURE_CLIENT_ID` / `AZURE_CLIENT_SECRET` on the Falco process/container — any field left out of `init_config` is read from its environment variable. The two can also be mixed, e.g. `client_id` in config with `AZURE_CLIENT_SECRET` from the environment.
+
+#### Kafka protocol — environment credential (client certificate)
+
+```yaml
+init_config:
+  protocol: kafka
+  auth:
+    type: environment
+    tenant_id: "<tenant-id>"
+    client_id: "<client-id>"
+    client_certificate_path: "/etc/falco/azure-client-cert.pem"
+    client_certificate_password: "<certificate-password>"       # optional, only if the key is encrypted
+    client_send_certificate_chain: true                          # optional, only for SNI authentication; default false
+  event_hub_namespace: "my-namespace.servicebus.windows.net"
+  event_hub_name: "<my-hub>"
+```
+
+or, equivalently, set `AZURE_TENANT_ID` / `AZURE_CLIENT_ID` / `AZURE_CLIENT_CERTIFICATE_PATH` on the Falco process/container, plus optionally `AZURE_CLIENT_CERTIFICATE_PASSWORD` and/or `AZURE_CLIENT_SEND_CERTIFICATE_CHAIN`.
+
+#### Kafka protocol — system-assigned managed identity
+
+```yaml
+init_config:
+  protocol: kafka
+  auth:
+    type: managed_identity
+  event_hub_namespace: "my-namespace.servicebus.windows.net"
+  event_hub_name: "<my-hub>"
+```
+
+#### Kafka protocol — user-assigned managed identity
+
+```yaml
+init_config:
+  protocol: kafka
+  auth:
+    type: managed_identity
+    managed_identity_client_id: "11111111-1111-1111-1111-111111111111"
+  event_hub_namespace: "my-namespace.servicebus.windows.net"
+  event_hub_name: "<my-hub>"
+```
+
+#### Kafka protocol — workload identity
+
+For a Falco pod running in AKS with [workload identity](https://learn.microsoft.com/en-us/azure/aks/workload-identity-overview) configured (the AKS webhook injects `AZURE_CLIENT_ID`, `AZURE_TENANT_ID` and `AZURE_FEDERATED_TOKEN_FILE` automatically). There is no config equivalent — workload identity is always sourced from the environment:
+
+```yaml
+init_config:
+  protocol: kafka
+  auth:
+    type: workload_identity
+  event_hub_namespace: "my-namespace.servicebus.windows.net"
+  event_hub_name: "<my-hub>"
+```
 
 **Open Parameters**
 
@@ -173,7 +364,7 @@ To test if it works anyway, you can still use this one for example:
 - required_engine_version: 15
 - required_plugin_versions:
   - name: k8saudit-aks
-    version: 0.6.0
+    version: 0.7.0
 
 - rule: Dummy rule
   desc: >

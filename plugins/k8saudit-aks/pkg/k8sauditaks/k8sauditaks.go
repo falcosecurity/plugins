@@ -20,26 +20,32 @@ package k8sauditaks
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"regexp"
+	"strings"
 	"sync"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs"
-	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs/checkpoints"
-	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/container"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/source"
 	"github.com/falcosecurity/plugins/plugins/k8saudit/pkg/k8saudit"
 	falcoeventhub "github.com/falcosecurity/plugins/shared/go/azure/eventhub"
+	"github.com/falcosecurity/plugins/shared/go/azure/identity"
 	"github.com/invopop/jsonschema"
 	"github.com/valyala/fastjson"
-	"golang.org/x/time/rate"
 )
 
 const pluginName = "k8saudit-aks"
 const regExpAuditID = `"auditID":[ a-z0-9-"]+`
+
+const (
+	protocolAMQP  = "amqp"
+	protocolKafka = "kafka"
+)
 
 var regExpCAuditID *regexp.Regexp
 
@@ -49,23 +55,84 @@ type Plugin struct {
 	Config PluginConfig
 }
 
+// AuthConfig selects how the plugin authenticates against Azure Event Hubs
+// (and, for the amqp protocol, the Blob Storage checkpoint store).
+//
+// Every field below is optional: when left empty, it falls back to the
+// matching AZURE_* environment variable (see identity.Env*), so credentials
+// can be supplied either in init_config or via the process environment, or
+// a mix of both. The one exception is workload_identity, which is always
+// sourced from the environment (AZURE_CLIENT_ID, AZURE_TENANT_ID,
+// AZURE_FEDERATED_TOKEN_FILE, as injected by the AKS workload identity
+// webhook) and has no config fields of its own.
+type AuthConfig struct {
+	Type string `json:"type" jsonschema:"title=type,description=The auth type: connection_string (default), environment, managed_identity or workload_identity,enum=connection_string,enum=environment,enum=managed_identity,enum=workload_identity"`
+
+	// ManagedIdentityClientID configures type=managed_identity: leave empty
+	// for the system-assigned identity, or set it (or AZURE_CLIENT_ID) to
+	// target a user-assigned identity.
+	ManagedIdentityClientID string `json:"managed_identity_client_id" jsonschema:"title=managed_identity_client_id,description=Client ID of a user-assigned managed identity (or set AZURE_CLIENT_ID). Only used when type=managed_identity; leave empty to use the system-assigned identity"`
+
+	// TenantID, ClientID, ClientSecret, ClientCertificatePath,
+	// ClientCertificatePassword and ClientSendCertificateChain configure
+	// type=environment. TenantID and ClientID are always required (here or
+	// via AZURE_TENANT_ID / AZURE_CLIENT_ID); exactly one of ClientSecret
+	// or ClientCertificatePath must be set (here or via
+	// AZURE_CLIENT_SECRET / AZURE_CLIENT_CERTIFICATE_PATH) to select a
+	// client-secret or client-certificate service principal.
+	TenantID                  string `json:"tenant_id" jsonschema:"title=tenant_id,description=Azure AD tenant ID (or set AZURE_TENANT_ID). Used when type=environment"`
+	ClientID                  string `json:"client_id" jsonschema:"title=client_id,description=Service principal client ID (or set AZURE_CLIENT_ID). Used when type=environment"`
+	ClientSecret              string `json:"client_secret" jsonschema:"title=client_secret,description=Service principal client secret (or set AZURE_CLIENT_SECRET). Used when type=environment"`
+	ClientCertificatePath     string `json:"client_certificate_path" jsonschema:"title=client_certificate_path,description=Path to a PEM or PKCS12 client certificate file including the private key (or set AZURE_CLIENT_CERTIFICATE_PATH). Used when type=environment"`
+	ClientCertificatePassword string `json:"client_certificate_password" jsonschema:"title=client_certificate_password,description=Password for client_certificate_path, if any (or set AZURE_CLIENT_CERTIFICATE_PASSWORD). Used when type=environment"`
+	// ClientSendCertificateChain controls whether the certificate chain is
+	// sent with each token request, as required for Subject Name/Issuer
+	// (SNI) authentication. Only meaningful with ClientCertificatePath.
+	// Leave unset to fall back to AZURE_CLIENT_SEND_CERTIFICATE_CHAIN ("1"
+	// or "true"), which itself defaults to false.
+	ClientSendCertificateChain *bool `json:"client_send_certificate_chain" jsonschema:"title=client_send_certificate_chain,description=Whether to send the certificate chain for Subject Name/Issuer (SNI) authentication (or set AZURE_CLIENT_SEND_CERTIFICATE_CHAIN). Used with type=environment and client_certificate_path; defaults to false"`
+}
+
 type PluginConfig struct {
-	EventHubNamespaceConnectionString string `json:"event_hub_namespace_connection_string" jsonschema:"title=event_hub_namespace_connection_string,description=The connection string of the EventHub Namespace to read from"`
-	EventHubName                      string `json:"event_hub_name" jsonschema:"title=event_hub_name,description=The name of the EventHub to read from"`
-	BlobStorageConnectionString       string `json:"blob_storage_connection_string" jsonschema:"title=blob_storage_connection_string,description=The connection string of the Blob Storage to use as checkpoint store"`
-	BlobStorageContainerName          string `json:"blob_storage_container_name" jsonschema:"title=blob_storage_container_name,description=The name of the Blob Storage container to use as checkpoint store"`
-	RateLimitEventsPerSecond          int    `json:"rate_limit_events_per_second" jsonschema:"title=rate_limit_events_per_second,description=The rate limit of events per second to read from EventHub"`
-	RateLimitBurst                    int    `json:"rate_limit_burst" jsonschema:"title=rate_limit_burst,description=The rate limit burst of events to read from EventHub"`
-	MaxEventSize                      uint64 `json:"maxEventSize"         jsonschema:"title=Maximum event size,description=Maximum size of single audit event (Default: 262144),default=262144"`
+	// Protocol selects the transport used to read events from Azure Event
+	// Hubs: "amqp" (default, the native Event Hubs SDK) or "kafka" (the
+	// Kafka-compatible endpoint).
+	Protocol string `json:"protocol" jsonschema:"title=protocol,description=The transport used to read events from Event Hub: amqp (default) or kafka,enum=amqp,enum=kafka"`
+	// Auth selects how the plugin authenticates against Azure.
+	Auth AuthConfig `json:"auth" jsonschema:"title=auth,description=Azure authentication configuration"`
+
+	EventHubNamespaceConnectionString string `json:"event_hub_namespace_connection_string" jsonschema:"title=event_hub_namespace_connection_string,description=The connection string of the EventHub Namespace to read from. Required when auth.type is connection_string (the default)"`
+	// EventHubNamespace is the fully qualified Event Hub namespace (e.g.
+	// my-namespace.servicebus.windows.net). Required for the kafka protocol
+	// and for any non-connection-string auth type; when using the kafka
+	// protocol with connection_string auth it is derived automatically from
+	// EventHubNamespaceConnectionString if left empty.
+	EventHubNamespace string `json:"event_hub_namespace" jsonschema:"title=event_hub_namespace,description=The fully qualified EventHub namespace, e.g. my-namespace.servicebus.windows.net"`
+	EventHubName      string `json:"event_hub_name" jsonschema:"title=event_hub_name,description=The name of the EventHub to read from"`
+	// ConsumerGroup is the Event Hub consumer group used by the amqp
+	// protocol, and the Kafka consumer group ID used by the kafka protocol.
+	ConsumerGroup string `json:"consumer_group" jsonschema:"title=consumer_group,description=The EventHub consumer group (amqp) or Kafka consumer group id (kafka). Defaults to $Default"`
+
+	BlobStorageConnectionString string `json:"blob_storage_connection_string" jsonschema:"title=blob_storage_connection_string,description=The connection string of the Blob Storage to use as checkpoint store (amqp protocol only). Required when auth.type is connection_string (the default)"`
+	// BlobStorageAccountURL is the Blob Storage account endpoint (e.g.
+	// https://myaccount.blob.core.windows.net). Only used by the amqp
+	// protocol when auth.type is not connection_string; the kafka protocol
+	// does not use a Blob Storage checkpoint store.
+	BlobStorageAccountURL    string `json:"blob_storage_account_url" jsonschema:"title=blob_storage_account_url,description=The Blob Storage account URL, e.g. https://myaccount.blob.core.windows.net (amqp protocol only, non connection_string auth)"`
+	BlobStorageContainerName string `json:"blob_storage_container_name" jsonschema:"title=blob_storage_container_name,description=The name of the Blob Storage container to use as checkpoint store (amqp protocol only)"`
+
+	RateLimitEventsPerSecond int    `json:"rate_limit_events_per_second" jsonschema:"title=rate_limit_events_per_second,description=The rate limit of events per second to read from EventHub"`
+	RateLimitBurst           int    `json:"rate_limit_burst" jsonschema:"title=rate_limit_burst,description=The rate limit burst of events to read from EventHub"`
+	MaxEventSize             uint64 `json:"maxEventSize"         jsonschema:"title=Maximum event size,description=Maximum size of single audit event (Default: 262144),default=262144"`
 }
 
 func (p *Plugin) Info() *plugins.Info {
 	return &plugins.Info{
 		ID:          21,
 		Name:        pluginName,
-		Description: "Read Kubernetes Audit Events for AKS from EventHub and use blob storage as checkpoint store",
+		Description: "Read Kubernetes Audit Events for AKS from EventHub (AMQP or Kafka protocol) and use blob storage as checkpoint store",
 		Contact:     "github.com/falcosecurity/plugins",
-		Version:     "0.6.0",
+		Version:     "0.7.0",
 		EventSource: "k8s_audit",
 	}
 }
@@ -73,11 +140,76 @@ func (p *Plugin) Info() *plugins.Info {
 func (p *PluginConfig) SetDefault() {
 	p.RateLimitBurst = 200
 	p.RateLimitEventsPerSecond = 100
+	p.Protocol = protocolAMQP
+	p.ConsumerGroup = azeventhubs.DefaultConsumerGroup
+	p.Auth.Type = identity.TypeConnectionString
 }
 
 // Resets sets the configuration to its default values
 func (k *PluginConfig) Reset() {
 	k.MaxEventSize = uint64(sdk.DefaultEvtSize)
+}
+
+// validate checks that the combination of protocol and auth type has all
+// the configuration it needs, returning a descriptive error otherwise.
+func (p *PluginConfig) validate() error {
+	switch p.Protocol {
+	case protocolAMQP, protocolKafka:
+	default:
+		return fmt.Errorf("invalid protocol %q: must be %q or %q", p.Protocol, protocolAMQP, protocolKafka)
+	}
+
+	switch p.Auth.Type {
+	case identity.TypeConnectionString, identity.TypeEnvironment, identity.TypeManagedIdentity, identity.TypeWorkloadIdentity:
+	default:
+		return fmt.Errorf("invalid auth.type %q", p.Auth.Type)
+	}
+
+	if p.EventHubName == "" {
+		return fmt.Errorf("event_hub_name is required")
+	}
+
+	usesConnectionString := p.Auth.Type == identity.TypeConnectionString
+	if usesConnectionString && p.EventHubNamespaceConnectionString == "" {
+		return fmt.Errorf("event_hub_namespace_connection_string is required when auth.type is %q", identity.TypeConnectionString)
+	}
+	if !usesConnectionString && p.EventHubNamespace == "" {
+		return fmt.Errorf("event_hub_namespace is required when auth.type is %q", p.Auth.Type)
+	}
+
+	if p.Protocol == protocolAMQP {
+		if usesConnectionString && p.BlobStorageConnectionString == "" {
+			return fmt.Errorf("blob_storage_connection_string is required when protocol is %q and auth.type is %q", protocolAMQP, identity.TypeConnectionString)
+		}
+		if !usesConnectionString && p.BlobStorageAccountURL == "" {
+			return fmt.Errorf("blob_storage_account_url is required when protocol is %q and auth.type is %q", protocolAMQP, p.Auth.Type)
+		}
+		if p.BlobStorageContainerName == "" {
+			return fmt.Errorf("blob_storage_container_name is required when protocol is %q", protocolAMQP)
+		}
+	}
+
+	return nil
+}
+
+// resolveNamespaceHost returns the fully qualified Event Hubs namespace
+// (e.g. "my-namespace.servicebus.windows.net") to dial, used by the kafka
+// protocol to build the broker address regardless of auth type. It prefers
+// the explicit EventHubNamespace, falling back to parsing the "Endpoint="
+// segment out of the connection string.
+func (p *PluginConfig) resolveNamespaceHost() (string, error) {
+	if p.EventHubNamespace != "" {
+		return strings.TrimSuffix(p.EventHubNamespace, "/"), nil
+	}
+
+	// Connection strings look like:
+	// Endpoint=sb://my-namespace.servicebus.windows.net/;SharedAccessKeyName=...;SharedAccessKey=...
+	for _, part := range strings.Split(p.EventHubNamespaceConnectionString, ";") {
+		if host, ok := strings.CutPrefix(part, "Endpoint=sb://"); ok {
+			return strings.TrimSuffix(host, "/"), nil
+		}
+	}
+	return "", fmt.Errorf("unable to determine the EventHub namespace: set event_hub_namespace or a valid event_hub_namespace_connection_string")
 }
 
 func (p *Plugin) Init(cfg string) error {
@@ -87,6 +219,18 @@ func (p *Plugin) Init(cfg string) error {
 	err := json.Unmarshal([]byte(cfg), &p.Config)
 	if err != nil {
 		return err
+	}
+
+	if err := p.Config.validate(); err != nil {
+		return err
+	}
+
+	// Building the credential here (rather than only in Open()) surfaces
+	// missing/incomplete auth configuration - whether given in init_config
+	// or expected from the environment - as an Init() error, before Falco
+	// starts consuming events.
+	if _, err := p.newCredential(); err != nil {
+		return fmt.Errorf("invalid auth configuration: %w", err)
 	}
 
 	// Propagate MaxEventSize to the embedded k8saudit plugin config
@@ -124,70 +268,35 @@ func (p *Plugin) OpenParams() ([]sdk.OpenParam, error) {
 }
 
 func (p *Plugin) Open(_ string) (source.Instance, error) {
-	ctx, cancel := context.WithCancel(context.Background())
-	checkClient, err := container.NewClientFromConnectionString(p.Config.BlobStorageConnectionString, p.Config.BlobStorageContainerName, nil)
-	if err != nil {
-		p.Logger.Printf("error opening connection to blob storage: %v", err)
-		return nil, err
+	if p.Config.Protocol == protocolKafka {
+		return p.openKafka()
 	}
-	p.Logger.Printf("opened connection to blob storage")
-	checkpointStore, err := checkpoints.NewBlobStore(checkClient, nil)
-	if err != nil {
-		p.Logger.Printf("error opening blob checkpoint connection: %v", err)
-		return nil, err
-	}
-	p.Logger.Printf("opened blob checkpoint connection")
-	consumerClient, err := azeventhubs.NewConsumerClientFromConnectionString(
-		p.Config.EventHubNamespaceConnectionString,
-		p.Config.EventHubName,
-		azeventhubs.DefaultConsumerGroup,
-		nil,
-	)
-	p.Logger.Printf("opened consumer client")
-	if err != nil {
-		p.Logger.Printf("error creating consumer client: %v", err)
-		return nil, err
-	}
+	return p.openAMQP()
+}
 
-	processor, err := azeventhubs.NewProcessor(consumerClient, checkpointStore, nil)
-	if err != nil {
-		p.Logger.Printf("error creating eventhub processor: %v", err)
-		return nil, err
-	}
+// newCredential builds the Azure AD credential for the configured auth
+// type, or (nil, nil) when auth.type is connection_string. Any field left
+// empty in Config.Auth falls back to the matching AZURE_* environment
+// variable; see identity.Config.
+func (p *Plugin) newCredential() (azcore.TokenCredential, error) {
+	return identity.NewCredential(identity.Config{
+		Type:                       p.Config.Auth.Type,
+		ManagedIdentityClientID:    p.Config.Auth.ManagedIdentityClientID,
+		TenantID:                   p.Config.Auth.TenantID,
+		ClientID:                   p.Config.Auth.ClientID,
+		ClientSecret:               p.Config.Auth.ClientSecret,
+		ClientCertificatePath:      p.Config.Auth.ClientCertificatePath,
+		ClientCertificatePassword:  p.Config.Auth.ClientCertificatePassword,
+		ClientSendCertificateChain: p.Config.Auth.ClientSendCertificateChain,
+	})
+}
 
-	rateLimiter := rate.NewLimiter(rate.Limit(p.Config.RateLimitEventsPerSecond), p.Config.RateLimitBurst)
-
-	falcoEventHubProcessor := falcoeventhub.Processor{
-		RateLimiter: rateLimiter,
-		Logger:      p.Logger,
-	}
-
-	p.Logger.Printf("created eventhub processor")
-
-	eventsC := make(chan falcoeventhub.Record)
-	pushEventC := make(chan source.PushEvent)
-
-	go func() {
-		for {
-			partitionClient := processor.NextPartitionClient(ctx)
-			if partitionClient == nil {
-				break
-			}
-			defer func() {
-				// Ensure that pc.Close() is called when the goroutine ends,
-				// regardless of whether Process returned an error.
-				if cerr := partitionClient.Close(ctx); cerr != nil {
-					p.Logger.Printf("error closing partition client: %v", cerr)
-				}
-			}()
-			go func(pc *azeventhubs.ProcessorPartitionClient, ec chan<- falcoeventhub.Record) {
-				if err := falcoEventHubProcessor.Process(partitionClient, eventsC, ctx); err != nil {
-					p.Logger.Printf("error processing partition client: %v", err)
-				}
-			}(partitionClient, eventsC)
-		}
-	}()
-
+// runRecordPump starts the goroutine shared by both protocols that drains
+// eventsC, unwraps/validates each record's JSON payload, parses it into
+// Falco audit events and pushes them onto pushEventC. It returns the
+// WaitGroup the caller must Wait() on (after closing eventsC) before
+// closing pushEventC.
+func (p *Plugin) runRecordPump(ctx context.Context, eventsC <-chan falcoeventhub.Record, pushEventC chan<- source.PushEvent) *sync.WaitGroup {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
@@ -224,30 +333,5 @@ func (p *Plugin) Open(_ string) (source.Instance, error) {
 			}
 		}
 	}()
-
-	// Run the processor
-	go func() {
-		if err := processor.Run(ctx); err != nil {
-			p.Logger.Printf("error running processor: %v", err)
-		}
-	}()
-
-	return source.NewPushInstance(
-		pushEventC,
-		source.WithInstanceClose(func() {
-			// Close consumerClient when the context is canceled
-			if err := consumerClient.Close(context.Background()); err != nil {
-				p.Logger.Printf("error closing consumer client: %v", err)
-			}
-
-			// Cancel must be used here instead of as a defer to ensure that the context is canceled only when
-			// the plugin receive a signal from Falco
-			cancel()
-
-			wg.Wait()
-			close(eventsC)
-			close(pushEventC)
-		}),
-		source.WithInstanceEventSize(uint32(p.Config.MaxEventSize)),
-	)
+	return &wg
 }
