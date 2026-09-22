@@ -290,22 +290,26 @@ func (pc *podmanEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan 
 	}
 
 	evChn := make(chan types.Event)
-	cancelChan := make(chan bool)
-	err := system.Events(pc.pCtx, evChn, cancelChan, &system.EventsOptions{
+	reqCtx, cancel := pc.requestCtx(ctx)
+	err := system.Events(reqCtx, evChn, nil, &system.EventsOptions{
 		Filters: filters,
 		Stream:  &stream,
 	})
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 
 	outCh := make(chan event.Event)
 	wg.Add(1)
 	go func() {
+		defer wg.Done()
+		defer close(outCh)
 		defer func() {
-			wg.Done()
-			close(cancelChan)
-			close(outCh)
+			cancel()
+			// The bindings own evChn and can be blocked sending the next event.
+			for range evChn {
+			}
 		}()
 		size := config.GetWithSize()
 		// Blocking: convert all events from podman to json strings
@@ -313,12 +317,11 @@ func (pc *podmanEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan 
 		for {
 			select {
 			case <-ctx.Done():
-				cancelChan <- true
 				return
 			case ev, ok := <-evChn:
 				if !ok {
 					// evChn has been closed - kill the goroutine
-					// NOTE this should never happen since we are the ones closing the channel.
+					// The bindings close the channel when the stream ends.
 					return
 				}
 				var (
@@ -327,11 +330,15 @@ func (pc *podmanEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan 
 				)
 				switch ev.Action {
 				case events.ActionCreate, events.ActionStart:
-					ctr, err = containers.Inspect(pc.pCtx, ev.Actor.ID, &containers.InspectOptions{Size: &size})
+					ctr, err = containers.Inspect(reqCtx, ev.Actor.ID, &containers.InspectOptions{Size: &size})
 					if err == nil {
-						outCh <- event.Event{
+						select {
+						case outCh <- event.Event{
 							Info:     pc.ctrToInfo(ctr),
 							IsCreate: true,
+						}:
+						case <-ctx.Done():
+							return
 						}
 					}
 				case events.ActionRemove:
@@ -342,7 +349,8 @@ func (pc *podmanEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan 
 				// AND as a fallback whenever Inspect fails.
 				if err != nil {
 					// At least send an event with the minimal set of data
-					outCh <- event.Event{
+					select {
+					case outCh <- event.Event{
 						Info: event.Info{
 							Container: event.Container{
 								Type:   typePodman.ToCTValue(),
@@ -352,6 +360,9 @@ func (pc *podmanEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan 
 							},
 						},
 						IsCreate: ev.Action != events.ActionRemove,
+					}:
+					case <-ctx.Done():
+						return
 					}
 				}
 			}

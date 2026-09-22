@@ -427,9 +427,13 @@ func (c *containerdEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-ch
 				} else {
 					info, _ = c.ctrToInfo(namespacedContext, container)
 				}
-				outCh <- event.Event{
+				select {
+				case outCh <- event.Event{
 					Info:     info,
 					IsCreate: isCreate,
+				}:
+				case <-ctx.Done():
+					return
 				}
 			}
 		}

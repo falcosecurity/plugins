@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/google/uuid"
@@ -654,6 +656,133 @@ func TestCRIListen(t *testing.T) {
 			wg.Wait()
 		})
 	}
+}
+
+type shutdownRuntimeService struct {
+	internalapi.RuntimeService
+	inspecting   chan struct{}
+	release      chan struct{}
+	queued       chan struct{}
+	finished     chan struct{}
+	finishedOnce sync.Once
+	sourceError  error
+	queueNext    bool
+}
+
+func (s *shutdownRuntimeService) GetContainerEvents(ctx context.Context, out chan *v1.ContainerEventResponse, _ func(v1.RuntimeService_GetContainerEventsClient)) error {
+	defer s.finishedOnce.Do(func() { close(s.finished) })
+	if s.sourceError != nil {
+		return s.sourceError
+	}
+	evt := &v1.ContainerEventResponse{ContainerId: strings.Repeat("b", 64), ContainerEventType: v1.ContainerEventType_CONTAINER_CREATED_EVENT}
+	// Match cri-client: once Recv returns an event, its channel send does not
+	// select on ctx.Done. Cancellation alone cannot release the producer.
+	out <- evt
+	if s.queueNext {
+		close(s.queued)
+		out <- evt
+	}
+	<-ctx.Done()
+	return ctx.Err()
+}
+
+func (s *shutdownRuntimeService) ContainerStatus(ctx context.Context, _ string, _ bool) (*v1.ContainerStatusResponse, error) {
+	select {
+	case <-s.inspecting:
+	default:
+		close(s.inspecting)
+	}
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-s.release:
+		return nil, errors.New("container already removed")
+	}
+}
+
+func TestCRIListenShutdown(t *testing.T) {
+	for _, tc := range []struct {
+		name               string
+		receive, queueNext bool
+	}{
+		{name: "delivered_fallback", receive: true},
+		{name: "cancel_during_inspection"},
+		{name: "cancel_with_pending_source_send", queueNext: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			config.Load(`{"hooks":7}`)
+			s := &shutdownRuntimeService{inspecting: make(chan struct{}), release: make(chan struct{}), queued: make(chan struct{}), finished: make(chan struct{}), queueNext: tc.queueNext}
+			engine := &criEngine{client: s, logger: slog.Default(), runtime: typeCri.ToCTValue()}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			var wg sync.WaitGroup
+			out, err := engine.Listen(ctx, &wg)
+			require.NoError(t, err)
+			// Rescue a broken implementation after the assertion, so a failing
+			// regression does not leave a producer blocked for the rest of the suite.
+			t.Cleanup(func() {
+				cancel()
+				go func() {
+					for range out {
+					}
+				}()
+			})
+			select {
+			case <-s.inspecting:
+			case <-time.After(5 * time.Second):
+				t.Fatal("metadata request not started")
+			}
+			if tc.queueNext {
+				select {
+				case <-s.queued:
+				case <-time.After(5 * time.Second):
+					t.Fatal("second source event not queued")
+				}
+			}
+			if tc.receive {
+				close(s.release)
+				evt := waitOnChannelOrTimeout(t, out)
+				require.True(t, evt.IsCreate)
+				require.Equal(t, strings.Repeat("b", 64), evt.FullID)
+				require.True(t, evt.IsPodSandbox)
+			}
+			cancel()
+			done := make(chan struct{})
+			go func() { wg.Wait(); close(done) }()
+			select {
+			case <-done:
+			case <-time.After(5 * time.Second):
+				t.Fatal("listener did not stop without an event receiver")
+			}
+			select {
+			case <-s.finished:
+			default:
+				t.Fatal("upstream producer still running")
+			}
+		})
+	}
+}
+
+func TestCRIListenInitialErrorStopsProducer(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		errUnavailable := errors.New("event stream unavailable")
+		s := &shutdownRuntimeService{sourceError: errUnavailable, finished: make(chan struct{})}
+		engine := &criEngine{client: s, logger: slog.Default()}
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		var wg sync.WaitGroup
+		out, err := engine.Listen(ctx, &wg)
+		require.ErrorIs(t, err, errUnavailable)
+		require.Nil(t, out)
+		require.NoError(t, ctx.Err(), "failure cleanup must not cancel the caller")
+		done := make(chan struct{})
+		go func() { wg.Wait(); close(done) }()
+		select {
+		case <-done:
+		case <-time.After(time.Second):
+			t.Fatal("failed listener left its producer retrying")
+		}
+	})
 }
 
 // restartingRuntimeService serves one batch of events per call to
