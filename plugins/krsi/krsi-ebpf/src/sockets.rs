@@ -33,7 +33,7 @@ pub fn unix_sock_addr_path_into(
 
     let first_sockaddr = SockaddrUn::wrap(addr.name().cast::<sockaddr_un>());
     let sun_path = first_sockaddr.sun_path();
-    unsafe { bpf_probe_read_kernel_buf(sun_path.cast(), path) }
+    unsafe { bpf_probe_read_kernel_buf(sun_path.cast(), path) }.map_err(i64::from)
 }
 
 /// Equivalent to `*path = sockaddr->sun_path`.
@@ -44,8 +44,8 @@ pub fn sockaddr_un_path_into(
 ) -> Result<(), i64> {
     let sun_path = sockaddr.sun_path();
     if is_kern_mem {
-        unsafe { bpf_probe_read_kernel_buf(sun_path.cast(), path) }
+        unsafe { bpf_probe_read_kernel_buf(sun_path.cast(), path) }.map_err(i64::from)
     } else {
-        unsafe { bpf_probe_read_user_buf(sun_path.cast(), path) }
+        unsafe { bpf_probe_read_user_buf(sun_path.cast(), path) }.map_err(i64::from)
     }
 }

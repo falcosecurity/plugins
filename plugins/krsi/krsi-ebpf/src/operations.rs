@@ -34,6 +34,6 @@ pub mod helpers {
         if event.len() > crate::MAX_EVENT_LEN {
             return;
         }
-        let _ = shared_state::events_ringbuf().output(event, BPF_RB_FORCE_WAKEUP as u64);
+        let _ = shared_state::events_ringbuf().output::<[u8]>(event, BPF_RB_FORCE_WAKEUP as u64);
     }
 }

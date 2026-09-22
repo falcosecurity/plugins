@@ -109,7 +109,7 @@ fn try_security_file_open_x(ctx: FExitContext) -> Result<u32, i64> {
         return Ok(0);
     };
 
-    let ret: i64 = unsafe { ctx.arg(1) };
+    let ret: i64 = ctx.arg(1);
     if ret != 0 {
         return shared_state::op_info::remove(pid);
     }
@@ -121,7 +121,7 @@ fn try_security_file_open_x(ctx: FExitContext) -> Result<u32, i64> {
     let mut writer = writer_helpers::writer(auxbuf, EventType::Open)?;
 
     // Parameter 1: name.
-    let file: File = wrap_arg(unsafe { ctx.arg(0) });
+    let file: File = wrap_arg(ctx.arg(0));
     let path = file.f_path();
     match writer_helpers::store_path_param(&mut writer, &path) {
         Ok(_) => {
@@ -208,7 +208,7 @@ fn try_openat2_x(ctx: FExitContext) -> Result<u32, i64> {
     let mut writer = auxbuf.resume_writer()?;
 
     // Parameter 8: iou_ret.
-    let iou_ret: i64 = unsafe { ctx.arg(2) };
+    let iou_ret: i64 = ctx.arg(2);
     writer.store_param(iou_ret)?;
 
     writer.finalize_event_header();

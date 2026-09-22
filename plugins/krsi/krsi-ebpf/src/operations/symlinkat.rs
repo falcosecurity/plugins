@@ -90,19 +90,19 @@ fn try_do_symlinkat_x(ctx: FExitContext) -> Result<u32, i64> {
     let mut writer = writer_helpers::writer(auxbuf, EventType::Symlinkat)?;
 
     // Parameter 1: target.
-    let target: Filename = wrap_arg(unsafe { ctx.arg(0) });
+    let target: Filename = wrap_arg(ctx.arg(0));
     writer_helpers::store_filename_param(&mut writer, &target, true)?;
 
     // Parameter 2: linkdirfd.
-    let linkdirfd: i32 = unsafe { ctx.arg(1) };
+    let linkdirfd: i32 = ctx.arg(1);
     writer.store_param(scap::encode_dirfd(linkdirfd) as i64)?;
 
     // Parameter 3: linkpath.
-    let linkpath: Filename = wrap_arg(unsafe { ctx.arg(2) });
+    let linkpath: Filename = wrap_arg(ctx.arg(2));
     writer_helpers::store_filename_param(&mut writer, &linkpath, true)?;
 
     // Parameter 4: res.
-    let res: i64 = unsafe { ctx.arg(3) };
+    let res: i64 = ctx.arg(3);
     writer.store_param(res)?;
 
     if !is_iou {
@@ -133,7 +133,7 @@ fn try_io_symlinkat_x(ctx: FExitContext) -> Result<u32, i64> {
     let mut writer = auxbuf.resume_writer()?;
 
     // Parameter 5: iou_ret.
-    let iou_ret: i64 = unsafe { ctx.arg(2) };
+    let iou_ret: i64 = ctx.arg(2);
     writer.store_param(iou_ret)?;
 
     writer.finalize_event_header();

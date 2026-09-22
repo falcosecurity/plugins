@@ -90,27 +90,27 @@ fn try_do_linkat_x(ctx: FExitContext) -> Result<u32, i64> {
     let mut writer = writer_helpers::writer(auxbuf, EventType::Linkat)?;
 
     // Parameter 1: olddirfd.
-    let olddirfd: i32 = unsafe { ctx.arg(0) };
+    let olddirfd: i32 = ctx.arg(0);
     writer.store_param(scap::encode_dirfd(olddirfd) as i64)?;
 
     // Parameter 2: oldpath.
-    let oldpath: Filename = wrap_arg(unsafe { ctx.arg(1) });
+    let oldpath: Filename = wrap_arg(ctx.arg(1));
     writer_helpers::store_filename_param(&mut writer, &oldpath, true)?;
 
     // Parameter 3: newdirfd.
-    let olddirfd: i32 = unsafe { ctx.arg(2) };
+    let olddirfd: i32 = ctx.arg(2);
     writer.store_param(scap::encode_dirfd(olddirfd) as i64)?;
 
     // Parameter 4: newpath.
-    let newpath: Filename = wrap_arg(unsafe { ctx.arg(3) });
+    let newpath: Filename = wrap_arg(ctx.arg(3));
     writer_helpers::store_filename_param(&mut writer, &newpath, true)?;
 
     // Parameter 5: flags.
-    let flags: i32 = unsafe { ctx.arg(4) };
+    let flags: i32 = ctx.arg(4);
     writer.store_param(scap::encode_linkat_flags(flags) as u32)?;
 
     // Parameter 6: res.
-    let res: i64 = unsafe { ctx.arg(5) };
+    let res: i64 = ctx.arg(5);
     writer.store_param(res)?;
 
     if !is_iou {
@@ -141,7 +141,7 @@ fn try_io_linkat_x(ctx: FExitContext) -> Result<u32, i64> {
     let mut writer = auxbuf.resume_writer()?;
 
     // Parameter 7: iou_ret.
-    let iou_ret: i64 = unsafe { ctx.arg(2) };
+    let iou_ret: i64 = ctx.arg(2);
     writer.store_param(iou_ret)?;
 
     writer.finalize_event_header();

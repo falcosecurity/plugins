@@ -15,6 +15,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+use std::os::fd::AsRawFd;
+
 use aya::{
     maps::RingBuf,
     programs::{FEntry, FExit},
@@ -380,17 +382,33 @@ impl Ebpf {
         let feature_flags_bits = feature_flags.bits();
         let op_flags_bits = op_flags.bits();
         let mut ebpf = EbpfLoader::new()
-            .set_max_entries("AUXILIARY_BUFFERS", cpus as u32)
-            .set_global("BOOT_TIME", &boot_time, true)
-            .set_global("FEATURE_FLAGS", &feature_flags_bits, true)
-            .set_global("OP_FLAGS", &op_flags_bits, true)
+            .map_max_entries("AUXILIARY_BUFFERS", cpus as u32)
+            .override_global("BOOT_TIME", &boot_time, true)
+            .override_global("FEATURE_FLAGS", &feature_flags_bits, true)
+            .override_global("OP_FLAGS", &op_flags_bits, true)
             .load(aya::include_bytes_aligned!(concat!(
                 env!("OUT_DIR"),
                 "/krsi"
             )))?;
 
         if enable_logging {
-            EbpfLogger::init(&mut ebpf)?;
+            // Since aya-log 0.3, `EbpfLogger::init` no longer spawns a reader: the logger must be
+            // kept alive and flushed every time its ring buffer becomes readable.
+            let mut logger = EbpfLogger::init(&mut ebpf)?;
+            std::thread::Builder::new()
+                .name("krsi-ebpf-logger".into())
+                .spawn(move || {
+                    let mut pollfd = libc::pollfd {
+                        fd: logger.as_raw_fd(),
+                        events: libc::POLLIN,
+                        revents: 0,
+                    };
+                    loop {
+                        if unsafe { libc::poll(&mut pollfd, 1, -1) } > 0 {
+                            logger.flush();
+                        }
+                    }
+                })?;
         }
 
         Ok(Self {

@@ -45,8 +45,8 @@ limitations under the License.
 use aya_ebpf::{
     bindings::pt_regs,
     macros::{fentry, fexit},
-    programs::{FEntryContext, FExitContext},
-    EbpfContext, PtRegs,
+    programs::{FEntryContext, FExitContext, ProbeContext},
+    EbpfContext,
 };
 use krsi_common::EventType;
 use krsi_ebpf_core::{wrap_arg, Filename, IoKiocb, IoUnlink};
@@ -64,7 +64,7 @@ fn io_unlinkat_e(ctx: FEntryContext) -> u32 {
 
 fn try_io_unlinkat_e(ctx: FEntryContext) -> Result<u32, i64> {
     let pid = ctx.pid();
-    let req: IoKiocb = wrap_arg(unsafe { ctx.arg(0) });
+    let req: IoKiocb = wrap_arg(ctx.arg(0));
     let un: IoUnlink = req.cmd_as();
     let op_info = OpInfo::Unlinkat(UnlinkatData {
         is_iou: true,
@@ -98,7 +98,7 @@ fn __x64_sys_unlinkat_e(ctx: FEntryContext) -> u32 {
 #[allow(non_snake_case)]
 fn try___x64_sys_unlinkat_e(ctx: FEntryContext) -> Result<u32, i64> {
     let pid = ctx.pid();
-    let pt_regs = PtRegs::new(unsafe { ctx.arg::<*const pt_regs>(0) } as *mut _);
+    let pt_regs = ProbeContext::new(ctx.arg::<*const pt_regs>(0).cast_mut().cast());
     let op_info = OpInfo::Unlinkat(UnlinkatData {
         is_iou: false,
         flags: pt_regs.arg(2),
@@ -121,11 +121,11 @@ fn try_do_unlinkat_x(ctx: FExitContext) -> Result<u32, i64> {
     let mut writer = writer_helpers::writer(auxbuf, EventType::Unlinkat)?;
 
     // Parameter 1: dirfd.
-    let dirfd: i32 = unsafe { ctx.arg(0) };
+    let dirfd: i32 = ctx.arg(0);
     writer.store_param(scap::encode_dirfd(dirfd) as i64)?;
 
     // Parameter 2: path.
-    let path: Filename = wrap_arg(unsafe { ctx.arg(1) });
+    let path: Filename = wrap_arg(ctx.arg(1));
     writer_helpers::store_filename_param(&mut writer, &path, true)?;
 
     // Parameter 3: flags.
@@ -135,7 +135,7 @@ fn try_do_unlinkat_x(ctx: FExitContext) -> Result<u32, i64> {
     }?;
 
     // parameter 4: res.
-    let res: i64 = unsafe { ctx.arg(2) };
+    let res: i64 = ctx.arg(2);
     writer.store_param(res)?;
 
     if !op_data.is_iou {
@@ -191,7 +191,7 @@ fn try_io_unlinkat_x(ctx: FExitContext) -> Result<u32, i64> {
     let mut writer = auxbuf.resume_writer()?;
 
     // Parameter 5: iou_ret.
-    let iou_ret: i64 = unsafe { ctx.arg(2) };
+    let iou_ret: i64 = ctx.arg(2);
     writer.store_param(iou_ret)?;
 
     writer.finalize_event_header();
