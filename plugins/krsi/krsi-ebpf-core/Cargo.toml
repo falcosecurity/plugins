@@ -29,5 +29,5 @@ aya-ebpf = { workspace = true }
 paste = { workspace = true }
 
 [build-dependencies]
-bindgen = { version = "0.72.1", features = ["runtime"] }
+bindgen = { version = "0.73.2", features = ["runtime"] }
 cc = "1.2.63"
