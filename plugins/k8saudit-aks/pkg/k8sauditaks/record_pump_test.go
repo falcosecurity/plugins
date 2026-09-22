@@ -154,6 +154,41 @@ func TestRunRecordPumpStopsOnContextCancel(t *testing.T) {
 	}
 }
 
+func TestRunRecordPumpPushIsCancellationAware(t *testing.T) {
+	p := newTestPlugin(t)
+	ctx, cancel := context.WithCancel(context.Background())
+
+	eventsC := make(chan falcoeventhub.Record)
+	// Nobody ever reads from pushEventC: a plain `pushEventC <- *j` send
+	// would block forever here, the way Falco not draining it during
+	// shutdown would. The pump must still exit once ctx is canceled.
+	pushEventC := make(chan source.PushEvent)
+	wg := p.runRecordPump(ctx, eventsC, pushEventC)
+
+	go func() {
+		eventsC <- falcoeventhub.Record{Properties: struct {
+			Log string `json:"log"`
+		}{Log: `{"kind":"Event","stageTimestamp":"2024-01-01T00:00:00.000000Z"}`}}
+	}()
+
+	// Give the pump a moment to parse the record and reach the blocked
+	// send to pushEventC before canceling.
+	time.Sleep(50 * time.Millisecond)
+	cancel()
+
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatalf("runRecordPump did not exit after ctx was canceled while blocked sending to pushEventC")
+	}
+}
+
 // assertNoPush fails the test if a source.PushEvent arrives on pushEventC
 // within a short grace period, used to confirm a record was silently
 // dropped rather than propagated.

@@ -84,7 +84,10 @@ func TestOAuthBearerMechanismNext(t *testing.T) {
 	if done {
 		t.Fatalf("expected done=false on a rejection challenge")
 	}
-	if string(resp) != "\x01" {
-		t.Fatalf("expected the client to send a single control-A, got %q", resp)
+	if resp != nil {
+		// kafka-go's SASL loop discards the response whenever Next returns
+		// an error (see dialer.go's authenticateSASL), so there's nothing
+		// to send back - confirm we don't pretend otherwise.
+		t.Fatalf("expected a nil response on a rejection challenge, got %q", resp)
 	}
 }

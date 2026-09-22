@@ -78,10 +78,24 @@ func (p *Plugin) openKafka() (source.Instance, error) {
 	// A single goroutine owns eventsC end-to-end: it is the only writer, so
 	// it is also the one that closes it once reads stop (on Close or on a
 	// terminal read error), avoiding any close/write race.
+	//
+	// Offsets are committed explicitly, after HandleEvent has handed the
+	// message's records to eventsC, rather than via ReadMessage's automatic
+	// commit-on-fetch. ReadMessage would commit before this goroutine even
+	// looked at the message, so a crash between fetch and processing would
+	// lose it silently - Kafka would consider it delivered. Committing here
+	// still doesn't guarantee Falco itself has consumed the resulting
+	// PushEvents (that would need an end-to-end ack through runRecordPump),
+	// but it matches the guarantee the AMQP path already has via
+	// UpdateCheckpoint, and closes the much larger fetch-to-processing gap.
+	//
+	// A message whose envelope HandleEvent can't parse is still committed
+	// (not retried): it's permanently malformed, so retrying it forever
+	// would wedge the partition on a poison-pill message.
 	go func() {
 		defer close(eventsC)
 		for {
-			msg, err := reader.ReadMessage(ctx)
+			msg, err := reader.FetchMessage(ctx)
 			if err != nil {
 				if ctx.Err() == nil {
 					p.Logger.Printf("error reading kafka message: %v", err)
@@ -90,6 +104,9 @@ func (p *Plugin) openKafka() (source.Instance, error) {
 			}
 			if err := falcoEventHubProcessor.HandleEvent(ctx, msg.Value, eventsC); err != nil {
 				p.Logger.Printf("error handling kafka message: %v", err)
+			}
+			if err := reader.CommitMessages(ctx, msg); err != nil {
+				p.Logger.Printf("error committing kafka offset: %v", err)
 			}
 		}
 	}()

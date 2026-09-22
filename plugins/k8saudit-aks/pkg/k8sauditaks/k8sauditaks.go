@@ -169,6 +169,13 @@ func (p *PluginConfig) validate() error {
 		return fmt.Errorf("event_hub_name is required")
 	}
 
+	if p.ConsumerGroup == "" {
+		// An empty GroupID doesn't error in the kafka protocol - it just
+		// silently switches kafka-go out of consumer-group mode, dropping
+		// offset tracking entirely - so reject it explicitly here instead.
+		return fmt.Errorf("consumer_group must not be empty")
+	}
+
 	usesConnectionString := p.Auth.Type == identity.TypeConnectionString
 	if usesConnectionString && p.EventHubNamespaceConnectionString == "" {
 		return fmt.Errorf("event_hub_namespace_connection_string is required when auth.type is %q", identity.TypeConnectionString)
@@ -199,7 +206,11 @@ func (p *PluginConfig) validate() error {
 // segment out of the connection string.
 func (p *PluginConfig) resolveNamespaceHost() (string, error) {
 	if p.EventHubNamespace != "" {
-		return strings.TrimSuffix(p.EventHubNamespace, "/"), nil
+		host := strings.TrimSuffix(p.EventHubNamespace, "/")
+		if strings.Contains(host, "://") {
+			return "", fmt.Errorf("event_hub_namespace must be a bare hostname (e.g. my-namespace.servicebus.windows.net), not a URL: %q", p.EventHubNamespace)
+		}
+		return host, nil
 	}
 
 	// Connection strings look like:
@@ -326,7 +337,11 @@ func (p *Plugin) runRecordPump(ctx context.Context, eventsC <-chan falcoeventhub
 						p.Logger.Println(j.Err)
 						continue
 					}
-					pushEventC <- *j
+					select {
+					case pushEventC <- *j:
+					case <-ctx.Done():
+						return
+					}
 				}
 			case <-ctx.Done():
 				return

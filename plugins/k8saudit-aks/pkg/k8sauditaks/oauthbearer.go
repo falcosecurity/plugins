@@ -54,11 +54,15 @@ func (m oauthBearerMechanism) Start(ctx context.Context) (sasl.StateMachine, []b
 
 // Next handles the (only possible) server response to the initial
 // response: either the exchange is already done (empty challenge), or the
-// server rejected the token and sent a JSON error challenge, to which the
-// client must reply with a single control-A to end the exchange.
+// server rejected the token and sent a JSON error challenge. RFC 7628 has
+// the client reply to a rejection with a single control-A to end the
+// exchange cleanly, but kafka-go's SASL loop (dialer.go authenticateSASL)
+// returns immediately on a non-nil error without sending back whatever
+// response byte slice accompanies it, so there is no response worth
+// returning here - the connection is simply torn down by the caller.
 func (m oauthBearerMechanism) Next(_ context.Context, challenge []byte) (bool, []byte, error) {
 	if len(challenge) > 0 {
-		return false, []byte("\x01"), fmt.Errorf("oauthbearer: authentication rejected: %s", challenge)
+		return false, nil, fmt.Errorf("oauthbearer: authentication rejected: %s", challenge)
 	}
 	return true, nil, nil
 }
