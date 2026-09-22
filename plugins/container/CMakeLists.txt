@@ -9,7 +9,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
 # project metadata
 project(
         container
-        VERSION 0.7.4
+        VERSION 0.7.5
         DESCRIPTION "Falco container metadata enrichment Plugin"
         LANGUAGES CXX)
 
