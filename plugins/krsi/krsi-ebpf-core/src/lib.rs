@@ -22,7 +22,7 @@ limitations under the License.
 fn bpf_probe_read_kernel<T>(ptr: *const T) -> Result<T, i64> {
     #[cfg(target_arch = "bpf")]
     unsafe {
-        aya_ebpf::helpers::bpf_probe_read_kernel(ptr)
+        aya_ebpf::helpers::bpf_probe_read_kernel(ptr).map_err(i64::from)
     }
     #[cfg(not(target_arch = "bpf"))]
     unsafe {
@@ -34,7 +34,7 @@ fn bpf_probe_read_kernel<T>(ptr: *const T) -> Result<T, i64> {
 fn bpf_probe_read_user<T>(ptr: *const T) -> Result<T, i64> {
     #[cfg(target_arch = "bpf")]
     unsafe {
-        aya_ebpf::helpers::bpf_probe_read_user(ptr)
+        aya_ebpf::helpers::bpf_probe_read_user(ptr).map_err(i64::from)
     }
     #[cfg(not(target_arch = "bpf"))]
     unsafe {

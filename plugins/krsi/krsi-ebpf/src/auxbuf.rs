@@ -64,7 +64,7 @@ impl AuxiliaryBuffer {
         tgid_pid: u64,
         event_type: EventType,
         nparams: u32,
-    ) -> Result<Writer, i64> {
+    ) -> Result<Writer<'_>, i64> {
         if nparams > MAX_PARAMS_NUM as u32 {
             return Err(1);
         }
@@ -95,7 +95,7 @@ impl AuxiliaryBuffer {
     /// Create a new [Writer] instance, associated with the buffer, using the saved writer state.
     /// For the call to be successful, the user must have first saved a writer state via a previous
     /// call to [AuxiliaryBuffer::saved_writer_state].
-    pub fn resume_writer(&mut self) -> Result<Writer, i64> {
+    pub fn resume_writer(&mut self) -> Result<Writer<'_>, i64> {
         // While verifying if there is any saved state, set it to None if any.
         let Some(WriterState {
             remaining_lengths_room,

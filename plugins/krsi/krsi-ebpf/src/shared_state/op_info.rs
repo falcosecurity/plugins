@@ -58,7 +58,7 @@ static OP_INFO: HashMap<u32, OpInfo> = HashMap::with_max_entries(32768, 0);
 
 /// Associate the given `info` to the thread corresponding to the given `pid`.
 pub fn insert(pid: u32, info: &OpInfo) -> Result<u32, i64> {
-    OP_INFO.insert(&pid, info, 0).map(|_| 0)
+    OP_INFO.insert(&pid, info, 0).map(|_| 0).map_err(i64::from)
 }
 
 /// Retrieve an immutable borrow to the information associated to the thread corresponding to the
@@ -75,5 +75,5 @@ pub unsafe fn get_mut(pid: u32) -> Option<&'static mut OpInfo> {
 
 /// Remove the information associated to the thread corresponding to the given `pid`, if any.
 pub fn remove(pid: u32) -> Result<u32, i64> {
-    OP_INFO.remove(&pid).map(|_| 0)
+    OP_INFO.remove(&pid).map(|_| 0).map_err(i64::from)
 }

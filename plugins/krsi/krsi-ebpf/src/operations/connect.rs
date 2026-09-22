@@ -62,7 +62,7 @@ fn io_connect_e(ctx: FEntryContext) -> u32 {
 
 fn try_io_connect_e(ctx: FEntryContext) -> Result<u32, i64> {
     let pid = ctx.pid();
-    let req: IoKiocb = wrap_arg(unsafe { ctx.arg(0) });
+    let req: IoKiocb = wrap_arg(ctx.arg(0));
     let file_descriptor = iouring::io_kiocb_cqe_file_descriptor(&req)?;
     let op_info = OpInfo::Connect(ConnectData {
         file_descriptor,
@@ -81,7 +81,7 @@ fn __sys_connect_e(ctx: FEntryContext) -> u32 {
 #[allow(non_snake_case)]
 fn try___sys_connect_e(ctx: FEntryContext) -> Result<u32, i64> {
     let pid = ctx.pid();
-    let fd: i32 = unsafe { ctx.arg(0) };
+    let fd: i32 = ctx.arg(0);
     let op_info = OpInfo::Connect(ConnectData {
         file_descriptor: FileDescriptor::Fd(fd),
         is_iou: false,
@@ -106,13 +106,13 @@ fn try___sys_connect_file_x(ctx: FExitContext) -> Result<u32, i64> {
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
     let mut writer = writer_helpers::writer(auxbuf, EventType::Connect)?;
 
-    let ret: c_int = unsafe { ctx.arg(4) };
+    let ret: c_int = ctx.arg(4);
 
     // Parameter 1: tuple.
     let socktuple_len = if ret == 0 || ret == -defs::EINPROGRESS {
-        let file: File = wrap_arg(unsafe { ctx.arg(0) });
+        let file: File = wrap_arg(ctx.arg(0));
         let sock = Socket::wrap(file.private_data().unwrap_or(null_mut()).cast());
-        let sockaddr: Sockaddr = wrap_arg(unsafe { ctx.arg(1) });
+        let sockaddr: Sockaddr = wrap_arg(ctx.arg(1));
         writer_helpers::store_sock_tuple_param(&mut writer, &sock, true, &sockaddr, true)
     } else {
         writer.store_empty_param().map(|_| 0)
@@ -159,11 +159,11 @@ fn try_io_connect_x(ctx: FExitContext) -> Result<u32, i64> {
     let mut writer = auxbuf.resume_writer()?;
 
     // Parameter 2: iou_ret.
-    let iou_ret: i64 = unsafe { ctx.arg(2) };
+    let iou_ret: i64 = ctx.arg(2);
     writer.store_param(iou_ret)?;
 
     // Parameter 3: res.
-    let req: IoKiocb = wrap_arg(unsafe { ctx.arg(0) });
+    let req: IoKiocb = wrap_arg(ctx.arg(0));
     match iouring::io_kiocb_cqe_res(&req, iou_ret) {
         Ok(Some(cqe_res)) => writer.store_param(cqe_res as i64)?,
         _ => writer.store_empty_param()?,

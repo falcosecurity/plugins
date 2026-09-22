@@ -50,11 +50,20 @@ fn main() {
     };
     let target = format!("{target}-unknown-none");
 
+    // Set bpf target arch on build command. Since aya-ebpf 0.2, `aya-ebpf-bindings` relies on the
+    // `bpf_target_arch` cfg being passed to rustc whenever `CARGO_CFG_BPF_TARGET_ARCH` is set (see
+    // `aya_build::emit_bpf_target_arch_cfg`), so pass it through the encoded RUSTFLAGS as well.
+    let arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap();
+
     // Create build command.
     let mut cmd = Command::new("cargo");
-    cmd.env("CARGO_ENCODED_RUSTFLAGS", "-Cdebuginfo=2");
+    cmd.env(
+        "CARGO_ENCODED_RUSTFLAGS",
+        format!("--cfg=bpf_target_arch=\"{arch}\"\x1f-Cdebuginfo=2"),
+    );
+    cmd.env("CARGO_CFG_BPF_TARGET_ARCH", &arch);
     cmd.args([
-        "+nightly-2025-03-15",
+        "+nightly-2025-07-15",
         "build",
         "-Z",
         "build-std=core",
@@ -64,10 +73,6 @@ fn main() {
         "--target",
         &target,
     ]);
-
-    // Set bpf target arch on build command.
-    let arch = env::var_os("CARGO_CFG_TARGET_ARCH").unwrap();
-    cmd.env("CARGO_CFG_BPF_TARGET_ARCH", arch);
 
     // Workaround to make sure that the rust-toolchain.toml is respected.
     for key in ["RUSTUP_TOOLCHAIN", "RUSTC"] {

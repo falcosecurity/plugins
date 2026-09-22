@@ -19,7 +19,7 @@ use crate::{
 
 /// Wrapper around [AuxiliaryBuffer::writer] just collecting some additional information before
 /// calling it.
-pub fn writer(auxbuf: &mut AuxiliaryBuffer, event_type: EventType) -> Result<Writer, i64> {
+pub fn writer(auxbuf: &mut AuxiliaryBuffer, event_type: EventType) -> Result<Writer<'_>, i64> {
     let ts = shared_state::boot_time() + unsafe { bpf_ktime_get_boot_ns() };
     let tgid_pid = bpf_get_current_pid_tgid();
     let nparams = get_event_num_params(event_type) as u32;

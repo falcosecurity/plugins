@@ -58,10 +58,10 @@ fn try_io_socket_x(ctx: FExitContext) -> Result<u32, i64> {
     let auxbuf = shared_state::auxiliary_buffer().ok_or(1)?;
     let mut writer = writer_helpers::writer(auxbuf, EventType::Socket)?;
 
-    let req: IoKiocb = wrap_arg(unsafe { ctx.arg(0) });
+    let req: IoKiocb = wrap_arg(ctx.arg(0));
     let sock = req.cmd_as::<IoSocket>();
 
-    let iou_ret: i64 = unsafe { ctx.arg(2) };
+    let iou_ret: i64 = ctx.arg(2);
 
     // Parameter 1: iou_ret.
     writer.store_param(iou_ret)?;
@@ -136,22 +136,22 @@ fn try___sys_socket_x(ctx: FExitContext) -> Result<u32, i64> {
     writer.store_empty_param()?;
 
     // Parameter 2: fd.
-    let ret: c_int = unsafe { ctx.arg(3) };
+    let ret: c_int = ctx.arg(3);
     writer.store_param(ret as i64)?;
 
     // Parameter 3: file_index.
     writer.store_empty_param()?;
 
     // Parameter 4: domain.
-    let sock_domain: c_int = unsafe { ctx.arg(0) };
+    let sock_domain: c_int = ctx.arg(0);
     writer.store_param(sock_domain as u32)?;
 
     // Parameter 5: type.
-    let sock_type: c_int = unsafe { ctx.arg(1) };
+    let sock_type: c_int = ctx.arg(1);
     writer.store_param(sock_type as u32)?;
 
     // Parameter 6: proto.
-    let sock_proto: c_int = unsafe { ctx.arg(2) };
+    let sock_proto: c_int = ctx.arg(2);
     writer.store_param(sock_proto as u32)?;
 
     writer.finalize_event_header();

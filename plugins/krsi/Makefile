@@ -5,7 +5,7 @@ all: $(OUTPUT)
 
 .PHONY: $(OUTPUT)
 $(OUTPUT):
-	 rustup component add rust-src --toolchain nightly-2025-03-15-$(shell uname -m)-unknown-linux-gnu
+	 rustup component add rust-src --toolchain nightly-2025-07-15-$(shell uname -m)-unknown-linux-gnu
 	 cargo build --release && mv target/release/$(OUTPUT) .
 
 .PHONY: clean
