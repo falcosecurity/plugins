@@ -61,6 +61,11 @@ func TestValidate(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name:    "empty consumer_group",
+			mutate:  func(c *PluginConfig) { c.ConsumerGroup = "" },
+			wantErr: true,
+		},
+		{
 			name: "connection_string amqp missing event hub connection string",
 			mutate: func(c *PluginConfig) {
 				c.BlobStorageConnectionString = "conn"
@@ -231,6 +236,16 @@ func TestResolveNamespaceHost(t *testing.T) {
 			name: "explicit namespace without trailing slash is unchanged",
 			cfg:  PluginConfig{EventHubNamespace: "explicit.servicebus.windows.net"},
 			want: "explicit.servicebus.windows.net",
+		},
+		{
+			name:    "explicit namespace with https scheme is rejected",
+			cfg:     PluginConfig{EventHubNamespace: "https://explicit.servicebus.windows.net"},
+			wantErr: true,
+		},
+		{
+			name:    "explicit namespace with sb scheme is rejected",
+			cfg:     PluginConfig{EventHubNamespace: "sb://explicit.servicebus.windows.net/"},
+			wantErr: true,
 		},
 		{
 			name: "explicit namespace wins even with a connection string also set",
