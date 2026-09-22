@@ -336,9 +336,13 @@ func (dc *dockerEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan 
 					dc.logger.LogAttrs(ctx, config.LevelTrace, "container create or start event", slog.String("container_id", msg.Actor.ID))
 					ctrJson, _, err = dc.ContainerInspectWithRaw(ctx, msg.Actor.ID, config.GetWithSize())
 					if err == nil {
-						outCh <- event.Event{
+						select {
+						case outCh <- event.Event{
 							Info:     dc.ctrToInfo(ctx, ctrJson),
 							IsCreate: true,
+						}:
+						case <-ctx.Done():
+							return
 						}
 					}
 				case events.ActionDestroy:
@@ -350,7 +354,8 @@ func (dc *dockerEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan 
 				// AND as a fallback whenever ContainerInspectWithRaw fails.
 				if err != nil {
 					// At least send an event with the minimum set of data
-					outCh <- event.Event{
+					select {
+					case outCh <- event.Event{
 						Info: event.Info{
 							Container: event.Container{
 								Type:   typeDocker.ToCTValue(),
@@ -360,6 +365,9 @@ func (dc *dockerEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan 
 							},
 						},
 						IsCreate: msg.Action != events.ActionDestroy,
+					}:
+					case <-ctx.Done():
+						return
 					}
 				}
 			}

@@ -489,7 +489,15 @@ func resubscribeWait(current, lived time.Duration) time.Duration {
 // In case events have been disabled in the criEngine,
 // an error will be captured and passed to the caller.
 func (c *criEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan event.Event, error) {
+	ctx, cancel := context.WithCancel(ctx)
 	containerEventsCh := make(chan *v1.ContainerEventResponse)
+	// The CRI client can be blocked sending an event when its receiver exits.
+	// Cancel the RPC, then receive until the producer closes its channel.
+	stop := func() {
+		cancel()
+		for range containerEventsCh {
+		}
+	}
 	// Buffered to prevent blocking; only the first subscription reports through it.
 	containerEventsErrorCh := make(chan error, 1)
 	wg.Add(1)
@@ -532,6 +540,7 @@ func (c *criEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan even
 	select {
 	case err := <-containerEventsErrorCh:
 		if err != nil {
+			stop()
 			return nil, err
 		}
 	case <-time.After(containerEventsErrorTimeout):
@@ -543,6 +552,7 @@ func (c *criEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan even
 	go func() {
 		defer close(outCh)
 		defer wg.Done()
+		defer stop()
 		for {
 			select {
 			case <-ctx.Done():
@@ -611,8 +621,12 @@ func (c *criEngine) sendAsyncEvent(ctx context.Context, evt *v1.ContainerEventRe
 		}
 		info = c.ctrToInfo(ctx, ctr.GetStatus(), cPodSandbox, ctr.GetInfo(), podSandboxStatus.GetInfo())
 	}
-	outCh <- event.Event{
+	select {
+	case outCh <- event.Event{
 		Info:     info,
 		IsCreate: evt.ContainerEventType != v1.ContainerEventType_CONTAINER_DELETED_EVENT,
+	}:
+	case <-ctx.Done():
+		return
 	}
 }
