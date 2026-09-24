@@ -33,7 +33,7 @@ jobs:
           grep -q '^deb http://snapshot.debian.org/archive/debian-security/' /etc/apt/sources.list
           echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99snapshot
           apt update
-          apt install -y --no-install-recommends awscli build-essential autoconf libelf-dev libtool autotools-dev \
+          apt install -y --no-install-recommends awscli build-essential autoconf libelf-dev libtool autotools-dev libssl-dev pkg-config \
             automake zip unzip ninja-build wget lsb-release software-properties-common gnupg ca-certificates curl git
 
       - name: Checkout Plugins ⤵️
