@@ -45,7 +45,7 @@ const char plugin_schema_string[] = LONG_STRING_CONST(
       "type": "integer",
       "minimum": 0,
       "title": "Container engine timeout",
-      "description": "Seconds to wait for a container engine to answer while connecting to it and listing the pre-existing containers at startup. An engine that does not answer in time is skipped, so that an unresponsive runtime socket cannot block Falco's startup. 0 disables the timeout. Defaults to 10."
+      "description": "Seconds to wait for a container engine to answer while connecting to it and listing the pre-existing containers at startup, and when looking up a single container afterwards (live requests, retries and background lookups). An engine that does not answer in time is skipped, so that an unresponsive runtime socket cannot block Falco's startup nor its container enrichment. 0 disables the timeout. Defaults to 10."
     },
     "engines": {
       "$ref": "#/definitions/Engines",
