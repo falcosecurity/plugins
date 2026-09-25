@@ -4,7 +4,7 @@ go 1.25.9
 
 require (
 	github.com/containerd/containerd/api v1.10.0
-	github.com/containerd/containerd/v2 v2.2.8
+	github.com/containerd/containerd/v2 v2.2.9
 	github.com/containerd/typeurl/v2 v2.3.0
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/falcosecurity/plugin-sdk-go v0.8.3
