@@ -395,14 +395,31 @@ func (f *fetcher) forgetFailedDeferred(id string) {
 
 // lookup uses the known runtime identity of a deferred container, or probes
 // the engines for an unknown ID. Success publishes the event and releases
-// any deferred identity.
+// any deferred identity. Each engine answers within the engine timeout, as
+// at bootstrap, so a socket that hangs after startup cannot block the
+// serving goroutine for good. A getter can also return an event whose
+// enrichment the deadline interrupted, so an expired lookup counts as a
+// miss: the container keeps its deferred identity and is retried, instead
+// of being resolved with partial metadata.
 func (f *fetcher) lookup(ctx context.Context, containerId string, outCh chan<- event.Event) bool {
 	var evt *event.Event
 	if d, ok := f.deferredLookups[containerId]; ok {
-		evt, _ = d.get(f.ctx)
+		lctx, cancel := WithEngineTimeout(ctx)
+		evt, _ = d.get(lctx)
+		if lctx.Err() != nil {
+			evt = nil
+		}
+		cancel()
 	} else {
 		for _, e := range f.getters {
-			evt, _ = e.get(f.ctx, containerId)
+			lctx, cancel := WithEngineTimeout(ctx)
+			evt, _ = e.get(lctx, containerId)
+			expired := lctx.Err() != nil
+			cancel()
+			if expired {
+				evt = nil
+				continue
+			}
 			if evt != nil {
 				break
 			}

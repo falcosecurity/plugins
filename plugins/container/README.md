@@ -137,7 +137,7 @@ plugins:
       label_max_len: 100 # (optional, default: 100; container labels larger than this won't be reported)
       with_size: false # (optional, default: false; whether to enable container size inspection, which is inherently slow)
       hooks: ['create', 'start'] # (optional, default: 'create'. Some fields might not be available in create hook, but we are guaranteed that it gets triggered before first process gets started)
-      engine_timeout: 10 # (optional, default: 10; seconds to wait for a container engine to answer at startup, 0 disables the timeout)
+      engine_timeout: 10 # (optional, default: 10; seconds to wait for a container engine to answer, at startup and for single-container lookups, 0 disables the timeout)
       engines:
         docker:
           enabled: true
@@ -164,6 +164,8 @@ load_plugins: [container]
 At startup, the plugin connects to each enabled engine socket and lists the pre-existing containers. An engine that does not answer within `engine_timeout` seconds (default: 10) is skipped with a warning, so that an unresponsive runtime socket (for example a socket-activated service whose backend is gone) cannot block Falco's startup. An engine that answers but does not finish listing its containers in time is kept: the containers inspected so far are loaded, and the others are looked up in the background right after startup, one at a time and behind the lookups the events ask for; their events carry no container metadata until then.
 
 For containerd, this also includes namespaces whose container listing was interrupted or had not started. Their listing is retried in the background until it succeeds, without requiring a new process event. Each attempt uses `engine_timeout` and stops when capture stops. Setting `engine_timeout` to `0` disables the timeout: startup and background namespace listings then wait indefinitely unless cancelled.
+
+The same timeout bounds every single-container lookup after startup too: the lookups asked for by events, their retries, and the deferred startup lookups each wait at most `engine_timeout` seconds for an engine to answer. A lookup that expires is treated as failed: no partial metadata is published, and the container is retried (keeping its deferred identity, if it had one) instead of being considered resolved with incomplete data. With the timeout disabled, a single lookup again waits indefinitely unless cancelled.
 
 N.B. With podman the timeout can be exceeded by up to about 0.6 seconds, since the podman client retries a failed request three times with fixed pauses in between.
 
