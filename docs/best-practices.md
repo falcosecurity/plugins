@@ -51,6 +51,19 @@ $(OUTPUT):
 	@$(GODEBUGFLAGS) $(GO) build -buildmode=c-shared -o $(OUTPUT) ./plugin
 ```
 
+## Build Environment and glibc Compatibility
+
+Falco loads plugins at runtime with `dlopen()`, so your plugin's shared library must be compatible with the C library (glibc) on every host where Falco runs. glibc is backward compatible but not forward compatible: a plugin built against glibc 2.36 fails to load on a host with glibc 2.31, while a plugin built against glibc 2.31 loads fine on a host with glibc 2.36.
+
+### Do
+
+- Build your plugin against the oldest glibc version you intend to support. The plugins in this repository are built on Debian bullseye (glibc 2.31), and CI verifies that they load on hosts with glibc as old as 2.34.
+- If you build with Go, remember that cgo links against the system glibc. Building inside a container based on an older distribution (for example, Debian bullseye) is a reliable way to target an older glibc.
+
+### Don't
+
+- Build your plugin on a bleeding-edge distribution and expect it to load on older hosts. This was the root cause of [#1500](https://github.com/falcosecurity/plugins/issues/1500), where a plugin failed to load with `undefined symbol: __res_search` because it required a newer glibc than the host provided.
+
 ## Configuration in Source Plugins
 
 One peculiarity of plugins with event source capability is how they can accept user configurations. Other plugins can only be configured during the initialization phase through `plugin_init()`, whereas source plugins also take some parameters while opening the event stream with `plugin_open()`. This creates some ambiguity on **which** information should go inside the init configuration and what should be part of the open parameters instead.
