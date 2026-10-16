@@ -135,7 +135,26 @@ enabled and configured to send the audit logs to the plugin. We provide the [aud
 The [audit-policy.yaml](./configs/audit-policy.yaml) is of vital importance; it defines the rules about what events should
 be recorded and what data they should include. The rules shipped with the `k8saudit` plugins rely on those events.
 The [webhook-config.yaml](./configs/webhook-config.yaml.in) shows how to configure the webhook backend to send events to
-an external HTTP API.
+the plugin's embedded web server.
+
+### Webhook Backend Placement
+
+The webhook backend is the Falco instance running the `k8saudit` plugin's embedded web server. It can be deployed
+either inside or outside the audited cluster:
+
+- **Outside the audited cluster (recommended):** Hosting the webhook backend outside the audited cluster is
+  recommended so that audit event collection does not depend on the integrity of the cluster being audited
+  (see [issue #1457](https://github.com/falcosecurity/plugins/issues/1457)). An external FQDN or IP in
+  `webhook-config.yaml` also avoids the need to set `dnsPolicy: ClusterFirstWithHostNet` on the kube-apiserver
+  pod spec when the API server runs with `hostNetwork: true`, since external names resolve with the default DNS
+  policy. The tradeoff is deployment complexity: this typically means running two Falco instances — one inside
+  the cluster for syscall events and one outside for `k8s_audit` events — which can both forward to a single
+  falcosidekick instance that dispatches to the configured outputs.
+- **Inside the audited cluster:** The [webhook-config.yaml](./configs/webhook-config.yaml.in) example shows this
+  setup, pointing the API server at the Falco service's cluster IP (`$FALCO_SERVICE_CLUSTERIP`). This is simpler
+  to deploy, but audit collection then depends on the cluster itself. Note that if the kube-apiserver runs with
+  `hostNetwork: true`, you must set `dnsPolicy: ClusterFirstWithHostNet` on its pod spec for it to resolve the
+  in-cluster service name.
 
 ### Configuration
 
