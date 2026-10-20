@@ -64,11 +64,11 @@ func (p *Plugin) ConvertLogEntry(logEntry *logging.LogEntry, auditLog *audit.Aud
 		stage = "ResponseComplete"
 	}
 
-	annotations := make(map[string]string, len(logEntry.Labels)+len(logEntry.Resource.Labels))
+	annotations := make(map[string]string, len(logEntry.Labels)+len(logEntry.GetResource().GetLabels()))
 	for l, v := range logEntry.Labels {
 		annotations[l] = v
 	}
-	for l, v := range logEntry.Resource.Labels {
+	for l, v := range logEntry.GetResource().GetLabels() {
 		annotations[l] = v
 	}
 
@@ -87,10 +87,10 @@ func (p *Plugin) ConvertLogEntry(logEntry *logging.LogEntry, auditLog *audit.Aud
 		RequestURI: fmt.Sprintf("/%s", auditLog.ResourceName),
 		Verb:       verb,
 		User: authv1.UserInfo{
-			Username: auditLog.AuthenticationInfo.PrincipalEmail,
+			Username: auditLog.GetAuthenticationInfo().GetPrincipalEmail(),
 		},
-		SourceIPs:                []string{auditLog.RequestMetadata.CallerIp},
-		UserAgent:                auditLog.RequestMetadata.CallerSuppliedUserAgent,
+		SourceIPs:                []string{auditLog.GetRequestMetadata().GetCallerIp()},
+		UserAgent:                auditLog.GetRequestMetadata().GetCallerSuppliedUserAgent(),
 		ResponseStatus:           status,
 		RequestObject:            requestObj,
 		ResponseObject:           responseObj,

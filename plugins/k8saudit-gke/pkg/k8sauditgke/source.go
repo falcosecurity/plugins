@@ -140,7 +140,7 @@ func isValidLogEntry(logEntry *logging.LogEntry) bool {
 	}
 
 	// Check whether or not this is a GKE audit log entry
-	return logEntry.Resource.Type == "k8s_cluster"
+	return logEntry.GetResource().GetType() == "k8s_cluster"
 }
 
 func (p *Plugin) processAuditLogEntry(logEntry *logging.LogEntry, auditLog *audit.AuditLog) (*source.PushEvent, error) {
