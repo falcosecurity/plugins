@@ -307,7 +307,21 @@ func (p *Plugin) newCredential() (azcore.TokenCredential, error) {
 // Falco audit events and pushes them onto pushEventC. It returns the
 // WaitGroup the caller must Wait() on (after closing eventsC) before
 // closing pushEventC.
-func (p *Plugin) runRecordPump(ctx context.Context, eventsC <-chan falcoeventhub.Record, pushEventC chan<- source.PushEvent) *sync.WaitGroup {
+//
+// errC lets a producer that closes eventsC because of an unrecoverable
+// error (rather than a clean shutdown) report that error here, which is
+// the only goroutine that writes to pushEventC. Without this, Falco would
+// see pushEventC go quiet and keep getting sdk.ErrTimeout forever instead
+// of being told the source failed. A producer with no such error path
+// (e.g. the AMQP one, whose SDK retries internally) can pass a nil errC;
+// a nil channel simply never becomes ready in the select below.
+//
+// errC must be buffered (capacity 1) and the producer must send to it, if
+// at all, strictly before closing eventsC, so the value is already
+// sitting in the buffer by the time this loop observes eventsC closed -
+// otherwise which one "wins" the select is a race and the error could be
+// dropped.
+func (p *Plugin) runRecordPump(ctx context.Context, eventsC <-chan falcoeventhub.Record, errC <-chan error, pushEventC chan<- source.PushEvent) *sync.WaitGroup {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
@@ -316,6 +330,16 @@ func (p *Plugin) runRecordPump(ctx context.Context, eventsC <-chan falcoeventhub
 			select {
 			case i, ok := <-eventsC:
 				if !ok {
+					// eventsC closing cleanly and closing because of a
+					// fatal error look the same from here; check errC
+					// (non-blocking: the value, if any, is already
+					// buffered by the time eventsC's close is observed).
+					var err error
+					select {
+					case err = <-errC:
+					default:
+					}
+					deliverFatalError(ctx, err, pushEventC)
 					return
 				}
 				// AKS diagnostic settings can route categories other than
@@ -343,10 +367,28 @@ func (p *Plugin) runRecordPump(ctx context.Context, eventsC <-chan falcoeventhub
 						return
 					}
 				}
+			case err := <-errC:
+				deliverFatalError(ctx, err, pushEventC)
+				return
 			case <-ctx.Done():
 				return
 			}
 		}
 	}()
 	return &wg
+}
+
+// deliverFatalError reports err to Falco as the push source's terminal
+// failure (see source.NewPushInstance: a PushEvent with a non-nil Err ends
+// the source), unless ctx is already done - a normal shutdown in progress
+// isn't a failure to report, and Falco may no longer be draining
+// pushEventC at that point anyway.
+func deliverFatalError(ctx context.Context, err error, pushEventC chan<- source.PushEvent) {
+	if err == nil {
+		return
+	}
+	select {
+	case pushEventC <- source.PushEvent{Err: err}:
+	case <-ctx.Done():
+	}
 }

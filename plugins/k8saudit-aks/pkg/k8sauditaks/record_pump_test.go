@@ -19,6 +19,7 @@ package k8sauditaks
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log"
 	"testing"
@@ -46,7 +47,7 @@ func TestRunRecordPumpValidEvent(t *testing.T) {
 
 	eventsC := make(chan falcoeventhub.Record)
 	pushEventC := make(chan source.PushEvent)
-	p.runRecordPump(ctx, eventsC, pushEventC)
+	p.runRecordPump(ctx, eventsC, nil, pushEventC)
 
 	go func() {
 		eventsC <- falcoeventhub.Record{Properties: struct {
@@ -74,7 +75,7 @@ func TestRunRecordPumpSkipsNonJSONLog(t *testing.T) {
 
 	eventsC := make(chan falcoeventhub.Record)
 	pushEventC := make(chan source.PushEvent)
-	p.runRecordPump(ctx, eventsC, pushEventC)
+	p.runRecordPump(ctx, eventsC, nil, pushEventC)
 
 	// AKS diagnostic settings can route non-kube-audit categories
 	// (kube-apiserver, cluster-autoscaler, ...) to the same EventHub; those
@@ -95,7 +96,7 @@ func TestRunRecordPumpSkipsUnparseableAuditEvent(t *testing.T) {
 
 	eventsC := make(chan falcoeventhub.Record)
 	pushEventC := make(chan source.PushEvent)
-	p.runRecordPump(ctx, eventsC, pushEventC)
+	p.runRecordPump(ctx, eventsC, nil, pushEventC)
 
 	// Valid JSON, but not a recognizable k8s audit event (no "kind").
 	go func() {
@@ -114,7 +115,7 @@ func TestRunRecordPumpStopsOnChannelClose(t *testing.T) {
 
 	eventsC := make(chan falcoeventhub.Record)
 	pushEventC := make(chan source.PushEvent)
-	wg := p.runRecordPump(ctx, eventsC, pushEventC)
+	wg := p.runRecordPump(ctx, eventsC, nil, pushEventC)
 
 	close(eventsC)
 
@@ -131,13 +132,74 @@ func TestRunRecordPumpStopsOnChannelClose(t *testing.T) {
 	}
 }
 
+// TestRunRecordPumpPropagatesUnrecoverableError covers the case where a
+// producer (e.g. the Kafka reader) hits an unrecoverable error and closes
+// eventsC because of it, rather than because of a clean shutdown. Before
+// this was fixed, runRecordPump treated that identically to a clean close
+// and returned silently: pushEventC then just went quiet forever, so
+// Falco kept getting sdk.ErrTimeout instead of being told the source had
+// failed. errC is how the producer tells runRecordPump which case it is.
+func TestRunRecordPumpPropagatesUnrecoverableError(t *testing.T) {
+	p := newTestPlugin(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	eventsC := make(chan falcoeventhub.Record)
+	errC := make(chan error, 1)
+	pushEventC := make(chan source.PushEvent)
+	p.runRecordPump(ctx, eventsC, errC, pushEventC)
+
+	wantErr := errors.New("kafka: boom")
+	// Mirrors the real producer: send to errC, then close eventsC.
+	errC <- wantErr
+	close(eventsC)
+
+	select {
+	case evt := <-pushEventC:
+		if !errors.Is(evt.Err, wantErr) {
+			t.Fatalf("got PushEvent.Err %v, want %v", evt.Err, wantErr)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatalf("timed out waiting for the error to be propagated to pushEventC")
+	}
+}
+
+// TestRunRecordPumpCleanCloseReportsNoError confirms the ordinary shutdown
+// path (eventsC closed, nothing on errC) still exits quietly, without a
+// spurious PushEvent.
+func TestRunRecordPumpCleanCloseReportsNoError(t *testing.T) {
+	p := newTestPlugin(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	eventsC := make(chan falcoeventhub.Record)
+	errC := make(chan error, 1)
+	pushEventC := make(chan source.PushEvent)
+	wg := p.runRecordPump(ctx, eventsC, errC, pushEventC)
+
+	close(eventsC)
+
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatalf("runRecordPump goroutine did not exit after eventsC was closed")
+	}
+	assertNoPush(t, pushEventC)
+}
+
 func TestRunRecordPumpStopsOnContextCancel(t *testing.T) {
 	p := newTestPlugin(t)
 	ctx, cancel := context.WithCancel(context.Background())
 
 	eventsC := make(chan falcoeventhub.Record)
 	pushEventC := make(chan source.PushEvent)
-	wg := p.runRecordPump(ctx, eventsC, pushEventC)
+	wg := p.runRecordPump(ctx, eventsC, nil, pushEventC)
 
 	cancel()
 
@@ -163,7 +225,7 @@ func TestRunRecordPumpPushIsCancellationAware(t *testing.T) {
 	// would block forever here, the way Falco not draining it during
 	// shutdown would. The pump must still exit once ctx is canceled.
 	pushEventC := make(chan source.PushEvent)
-	wg := p.runRecordPump(ctx, eventsC, pushEventC)
+	wg := p.runRecordPump(ctx, eventsC, nil, pushEventC)
 
 	go func() {
 		eventsC <- falcoeventhub.Record{Properties: struct {

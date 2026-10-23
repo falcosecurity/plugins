@@ -105,7 +105,10 @@ func (p *Plugin) openAMQP() (source.Instance, error) {
 		}
 	}()
 
-	wg := p.runRecordPump(ctx, eventsC, pushEventC)
+	// nil errC: azeventhubs.Processor retries/rebalances internally, so
+	// there's no single "unrecoverable read error" to propagate here the
+	// way the Kafka path has.
+	wg := p.runRecordPump(ctx, eventsC, nil, pushEventC)
 
 	// Run the processor
 	go func() {
