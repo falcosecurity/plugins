@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/falcosecurity/plugin-sdk-go v0.8.3
-	github.com/olekukonko/tablewriter v1.1.4
+	github.com/olekukonko/tablewriter v1.1.5
 	github.com/spf13/pflag v1.0.10
 )
 
