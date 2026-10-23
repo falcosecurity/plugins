@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.7.0
+
+* Add support for consuming Event Hub over the Kafka-compatible endpoint (`protocol: kafka`), in addition to the existing AMQP transport.
+
+* Add support for Azure AD authentication (`auth.type`): `environment` (client secret or certificate), `managed_identity` (system- or user-assigned) and `workload_identity`, alongside the existing `connection_string` default, for both protocols.
+
+* `auth.type: environment` and `auth.type: managed_identity` accept their credentials either in `init_config` (`auth.tenant_id`, `auth.client_id`, `auth.client_secret`, `auth.client_certificate_path`, `auth.client_certificate_password`, `auth.client_send_certificate_chain`, `auth.managed_identity_client_id`) or from the matching `AZURE_*` environment variable, field by field. `auth.type: workload_identity` remains environment-only.
+
+* Add `auth.client_send_certificate_chain` (or `AZURE_CLIENT_SEND_CERTIFICATE_CHAIN`) to the `environment` client-certificate auth, for Subject Name/Issuer (SNI) authentication.
+
+* Bump the plugin version to `0.7.0`.
+
+
 ## v0.6.0
 
 * Bump the plugin version to `0.6.0`.

@@ -56,20 +56,8 @@ func (p *Processor) Process(
 		}
 
 		for _, event := range events {
-			eventData, err := UnmarshallEvent(event.Body)
-			if err != nil {
+			if err := p.HandleEvent(ctx, event.Body, recordChan); err != nil {
 				return err
-			}
-			for _, record := range eventData.Records {
-				err := p.RateLimiter.Wait(ctx)
-				if err != nil {
-					continue
-				}
-				select {
-				case <-ctx.Done():
-					return nil
-				case recordChan <- record:
-				}
 			}
 
 			if err := partitionClient.UpdateCheckpoint(ctx, event, nil); err != nil {
@@ -77,6 +65,28 @@ func (p *Processor) Process(
 			}
 		}
 	}
+}
+
+// HandleEvent unmarshals a single raw event body (the same JSON envelope
+// AKS diagnostic settings write, whether it arrives over AMQP or over the
+// Kafka-compatible endpoint), rate-limits, and pushes each of its Records
+// onto recordChan.
+func (p *Processor) HandleEvent(ctx context.Context, body []byte, recordChan chan<- Record) error {
+	eventData, err := UnmarshallEvent(body)
+	if err != nil {
+		return err
+	}
+	for _, record := range eventData.Records {
+		if err := p.RateLimiter.Wait(ctx); err != nil {
+			continue
+		}
+		select {
+		case <-ctx.Done():
+			return nil
+		case recordChan <- record:
+		}
+	}
+	return nil
 }
 
 func UnmarshallEvent(eventJObj []byte) (*Event, error) {
