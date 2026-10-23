@@ -73,11 +73,21 @@ func (p *Plugin) openKafka() (source.Instance, error) {
 	}
 
 	eventsC := make(chan falcoeventhub.Record)
+	// Buffered: the read goroutine below sends here (at most once) strictly
+	// before its deferred close(eventsC) runs, so the value is already
+	// available, without blocking, by the time runRecordPump observes
+	// eventsC closed. See runRecordPump's errC doc for why that ordering
+	// matters.
+	errC := make(chan error, 1)
 	pushEventC := make(chan source.PushEvent)
 
 	// A single goroutine owns eventsC end-to-end: it is the only writer, so
 	// it is also the one that closes it once reads stop (on Close or on a
-	// terminal read error), avoiding any close/write race.
+	// terminal read error), avoiding any close/write race. A terminal read
+	// error (ctx not canceled, so not just Close()-triggered shutdown) is
+	// reported through errC so runRecordPump can propagate it to Falco via
+	// pushEventC - otherwise Falco would just see the source go quiet
+	// forever instead of being told it failed.
 	//
 	// Offsets are committed explicitly, after HandleEvent has handed the
 	// message's records to eventsC, rather than via ReadMessage's automatic
@@ -99,6 +109,7 @@ func (p *Plugin) openKafka() (source.Instance, error) {
 			if err != nil {
 				if ctx.Err() == nil {
 					p.Logger.Printf("error reading kafka message: %v", err)
+					errC <- fmt.Errorf("kafka: %w", err)
 				}
 				return
 			}
@@ -111,7 +122,7 @@ func (p *Plugin) openKafka() (source.Instance, error) {
 		}
 	}()
 
-	wg := p.runRecordPump(ctx, eventsC, pushEventC)
+	wg := p.runRecordPump(ctx, eventsC, errC, pushEventC)
 
 	return source.NewPushInstance(
 		pushEventC,
