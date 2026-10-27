@@ -178,7 +178,15 @@ load_plugins: [k8saudit, json]
 - `sslCertificate`: The SSL Certificate to be used with the HTTPS Webhook endpoint (Default: /etc/falco/falco.pem)
 - `maxEventSize`: Maximum size of single audit event (Default: 262144)
 - `webhookMaxBatchSize`: Maximum size of incoming webhook POST request bodies (Default: 12582912)
+- `webhookEnqueueTimeout`: Maximum time in seconds a webhook request waits for room in the event queue before it is refused with HTTP 429 (Default: 5)
 - `useAsync`: If true, then async extraction optimization is enabled (Default: true)
+
+The web server answers a webhook request only after its events are queued for Falco.
+When Falco processes audit events slower than the API server sends them, the queue fills up.
+A request then waits for room in the queue for at most `webhookEnqueueTimeout` seconds and is refused with HTTP 429,
+and the API server retries the batch with the back-off of its audit webhook.
+Keep the value well below the 30-second timeout of an audit webhook request: when the API server cancels a request first,
+it sends the same batch again. A value of `0` refuses a request at once when the queue is full.
 
 **Open Parameters**:
 - `http://<host>:<port>/<endpoint>`: Opens an event stream by listening on an HTTP web server

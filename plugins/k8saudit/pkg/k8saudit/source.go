@@ -29,6 +29,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
@@ -40,6 +41,9 @@ import (
 const (
 	webServerShutdownTimeoutSecs = 5
 	webServerEventChanBufSize    = 50
+	// webServerMinRefusalLogInterval is the shortest interval between two log
+	// lines about refused webhook batches of the same reason.
+	webServerMinRefusalLogInterval = time.Second
 )
 
 func (k *Plugin) Open(params string) (source.Instance, error) {
@@ -273,13 +277,48 @@ func (k *Plugin) OpenWebServer(address, endpoint string, ssl bool) (source.Insta
 	// event-parser goroutine
 	m := http.NewServeMux()
 	s := &http.Server{Addr: address, Handler: m}
-	sendBody := func(b []byte) {
+	// sendBody queues a webhook payload and reports whether it was queued.
+	// It waits for a free slot in the queue for at most enqueueTimeout and
+	// never queues the payload of a request that the sender has cancelled:
+	// the API server sends such a batch again, so queueing it would make the
+	// plugin process the batch twice and keep the queue full.
+	enqueueTimeout := time.Duration(k.Config.WebhookEnqueueTimeout) * time.Second
+	refusalLogInterval := max(2*enqueueTimeout, webServerMinRefusalLogInterval)
+	fullQueue := newRefusalLog(k, refusalLogInterval, "the event queue is full, %d webhook batches refused so far; the API server retries them later")
+	cancelled := newRefusalLog(k, refusalLogInterval, "%d webhook requests cancelled by the API server while waiting for the event queue; the API server sends them again")
+	sendBody := func(ctx context.Context, b []byte) (res enqueueResult) {
 		defer func() {
 			if r := recover(); r != nil {
 				k.logger.Println("request dropped while shutting down server ")
+				res = enqueueShutdown
 			}
 		}()
-		serverEvtChan <- b
+		// A cancelled request is never queued: the API server sends its batch again.
+		if ctx.Err() != nil {
+			cancelled.add()
+			return enqueueCancelled
+		}
+		// Try without waiting first, so that a timer is only created when the queue is full.
+		select {
+		case serverEvtChan <- b:
+			return enqueueOK
+		default:
+		}
+		timer := time.NewTimer(enqueueTimeout)
+		defer timer.Stop()
+		// A slot that frees up at the moment the request is cancelled may still take
+		// the batch. That is no worse than a cancellation right after queueing, which
+		// the handler cannot detect either.
+		select {
+		case serverEvtChan <- b:
+			return enqueueOK
+		case <-ctx.Done():
+			cancelled.add()
+			return enqueueCancelled
+		case <-timer.C:
+			fullQueue.add()
+			return enqueueQueueFull
+		}
 	}
 	m.HandleFunc(endpoint, func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != "POST" {
@@ -298,8 +337,20 @@ func (k *Plugin) OpenWebServer(address, endpoint string, ssl bool) (source.Insta
 			http.Error(w, msg, http.StatusBadRequest)
 			return
 		}
+		// Answer 200 only after the batch is queued. The response reaches the
+		// sender only when the handler returns, so writing the status earlier
+		// does not speed up the response. A 429 without Retry-After makes the API
+		// server retry the batch with the exponential back-off of its audit webhook.
+		switch sendBody(req.Context(), bytes) {
+		case enqueueOK:
+		case enqueueQueueFull:
+			http.Error(w, "event queue is full", http.StatusTooManyRequests)
+			return
+		default:
+			http.Error(w, "request not queued", http.StatusServiceUnavailable)
+			return
+		}
 		w.WriteHeader(http.StatusOK)
-		sendBody(bytes)
 	})
 	go func() {
 		defer close(serverEvtChan)
@@ -349,6 +400,39 @@ func (k *Plugin) OpenWebServer(address, endpoint string, ssl bool) (source.Insta
 		}),
 		source.WithInstanceEventSize(uint32(k.Config.MaxEventSize)),
 	)
+}
+
+// enqueueResult tells whether sendBody queued a webhook payload, and why not.
+type enqueueResult int
+
+const (
+	enqueueOK enqueueResult = iota
+	enqueueQueueFull
+	enqueueCancelled
+	enqueueShutdown
+)
+
+// refusalLog counts the webhook batches refused for one reason and logs the
+// count at most once per interval.
+type refusalLog struct {
+	k        *Plugin
+	interval time.Duration
+	format   string
+	count    atomic.Int64
+	lastLog  atomic.Int64
+}
+
+func newRefusalLog(k *Plugin, interval time.Duration, format string) *refusalLog {
+	return &refusalLog{k: k, interval: interval, format: format}
+}
+
+func (r *refusalLog) add() {
+	n := r.count.Add(1)
+	now := time.Now().UnixNano()
+	last := r.lastLog.Load()
+	if now-last >= int64(r.interval) && r.lastLog.CompareAndSwap(last, now) {
+		r.k.logger.Printf(r.format, n)
+	}
 }
 
 // todo: optimize this to cache by event number

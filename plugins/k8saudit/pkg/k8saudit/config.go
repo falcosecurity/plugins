@@ -20,10 +20,11 @@ package k8saudit
 import "github.com/falcosecurity/plugin-sdk-go/pkg/sdk"
 
 type PluginConfig struct {
-	SSLCertificate      string `json:"sslCertificate"       jsonschema:"title=SSL certificate,description=The SSL Certificate to be used with the HTTPS Webhook endpoint (Default: /etc/falco/falco.pem),default=/etc/falco/falco.pem"`
-	UseAsync            bool   `json:"useAsync"             jsonschema:"title=Use async extraction,description=If true then async extraction optimization is enabled (Default: true),default=true"`
-	MaxEventSize        uint64 `json:"maxEventSize"         jsonschema:"title=Maximum event size,description=Maximum size of single audit event (Default: 262144),default=262144"`
-	WebhookMaxBatchSize uint64 `json:"webhookMaxBatchSize"  jsonschema:"title=Maximum webhook request size,description=Maximum size of incoming webhook POST request bodies (Default: 12582912),default=12582912"`
+	SSLCertificate        string `json:"sslCertificate"        jsonschema:"title=SSL certificate,description=The SSL Certificate to be used with the HTTPS Webhook endpoint (Default: /etc/falco/falco.pem),default=/etc/falco/falco.pem"`
+	UseAsync              bool   `json:"useAsync"              jsonschema:"title=Use async extraction,description=If true then async extraction optimization is enabled (Default: true),default=true"`
+	MaxEventSize          uint64 `json:"maxEventSize"          jsonschema:"title=Maximum event size,description=Maximum size of single audit event (Default: 262144),default=262144"`
+	WebhookMaxBatchSize   uint64 `json:"webhookMaxBatchSize"   jsonschema:"title=Maximum webhook request size,description=Maximum size of incoming webhook POST request bodies (Default: 12582912),default=12582912"`
+	WebhookEnqueueTimeout uint64 `json:"webhookEnqueueTimeout" jsonschema:"title=Webhook enqueue timeout,description=Maximum time in seconds a webhook request waits for room in the event queue before it is refused with HTTP 429 (Default: 5),default=5"`
 }
 
 // Resets sets the configuration to its default values
@@ -38,4 +39,9 @@ func (k *PluginConfig) Reset() {
 	// The following values have been chosen by increasing by ~20% the default
 	// values of the K8S docs
 	k.WebhookMaxBatchSize = 12 * 1024 * 1024
+
+	// The API server cancels an audit webhook request after 30 seconds and
+	// sends the batch again. The default leaves enough time to answer with 429
+	// before that, so that the API server retries the batch with its back-off.
+	k.WebhookEnqueueTimeout = 5
 }
