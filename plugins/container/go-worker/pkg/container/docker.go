@@ -312,6 +312,11 @@ func (dc *dockerEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan 
 	if config.IsHookEnabled(config.HookRemove) {
 		flts.Add("event", string(events.ActionDestroy))
 	}
+	// A rename is not a lifecycle hook: it changes the name of a container
+	// that may already be cached, whatever hook reported it. docker compose,
+	// for instance, creates a recreated container under a temporary
+	// `<old-id[:12]>_<name>` name and renames it before starting it.
+	flts.Add("event", string(events.ActionRename))
 
 	msgs, _ := dc.Events(ctx, events.ListOptions{Filters: flts})
 	wg.Add(1)
@@ -332,8 +337,8 @@ func (dc *dockerEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan 
 					err     error
 				)
 				switch msg.Action {
-				case events.ActionCreate, events.ActionStart:
-					dc.logger.LogAttrs(ctx, config.LevelTrace, "container create or start event", slog.String("container_id", msg.Actor.ID))
+				case events.ActionCreate, events.ActionStart, events.ActionRename:
+					dc.logger.LogAttrs(ctx, config.LevelTrace, "container "+string(msg.Action)+" event", slog.String("container_id", msg.Actor.ID))
 					ctrJson, _, err = dc.ContainerInspectWithRaw(ctx, msg.Actor.ID, config.GetWithSize())
 					if err == nil {
 						select {
@@ -351,8 +356,11 @@ func (dc *dockerEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan 
 				}
 
 				// This is called for ActionDestroy
-				// AND as a fallback whenever ContainerInspectWithRaw fails.
-				if err != nil {
+				// AND as a fallback whenever ContainerInspectWithRaw fails,
+				// but for ActionRename: the renamed container may already be
+				// cached, keep its metadata instead of replacing them with
+				// the minimum set.
+				if err != nil && msg.Action != events.ActionRename {
 					// At least send an event with the minimum set of data
 					select {
 					case outCh <- event.Event{
