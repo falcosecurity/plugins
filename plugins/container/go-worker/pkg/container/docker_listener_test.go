@@ -13,7 +13,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/falcosecurity/plugins/plugins/container/go-worker/pkg/config"
@@ -154,6 +156,138 @@ func TestDockerListenShutdown(t *testing.T) {
 		httpClient.Transport = &inspectionTransport{RoundTripper: httpClient.Transport, inspected: inspected}
 		require.NoError(t, client.WithHTTPClient(httpClient)(dc.Client))
 	})
+}
+
+// newRenameAPI serves a Docker Engine API on a unix socket whose event stream
+// replays what docker compose does when it recreates a container: it creates
+// it under a temporary `<old-id[:12]>_<name>` name, then renames it. A final
+// destroy event of another container lets the test check that nothing else
+// was sent. Only the events matching the listener filters are sent. Each
+// inspection answers the container name current at that point, or fails
+// after the rename when renamedMissing is set.
+func newRenameAPI(t *testing.T, renamedMissing bool) string {
+	t.Helper()
+	socket := filepath.Join(t.TempDir(), "docker.sock")
+	listener, err := net.Listen("unix", socket)
+	require.NoError(t, err)
+	const tmpName, finalName = "/0123456789ab_foo", "/foo"
+	var (
+		mu        sync.Mutex
+		renamed   bool
+		inspected = make(chan struct{})
+		once      sync.Once
+	)
+	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/_ping"):
+			w.Header().Set("API-Version", "1.47")
+			w.Header().Set("OSType", "linux")
+		case strings.HasSuffix(r.URL.Path, "/events"):
+			flts, err := filters.FromJSON(r.URL.Query().Get("filters"))
+			if !assert.NoError(t, err) {
+				return
+			}
+			enc := json.NewEncoder(w)
+			send := func(action, id string, attrs map[string]string) bool {
+				if !flts.ExactMatch("event", action) {
+					return false
+				}
+				_ = enc.Encode(map[string]any{"Type": "container", "Action": action, "Actor": map[string]any{"ID": id, "Attributes": attrs}})
+				w.(http.Flusher).Flush()
+				return true
+			}
+			if send("create", fakeDockerID(2), map[string]string{"name": strings.TrimPrefix(tmpName, "/")}) {
+				// Rename only once the created container has been
+				// inspected under its temporary name.
+				select {
+				case <-inspected:
+				case <-r.Context().Done():
+					return
+				}
+			}
+			mu.Lock()
+			renamed = true
+			mu.Unlock()
+			send("rename", fakeDockerID(2), map[string]string{"name": strings.TrimPrefix(finalName, "/"), "oldName": tmpName})
+			send("destroy", fakeDockerID(1), nil)
+			<-r.Context().Done()
+		case strings.Contains(r.URL.Path, "/containers/"+fakeDockerID(2)) && strings.HasSuffix(r.URL.Path, "/json"):
+			mu.Lock()
+			name := tmpName
+			if renamed {
+				name = finalName
+			}
+			mu.Unlock()
+			defer once.Do(func() { close(inspected) })
+			if renamedMissing && name == finalName {
+				w.WriteHeader(http.StatusNotFound)
+				_ = json.NewEncoder(w).Encode(map[string]string{"message": "container already removed"})
+				return
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"Id": fakeDockerID(2), "Name": name, "Created": "2026-10-28T00:00:00Z",
+				"Image":  "sha256:" + strings.Repeat("a", 64),
+				"Config": map[string]any{"Image": "alpine:latest", "Labels": map[string]string{"app": "test"}},
+			})
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	})}
+	go func() { _ = server.Serve(listener) }()
+	t.Cleanup(func() { _ = server.Close() })
+	return socket
+}
+
+// The listener must report the name a container gets on rename, whatever
+// hooks are attached: with the default `create` hook, docker compose
+// recreated containers kept their temporary name otherwise.
+func TestDockerListenRename(t *testing.T) {
+	// Restore the default hooks of the go-worker tests.
+	t.Cleanup(func() { _ = config.Load(`{"hooks":5}`) })
+	for _, tc := range []struct {
+		name           string
+		hooks          string
+		renamedMissing bool
+	}{
+		{name: "create_hook", hooks: `{"hooks":5}`},
+		{name: "without_create_hook", hooks: `{"hooks":6}`},
+		// A failed inspection on rename must not replace the cached
+		// metadata with the minimum set.
+		{name: "renamed_container_missing", hooks: `{"hooks":5}`, renamedMissing: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.NoError(t, config.Load(tc.hooks))
+			socket := newRenameAPI(t, tc.renamedMissing)
+			engine, err := newDockerEngine(context.Background(), slog.Default(), socket)
+			require.NoError(t, err)
+			ctx, cancel := context.WithCancel(context.Background())
+			var wg sync.WaitGroup
+			defer wg.Wait()
+			defer cancel()
+			out, err := engine.Listen(ctx, &wg)
+			require.NoError(t, err)
+
+			if config.IsHookEnabled(config.HookCreate) {
+				evt := waitOnChannelOrTimeout(t, out)
+				require.True(t, evt.IsCreate)
+				require.Equal(t, fakeDockerID(2), evt.FullID)
+				require.Equal(t, "0123456789ab_foo", evt.Name)
+			}
+			if !tc.renamedMissing {
+				evt := waitOnChannelOrTimeout(t, out)
+				require.True(t, evt.IsCreate)
+				require.Equal(t, fakeDockerID(2), evt.FullID)
+				require.Equal(t, "foo", evt.Name)
+				require.Equal(t, "test", evt.Labels["app"])
+			}
+			// The final destroy event comes next: nothing was sent in
+			// between.
+			evt := waitOnChannelOrTimeout(t, out)
+			require.False(t, evt.IsCreate)
+			require.Equal(t, fakeDockerID(1), evt.FullID)
+		})
+	}
 }
 
 // The SDK closes an inspection response after parsing it, before returning
