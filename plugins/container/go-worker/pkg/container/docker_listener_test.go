@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -316,4 +317,55 @@ func (b *observedResponseBody) Close() error {
 	err := b.ReadCloser.Close()
 	b.once.Do(func() { close(b.closed) })
 	return err
+}
+
+// The docker client ends the event stream with an error when the daemon goes
+// away and does not resubscribe. The listener has to subscribe again, or no
+// container created after a daemon restart is ever reported.
+func TestDockerListenerResubscribesAfterStreamEnds(t *testing.T) {
+	origMin, origMax := minResubscribeBackoff, maxResubscribeBackoff
+	minResubscribeBackoff, maxResubscribeBackoff = time.Millisecond, time.Millisecond
+	t.Cleanup(func() { minResubscribeBackoff, maxResubscribeBackoff = origMin, origMax })
+	config.Load(`{"hooks":7}`)
+
+	socket := filepath.Join(t.TempDir(), "docker.sock")
+	listener, err := net.Listen("unix", socket)
+	require.NoError(t, err)
+	var subscriptions atomic.Int32
+	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/_ping"):
+			w.Header().Set("API-Version", "1.47")
+			w.Header().Set("OSType", "linux")
+		case strings.HasSuffix(r.URL.Path, "/events"):
+			if subscriptions.Add(1) == 1 {
+				// The daemon restarts: the first stream ends without any event.
+				return
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"Type": "container", "Action": "create", "Actor": map[string]any{"ID": fakeDockerID(1)}})
+			w.(http.Flusher).Flush()
+			<-r.Context().Done()
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	})}
+	go func() { _ = server.Serve(listener) }()
+	t.Cleanup(func() { _ = server.Close() })
+
+	engine, err := newDockerEngine(context.Background(), slog.Default(), socket)
+	require.NoError(t, err)
+	ctx, cancel := context.WithCancel(context.Background())
+	var wg sync.WaitGroup
+	out, err := engine.Listen(ctx, &wg)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		cancel()
+		wg.Wait()
+	})
+
+	evt := waitOnChannelOrTimeout(t, out)
+	require.True(t, evt.IsCreate)
+	require.Equal(t, fakeDockerID(1), evt.FullID)
+	require.GreaterOrEqual(t, subscriptions.Load(), int32(2))
 }

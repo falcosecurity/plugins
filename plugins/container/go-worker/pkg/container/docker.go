@@ -318,19 +318,45 @@ func (dc *dockerEngine) Listen(ctx context.Context, wg *sync.WaitGroup) (<-chan 
 	// `<old-id[:12]>_<name>` name and renames it before starting it.
 	flts.Add("event", string(events.ActionRename))
 
-	msgs, _ := dc.Events(ctx, events.ListOptions{Filters: flts})
+	opts := events.ListOptions{Filters: flts}
+	msgs, errs := dc.Events(ctx, opts)
 	wg.Add(1)
 	go func() {
 		defer close(outCh)
 		defer wg.Done()
+		backoff := minResubscribeBackoff
+		started := time.Now()
+		// The docker client reports a broken stream on errs and then stops: it
+		// neither resubscribes nor closes msgs. Resubscribe until the context
+		// goes away, otherwise events are lost after the daemon restarts.
+		resubscribe := func(err error) bool {
+			backoff = resubscribeWait(backoff, time.Since(started))
+			dc.logger.LogAttrs(ctx, config.LevelTrace, "container events stream ended, resubscribing",
+				slog.String("socket", dc.socket), slog.Duration("backoff", backoff), slog.Any("err", err))
+			select {
+			case <-ctx.Done():
+				return false
+			case <-time.After(backoff):
+			}
+			backoff = min(backoff*2, maxResubscribeBackoff)
+			msgs, errs = dc.Events(ctx, opts)
+			started = time.Now()
+			return true
+		}
 		for {
 			select {
 			case <-ctx.Done():
 				return
+			case err := <-errs:
+				if !resubscribe(err) {
+					return
+				}
 			case msg, ok := <-msgs:
 				if !ok {
-					// msgs has been closed - kill the goroutine
-					return
+					if !resubscribe(nil) {
+						return
+					}
+					continue
 				}
 				var (
 					ctrJson container.InspectResponse
