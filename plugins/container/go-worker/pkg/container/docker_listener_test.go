@@ -332,6 +332,8 @@ func TestDockerListenerResubscribesAfterStreamEnds(t *testing.T) {
 	listener, err := net.Listen("unix", socket)
 	require.NoError(t, err)
 	var subscriptions atomic.Int32
+	imageID := "sha256:" + strings.Repeat("a", 64)
+	imageDigest := "sha256:" + strings.Repeat("b", 64)
 	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch {
@@ -346,6 +348,20 @@ func TestDockerListenerResubscribesAfterStreamEnds(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(map[string]any{"Type": "container", "Action": "create", "Actor": map[string]any{"ID": fakeDockerID(1)}})
 			w.(http.Flusher).Flush()
 			<-r.Context().Done()
+		case strings.HasSuffix(r.URL.Path, "/containers/"+fakeDockerID(1)+"/json"):
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"Id": fakeDockerID(1), "Name": "/after-restart", "Created": "2026-11-04T00:00:00Z",
+				"Image": imageID,
+				"Config": map[string]any{
+					"Image": "alpine:3.20.3", "Labels": map[string]string{"app": "after-restart"},
+				},
+			})
+		case strings.HasSuffix(r.URL.Path, "/images/"+imageID+"/json"):
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"Id":          imageID,
+				"RepoTags":    []string{"docker.io/library/alpine:3.20.3"},
+				"RepoDigests": []string{"docker.io/library/alpine@" + imageDigest},
+			})
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -367,5 +383,14 @@ func TestDockerListenerResubscribesAfterStreamEnds(t *testing.T) {
 	evt := waitOnChannelOrTimeout(t, out)
 	require.True(t, evt.IsCreate)
 	require.Equal(t, fakeDockerID(1), evt.FullID)
+	// These fields require successful container and image inspections. A
+	// fallback event after a failed inspection must not satisfy this test.
+	require.Equal(t, "after-restart", evt.Name)
+	require.Equal(t, "alpine:3.20.3", evt.Image)
+	require.Equal(t, "docker.io/library/alpine", evt.ImageRepo)
+	require.Equal(t, "3.20.3", evt.ImageTag)
+	require.Equal(t, strings.TrimPrefix(imageID, "sha256:"), evt.ImageID)
+	require.Equal(t, imageDigest, evt.ImageDigest)
+	require.Equal(t, "after-restart", evt.Labels["app"])
 	require.GreaterOrEqual(t, subscriptions.Load(), int32(2))
 }
