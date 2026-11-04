@@ -29,7 +29,10 @@ import (
 const (
 	DefaultShift           time.Duration = 1 * time.Second // controls the time shift in past for the first call to CloudwatchLogs API
 	DefaultPollingInterval time.Duration = 5 * time.Second // time between two calls to CloudwatchLogs API
-	DefaultBufferSize      uint64        = 200             // buffer size of the channel that transmits Logs to the Plugin
+	// ReorderWindow is how far before the newest event each poll re-reads, to
+	// catch events ingested late with an older timestamp.
+	ReorderWindow     time.Duration = 60 * time.Second
+	DefaultBufferSize uint64        = 200 // buffer size of the channel that transmits Logs to the Plugin
 )
 
 // Filter represents a filter for retrieving logs from CloudwatchLogs API
@@ -117,13 +120,16 @@ func (client *Client) Open(ctx context.Context, filter *Filter, options *Options
 	eventC := make(chan *types.FilteredLogEvent, options.BufferSize)
 	errC := make(chan error)
 
+	// CloudWatch Logs does not ingest a log group in timestamp order: each
+	// stream (one per API server) has its own delivery lag. Restarting every
+	// poll from the newest timestamp seen skips events that land later with
+	// an older timestamp, so each poll re-reads a reorder window and drops
+	// events already sent, by event ID.
 	go func() {
 		defer close(eventC)
 		defer close(errC)
-		var (
-			lastEventTime     int64
-			lastIngestionTime int64
-		)
+		seen := make(map[string]int64)
+		var lastEventTime int64
 		for {
 			paginator := cwlogs.NewFilterLogEventsPaginator(client.Client, input)
 			for paginator.HasMorePages() {
@@ -134,22 +140,30 @@ func (client *Client) Open(ctx context.Context, filter *Filter, options *Options
 				}
 				for _, event := range page.Events {
 					e := event
-					eventC <- &e
-					if *input.StartTime == *e.Timestamp && lastIngestionTime >= *e.IngestionTime {
-						continue
-					}
-					if lastEventTime <= *e.Timestamp {
-						if lastEventTime < *e.Timestamp {
-							lastEventTime = *e.Timestamp
+					if e.EventId != nil {
+						if _, ok := seen[*e.EventId]; ok {
+							continue
 						}
-						lastIngestionTime = *e.IngestionTime
+						seen[*e.EventId] = *e.Timestamp
+					}
+					eventC <- &e
+					if *e.Timestamp > lastEventTime {
+						lastEventTime = *e.Timestamp
 					}
 				}
 			}
 
 			time.Sleep(options.PollingInterval)
 			if lastEventTime > 0 {
-				input.StartTime = aws.Int64(lastEventTime)
+				windowStart := lastEventTime - ReorderWindow.Milliseconds()
+				if windowStart > *input.StartTime {
+					input.StartTime = aws.Int64(windowStart)
+				}
+				for id, ts := range seen {
+					if ts < *input.StartTime {
+						delete(seen, id)
+					}
+				}
 			}
 		}
 	}()
