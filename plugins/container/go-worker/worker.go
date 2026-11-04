@@ -50,7 +50,9 @@ func bootstrapEngines(ctx context.Context, generators []container.EngineGenerato
 		}
 		listCtx, cancel := container.WithEngineTimeout(ctx)
 		containers, err := engine.List(listCtx)
-		timedOut := listCtx.Err() != nil
+		// Only the engine's own deadline counts as a timeout: a parent
+		// cancellation is the worker stopping, not a slow engine.
+		timedOut := listCtx.Err() == context.DeadlineExceeded
 		cancel()
 		logger := slog.With("engine", engine.Name(), "socket", engine.Sock())
 		var incomplete *container.ListIncompleteError
@@ -63,6 +65,9 @@ func bootstrapEngines(ctx context.Context, generators []container.EngineGenerato
 			logger.LogAttrs(ctx, slog.LevelWarn, "container engine did not answer within the engine timeout, skipping it for the rest of this run: its containers will have no metadata",
 				slog.Duration("timeout", config.GetEngineTimeout()), slog.Any("err", err))
 			continue
+		case err != nil && ctx.Err() != nil:
+			logger.LogAttrs(ctx, slog.LevelWarn, "worker stopped during the initial container listing",
+				slog.Any("err", err))
 		case err != nil:
 			logger.LogAttrs(ctx, slog.LevelWarn, "cannot list containers", slog.Any("err", err))
 		}
