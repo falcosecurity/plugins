@@ -60,8 +60,16 @@ func bootstrapEngines(ctx context.Context, generators []container.EngineGenerato
 				slog.Duration("timeout", config.GetEngineTimeout()), slog.Int("inspected", len(containers)), slog.Int("not_inspected", len(incomplete.NotInspected)), slog.Int("namespaces_not_enumerated", len(incomplete.NotEnumerated)))
 			deferred = append(deferred, container.DeferredContainers{Engine: engine, Containers: incomplete.NotInspected, Namespaces: incomplete.NotEnumerated})
 		case err != nil && timedOut:
-			logger.LogAttrs(ctx, slog.LevelWarn, "container engine did not answer within the engine timeout, skipping it for the rest of this run: its containers will have no metadata",
+			// The engine answered its ping but never finished a listing in
+			// time. Keeping it would leave the startup synchronous on a
+			// runtime that stalls; dropping it for good would blind the plugin
+			// for the rest of the run over a slow first listing. Defer the
+			// whole engine instead: the fetcher retries its listing in the
+			// background, bounded by the engine timeout per attempt, and the
+			// engine takes part in no lookup until it succeeds.
+			logger.LogAttrs(ctx, slog.LevelWarn, "container engine did not answer within the engine timeout, deferring its listing to the background: its containers carry no metadata until it answers",
 				slog.Duration("timeout", config.GetEngineTimeout()), slog.Any("err", err))
+			deferred = append(deferred, container.DeferredContainers{Engine: engine, RetryList: true})
 			continue
 		case err != nil:
 			logger.LogAttrs(ctx, slog.LevelWarn, "cannot list containers", slog.Any("err", err))
