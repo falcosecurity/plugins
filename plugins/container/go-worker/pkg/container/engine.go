@@ -132,10 +132,17 @@ type ContainerRef struct {
 
 // DeferredContainers retains the engine and its unfinished startup work.
 // Recovery uses a copy of that engine, without probing unrelated runtimes.
+// An engine whose initial listing timed out is retained alone, with RetryList
+// set: the fetcher re-runs its listing in the background until it answers,
+// then serves its containers and on-demand lookups like any other engine.
 type DeferredContainers struct {
 	Engine     Engine
 	Containers []ContainerRef
 	Namespaces []string
+	// RetryList marks an engine that answered its ping but never finished an
+	// initial listing within the engine timeout. It takes part in no lookup
+	// until its listing succeeds.
+	RetryList bool
 }
 
 // notInspectedFrom returns the full IDs from index from to n-1.

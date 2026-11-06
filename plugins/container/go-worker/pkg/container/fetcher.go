@@ -2,6 +2,7 @@ package container
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"sync"
 	"time"
@@ -59,6 +60,10 @@ type fetcher struct {
 	// Both are only touched by the serving goroutine.
 	deferred        []string
 	deferredLookups map[string]deferredFetch
+	// Whole engines whose initial listing timed out, retried in the
+	// background after the containers and namespaces of the startup listing.
+	// An engine joins the lookup getters once its listing answers.
+	pendingEngines []deferredEngine
 	// Namespace enumeration left over from startup, attempted one at a time
 	// after known containers. Failed attempts use the same timer and retry
 	// queue; their count is bounded by the namespaces discovered at startup.
@@ -74,6 +79,17 @@ type deferredNamespace struct {
 	engine namespaceEngine
 	name   string
 	step   int // next backoff step if enumeration fails
+}
+
+// deferredEngine is a whole engine whose initial listing timed out. Until the
+// listing succeeds the engine takes part in no lookup: its containers are
+// missed by every probe anyway. A failed listing attempt rejoins the queue at
+// the final retry delay, as namespace enumeration does. This is a finite
+// startup job too: the engine answered its ping, so its listing is expected
+// to answer eventually.
+type deferredEngine struct {
+	engine Engine
+	step   int // next backoff step if the listing fails
 }
 
 // deferredFetch keeps runtime identity until lookup succeeds or retries end.
@@ -142,6 +158,24 @@ func NewFetcherEngine(_ context.Context, fetcherChan chan string, containerEngin
 		}
 	}
 	for _, group := range deferred {
+		if group.RetryList {
+			// An engine whose listing timed out is not among the engines the
+			// worker listens to, so it has no copied getter yet: copy it now.
+			// The copy joins the lookup getters once its listing answers.
+			copyEngine, ok := group.Engine.(copier)
+			if !ok {
+				// We need all engines to implement the copier interface to be copied by fetcher.
+				panic("not a copier")
+			}
+			engine, err := copyEngine.copy(f.ctx)
+			if engine == nil {
+				slog.Default().LogAttrs(f.ctx, slog.LevelWarn, "cannot copy the container engine deferred at startup, dropping it",
+					slog.String("engine", group.Engine.Name()), slog.String("socket", group.Engine.Sock()), slog.Any("err", err))
+				continue
+			}
+			f.pendingEngines = append(f.pendingEngines, deferredEngine{engine: engine})
+			continue
+		}
 		g := copied[[2]string{group.Engine.Name(), group.Engine.Sock()}]
 		if g == nil {
 			// The failed engine copy was logged above.
@@ -196,6 +230,8 @@ func (f *fetcher) List(_ context.Context) ([]event.Event, error) {
 // A single goroutine and a single timer serve the requests, the retries and
 // the deferred containers of the startup listing. Requests and due retries
 // share the foreground; one deferred lookup runs when neither is ready.
+// The deferred work also covers whole engines whose initial listing timed
+// out: each is retried until it answers, then joins the lookups.
 // At most maxPending containers wait for a retry and each deferred container
 // is looked up once: neither goroutines nor memory grow
 // with the misses.
@@ -225,7 +261,7 @@ func (f *fetcher) serve(ctx context.Context, outCh chan<- event.Event) {
 			slog.Int("containers", len(f.deferred)))
 	}
 	for {
-		if len(f.deferred) == 0 && len(f.namespaces) == 0 {
+		if len(f.deferred) == 0 && len(f.namespaces) == 0 && len(f.pendingEngines) == 0 {
 			select {
 			case <-ctx.Done():
 				return
@@ -320,6 +356,12 @@ func (f *fetcher) serveRetry(ctx context.Context, now time.Time, retries *retryQ
 		f.namespaces = append(f.namespaces, p.namespace)
 		return
 	}
+	if p.engine != nil {
+		// So does the listing retry of an engine dropped at startup.
+		p.engine.step = step + 1
+		f.pendingEngines = append(f.pendingEngines, *p.engine)
+		return
+	}
 	if f.lookup(ctx, p.id, outCh) {
 		retries.remove(p.id)
 		return
@@ -337,8 +379,21 @@ func (f *fetcher) serveRetry(ctx context.Context, now time.Time, retries *retryQ
 // serveDeferred looks up the next deferred container, unless a request took
 // care of it meanwhile. A miss is retried like a request's: the runtime
 // enumerated the container at startup, so it usually knows it, but it may be
-// gone by now.
+// gone by now. Once the containers and namespaces of the startup listing are
+// drained, an engine whose whole listing timed out is retried the same way.
 func (f *fetcher) serveDeferred(ctx context.Context, retries *retryQueue, outCh chan<- event.Event) {
+	if len(f.deferred) == 0 && len(f.namespaces) == 0 && len(f.pendingEngines) > 0 {
+		e := f.pendingEngines[0]
+		f.pendingEngines[0] = deferredEngine{}
+		f.pendingEngines = f.pendingEngines[1:]
+		if len(f.pendingEngines) == 0 {
+			f.pendingEngines = nil
+		}
+		if !f.listEngine(ctx, e, outCh) && ctx.Err() == nil {
+			retries.add(pendingFetch{engine: &e}, e.step, time.Now())
+		}
+		return
+	}
 	if len(f.deferred) == 0 {
 		namespace := f.namespaces[0]
 		f.namespaces[0] = nil
@@ -382,6 +437,54 @@ func (f *fetcher) enumerateNamespace(ctx context.Context, namespace *deferredNam
 		return false
 	}
 	f.addDeferred(namespace.engine, refs)
+	return true
+}
+
+// listEngine retries the initial listing of an engine that timed out at
+// startup, as the bootstrap did: one bounded attempt, all the containers it
+// returns are published, the ones it cannot inspect are deferred like any
+// other partial listing, and the engine joins the lookup getters. It returns
+// false when the listing failed, to retry at the final backoff delay.
+func (f *fetcher) listEngine(ctx context.Context, e deferredEngine, outCh chan<- event.Event) bool {
+	listCtx, cancel := WithEngineTimeout(ctx)
+	defer cancel()
+	containers, err := e.engine.List(listCtx)
+	var incomplete *ListIncompleteError
+	switch {
+	case errors.As(err, &incomplete):
+		slog.Default().LogAttrs(ctx, slog.LevelWarn, "deferred engine listing interrupted: unfinished containers will be recovered in the background",
+			slog.String("engine", e.engine.Name()), slog.String("socket", e.engine.Sock()),
+			slog.Int("inspected", len(containers)), slog.Int("not_inspected", len(incomplete.NotInspected)),
+			slog.Int("namespaces_not_enumerated", len(incomplete.NotEnumerated)))
+		f.addDeferred(e.engine.(getter), incomplete.NotInspected)
+		if ns, ok := e.engine.(namespaceEngine); ok {
+			for _, namespace := range incomplete.NotEnumerated {
+				f.namespaces = append(f.namespaces, &deferredNamespace{engine: ns, name: namespace})
+			}
+		}
+	case err != nil && listCtx.Err() != nil:
+		slog.Default().LogAttrs(ctx, slog.LevelDebug, "deferred engine listing still not answering within the engine timeout, retrying",
+			slog.String("engine", e.engine.Name()), slog.String("socket", e.engine.Sock()), slog.Any("err", err))
+		return false
+	case err != nil:
+		// The engine answered and failed outright: not a timeout case, the
+		// listing itself is broken. Stop retrying, as bootstrap did for a
+		// plain listing failure, and keep the engine out of the lookups.
+		slog.Default().LogAttrs(ctx, slog.LevelWarn, "cannot list the containers of the deferred engine, giving up on it",
+			slog.String("engine", e.engine.Name()), slog.String("socket", e.engine.Sock()), slog.Any("err", err))
+		return true
+	}
+	// The listing answered: the engine takes part in the lookups from now on.
+	f.getters = append(f.getters, e.engine.(getter))
+	slog.Default().LogAttrs(ctx, slog.LevelInfo, "deferred engine listing answered: the engine is back in use",
+		slog.String("engine", e.engine.Name()), slog.String("socket", e.engine.Sock()), slog.Int("containers", len(containers)))
+	for _, ctr := range containers {
+		select {
+		case outCh <- ctr:
+		case <-ctx.Done():
+			return true
+		}
+	}
 	return true
 }
 
@@ -436,8 +539,8 @@ func (f *fetcher) lookup(ctx context.Context, containerId string, outCh chan<- e
 	return false
 }
 
-// pendingFetch is a failed container lookup or namespace enumeration waiting
-// for a retry.
+// pendingFetch is a failed container lookup, namespace enumeration or engine
+// listing waiting for a retry.
 type pendingFetch struct {
 	id    string
 	since time.Time // first lookup
@@ -446,6 +549,9 @@ type pendingFetch struct {
 	// is no short-ID fallback for an undiscovered containerd ID, so these
 	// finite startup jobs retry until enumeration succeeds or capture stops.
 	namespace *deferredNamespace
+	// Non-nil for the listing retry of an engine dropped at startup: a
+	// finite startup job too, it retries until the listing answers.
+	engine *deferredEngine
 }
 
 // retryQueue holds the pending fetches, in one FIFO per step of the backoff.
@@ -479,23 +585,24 @@ func (q *retryQueue) contains(id string) bool {
 }
 
 // add schedules the given step of the backoff after an attempt at now.
-// Containers exhaust their retries after the last step; namespace jobs keep
-// retrying at the final delay until enumeration succeeds.
+// Containers exhaust their retries after the last step; namespace and engine
+// jobs keep retrying at the final delay until they succeed.
 func (q *retryQueue) add(p pendingFetch, step int, now time.Time) bool {
-	if p.namespace != nil && len(q.steps) > 0 {
-		// Namespace failures keep retrying at the final delay. Fixed delays
-		// within each step preserve the FIFO ordering by due time.
+	if (p.namespace != nil || p.engine != nil) && len(q.steps) > 0 {
+		// Namespace and engine failures keep retrying at the final delay.
+		// Fixed delays within each step preserve the FIFO ordering by due
+		// time.
 		step = min(step, len(q.steps)-1)
 	}
 	if step >= len(q.steps) {
-		if p.namespace == nil {
+		if p.namespace == nil && p.engine == nil {
 			delete(q.ids, p.id)
 		}
 		return false
 	}
 	p.due = now.Add(q.backoff[step])
 	q.steps[step] = append(q.steps[step], p)
-	if p.namespace == nil {
+	if p.namespace == nil && p.engine == nil {
 		q.ids[p.id] = struct{}{}
 	}
 	return true
