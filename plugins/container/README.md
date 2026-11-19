@@ -35,8 +35,12 @@ The `async` event is then received by the C++ side as part of the `parsing` capa
 Every time a clone/fork/execve event gets parsed, we attach to its thread table entry the information about the container_id, extracted by looking at the `cgroups` field, in a foreign key.
 Once the extraction is requested for a thread, the container_id is then used as key to access our plugin's internal container metadata cache, and the requested infos extracted.
 
-Note, however, that for some container engines, namely `{bpm,lxc,libvirt_lcx}`, we only support fetching generic info, ie: the container ID and the container type.  
+Note, however, that for some container engines, namely `{bpm,lxc,libvirt_lcx,nspawn}`, we only support fetching generic info, ie: the container ID and the container type.  
 Given that there is no "listener" SDK to attach to, for these engines the `async` event is generated directly by the C++ code, as soon as the container ID is retrieved.
+
+The `nspawn` engine detects [systemd-nspawn](https://www.freedesktop.org/software/systemd/man/latest/systemd-nspawn.html) containers from their cgroup, that systemd places in `machine.slice`: in `machine-<name>.scope`, when systemd-nspawn registers the container itself, or in `systemd-nspawn@<name>.service`, when the container is started through that unit (e.g. by `machinectl start`).
+On the unified cgroup hierarchy, systemd-nspawn moves the container into a `payload` sub-cgroup of that unit, and only the processes in `payload` (or below) are attributed to the container, not systemd-nspawn itself. Containers on the legacy cgroup v1 hierarchy have no `payload` sub-cgroup and are not detected.
+The unescaped machine name (e.g. `debian-12` for `machine-debian\x2d12.scope`) is reported as both `container.id` and `container.name`, and `container.type` is `nspawn`.
 
 ### Plugin official name
 
@@ -154,6 +158,8 @@ plugins:
         lxc:
           enabled: false
         libvirt_lxc:
+          enabled: false
+        nspawn:
           enabled: false
         bpm:
           enabled: false  

@@ -6,6 +6,7 @@
 #include "containerd.h"
 #include "lxc.h"
 #include "libvirt_lxc.h"
+#include "nspawn.h"
 #include "static_container.h"
 
 matcher_manager::matcher_manager(const Engines& cfg)
@@ -33,6 +34,14 @@ matcher_manager::matcher_manager(const Engines& cfg)
     {
         auto cri_engine = std::make_shared<cri>();
         m_cgroup_matchers.push_back(cri_engine);
+    }
+    // Keep nspawn before containerd: the containerd matcher would otherwise
+    // take a systemd-nspawn payload cgroup, like
+    // /machine.slice/machine-foo.scope/payload, for a containerd container.
+    if(cfg.nspawn.enabled)
+    {
+        auto nspawn_engine = std::make_shared<nspawn>();
+        m_cgroup_matchers.push_back(nspawn_engine);
     }
     if(cfg.containerd.enabled)
     {

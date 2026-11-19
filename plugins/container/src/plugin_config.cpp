@@ -25,6 +25,7 @@ void from_json(const nlohmann::json& j, Engines& engines)
     engines.bpm = j.value("bpm", SimpleEngine{});
     engines.lxc = j.value("lxc", SimpleEngine{});
     engines.libvirt_lxc = j.value("libvirt_lxc", SimpleEngine{});
+    engines.nspawn = j.value("nspawn", SimpleEngine{});
     engines.static_ctr = j.value("static", StaticEngine{});
 
     engines.docker = j.value("docker", SocketsEngine{});
