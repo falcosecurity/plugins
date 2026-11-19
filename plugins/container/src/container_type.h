@@ -16,6 +16,7 @@ enum container_type
     CT_BPM = 9,
     CT_STATIC = 10,
     CT_PODMAN = 11,
+    CT_NSPAWN = 12,
 
     // Default value, may be changed if necessary
     CT_HOST = 0xfffe,
@@ -55,6 +56,9 @@ static std::string inline to_string(enum container_type ct)
         break;
     case CT_PODMAN:
         return "podman";
+        break;
+    case CT_NSPAWN:
+        return "nspawn";
         break;
     case CT_HOST:
         return "host";

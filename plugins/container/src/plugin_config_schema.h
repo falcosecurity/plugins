@@ -76,6 +76,9 @@ const char plugin_schema_string[] = LONG_STRING_CONST(
         "libvirt_lxc": {
           "$ref": "#/definitions/SimpleContainer"
         },
+        "nspawn": {
+          "$ref": "#/definitions/SimpleContainer"
+        },
         "bpm": {
           "$ref": "#/definitions/SimpleContainer"
         },

@@ -29,6 +29,9 @@ TEST(plugin_config, from_json)
     "libvirt_lxc": {
       "enabled": false
     },
+    "nspawn": {
+      "enabled": false
+    },
     "podman": {
       "enabled": false,
       "sockets": [
@@ -52,6 +55,7 @@ TEST(plugin_config, from_json)
 
     EXPECT_FALSE(cfg.engines.podman.enabled);
     EXPECT_FALSE(cfg.engines.libvirt_lxc.enabled);
+    EXPECT_FALSE(cfg.engines.nspawn.enabled);
     EXPECT_FALSE(cfg.engines.bpm.enabled);
 
     EXPECT_TRUE(cfg.with_size);
@@ -77,6 +81,7 @@ TEST(plugin_config, from_json_missing_engines)
     EXPECT_TRUE(cfg.engines.lxc.enabled);
     EXPECT_TRUE(cfg.engines.podman.enabled);
     EXPECT_TRUE(cfg.engines.libvirt_lxc.enabled);
+    EXPECT_TRUE(cfg.engines.nspawn.enabled);
     EXPECT_TRUE(cfg.engines.bpm.enabled);
 
     EXPECT_TRUE(cfg.with_size);
@@ -98,6 +103,7 @@ TEST(plugin_config, from_json_empty_json)
     EXPECT_TRUE(cfg.engines.lxc.enabled);
     EXPECT_TRUE(cfg.engines.podman.enabled);
     EXPECT_TRUE(cfg.engines.libvirt_lxc.enabled);
+    EXPECT_TRUE(cfg.engines.nspawn.enabled);
     EXPECT_TRUE(cfg.engines.bpm.enabled);
 
     EXPECT_FALSE(cfg.with_size);
