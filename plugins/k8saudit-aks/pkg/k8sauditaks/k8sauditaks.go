@@ -20,6 +20,7 @@ package k8sauditaks
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"regexp"
@@ -121,6 +122,24 @@ func (p *Plugin) OpenParams() ([]sdk.OpenParam, error) {
 	return []sdk.OpenParam{
 		{Value: "default", Desc: "Cluster Name"},
 	}, nil
+}
+
+// runProcessor runs the EventHub processor with run until ctx is canceled.
+// The processor returns no error when ctx is canceled. Any other error means
+// that it stopped on its own, e.g. because the checkpoint store rejected a
+// request: it has then closed all its partition clients and hands out no new
+// ones, so no more events would ever be received. Report the error to Falco
+// through pushEventC instead of staying up without consuming any event.
+func (p *Plugin) runProcessor(ctx context.Context, run func(context.Context) error, pushEventC chan<- source.PushEvent) {
+	err := run(ctx)
+	if err == nil {
+		return
+	}
+	p.Logger.Printf("error running processor: %v", err)
+	select {
+	case pushEventC <- source.PushEvent{Err: fmt.Errorf("eventhub processor stopped: %w", err)}:
+	case <-ctx.Done():
+	}
 }
 
 func (p *Plugin) Open(_ string) (source.Instance, error) {
@@ -226,10 +245,10 @@ func (p *Plugin) Open(_ string) (source.Instance, error) {
 	}()
 
 	// Run the processor
+	wg.Add(1)
 	go func() {
-		if err := processor.Run(ctx); err != nil {
-			p.Logger.Printf("error running processor: %v", err)
-		}
+		defer wg.Done()
+		p.runProcessor(ctx, processor.Run, pushEventC)
 	}()
 
 	return source.NewPushInstance(
