@@ -389,19 +389,19 @@ func (p *Plugin) newCredential() (azcore.TokenCredential, error) {
 // WaitGroup the caller must Wait() on (after closing eventsC) before
 // closing pushEventC.
 //
-// errC lets a producer that closes eventsC because of an unrecoverable
-// error (rather than a clean shutdown) report that error here, which is
-// the only goroutine that writes to pushEventC. Without this, Falco would
-// see pushEventC go quiet and keep getting sdk.ErrTimeout forever instead
-// of being told the source failed. A producer with no such error path
-// (e.g. the AMQP one, whose SDK retries internally) can pass a nil errC;
-// a nil channel simply never becomes ready in the select below.
+// errC lets a producer that stops because of an unrecoverable error
+// (rather than a clean shutdown), such as the Kafka reader or the AMQP
+// processor, report that error here, which is the only goroutine that
+// writes to pushEventC. Without this, Falco would see pushEventC go quiet
+// and keep getting sdk.ErrTimeout forever instead of being told the source
+// failed. A producer with no such error path can pass a nil errC; a nil
+// channel simply never becomes ready in the select below.
 //
-// errC must be buffered (capacity 1) and the producer must send to it, if
-// at all, strictly before closing eventsC, so the value is already
-// sitting in the buffer by the time this loop observes eventsC closed -
-// otherwise which one "wins" the select is a race and the error could be
-// dropped.
+// errC must be buffered (capacity 1) and a producer that also closes
+// eventsC must send to it, if at all, strictly before closing eventsC, so
+// the value is already sitting in the buffer by the time this loop
+// observes eventsC closed - otherwise which one "wins" the select is a
+// race and the error could be dropped.
 func (p *Plugin) runRecordPump(ctx context.Context, eventsC <-chan falcoeventhub.Record, errC <-chan error, pushEventC chan<- source.PushEvent) *sync.WaitGroup {
 	var wg sync.WaitGroup
 	wg.Add(1)
