@@ -44,6 +44,28 @@ func TestNewConsumerClientConnectionString(t *testing.T) {
 	}
 }
 
+// An entity-scoped connection string names the Event Hub itself, and the
+// SDK rejects a separate non-empty eventHub argument in that case, so the
+// plugin must let the SDK resolve the name - whether event_hub_name is left
+// empty or repeats the EntityPath.
+func TestNewConsumerClientEntityScopedConnectionString(t *testing.T) {
+	for _, name := range []string{"", "entity-hub"} {
+		t.Run("event_hub_name="+name, func(t *testing.T) {
+			p := &Plugin{Config: baseConfig()}
+			p.Config.EventHubName = name
+			p.Config.EventHubNamespaceConnectionString = testEventHubConnectionString + ";EntityPath=entity-hub"
+
+			client, err := p.newConsumerClient(nil)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if client == nil {
+				t.Fatalf("expected a non-nil client")
+			}
+		})
+	}
+}
+
 func TestNewConsumerClientTokenCredential(t *testing.T) {
 	p := &Plugin{Config: baseConfig()}
 	p.Config.Auth.Type = identity.TypeManagedIdentity

@@ -103,12 +103,14 @@ type PluginConfig struct {
 
 	EventHubNamespaceConnectionString string `json:"event_hub_namespace_connection_string" jsonschema:"title=event_hub_namespace_connection_string,description=The connection string of the EventHub Namespace to read from. Required when auth.type is connection_string (the default)"`
 	// EventHubNamespace is the fully qualified Event Hub namespace (e.g.
-	// my-namespace.servicebus.windows.net). Required for the kafka protocol
-	// and for any non-connection-string auth type; when using the kafka
-	// protocol with connection_string auth it is derived automatically from
-	// EventHubNamespaceConnectionString if left empty.
+	// my-namespace.servicebus.windows.net). Required for any
+	// non-connection-string auth type. With connection_string auth the
+	// namespace comes from the connection string's Endpoint; if this is
+	// also set it must match that Endpoint.
 	EventHubNamespace string `json:"event_hub_namespace" jsonschema:"title=event_hub_namespace,description=The fully qualified EventHub namespace, e.g. my-namespace.servicebus.windows.net"`
-	EventHubName      string `json:"event_hub_name" jsonschema:"title=event_hub_name,description=The name of the EventHub to read from"`
+	// EventHubName may be left empty when EventHubNamespaceConnectionString
+	// is entity-scoped (has an EntityPath); if set, it must then match.
+	EventHubName string `json:"event_hub_name" jsonschema:"title=event_hub_name,description=The name of the EventHub to read from. Optional when event_hub_namespace_connection_string contains an EntityPath"`
 	// ConsumerGroup is the Event Hub consumer group used by the amqp
 	// protocol, and the Kafka consumer group ID used by the kafka protocol.
 	ConsumerGroup string `json:"consumer_group" jsonschema:"title=consumer_group,description=The EventHub consumer group (amqp) or Kafka consumer group id (kafka). Defaults to $Default"`
@@ -151,7 +153,10 @@ func (k *PluginConfig) Reset() {
 }
 
 // validate checks that the combination of protocol and auth type has all
-// the configuration it needs, returning a descriptive error otherwise.
+// the configuration it needs to open a live event source, returning a
+// descriptive error otherwise. It is called from Open, not Init: Falco also
+// initializes this plugin to replay a capture (it is both a source and an
+// extractor), and in that case an empty config must be accepted.
 func (p *PluginConfig) validate() error {
 	switch p.Protocol {
 	case protocolAMQP, protocolKafka:
@@ -163,10 +168,6 @@ func (p *PluginConfig) validate() error {
 	case identity.TypeConnectionString, identity.TypeEnvironment, identity.TypeManagedIdentity, identity.TypeWorkloadIdentity:
 	default:
 		return fmt.Errorf("invalid auth.type %q", p.Auth.Type)
-	}
-
-	if p.EventHubName == "" {
-		return fmt.Errorf("event_hub_name is required")
 	}
 
 	if p.ConsumerGroup == "" {
@@ -184,6 +185,10 @@ func (p *PluginConfig) validate() error {
 		return fmt.Errorf("event_hub_namespace is required when auth.type is %q", p.Auth.Type)
 	}
 
+	if _, err := p.resolveEventHubName(); err != nil {
+		return err
+	}
+
 	if p.Protocol == protocolAMQP {
 		if usesConnectionString && p.BlobStorageConnectionString == "" {
 			return fmt.Errorf("blob_storage_connection_string is required when protocol is %q and auth.type is %q", protocolAMQP, identity.TypeConnectionString)
@@ -196,31 +201,95 @@ func (p *PluginConfig) validate() error {
 		}
 	}
 
+	if p.Protocol == protocolKafka {
+		if _, err := p.resolveNamespaceHost(); err != nil {
+			return err
+		}
+	}
+
 	return nil
+}
+
+// parseConnectionString parses EventHubNamespaceConnectionString with the
+// Event Hubs SDK's own parser, so that the plugin agrees with the SDK on
+// the endpoint and on any EntityPath.
+func (p *PluginConfig) parseConnectionString() (azeventhubs.ConnectionStringProperties, error) {
+	props, err := azeventhubs.ParseConnectionString(p.EventHubNamespaceConnectionString)
+	if err != nil {
+		return azeventhubs.ConnectionStringProperties{}, fmt.Errorf("invalid event_hub_namespace_connection_string: %w", err)
+	}
+	return props, nil
+}
+
+// connectionStringEntityPath returns the EntityPath of an entity-scoped
+// connection string, or "" for a namespace-scoped one (or when auth.type is
+// not connection_string, where the connection string isn't used at all).
+func (p *PluginConfig) connectionStringEntityPath() (string, error) {
+	if p.Auth.Type != identity.TypeConnectionString {
+		return "", nil
+	}
+	props, err := p.parseConnectionString()
+	if err != nil {
+		return "", err
+	}
+	if props.EntityPath == nil {
+		return "", nil
+	}
+	return *props.EntityPath, nil
+}
+
+// resolveEventHubName returns the Event Hub to read from. An entity-scoped
+// connection string (one with an EntityPath) already names the Event Hub,
+// so event_hub_name may then be left empty; if both are given they must
+// agree. Otherwise event_hub_name is required.
+func (p *PluginConfig) resolveEventHubName() (string, error) {
+	entityPath, err := p.connectionStringEntityPath()
+	if err != nil {
+		return "", err
+	}
+	if entityPath != "" {
+		if p.EventHubName != "" && p.EventHubName != entityPath {
+			return "", fmt.Errorf("event_hub_name %q conflicts with EntityPath %q in event_hub_namespace_connection_string", p.EventHubName, entityPath)
+		}
+		return entityPath, nil
+	}
+	if p.EventHubName == "" {
+		return "", fmt.Errorf("event_hub_name is required unless event_hub_namespace_connection_string contains an EntityPath")
+	}
+	return p.EventHubName, nil
 }
 
 // resolveNamespaceHost returns the fully qualified Event Hubs namespace
 // (e.g. "my-namespace.servicebus.windows.net") to dial, used by the kafka
-// protocol to build the broker address regardless of auth type. It prefers
-// the explicit EventHubNamespace, falling back to parsing the "Endpoint="
-// segment out of the connection string.
+// protocol to build the broker address.
+//
+// With connection_string auth the destination always comes from the
+// connection string's Endpoint, since that is where its shared key is
+// valid: an explicit event_hub_namespace that disagrees with it is rejected
+// rather than allowed to send the key to a different broker. With the
+// other auth types the explicit event_hub_namespace is used.
 func (p *PluginConfig) resolveNamespaceHost() (string, error) {
-	if p.EventHubNamespace != "" {
-		host := strings.TrimSuffix(p.EventHubNamespace, "/")
-		if strings.Contains(host, "://") {
-			return "", fmt.Errorf("event_hub_namespace must be a bare hostname (e.g. my-namespace.servicebus.windows.net), not a URL: %q", p.EventHubNamespace)
-		}
-		return host, nil
+	explicit := strings.TrimSuffix(p.EventHubNamespace, "/")
+	if strings.Contains(explicit, "://") {
+		return "", fmt.Errorf("event_hub_namespace must be a bare hostname (e.g. my-namespace.servicebus.windows.net), not a URL: %q", p.EventHubNamespace)
 	}
 
-	// Connection strings look like:
-	// Endpoint=sb://my-namespace.servicebus.windows.net/;SharedAccessKeyName=...;SharedAccessKey=...
-	for _, part := range strings.Split(p.EventHubNamespaceConnectionString, ";") {
-		if host, ok := strings.CutPrefix(part, "Endpoint=sb://"); ok {
-			return strings.TrimSuffix(host, "/"), nil
+	if p.Auth.Type != identity.TypeConnectionString {
+		if explicit == "" {
+			return "", fmt.Errorf("event_hub_namespace is required when auth.type is %q", p.Auth.Type)
 		}
+		return explicit, nil
 	}
-	return "", fmt.Errorf("unable to determine the EventHub namespace: set event_hub_namespace or a valid event_hub_namespace_connection_string")
+
+	props, err := p.parseConnectionString()
+	if err != nil {
+		return "", err
+	}
+	host := props.FullyQualifiedNamespace
+	if explicit != "" && !strings.EqualFold(explicit, host) {
+		return "", fmt.Errorf("event_hub_namespace %q conflicts with the Endpoint %q in event_hub_namespace_connection_string", p.EventHubNamespace, host)
+	}
+	return host, nil
 }
 
 func (p *Plugin) Init(cfg string) error {
@@ -232,17 +301,9 @@ func (p *Plugin) Init(cfg string) error {
 		return err
 	}
 
-	if err := p.Config.validate(); err != nil {
-		return err
-	}
-
-	// Building the credential here (rather than only in Open()) surfaces
-	// missing/incomplete auth configuration - whether given in init_config
-	// or expected from the environment - as an Init() error, before Falco
-	// starts consuming events.
-	if _, err := p.newCredential(); err != nil {
-		return fmt.Errorf("invalid auth configuration: %w", err)
-	}
+	// Validation and credential creation deliberately happen in Open, not
+	// here: Falco also initializes this plugin to replay a capture, where
+	// only the extractor is used and an empty config ({}) must be enough.
 
 	// Propagate MaxEventSize to the embedded k8saudit plugin config
 	p.Plugin.Config.MaxEventSize = p.Config.MaxEventSize
@@ -279,10 +340,30 @@ func (p *Plugin) OpenParams() ([]sdk.OpenParam, error) {
 }
 
 func (p *Plugin) Open(_ string) (source.Instance, error) {
-	if p.Config.Protocol == protocolKafka {
-		return p.openKafka()
+	cred, err := p.prepareSource()
+	if err != nil {
+		return nil, err
 	}
-	return p.openAMQP()
+	if p.Config.Protocol == protocolKafka {
+		return p.openKafka(cred)
+	}
+	return p.openAMQP(cred)
+}
+
+// prepareSource validates the configuration for opening a live event
+// source and builds the Azure AD credential for it (nil when auth.type is
+// connection_string). Missing or incomplete auth configuration, whether
+// given in init_config or expected from the environment, surfaces here
+// before any connection is attempted.
+func (p *Plugin) prepareSource() (azcore.TokenCredential, error) {
+	if err := p.Config.validate(); err != nil {
+		return nil, err
+	}
+	cred, err := p.newCredential()
+	if err != nil {
+		return nil, fmt.Errorf("invalid auth configuration: %w", err)
+	}
+	return cred, nil
 }
 
 // newCredential builds the Azure AD credential for the configured auth
