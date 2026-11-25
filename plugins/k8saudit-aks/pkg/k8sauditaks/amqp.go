@@ -33,14 +33,8 @@ import (
 // openAMQP consumes the EventHub over the native AMQP-based Event Hubs SDK,
 // using the Blob Storage checkpoint store, either the connection strings
 // (auth.type=connection_string) or an Azure AD credential.
-func (p *Plugin) openAMQP() (source.Instance, error) {
+func (p *Plugin) openAMQP(cred azcore.TokenCredential) (source.Instance, error) {
 	ctx, cancel := context.WithCancel(context.Background())
-
-	cred, err := p.newCredential()
-	if err != nil {
-		cancel()
-		return nil, err
-	}
 
 	checkClient, err := p.newBlobContainerClient(cred)
 	if err != nil {
@@ -147,9 +141,22 @@ func (p *Plugin) newConsumerClient(cred azcore.TokenCredential) (*azeventhubs.Co
 			nil,
 		)
 	}
+	// An entity-scoped connection string (one with an EntityPath) already
+	// names the Event Hub, and the SDK then requires the eventHub argument
+	// to be empty, so let it resolve the name from the connection string.
+	// validate() has already rejected an event_hub_name that conflicts
+	// with the EntityPath.
+	entityPath, err := p.Config.connectionStringEntityPath()
+	if err != nil {
+		return nil, err
+	}
+	eventHub := p.Config.EventHubName
+	if entityPath != "" {
+		eventHub = ""
+	}
 	return azeventhubs.NewConsumerClientFromConnectionString(
 		p.Config.EventHubNamespaceConnectionString,
-		p.Config.EventHubName,
+		eventHub,
 		p.Config.ConsumerGroup,
 		nil,
 	)

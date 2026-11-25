@@ -22,10 +22,10 @@ import (
 	"crypto/tls"
 	"fmt"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/source"
 	falcoeventhub "github.com/falcosecurity/plugins/shared/go/azure/eventhub"
-	"github.com/falcosecurity/plugins/shared/go/azure/identity"
 	kafkago "github.com/segmentio/kafka-go"
 	"github.com/segmentio/kafka-go/sasl"
 	"github.com/segmentio/kafka-go/sasl/plain"
@@ -37,21 +37,21 @@ const kafkaPort = "9093"
 // openKafka consumes the EventHub over its Kafka-compatible endpoint.
 // Event Hubs itself tracks Kafka consumer-group offsets, so unlike
 // openAMQP this path needs no Blob Storage checkpoint store.
-func (p *Plugin) openKafka() (source.Instance, error) {
-	ctx, cancel := context.WithCancel(context.Background())
-
+func (p *Plugin) openKafka(cred azcore.TokenCredential) (source.Instance, error) {
 	namespaceHost, err := p.Config.resolveNamespaceHost()
 	if err != nil {
-		cancel()
 		return nil, err
 	}
 	broker := fmt.Sprintf("%s:%s", namespaceHost, kafkaPort)
 
-	mechanism, err := p.newKafkaSASLMechanism(namespaceHost)
+	topic, err := p.Config.resolveEventHubName()
 	if err != nil {
-		cancel()
 		return nil, err
 	}
+
+	mechanism := p.newKafkaSASLMechanism(namespaceHost, cred)
+
+	ctx, cancel := context.WithCancel(context.Background())
 
 	dialer := &kafkago.Dialer{
 		TLS:           &tls.Config{MinVersion: tls.VersionTLS12},
@@ -61,10 +61,10 @@ func (p *Plugin) openKafka() (source.Instance, error) {
 	reader := kafkago.NewReader(kafkago.ReaderConfig{
 		Brokers:     []string{broker},
 		GroupID:     p.Config.ConsumerGroup,
-		GroupTopics: []string{p.Config.EventHubName},
+		GroupTopics: []string{topic},
 		Dialer:      dialer,
 	})
-	p.Logger.Printf("opened kafka reader for broker %s, topic %s", broker, p.Config.EventHubName)
+	p.Logger.Printf("opened kafka reader for broker %s, topic %s", broker, topic)
 
 	rateLimiter := rate.NewLimiter(rate.Limit(p.Config.RateLimitEventsPerSecond), p.Config.RateLimitBurst)
 	falcoEventHubProcessor := falcoeventhub.Processor{
@@ -141,7 +141,8 @@ func (p *Plugin) openKafka() (source.Instance, error) {
 // newKafkaSASLMechanism builds the SASL mechanism to authenticate against
 // the Event Hubs Kafka endpoint: SASL/PLAIN with the namespace connection
 // string (Azure's documented convention, username "$ConnectionString"), or
-// SASL/OAUTHBEARER with an Azure AD access token for the other auth types.
+// SASL/OAUTHBEARER with an Azure AD access token from cred for the other
+// auth types (cred is nil only for connection_string).
 //
 // The OAUTHBEARER token's scope must be the namespace's own host
 // (https://<namespace>.servicebus.windows.net/.default) — not the generic
@@ -151,18 +152,14 @@ func (p *Plugin) openKafka() (source.Instance, error) {
 // but the token itself then fails Kafka's audience check at connect time.
 // See Azure's own Kafka OAuth sample, which sets AAD_AUDIENCE to the
 // namespace host: https://github.com/Azure/azure-event-hubs-for-kafka/blob/master/tutorials/oauth/go/README.md
-func (p *Plugin) newKafkaSASLMechanism(namespaceHost string) (sasl.Mechanism, error) {
-	if p.Config.Auth.Type == identity.TypeConnectionString {
+func (p *Plugin) newKafkaSASLMechanism(namespaceHost string, cred azcore.TokenCredential) sasl.Mechanism {
+	if cred == nil {
 		return plain.Mechanism{
 			Username: "$ConnectionString",
 			Password: p.Config.EventHubNamespaceConnectionString,
-		}, nil
+		}
 	}
 
-	cred, err := p.newCredential()
-	if err != nil {
-		return nil, err
-	}
 	scope := kafkaOAuthScope(namespaceHost)
 	return oauthBearerMechanism{
 		TokenProvider: func(ctx context.Context) (string, error) {
@@ -172,7 +169,7 @@ func (p *Plugin) newKafkaSASLMechanism(namespaceHost string) (sasl.Mechanism, er
 			}
 			return tok.Token, nil
 		},
-	}, nil
+	}
 }
 
 // kafkaOAuthScope returns the OAuth scope to request a token for, to

@@ -29,10 +29,7 @@ func TestNewKafkaSASLMechanismConnectionString(t *testing.T) {
 	p.Config.Protocol = protocolKafka
 	p.Config.EventHubNamespaceConnectionString = "Endpoint=sb://ns.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=abc123=="
 
-	mechanism, err := p.newKafkaSASLMechanism("ns.servicebus.windows.net")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	mechanism := p.newKafkaSASLMechanism("ns.servicebus.windows.net", nil)
 	if mechanism.Name() != "PLAIN" {
 		t.Fatalf("got mechanism %q, want PLAIN", mechanism.Name())
 	}
@@ -57,10 +54,11 @@ func TestNewKafkaSASLMechanismManagedIdentity(t *testing.T) {
 	p.Config.Auth.Type = identity.TypeManagedIdentity
 	p.Config.EventHubNamespace = "ns.servicebus.windows.net"
 
-	mechanism, err := p.newKafkaSASLMechanism("ns.servicebus.windows.net")
+	cred, err := p.prepareSource()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+	mechanism := p.newKafkaSASLMechanism("ns.servicebus.windows.net", cred)
 	if mechanism.Name() != "OAUTHBEARER" {
 		t.Fatalf("got mechanism %q, want OAUTHBEARER", mechanism.Name())
 	}
@@ -77,7 +75,7 @@ func TestNewKafkaSASLMechanismEnvironmentMissingCredentials(t *testing.T) {
 	p.Config.Auth.Type = identity.TypeEnvironment
 	p.Config.EventHubNamespace = "ns.servicebus.windows.net"
 
-	if _, err := p.newKafkaSASLMechanism("ns.servicebus.windows.net"); err == nil {
+	if _, err := p.prepareSource(); err == nil {
 		t.Fatalf("expected an error building the credential for the OAUTHBEARER mechanism")
 	}
 }

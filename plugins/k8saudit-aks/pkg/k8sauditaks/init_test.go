@@ -78,6 +78,35 @@ func unsetEnv(t *testing.T, names ...string) {
 	}
 }
 
+// initAndPrepare runs Init and then the validation and credential creation
+// that Open performs before dialing, so these tests cover the full
+// configuration check a live source goes through without touching the
+// network.
+func initAndPrepare(p *Plugin, cfg string) error {
+	if err := p.Init(cfg); err != nil {
+		return err
+	}
+	_, err := p.prepareSource()
+	return err
+}
+
+// TestInitEmptyConfig covers capture replay: Falco initializes this plugin
+// (as an extractor) with no source configuration at all, and Init must
+// accept that. The missing source configuration is only reported once Open
+// is called.
+func TestInitEmptyConfig(t *testing.T) {
+	p := &Plugin{}
+	if err := p.Init("{}"); err != nil {
+		t.Fatalf("Init({}) must succeed so the extractor can be used for capture replay, got: %v", err)
+	}
+	if len(p.Fields()) == 0 {
+		t.Fatalf("expected the extractor to expose fields after Init({})")
+	}
+	if _, err := p.prepareSource(); err == nil {
+		t.Fatalf("expected opening a live source with an empty config to fail")
+	}
+}
+
 func TestInitEnvironmentAuthFromConfig(t *testing.T) {
 	p := &Plugin{}
 	cfg := `{
@@ -91,7 +120,7 @@ func TestInitEnvironmentAuthFromConfig(t *testing.T) {
 		"event_hub_namespace": "ns.servicebus.windows.net",
 		"event_hub_name": "my-hub"
 	}`
-	if err := p.Init(cfg); err != nil {
+	if err := initAndPrepare(p, cfg); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -108,7 +137,7 @@ func TestInitEnvironmentAuthFromEnvVar(t *testing.T) {
 		"event_hub_namespace": "ns.servicebus.windows.net",
 		"event_hub_name": "my-hub"
 	}`
-	if err := p.Init(cfg); err != nil {
+	if err := initAndPrepare(p, cfg); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -123,7 +152,7 @@ func TestInitEnvironmentAuthMissingEverything(t *testing.T) {
 		"event_hub_namespace": "ns.servicebus.windows.net",
 		"event_hub_name": "my-hub"
 	}`
-	if err := p.Init(cfg); err == nil {
+	if err := initAndPrepare(p, cfg); err == nil {
 		t.Fatalf("expected an error when no tenant/client/secret is available from config or environment")
 	}
 }
@@ -138,7 +167,7 @@ func TestInitManagedIdentitySystemAssigned(t *testing.T) {
 		"event_hub_namespace": "ns.servicebus.windows.net",
 		"event_hub_name": "my-hub"
 	}`
-	if err := p.Init(cfg); err != nil {
+	if err := initAndPrepare(p, cfg); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -153,7 +182,7 @@ func TestInitWorkloadIdentityMissingEnv(t *testing.T) {
 		"event_hub_namespace": "ns.servicebus.windows.net",
 		"event_hub_name": "my-hub"
 	}`
-	if err := p.Init(cfg); err == nil {
+	if err := initAndPrepare(p, cfg); err == nil {
 		t.Fatalf("expected an error when the workload identity environment variables are unset")
 	}
 }
@@ -166,7 +195,7 @@ func TestInitDefaultConnectionString(t *testing.T) {
 		"blob_storage_connection_string": "conn",
 		"blob_storage_container_name": "checkpoints"
 	}`
-	if err := p.Init(cfg); err != nil {
+	if err := initAndPrepare(p, cfg); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -186,7 +215,7 @@ func TestInitAMQPEnvironmentAuthClientSecret(t *testing.T) {
 		"blob_storage_account_url": "https://myaccount.blob.core.windows.net",
 		"blob_storage_container_name": "checkpoints"
 	}`
-	if err := p.Init(cfg); err != nil {
+	if err := initAndPrepare(p, cfg); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -208,7 +237,7 @@ func TestInitAMQPEnvironmentAuthClientCertificate(t *testing.T) {
 		"blob_storage_account_url": "https://myaccount.blob.core.windows.net",
 		"blob_storage_container_name": "checkpoints"
 	}`
-	if err := p.Init(cfg); err != nil {
+	if err := initAndPrepare(p, cfg); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -229,7 +258,7 @@ func TestInitEnvironmentAuthClientCertificateSendCertificateChain(t *testing.T) 
 		"event_hub_namespace": "ns.servicebus.windows.net",
 		"event_hub_name": "my-hub"
 	}`
-	if err := p.Init(cfg); err != nil {
+	if err := initAndPrepare(p, cfg); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -247,7 +276,7 @@ func TestInitEnvironmentAuthCertificateFileNotFound(t *testing.T) {
 		"event_hub_namespace": "ns.servicebus.windows.net",
 		"event_hub_name": "my-hub"
 	}`
-	if err := p.Init(cfg); err == nil {
+	if err := initAndPrepare(p, cfg); err == nil {
 		t.Fatalf("expected an error when client_certificate_path does not exist")
 	}
 }
@@ -264,7 +293,7 @@ func TestInitAMQPManagedIdentitySystemAssigned(t *testing.T) {
 		"blob_storage_account_url": "https://myaccount.blob.core.windows.net",
 		"blob_storage_container_name": "checkpoints"
 	}`
-	if err := p.Init(cfg); err != nil {
+	if err := initAndPrepare(p, cfg); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -282,7 +311,7 @@ func TestInitAMQPManagedIdentityUserAssigned(t *testing.T) {
 		"blob_storage_account_url": "https://myaccount.blob.core.windows.net",
 		"blob_storage_container_name": "checkpoints"
 	}`
-	if err := p.Init(cfg); err != nil {
+	if err := initAndPrepare(p, cfg); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -298,7 +327,7 @@ func TestInitKafkaManagedIdentityUserAssigned(t *testing.T) {
 		"event_hub_namespace": "ns.servicebus.windows.net",
 		"event_hub_name": "my-hub"
 	}`
-	if err := p.Init(cfg); err != nil {
+	if err := initAndPrepare(p, cfg); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -317,7 +346,7 @@ func TestInitAMQPWorkloadIdentity(t *testing.T) {
 		"blob_storage_account_url": "https://myaccount.blob.core.windows.net",
 		"blob_storage_container_name": "checkpoints"
 	}`
-	if err := p.Init(cfg); err != nil {
+	if err := initAndPrepare(p, cfg); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -331,7 +360,7 @@ func TestInitInvalidProtocol(t *testing.T) {
 		"blob_storage_connection_string": "conn",
 		"blob_storage_container_name": "checkpoints"
 	}`
-	if err := p.Init(cfg); err == nil {
+	if err := initAndPrepare(p, cfg); err == nil {
 		t.Fatalf("expected an error for an invalid protocol")
 	}
 }
@@ -344,7 +373,7 @@ func TestInitInvalidAuthType(t *testing.T) {
 		"event_hub_namespace": "ns.servicebus.windows.net",
 		"event_hub_name": "my-hub"
 	}`
-	if err := p.Init(cfg); err == nil {
+	if err := initAndPrepare(p, cfg); err == nil {
 		t.Fatalf("expected an error for an invalid auth type")
 	}
 }
@@ -356,7 +385,7 @@ func TestInitMissingEventHubName(t *testing.T) {
 		"blob_storage_connection_string": "conn",
 		"blob_storage_container_name": "checkpoints"
 	}`
-	if err := p.Init(cfg); err == nil {
+	if err := initAndPrepare(p, cfg); err == nil {
 		t.Fatalf("expected an error when event_hub_name is missing")
 	}
 }
