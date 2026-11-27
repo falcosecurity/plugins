@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sync"
 	"testing"
 	"time"
@@ -93,6 +95,38 @@ func TestBootstrapEnginesSkipsUnresponsiveEngine(t *testing.T) {
 	assert.Equal(t, map[string][]string{"docker": {"/var/run/docker.sock"}}, sockets)
 	assert.Len(t, delivered, 2)
 	assert.Empty(t, deferred)
+}
+
+func TestBootstrapEnginesKeepsEngineWhenWorkerStops(t *testing.T) {
+	// The engine timeout must never fire: only the worker stops the listing.
+	setEngineTimeout(t, 60)
+
+	blocked := &listEngine{name: "podman", socket: "/run/podman/podman.sock", unresponsive: true}
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		cancel()
+	}()
+
+	var logs bytes.Buffer
+	previousLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
+	t.Cleanup(func() { slog.SetDefault(previousLogger) })
+
+	start := time.Now()
+	engines, sockets, deferred := bootstrapEngines(ctx, []container.EngineGenerator{generatorOf(blocked)}, func(string, bool, bool) {
+		t.Error("a container of an unlisted engine must not be published")
+	})
+	elapsed := time.Since(start)
+
+	// The worker stopped, not the engine: it never got its timeout, so it is
+	// kept like any engine failing to list, and not blamed for the stop.
+	assert.Less(t, elapsed, 10*time.Second)
+	assert.Equal(t, []container.Engine{blocked}, engines)
+	assert.Equal(t, map[string][]string{"podman": {"/run/podman/podman.sock"}}, sockets)
+	assert.Empty(t, deferred)
+	assert.NotContains(t, logs.String(), "did not answer within the engine timeout")
+	assert.Contains(t, logs.String(), "worker stopped during the initial container listing")
 }
 
 func TestBootstrapEnginesKeepsEngineWithIncompleteListing(t *testing.T) {
