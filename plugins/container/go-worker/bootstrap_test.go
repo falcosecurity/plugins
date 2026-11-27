@@ -86,13 +86,19 @@ func TestBootstrapEnginesSkipsUnresponsiveEngine(t *testing.T) {
 	})
 	elapsed := time.Since(start)
 
-	// The unresponsive engine is given up after the engine timeout, not before.
+	// The unresponsive engine is given up after the engine timeout, not
+	// before, and not kept in the synchronous startup: its listing is
+	// deferred to the background instead of being dropped for good.
 	assert.GreaterOrEqual(t, elapsed, time.Second)
 	assert.Less(t, elapsed, 5*time.Second)
 	assert.Equal(t, []container.Engine{healthy}, engines)
 	assert.Equal(t, map[string][]string{"docker": {"/var/run/docker.sock"}}, sockets)
 	assert.Len(t, delivered, 2)
-	assert.Empty(t, deferred)
+	require.Len(t, deferred, 1)
+	assert.Same(t, unresponsive, deferred[0].Engine)
+	assert.True(t, deferred[0].RetryList)
+	assert.Empty(t, deferred[0].Containers)
+	assert.Empty(t, deferred[0].Namespaces)
 }
 
 func TestBootstrapEnginesKeepsEngineWithIncompleteListing(t *testing.T) {
