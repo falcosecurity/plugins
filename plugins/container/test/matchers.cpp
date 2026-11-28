@@ -129,6 +129,34 @@ INSTANTIATE_TEST_SUITE_P(
                  .cgroup = "/my_very_long_namespace-1.5/test_container",
                  .expected_container_id = "test_contain",
                  .should_match = true},
+                // Deeper cgroups are not containerd containers: ctr places a
+                // container right below its namespace, and container ids
+                // cannot contain '/'.
+                {.name = "containerd_nested_cgroup",
+                 .cgroup = "/default/test_container/nested",
+                 .should_match = false},
+                {.name = "systemd_service_subcgroup",
+                 .cgroup = "/system.slice/foo.service/payload",
+                 .should_match = false},
+                {.name = "libvirt_qemu_emulator",
+                 .cgroup = "/machine.slice/machine-qemu\\x2d1\\x2dvm.scope/"
+                           "libvirt/emulator",
+                 .should_match = false},
+                {.name = "libvirt_qemu_vcpu",
+                 .cgroup = "/machine.slice/machine-qemu\\x2d1\\x2dvm.scope/"
+                           "libvirt/vcpu0",
+                 .should_match = false},
+                {.name = "nspawn_supervisor",
+                 .cgroup = "/machine.slice/systemd-nspawn@debian.service/"
+                           "supervisor",
+                 .should_match = false},
+                // ... so they no longer shadow the libvirt-lxc engine.
+                {.name = "libvirt_lxc_systemd_libvirt_subcgroup",
+                 .cgroup = "/machine.slice/"
+                           "machine-lxc\\x2d2293906\\x2dlibvirt\\x2dcontainer."
+                           "scope/libvirt",
+                 .expected_container_id = "2293906\\x2dlibvirt\\x2dcontainer",
+                 .should_match = true},
 
                 // CRI-O test cases
                 {.name = "crio_cgroupfs",
