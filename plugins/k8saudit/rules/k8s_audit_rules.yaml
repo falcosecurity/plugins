@@ -164,7 +164,10 @@
 # your environment. In this main falco rules file, there isn't any way
 # to know all the containers that can run, so any container is
 # allowed, by using the always_true macro. In the overridden macro, the condition
-# would look something like (ka.req.pod.containers.image.repository in (my-repo/my-image))
+# should check the images of all the pod's container lists, and would look something like
+# (ka.req.pod.containers.image.repository in (my-repo/my-image) and
+#  (not pod_has_init_containers or ka.req.pod.initContainers.image.repository in (my-repo/my-image)) and
+#  (not pod_has_ephemeral_containers or ka.req.pod.ephemeralContainers.image.repository in (my-repo/my-image)))
 - macro: allowed_k8s_containers
   condition: (k8s_audit_always_true)
 
@@ -188,6 +191,14 @@
 
 - macro: pod_subresource
   condition: ka.target.resource=pods and ka.target.subresource exists
+
+# The pod has at least one init (or ephemeral) container. This reads the raw
+# request, so a container without an image still counts.
+- macro: pod_has_init_containers
+  condition: (jevt.value[/requestObject/spec/initContainers/0] exists)
+
+- macro: pod_has_ephemeral_containers
+  condition: (jevt.value[/requestObject/spec/ephemeralContainers/0] exists)
 
 - macro: deployment
   condition: ka.target.resource=deployments
@@ -232,7 +243,7 @@
   desc: >
     Detect an attempt to start a pod with a container image outside of a list of allowed images.
   condition: kevt and pod and kcreate and not allowed_k8s_containers
-  output: Pod started with container not in allowed list (user=%ka.user.name pod=%ka.resp.name ns=%ka.target.namespace images=%ka.req.pod.containers.image)
+  output: Pod started with container not in allowed list (user=%ka.user.name pod=%ka.resp.name ns=%ka.target.namespace images=%ka.req.pod.containers.image init_images=%ka.req.pod.initContainers.image ephemeral_images=%ka.req.pod.ephemeralContainers.image)
   priority: WARNING
   source: k8s_audit
   tags: [k8s]
@@ -244,10 +255,17 @@
      ka.req.pod.initContainers.privileged intersects (true) or
      ka.req.pod.ephemeralContainers.privileged intersects (true))
 
+# Every image in the pod, across all its container lists, is in k8s_audit_privileged_images.
+- macro: pod_images_in_privileged_list
+  condition: >
+    (ka.req.pod.containers.image.repository in (k8s_audit_privileged_images) and
+     (not pod_has_init_containers or ka.req.pod.initContainers.image.repository in (k8s_audit_privileged_images)) and
+     (not pod_has_ephemeral_containers or ka.req.pod.ephemeralContainers.image.repository in (k8s_audit_privileged_images)))
+
 - rule: Create Privileged Pod
   desc: >
     Detect an attempt to start a pod with a privileged container
-  condition: kevt and pod and kcreate and any_container_privileged and not ka.req.pod.containers.image.repository in (k8s_audit_privileged_images)
+  condition: kevt and pod and kcreate and any_container_privileged and not pod_images_in_privileged_list
   output: Pod started with privileged container (user=%ka.user.name pod=%ka.resp.name resource=%ka.target.resource ns=%ka.target.namespace images=%ka.req.pod.containers.image init_images=%ka.req.pod.initContainers.image ephemeral_images=%ka.req.pod.ephemeralContainers.image)
   priority: WARNING
   source: k8s_audit
@@ -257,12 +275,19 @@
   condition: >
     (ka.req.pod.volumes.hostpath intersects (/proc, /var/run/docker.sock, /, /etc, /root, /var/run/crio/crio.sock, /run/containerd/containerd.sock, /home/admin, /var/lib/kubelet, /var/lib/kubelet/pki, /etc/kubernetes, /etc/kubernetes/manifests))
 
+# Every image in the pod, across all its container lists, is in k8s_audit_sensitive_mount_images.
+- macro: pod_images_in_sensitive_mount_list
+  condition: >
+    (ka.req.pod.containers.image.repository in (k8s_audit_sensitive_mount_images) and
+     (not pod_has_init_containers or ka.req.pod.initContainers.image.repository in (k8s_audit_sensitive_mount_images)) and
+     (not pod_has_ephemeral_containers or ka.req.pod.ephemeralContainers.image.repository in (k8s_audit_sensitive_mount_images)))
+
 - rule: Create Sensitive Mount Pod
   desc: >
     Detect an attempt to start a pod with a volume from a sensitive host directory (i.e. /proc).
     Exceptions are made for known trusted images.
-  condition: kevt and pod and kcreate and sensitive_vol_mount and not ka.req.pod.containers.image.repository in (k8s_audit_sensitive_mount_images)
-  output: Pod started with sensitive mount (user=%ka.user.name pod=%ka.resp.name ns=%ka.target.namespace resource=%ka.target.resource images=%ka.req.pod.containers.image volumes=%jevt.value[/requestObject/spec/volumes])
+  condition: kevt and pod and kcreate and sensitive_vol_mount and not pod_images_in_sensitive_mount_list
+  output: Pod started with sensitive mount (user=%ka.user.name pod=%ka.resp.name ns=%ka.target.namespace resource=%ka.target.resource images=%ka.req.pod.containers.image init_images=%ka.req.pod.initContainers.image ephemeral_images=%ka.req.pod.ephemeralContainers.image volumes=%jevt.value[/requestObject/spec/volumes])
   priority: WARNING
   source: k8s_audit
   tags: [k8s]
@@ -282,11 +307,18 @@
       registry.k8s.io/prometheus-to-sd,
     ]
 
+# Every image in the pod, across all its container lists, is in k8s_audit_hostnetwork_images.
+- macro: pod_images_in_hostnetwork_list
+  condition: >
+    (ka.req.pod.containers.image.repository in (k8s_audit_hostnetwork_images) and
+     (not pod_has_init_containers or ka.req.pod.initContainers.image.repository in (k8s_audit_hostnetwork_images)) and
+     (not pod_has_ephemeral_containers or ka.req.pod.ephemeralContainers.image.repository in (k8s_audit_hostnetwork_images)))
+
 # Corresponds to K8s CIS Benchmark 1.7.4
 - rule: Create HostNetwork Pod
   desc: Detect an attempt to start a pod using the host network.
-  condition: kevt and pod and kcreate and ka.req.pod.host_network intersects (true) and not ka.req.pod.containers.image.repository in (k8s_audit_hostnetwork_images)
-  output: Pod started using host network (user=%ka.user.name pod=%ka.resp.name resource=%ka.target.resource ns=%ka.target.namespace images=%ka.req.pod.containers.image)
+  condition: kevt and pod and kcreate and ka.req.pod.host_network intersects (true) and not pod_images_in_hostnetwork_list
+  output: Pod started using host network (user=%ka.user.name pod=%ka.resp.name resource=%ka.target.resource ns=%ka.target.namespace images=%ka.req.pod.containers.image init_images=%ka.req.pod.initContainers.image ephemeral_images=%ka.req.pod.ephemeralContainers.image)
   priority: WARNING
   source: k8s_audit
   tags: [k8s]
@@ -294,10 +326,17 @@
 - list: k8s_audit_hostpid_images
   items: []
 
+# Every image in the pod, across all its container lists, is in k8s_audit_hostpid_images.
+- macro: pod_images_in_hostpid_list
+  condition: >
+    (ka.req.pod.containers.image.repository in (k8s_audit_hostpid_images) and
+     (not pod_has_init_containers or ka.req.pod.initContainers.image.repository in (k8s_audit_hostpid_images)) and
+     (not pod_has_ephemeral_containers or ka.req.pod.ephemeralContainers.image.repository in (k8s_audit_hostpid_images)))
+
 - rule: Create HostPid Pod
   desc: Detect an attempt to start a pod using the host pid namespace.
-  condition: kevt and pod and kcreate and ka.req.pod.host_pid intersects (true) and not ka.req.pod.containers.image.repository in (k8s_audit_hostpid_images)
-  output: Pod started using host pid namespace (user=%ka.user.name pod=%ka.resp.name resource=%ka.target.resource ns=%ka.target.namespace images=%ka.req.pod.containers.image)
+  condition: kevt and pod and kcreate and ka.req.pod.host_pid intersects (true) and not pod_images_in_hostpid_list
+  output: Pod started using host pid namespace (user=%ka.user.name pod=%ka.resp.name resource=%ka.target.resource ns=%ka.target.namespace images=%ka.req.pod.containers.image init_images=%ka.req.pod.initContainers.image ephemeral_images=%ka.req.pod.ephemeralContainers.image)
   priority: WARNING
   source: k8s_audit
   tags: [k8s]
@@ -305,10 +344,17 @@
 - list: k8s_audit_hostipc_images
   items: []
 
+# Every image in the pod, across all its container lists, is in k8s_audit_hostipc_images.
+- macro: pod_images_in_hostipc_list
+  condition: >
+    (ka.req.pod.containers.image.repository in (k8s_audit_hostipc_images) and
+     (not pod_has_init_containers or ka.req.pod.initContainers.image.repository in (k8s_audit_hostipc_images)) and
+     (not pod_has_ephemeral_containers or ka.req.pod.ephemeralContainers.image.repository in (k8s_audit_hostipc_images)))
+
 - rule: Create HostIPC Pod
   desc: Detect an attempt to start a pod using the host ipc namespace.
-  condition: kevt and pod and kcreate and ka.req.pod.host_ipc intersects (true) and not ka.req.pod.containers.image.repository in (k8s_audit_hostipc_images)
-  output: Pod started using host ipc namespace (user=%ka.user.name pod=%ka.resp.name resource=%ka.target.resource ns=%ka.target.namespace images=%ka.req.pod.containers.image)
+  condition: kevt and pod and kcreate and ka.req.pod.host_ipc intersects (true) and not pod_images_in_hostipc_list
+  output: Pod started using host ipc namespace (user=%ka.user.name pod=%ka.resp.name resource=%ka.target.resource ns=%ka.target.namespace images=%ka.req.pod.containers.image init_images=%ka.req.pod.initContainers.image ephemeral_images=%ka.req.pod.ephemeralContainers.image)
   priority: WARNING
   source: k8s_audit
   tags: [k8s]
@@ -452,16 +498,19 @@
       k8s_image_list,
     ]
 
+# Every image in the pod, across all its container lists, is in
+# user_allowed_kube_namespace_image_list or allowed_kube_namespace_image_list.
 - macro: allowed_kube_namespace_pods
-  condition:
-    (ka.req.pod.containers.image.repository in (user_allowed_kube_namespace_image_list) or
-    ka.req.pod.containers.image.repository in (allowed_kube_namespace_image_list))
+  condition: >
+    (ka.req.pod.containers.image.repository in (user_allowed_kube_namespace_image_list, allowed_kube_namespace_image_list) and
+     (not pod_has_init_containers or ka.req.pod.initContainers.image.repository in (user_allowed_kube_namespace_image_list, allowed_kube_namespace_image_list)) and
+     (not pod_has_ephemeral_containers or ka.req.pod.ephemeralContainers.image.repository in (user_allowed_kube_namespace_image_list, allowed_kube_namespace_image_list)))
 
 # Detect any new pod created in the kube-system namespace
 - rule: Pod Created in Kube Namespace
   desc: Detect any attempt to create a pod in the kube-system or kube-public namespaces
   condition: kevt and pod and kcreate and ka.target.namespace in (kube-system, kube-public) and not allowed_kube_namespace_pods
-  output: Pod created in kube namespace (user=%ka.user.name pod=%ka.resp.name resource=%ka.target.resource ns=%ka.target.namespace images=%ka.req.pod.containers.image)
+  output: Pod created in kube namespace (user=%ka.user.name pod=%ka.resp.name resource=%ka.target.resource ns=%ka.target.namespace images=%ka.req.pod.containers.image init_images=%ka.req.pod.initContainers.image ephemeral_images=%ka.req.pod.ephemeralContainers.image)
   priority: WARNING
   source: k8s_audit
   tags: [k8s]
