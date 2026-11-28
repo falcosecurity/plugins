@@ -251,5 +251,132 @@ INSTANTIATE_TEST_SUITE_P(
                 {.name = "containerd_id_with_special_chars",
                  .cgroup = "/k8s.io/my-test_container",
                  .expected_container_id = "my-test_cont",
-                 .should_match = true}}),
+                 .should_match = true},
+
+                // systemd-nspawn test cases
+                {.name = "nspawn_scope_payload",
+                 .cgroup = "/machine.slice/machine-debian.scope/payload",
+                 .expected_container_id = "debian",
+                 .should_match = true},
+                {.name = "nspawn_scope_payload_init_scope",
+                 .cgroup = "/machine.slice/machine-debian.scope/payload/"
+                           "init.scope",
+                 .expected_container_id = "debian",
+                 .should_match = true},
+                {.name = "nspawn_scope_escaped_name",
+                 .cgroup = "/machine.slice/machine-debian\\x2d12.scope/"
+                           "payload/system.slice/sshd.service",
+                 .expected_container_id = "debian-12",
+                 .should_match = true},
+                {.name = "nspawn_service_payload",
+                 .cgroup = "/machine.slice/systemd-nspawn@debian.service/"
+                           "payload",
+                 .expected_container_id = "debian",
+                 .should_match = true},
+                {.name = "nspawn_service_escaped_name",
+                 .cgroup = "/machine.slice/"
+                           "systemd-nspawn@debian\\x2d12.service/payload/"
+                           "init.scope",
+                 .expected_container_id = "debian-12",
+                 .should_match = true},
+                {.name = "nspawn_user_manager",
+                 .cgroup = "/user.slice/user-1000.slice/user@1000.service/"
+                           "machine.slice/machine-debian.scope/payload",
+                 .expected_container_id = "debian",
+                 .should_match = true},
+                {.name = "nspawn_nested_in_nspawn",
+                 .cgroup = "/machine.slice/machine-outer.scope/payload/"
+                           "machine.slice/machine-inner.scope/payload/"
+                           "init.scope",
+                 .expected_container_id = "inner",
+                 .should_match = true},
+                {.name = "nspawn_docker_in_nspawn",
+                 .cgroup = "/machine.slice/machine-debian.scope/payload/"
+                           "system.slice/"
+                           "docker-"
+                           "7951fb549ab99e0722a949b6c121634e1f3a36b5bacbe539229"
+                           "2c6d6b3cb21c7.scope",
+                 .expected_container_id = "7951fb549ab9",
+                 .should_match = true},
+                {.name = "nspawn_scope_without_payload",
+                 .cgroup = "/machine.slice/machine-debian.scope",
+                 .should_match = false},
+                {.name = "nspawn_payload_prefix_only",
+                 .cgroup = "/machine.slice/machine-debian.scope/payloads/"
+                           "init.scope",
+                 .should_match = false}}),
         test_name_generator);
+
+// The nspawn engine reports the machine name as container id and name.
+TEST(nspawn_matcher, to_container)
+{
+    Engines engines;
+    engines.docker.enabled = false;
+    engines.podman.enabled = false;
+    engines.cri.enabled = false;
+    engines.containerd.enabled = false;
+    engines.lxc.enabled = false;
+    engines.libvirt_lxc.enabled = false;
+    engines.bpm.enabled = false;
+    matcher_manager mgr(engines);
+
+    std::string container_id;
+    container_info::ptr_t info;
+    ASSERT_TRUE(mgr.match_cgroup("/machine.slice/machine-my\\x2dmachine."
+                                 "scope/payload/init.scope",
+                                 container_id, info));
+    EXPECT_EQ(container_id, "my-machine");
+    ASSERT_NE(info, nullptr);
+    EXPECT_EQ(info->m_id, "my-machine");
+    EXPECT_EQ(info->m_name, "my-machine");
+    EXPECT_EQ(info->m_type, CT_NSPAWN);
+    EXPECT_EQ(to_string(info->m_type), "nspawn");
+}
+
+// Only the nspawn engine is enabled here, so that the cgroups it rejects are
+// not picked up by another engine.
+TEST(nspawn_matcher, no_match)
+{
+    Engines engines;
+    engines.docker.enabled = false;
+    engines.podman.enabled = false;
+    engines.cri.enabled = false;
+    engines.containerd.enabled = false;
+    engines.lxc.enabled = false;
+    engines.libvirt_lxc.enabled = false;
+    engines.bpm.enabled = false;
+    matcher_manager mgr(engines);
+
+    for(const std::string cgroup : {
+                // systemd-nspawn itself, when it keeps its unit
+                "/machine.slice/systemd-nspawn@debian.service/supervisor",
+                // systemd-nspawn on the legacy cgroup hierarchy
+                "/machine.slice/machine-debian.scope",
+                // libvirt LXC container and QEMU VM
+                "/machine.slice/machine-lxc\\x2d1234\\x2ddebian.scope",
+                "/machine.slice/machine-qemu\\x2d1\\x2ddebian.scope/"
+                "libvirt/emulator",
+                // payload not right below a systemd-nspawn unit
+                "/machine.slice/payload",
+                "/machine.slice/foo.scope/payload",
+                "/system.slice/machine-debian.scope/payload",
+                "/machine.slice/machine-.scope/payload",
+                // malformed escape sequences
+                "/machine.slice/machine-debian\\x2.scope/payload",
+                "/machine.slice/machine-debian\\xzz.scope/payload",
+                "/machine.slice/machine-debian\\.scope/payload",
+        })
+    {
+        std::string container_id;
+        container_info::ptr_t info;
+        EXPECT_FALSE(mgr.match_cgroup(cgroup, container_id, info)) << cgroup;
+        EXPECT_TRUE(container_id.empty()) << cgroup;
+    }
+
+    engines.nspawn.enabled = false;
+    matcher_manager disabled_mgr(engines);
+    std::string container_id;
+    container_info::ptr_t info;
+    EXPECT_FALSE(disabled_mgr.match_cgroup(
+            "/machine.slice/machine-debian.scope/payload", container_id, info));
+}

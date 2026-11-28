@@ -52,6 +52,7 @@ struct Engines
     SimpleEngine bpm;
     SimpleEngine lxc;
     SimpleEngine libvirt_lxc;
+    SimpleEngine nspawn;
     SocketsEngine docker;
     SocketsEngine podman;
     SocketsEngine cri;
@@ -122,6 +123,10 @@ struct PluginConfig
         if(engines.libvirt_lxc.enabled)
         {
             logger.log("Enabled 'libvirt_lxc' container engine.");
+        }
+        if(engines.nspawn.enabled)
+        {
+            logger.log("Enabled 'nspawn' container engine.");
         }
         if(engines.bpm.enabled)
         {
