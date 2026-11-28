@@ -18,8 +18,13 @@ limitations under the License.
 package k8sauditaks
 
 import (
+	"context"
+	"errors"
 	"testing"
+	"time"
 
+	"github.com/falcosecurity/plugin-sdk-go/pkg/sdk/plugins/source"
+	falcoeventhub "github.com/falcosecurity/plugins/shared/go/azure/eventhub"
 	"github.com/falcosecurity/plugins/shared/go/azure/identity"
 )
 
@@ -132,5 +137,89 @@ func TestNewBlobContainerClientTokenCredentialTrimsTrailingSlash(t *testing.T) {
 
 	if _, err := p.newBlobContainerClient(cred); err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// TestRunProcessorReportsError covers a processor that stops on its own:
+// when its load balancing fails (e.g. the Blob checkpoint store answers
+// AuthenticationFailed), azeventhubs.Processor.Run returns the error and
+// the processor can't be run again. runProcessor must hand that error to
+// errC instead of only logging it, or the source silently goes quiet.
+func TestRunProcessorReportsError(t *testing.T) {
+	p := newTestPlugin(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	runErr := errors.New("checkpoint store: AuthenticationFailed")
+	errC := make(chan error, 1)
+	p.runProcessor(ctx, func(context.Context) error { return runErr }, errC)
+
+	select {
+	case err := <-errC:
+		if !errors.Is(err, runErr) {
+			t.Fatalf("got error %v, want one wrapping %v", err, runErr)
+		}
+	default:
+		t.Fatalf("expected the processor error to be sent to errC")
+	}
+}
+
+// TestRunProcessorStopsSilentlyOnCancel confirms that closing the plugin,
+// which cancels ctx and makes azeventhubs.Processor.Run return nil, isn't
+// reported as a failure.
+func TestRunProcessorStopsSilentlyOnCancel(t *testing.T) {
+	p := newTestPlugin(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	errC := make(chan error, 1)
+	p.runProcessor(ctx, func(ctx context.Context) error {
+		<-ctx.Done()
+		return nil
+	}, errC)
+
+	select {
+	case err := <-errC:
+		t.Fatalf("expected no error on cancel, got %v", err)
+	default:
+	}
+}
+
+// TestRunProcessorErrorEndsPushSource wires runProcessor to runRecordPump
+// the way openAMQP does, with eventsC left open since the AMQP producer
+// never closes it, and checks that the processor error reaches Falco as
+// the push source's terminal PushEvent.
+func TestRunProcessorErrorEndsPushSource(t *testing.T) {
+	p := newTestPlugin(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	eventsC := make(chan falcoeventhub.Record)
+	errC := make(chan error, 1)
+	pushEventC := make(chan source.PushEvent)
+	wg := p.runRecordPump(ctx, eventsC, errC, pushEventC)
+
+	runErr := errors.New("checkpoint store: AuthenticationFailed")
+	go p.runProcessor(ctx, func(context.Context) error { return runErr }, errC)
+
+	select {
+	case evt := <-pushEventC:
+		if !errors.Is(evt.Err, runErr) {
+			t.Fatalf("got PushEvent.Err %v, want one wrapping %v", evt.Err, runErr)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatalf("timed out waiting for the processor error on pushEventC")
+	}
+
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatalf("runRecordPump did not exit after reporting the processor error")
 	}
 }

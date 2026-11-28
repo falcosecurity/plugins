@@ -19,6 +19,7 @@ package k8sauditaks
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
@@ -76,6 +77,9 @@ func (p *Plugin) openAMQP(cred azcore.TokenCredential) (source.Instance, error) 
 	p.Logger.Printf("created eventhub processor")
 
 	eventsC := make(chan falcoeventhub.Record)
+	// Buffered: runProcessor sends here at most once, so it never blocks,
+	// even after runRecordPump has returned. See runRecordPump's errC doc.
+	errC := make(chan error, 1)
 	pushEventC := make(chan source.PushEvent)
 
 	go func() {
@@ -99,17 +103,10 @@ func (p *Plugin) openAMQP(cred azcore.TokenCredential) (source.Instance, error) 
 		}
 	}()
 
-	// nil errC: azeventhubs.Processor retries/rebalances internally, so
-	// there's no single "unrecoverable read error" to propagate here the
-	// way the Kafka path has.
-	wg := p.runRecordPump(ctx, eventsC, nil, pushEventC)
+	wg := p.runRecordPump(ctx, eventsC, errC, pushEventC)
 
 	// Run the processor
-	go func() {
-		if err := processor.Run(ctx); err != nil {
-			p.Logger.Printf("error running processor: %v", err)
-		}
-	}()
+	go p.runProcessor(ctx, processor.Run, errC)
 
 	return source.NewPushInstance(
 		pushEventC,
@@ -129,6 +126,21 @@ func (p *Plugin) openAMQP(cred azcore.TokenCredential) (source.Instance, error) 
 		}),
 		source.WithInstanceEventSize(uint32(p.Config.MaxEventSize)),
 	)
+}
+
+// runProcessor runs the EventHub processor with run (processor.Run) until
+// ctx is canceled, in which case run returns nil. Any other error means
+// that the processor stopped on its own, e.g. because the checkpoint store
+// rejected a load balancing request: it has then closed all its partition
+// clients, NextPartitionClient returns nil from then on and it can't be
+// run again, so no more events would ever be received. The error is sent
+// to errC, which must be buffered, so that runRecordPump ends the source
+// with it instead of letting Falco wait on a source that went quiet.
+func (p *Plugin) runProcessor(ctx context.Context, run func(context.Context) error, errC chan<- error) {
+	if err := run(ctx); err != nil {
+		p.Logger.Printf("error running processor: %v", err)
+		errC <- fmt.Errorf("eventhub processor stopped: %w", err)
+	}
 }
 
 func (p *Plugin) newConsumerClient(cred azcore.TokenCredential) (*azeventhubs.ConsumerClient, error) {
