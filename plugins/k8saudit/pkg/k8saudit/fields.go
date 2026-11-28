@@ -100,6 +100,16 @@ func (k *Plugin) Fields() []sdk.FieldEntry {
 			},
 		},
 		{
+			Type:   "string",
+			Name:   "ka.uri.params",
+			Desc:   "All the values of a given query parameter in the uri, in order and URL-decoded (e.g. when uri=/foo?key=a&key=b, ka.uri.params[key] is (a,b)).",
+			IsList: true,
+			Arg: sdk.FieldEntryArg{
+				IsRequired: true,
+				IsKey:      true,
+			},
+		},
+		{
 			Type: "string",
 			Name: "ka.target.name",
 			Desc: "The target object name",

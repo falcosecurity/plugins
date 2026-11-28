@@ -155,25 +155,22 @@ func (e *Plugin) ExtractFromJSON(req sdk.ExtractRequest, jsonValue *fastjson.Val
 	case "ka.uri":
 		return e.extractFromKeys(req, jsonValue, "requestURI")
 	case "ka.uri.param":
-		uriValue := jsonValue.Get("requestURI")
-		if uriValue == nil {
-			return ErrExtractNotAvailable
-		}
-		uriString, err := e.jsonValueAsString(uriValue)
-		if err != nil {
-			return err
-		}
-		uri, err := url.Parse(uriString)
-		if err != nil {
-			return err
-		}
-		query, err := url.ParseQuery(uri.RawQuery)
+		query, err := e.requestURIQuery(jsonValue)
 		if err != nil {
 			return err
 		}
 		param := query[req.ArgKey()]
 		if len(param) > 0 {
 			req.SetValue(param[0])
+		}
+	case "ka.uri.params":
+		query, err := e.requestURIQuery(jsonValue)
+		if err != nil {
+			return err
+		}
+		param := query[req.ArgKey()]
+		if len(param) > 0 {
+			req.SetValue(param)
 		}
 	case "ka.target.name":
 		return e.extractFromKeys(req, jsonValue, "objectRef", "name")
@@ -731,6 +728,24 @@ func (e *Plugin) extractRulesField(req sdk.ExtractRequest, jsonValue *fastjson.V
 	}
 	req.SetValue(values)
 	return nil
+}
+
+// requestURIQuery parses the query parameters of the event's requestURI.
+// Values are URL-decoded and keep the order they have in the URI.
+func (e *Plugin) requestURIQuery(jsonValue *fastjson.Value) (url.Values, error) {
+	uriValue := jsonValue.Get("requestURI")
+	if uriValue == nil {
+		return nil, ErrExtractNotAvailable
+	}
+	uriString, err := e.jsonValueAsString(uriValue)
+	if err != nil {
+		return nil, err
+	}
+	uri, err := url.Parse(uriString)
+	if err != nil {
+		return nil, err
+	}
+	return url.ParseQuery(uri.RawQuery)
 }
 
 func (e *Plugin) extractFromKeys(req sdk.ExtractRequest, jsonValue *fastjson.Value, keys ...string) error {
